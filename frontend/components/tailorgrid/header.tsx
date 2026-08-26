@@ -1,15 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, Scissors, X, MapPin, Package, ShieldCheck } from 'lucide-react'
-import { type Screen } from './data'
+import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut } from 'lucide-react'
+import { type Screen, type User } from './data'
 
 interface HeaderProps {
   currentScreen: Screen
   go: (s: Screen) => void
+  user?: User | null
+  onOpenAuth?: () => void
+  onSignOut?: () => void
 }
 
-export function Header({ currentScreen, go }: HeaderProps) {
+export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
 
   const nav = (s: Screen) => {
@@ -20,19 +23,19 @@ export function Header({ currentScreen, go }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E5E7EB] transition-all">
-      <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
         
         {/* Brand Logo + City Selector */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <button
             onClick={() => nav('home')}
-            className="flex items-center gap-2.5 group text-left"
+            className="flex items-center gap-2.5 group text-left shrink-0"
             aria-label="TailorGrid home"
           >
-            <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105">
+            <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
               <Scissors size={16} className="text-white" />
             </div>
-            <div>
+            <div className="whitespace-nowrap">
               <span className="font-serif font-bold text-[19px] tracking-tight text-[#0F1115] block leading-none">
                 TailorGrid
               </span>
@@ -43,54 +46,84 @@ export function Header({ currentScreen, go }: HeaderProps) {
           </button>
 
           {/* Certified Network Pill */}
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] text-[12px] font-medium text-[#1E2229] border border-[#EBE6DF]">
-            <MapPin size={12} className="text-[#9E593B]" />
+          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] text-[12px] font-medium text-[#1E2229] border border-[#EBE6DF] whitespace-nowrap shrink-0">
+            <MapPin size={12} className="text-[#9E593B] shrink-0" />
             <span>Certified Atelier Network</span>
-            <span className="size-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
+            <span className="size-1.5 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
           </div>
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-8 text-[13.5px] font-medium text-[#4B5563]">
+        <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
           <button
             onClick={() => nav('booking')}
-            className={`transition-colors hover:text-[#0F1115] ${currentScreen === 'booking' ? 'text-[#0F1115] font-semibold' : ''}`}
+            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'booking' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
             Book a Tailor
           </button>
           <button
             onClick={() => nav('how-it-works')}
-            className={`transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
+            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
             How it Works
           </button>
           <button
             onClick={() => nav('about')}
-            className={`transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
+            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
             About Us
           </button>
           <button
             onClick={() => nav('for-partners')}
-            className={`transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
+            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
             For Tailors
           </button>
         </nav>
 
-        {/* Right CTAs */}
-        <div className="hidden md:flex items-center gap-3">
+        {/* Right CTAs & User Auth */}
+        <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
           <button
             onClick={() => nav('orders')}
-            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors"
+            className="flex items-center gap-1.5 rounded-full px-3 lg:px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors whitespace-nowrap shrink-0"
           >
-            <Package size={14} className="text-[#6B7280]" />
+            <Package size={14} className="text-[#6B7280] shrink-0" />
             <span>Track Order</span>
           </button>
 
+          {user ? (
+            <div className="flex items-center gap-1.5 border border-[#E5E7EB] rounded-full px-2.5 py-1 bg-[#FAF8F5] whitespace-nowrap shrink-0 hover:border-[#DDD6CB] transition-colors">
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="size-5 rounded-full object-cover shrink-0" />
+              ) : (
+                <UserIcon size={12} className="text-[#9E593B] shrink-0" />
+              )}
+              <span className="text-[12px] font-semibold text-[#1E2229] max-w-[85px] sm:max-w-[100px] truncate block">
+                {user.name.split(' ')[0] || user.name}
+              </span>
+              {onSignOut && (
+                <button
+                  onClick={onSignOut}
+                  title="Sign out"
+                  className="p-0.5 hover:text-red-600 text-gray-400 transition-colors shrink-0"
+                >
+                  <LogOut size={12} />
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={onOpenAuth}
+              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-[13px] font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
+            >
+              <UserIcon size={14} className="shrink-0" />
+              <span>Sign In / Up</span>
+            </button>
+          )}
+
           <button
             onClick={() => nav('booking')}
-            className="rounded-full bg-[#0F1115] px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-[#9E593B] transition-all active:scale-95"
+            className="rounded-full bg-[#0F1115] px-4 lg:px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-[#9E593B] transition-all active:scale-95 whitespace-nowrap shrink-0"
           >
             Book Now
           </button>
