@@ -2,12 +2,23 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, ArrowRight, ChevronRight, Menu, Scissors, UserRound, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, LogOut, Menu, Scissors, UserRound, X } from 'lucide-react'
 import { CustomerFlow } from '@/components/tailorgrid/customer-flow'
 import { PartnerFlow } from '@/components/tailorgrid/partner-flow'
-import { makeOtp, type Screen } from '@/components/tailorgrid/data'
+import { AuthModal } from '@/components/tailorgrid/auth-modal'
+import { makeOtp, type Screen, type User } from '@/components/tailorgrid/data'
 
-function Header({ go }: { go: (s: Screen) => void }) {
+function Header({
+  go,
+  user,
+  onOpenAuth,
+  onSignOut,
+}: {
+  go: (s: Screen) => void
+  user: User | null
+  onOpenAuth: () => void
+  onSignOut: () => void
+}) {
   const [open, setOpen] = useState(false)
   return (
     <header className="border-b border-[#d9d5cd] bg-[#f8f7f3]">
@@ -16,25 +27,62 @@ function Header({ go }: { go: (s: Screen) => void }) {
           <span className="grid size-9 place-items-center rounded-full bg-[#202b38] text-[#f8f7f3]"><Scissors size={17} /></span>
           <span className="font-serif text-[22px] tracking-[-.04em]">TailorGrid</span>
         </button>
-        <nav className="hidden items-center gap-8 text-sm md:flex">
-          <a href="#how-it-works">How it works</a>
-          <a href="#for-partners">For partners</a>
-          <button onClick={() => go('orders')} className="flex items-center gap-2 border-l border-[#d9d5cd] pl-8"><UserRound size={16} /> My requests</button>
+        <nav className="hidden items-center gap-6 text-sm md:flex">
+          <a href="#how-it-works" className="hover:text-[#a6593b]">How it works</a>
+          <a href="#for-partners" className="hover:text-[#a6593b]">For partners</a>
+          <button onClick={() => go('orders')} className="flex items-center gap-2 border-l border-[#d9d5cd] pl-6 hover:text-[#a6593b]">
+            <UserRound size={16} /> My requests
+          </button>
+          {user ? (
+            <div className="flex items-center gap-3 border-l border-[#d9d5cd] pl-6">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#eeece6] pl-1.5 pr-3 py-1 text-xs font-medium border border-[#d9d5cd]">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="size-6 rounded-full object-cover border border-[#202b38]" />
+                ) : (
+                  <span className="size-2 rounded-full bg-[#a6593b]" />
+                )}
+                {user.name}
+              </span>
+              <button
+                onClick={onSignOut}
+                title="Sign out"
+                className="text-[#777973] hover:text-[#202b38]"
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
+          ) : (
+
+            <button
+              onClick={onOpenAuth}
+              className="rounded-full border border-[#202b38] px-4 py-1.5 text-xs font-medium transition hover:bg-[#202b38] hover:text-[#f8f7f3]"
+            >
+              Sign Up
+            </button>
+          )}
         </nav>
         <button className="md:hidden" onClick={() => setOpen(!open)} aria-label="Toggle menu">{open ? <X /> : <Menu />}</button>
       </div>
       {open && (
-        <nav className="flex flex-col gap-5 border-t border-[#d9d5cd] px-5 py-5 text-sm md:hidden">
+        <nav className="flex flex-col gap-4 border-t border-[#d9d5cd] px-5 py-5 text-sm md:hidden">
           <a href="#how-it-works" onClick={() => setOpen(false)}>How it works</a>
           <a href="#for-partners" onClick={() => setOpen(false)}>For partners</a>
           <button className="text-left" onClick={() => { go('orders'); setOpen(false) }}>My requests</button>
+          {user ? (
+            <div className="flex items-center justify-between border-t border-[#d9d5cd] pt-3 text-xs">
+              <span>Signed in as {user.name}</span>
+              <button onClick={onSignOut} className="text-[#a6593b]">Sign out</button>
+            </div>
+          ) : (
+            <button onClick={() => { onOpenAuth(); setOpen(false) }} className="text-left text-[#a6593b] font-medium">Sign Up / Sign In</button>
+          )}
         </nav>
       )}
     </header>
   )
 }
 
-function Home({ go }: { go: (s: Screen) => void }) {
+function Home({ go, onFixItem }: { go: (s: Screen) => void; onFixItem: () => void }) {
   return (
     <>
       <section className="mx-auto grid max-w-[1240px] gap-10 px-5 pb-20 pt-12 sm:pt-16 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:gap-20 lg:px-8 lg:pb-28 lg:pt-20">
@@ -43,12 +91,15 @@ function Home({ go }: { go: (s: Screen) => void }) {
           <h1 className="max-w-[620px] font-serif text-[clamp(3.5rem,7vw,6.8rem)] leading-[.91] tracking-[-.065em] text-[#202b38]">Clothes that fit <em className="font-serif text-[#a6593b]">your</em> life.</h1>
           <p className="mt-8 max-w-[470px] text-[17px] leading-7 text-[#5f625f]">Request a pickup, and the nearest available tailor collects your item, fixes it, and returns it — on your schedule.</p>
           <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-            <button onClick={() => go('booking')} className="group inline-flex items-center gap-4 rounded-full bg-[#202b38] px-6 py-3.5 text-sm font-medium text-[#f8f7f3]">Fix an item <span className="grid size-7 place-items-center rounded-full bg-[#a6593b]"><ArrowRight size={15} /></span></button>
+            <button onClick={onFixItem} className="group inline-flex items-center gap-4 rounded-full bg-[#202b38] px-6 py-3.5 text-sm font-medium text-[#f8f7f3] transition hover:bg-[#a6593b]">
+              Fix an item <span className="grid size-7 place-items-center rounded-full bg-[#a6593b] group-hover:bg-[#202b38]"><ArrowRight size={15} /></span>
+            </button>
             <button onClick={() => go('partner')} className="text-sm font-medium underline decoration-[#a6593b] underline-offset-4">I&apos;m a tailoring partner</button>
             <button onClick={() => go('admin')} className="text-sm text-[#777973] underline underline-offset-4">Admin workspace</button>
           </div>
           <p className="mt-6 text-xs text-[#777973]">No payment until your fitting is confirmed.</p>
         </div>
+
         <div className="relative overflow-hidden rounded-[2px] bg-[#d8d0c2]">
           <Image src="/images/atelier-hero.png" alt="A tailor pinning the hem of a navy trouser" width={900} height={1125} priority className="h-auto w-full object-cover" />
           <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between bg-[#f8f7f3]/95 px-4 py-3 text-xs"><span>Made for the way you move</span><span className="font-mono text-[#a6593b]">TG / 01</span></div>
@@ -87,7 +138,7 @@ function Home({ go }: { go: (s: Screen) => void }) {
   )
 }
 
-function Orders({ go }: { go: (s: Screen) => void }) {
+function Orders({ go, onFixItem }: { go: (s: Screen) => void; onFixItem: () => void }) {
   const rows = [
     ['TG-1048', 'Navy wool trousers', 'In the workshop · Atelier North', 'Priority'],
     ['TG-1039', 'White cotton shirt', 'Ready for collection · Stitch & Form', 'Standard'],
@@ -101,7 +152,7 @@ function Orders({ go }: { go: (s: Screen) => void }) {
           <p className="text-xs font-semibold uppercase tracking-[.2em] text-[#a6593b]">Your requests</p>
           <h1 className="mt-4 font-serif text-5xl tracking-[-.05em]">Your alterations.</h1>
         </div>
-        <button onClick={() => go('booking')} className="inline-flex items-center gap-2 rounded-full bg-[#202b38] px-5 py-3 text-sm text-[#f8f7f3]">New request <ArrowRight size={15} /></button>
+        <button onClick={onFixItem} className="inline-flex items-center gap-2 rounded-full bg-[#202b38] px-5 py-3 text-sm text-[#f8f7f3] transition hover:bg-[#a6593b]">New request <ArrowRight size={15} /></button>
       </div>
       <div className="mt-8 border-t-2 border-[#202b38]">
         {rows.map(([id, item, status, tier]) => (
@@ -192,17 +243,50 @@ function Admin({ go }: { go: (s: Screen) => void }) {
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
+  const [user, setUser] = useState<User | null>(null)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [otp] = useState(() => makeOtp())
+
+  const handleFixItem = () => {
+    if (!user) {
+      setIsAuthOpen(true)
+    } else {
+      setScreen('booking')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#f8f7f3] text-[#202b38]">
-      <Header go={setScreen} />
+      <Header
+        go={setScreen}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onSignOut={() => setUser(null)}
+      />
       <main>
-        {screen === 'home' && <Home go={setScreen} />}
-        {screen === 'booking' && <CustomerFlow go={setScreen} otp={otp} />}
-        {screen === 'orders' && <Orders go={setScreen} />}
+        {screen === 'home' && <Home go={setScreen} onFixItem={handleFixItem} />}
+        {screen === 'booking' && (
+          <CustomerFlow
+            go={setScreen}
+            otp={otp}
+            user={user}
+            onOpenAuth={() => setIsAuthOpen(true)}
+          />
+        )}
+        {screen === 'orders' && <Orders go={setScreen} onFixItem={handleFixItem} />}
         {screen === 'partner' && <PartnerFlow go={setScreen} otp={otp} />}
         {screen === 'admin' && <Admin go={setScreen} />}
       </main>
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={(newUser) => {
+          setUser(newUser)
+          setIsAuthOpen(false)
+          setScreen('booking')
+        }}
+      />
     </div>
   )
 }

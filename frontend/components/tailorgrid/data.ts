@@ -1,5 +1,15 @@
 export type Screen = 'home' | 'booking' | 'orders' | 'partner' | 'admin'
 
+export type User = {
+  name: string
+  contact: string
+  avatar?: string
+  address?: string
+  postcode?: string
+  method: 'google' | 'apple' | 'email' | 'mobile' | 'guest'
+}
+
+
 export type StoreOption = {
   id: string
   name: string

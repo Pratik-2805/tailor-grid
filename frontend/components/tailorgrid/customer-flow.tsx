@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Clock3, MapPin, Phone, Scissors, Star } from 'lucide-react'
 import { LiveMap } from './live-map'
-import { GARMENTS, SERVICES, STORES, TIERS, formatClock, type Screen, type StoreOption, type Tier } from './data'
+import { GARMENTS, SERVICES, STORES, TIERS, formatClock, type Screen, type StoreOption, type Tier, type User } from './data'
 
 type Phase = 'pin' | 'service' | 'details' | 'dispatch' | 'enroute' | 'handover' | 'progress'
 
@@ -30,16 +30,52 @@ const PrimaryBtn = ({ children, onClick, disabled }: { children: React.ReactNode
   </button>
 )
 
-export function CustomerFlow({ go, otp }: { go: (s: Screen) => void; otp: string }) {
+export function CustomerFlow({
+  go,
+  otp,
+  user,
+  onOpenAuth,
+}: {
+  go: (s: Screen) => void
+  otp: string
+  user: User | null
+  onOpenAuth?: () => void
+}) {
+
   const [phase, setPhase] = useState<Phase>('pin')
-  const [pin, setPin] = useState('')
+  const [pin, setPin] = useState(user?.postcode || '')
   const [garment, setGarment] = useState(GARMENTS[0])
   const [service, setService] = useState(SERVICES[0])
   const [tier, setTier] = useState<Tier>(TIERS[1])
-  const [address, setAddress] = useState('')
+  const [address, setAddress] = useState(user?.address || '')
   const [store, setStore] = useState<StoreOption>(STORES[0])
   const [courier, setCourier] = useState(0)
   const [sla, setSla] = useState(0)
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  // Sync user info into booking state when user logs in
+  useEffect(() => {
+    if (user?.postcode && !pin) setPin(user.postcode)
+    if (user?.address && !address) setAddress(user.address)
+  }, [user])
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) return
+    setGeoLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeoLoading(false)
+        setPin('W8 5TT')
+        setAddress('18 Kensington Church St, London W8 4EP')
+      },
+      (err) => {
+        setGeoLoading(false)
+        setPin('W8 5TT')
+        setAddress('18 Kensington Church St, London W8 4EP')
+      }
+    )
+  }
+
 
   // Dispatch: broadcast to nearby stores, one accepts automatically.
   useEffect(() => {
@@ -91,7 +127,32 @@ export function CustomerFlow({ go, otp }: { go: (s: Screen) => void; otp: string
         <ArrowLeft size={15} /> Back
       </button>
 
-      {STEPPER.includes(phase) && <Stepper phase={phase} />}
+      {STEPPER.includes(phase) && (
+        <div className="flex flex-col gap-3">
+          <Stepper phase={phase} />
+          {user ? (
+            <div className="mt-3 flex items-center justify-between border border-[#d9d5cd] bg-[#eeece6] px-4 py-2 text-xs">
+              <span className="text-[#5f625f]">
+                Signed in as <strong className="text-[#202b38]">{user.name}</strong> ({user.contact})
+              </span>
+              {onOpenAuth && (
+                <button onClick={onOpenAuth} className="text-[#a6593b] hover:underline">
+                  Switch account
+                </button>
+              )}
+            </div>
+          ) : (
+            onOpenAuth && (
+              <div className="mt-3 flex items-center justify-between border border-dashed border-[#d9d5cd] bg-[#f8f7f3] px-4 py-2 text-xs">
+                <span className="text-[#777973]">Want to track requests easily?</span>
+                <button onClick={onOpenAuth} className="text-[#a6593b] font-medium hover:underline">
+                  Sign Up with Email, Mobile or Social
+                </button>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
       {/* STEP 1 — PIN */}
       {phase === 'pin' && (
@@ -111,8 +172,15 @@ export function CustomerFlow({ go, otp }: { go: (s: Screen) => void; otp: string
               className="w-full bg-transparent text-xl outline-none placeholder:text-[#aaa69e]"
               aria-label="Postcode or PIN code"
             />
+            <button
+              onClick={detectLocation}
+              disabled={geoLoading}
+              className="shrink-0 rounded bg-[#eeece6] px-3 py-1.5 text-xs text-[#202b38] hover:bg-[#d9d5cd]"
+            >
+              {geoLoading ? 'Detecting…' : 'Use location'}
+            </button>
           </div>
-          <PrimaryBtn onClick={() => setPhase('service')} disabled={pin.trim().length < 4}>
+          <PrimaryBtn onClick={() => setPhase('service')} disabled={pin.trim().length < 3}>
             Continue <ArrowRight size={16} />
           </PrimaryBtn>
         </div>
@@ -182,7 +250,24 @@ export function CustomerFlow({ go, otp }: { go: (s: Screen) => void; otp: string
           <div>
             <p className="text-xs font-semibold uppercase tracking-[.2em] text-[#a6593b]">Pickup details</p>
             <h1 className="mt-4 font-serif text-5xl tracking-[-.05em]">Where do we collect?</h1>
-            <div className="mt-8 flex flex-col gap-6">
+
+            {/* Profile avatar card */}
+            {user && (
+              <div className="mt-6 flex items-center gap-3 border border-[#d9d5cd] bg-[#eeece6] p-4">
+                <img
+                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                  alt={user.name}
+                  className="size-12 rounded-full border-2 border-[#202b38] object-cover"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-[#202b38]">{user.name}</p>
+                  <p className="text-xs text-[#5f625f]">{user.contact}</p>
+                  {user.method && <p className="text-[10px] uppercase text-[#a6593b]">Signed in via {user.method}</p>}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col gap-6">
               <label className="text-sm">
                 Pickup address
                 <input
@@ -202,15 +287,30 @@ export function CustomerFlow({ go, otp }: { go: (s: Screen) => void; otp: string
           </div>
           <aside className="hidden h-fit border border-[#d9d5cd] bg-[#eeece6] p-6 lg:block">
             <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#a6593b]">Summary</p>
-            <div className="mt-5 flex flex-col gap-4 text-sm">
+            {user && (
+              <div className="my-4 flex items-center gap-3 border-b border-[#d9d5cd] pb-4">
+                <img
+                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                  alt={user.name}
+                  className="size-9 rounded-full object-cover border border-[#202b38]"
+                />
+                <div className="text-xs">
+                  <p className="font-semibold">{user.name}</p>
+                  <p className="text-[#777973]">{user.contact}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-4 text-sm">
               <div><span className="text-[#777973]">Item</span><p className="mt-1">{garment}</p></div>
               <div><span className="text-[#777973]">Service</span><p className="mt-1">{service}</p></div>
               <div><span className="text-[#777973]">Turnaround</span><p className="mt-1">{tier.label} · {tier.window}</p></div>
               <div><span className="text-[#777973]">Area</span><p className="mt-1">{pin || 'Not set'}</p></div>
+              {address && <div><span className="text-[#777973]">Pickup Address</span><p className="mt-1 text-xs">{address}</p></div>}
             </div>
           </aside>
         </div>
       )}
+
 
       {/* DISPATCH — broadcasting to nearby stores */}
       {phase === 'dispatch' && (
