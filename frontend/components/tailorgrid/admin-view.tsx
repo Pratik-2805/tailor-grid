@@ -10,11 +10,11 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
   const [selectedStudioOverride, setSelectedStudioOverride] = useState<string | null>(null)
 
   const rows = [
-    { id: 'TG-1048', customer: 'Camilla H.', store: 'Atelier North', garment: 'Jeans Hemming', status: 'Work in Progress', price: '£26.00', payout: '£20.00', retail: 'Yes (£45)' },
-    { id: 'TG-1047', customer: 'David K.', store: 'Stitch & Form', garment: 'Shirt Slimming', status: 'Customer Arrived', price: '£22.00', payout: '£16.00', retail: 'Pending' },
-    { id: 'TG-1046', customer: 'Sarah L.', store: 'The Hem Room', garment: 'Dress Bodice Fit', status: 'Ready for Pick-Up', price: '£38.00', payout: '£29.00', retail: 'Yes (£80)' },
-    { id: 'TG-1045', customer: 'Julian S.', store: 'Soho Craft Tailors', garment: 'Blazer Sleeves', status: 'Completed & Closed', price: '£35.00', payout: '£27.00', retail: 'Yes (£120)' },
-    { id: 'TG-1044', customer: 'Elena R.', store: 'Atelier North', garment: 'Suit Overhaul', status: 'Completed & Closed', price: '£85.00', payout: '£65.00', retail: 'No' },
+    { id: 'TG-1048', customer: 'Camilla H.', store: 'Atelier SoHo', garment: 'Jeans Hemming', status: 'Work in Progress', price: '$28.00', payout: '$21.00', retail: 'Yes ($65)' },
+    { id: 'TG-1047', customer: 'David K.', store: 'Stitch & Form Beverly Hills', garment: 'Shirt Slimming', status: 'Customer Arrived', price: '$26.00', payout: '$19.00', retail: 'Pending' },
+    { id: 'TG-1046', customer: 'Sarah L.', store: 'The Hem Room', garment: 'Dress Bodice Fit', status: 'Ready for Pick-Up', price: '$48.00', payout: '$36.00', retail: 'Yes ($110)' },
+    { id: 'TG-1045', customer: 'Julian S.', store: 'Brooklyn Craft Tailors', garment: 'Blazer Sleeves', status: 'Completed & Closed', price: '$45.00', payout: '$34.00', retail: 'Yes ($140)' },
+    { id: 'TG-1044', customer: 'Elena R.', store: 'Atelier SoHo', garment: 'Suit Overhaul', status: 'Completed & Closed', price: '$110.00', payout: '$85.00', retail: 'No' },
   ]
 
   return (
@@ -64,7 +64,7 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
               <span>Alteration GMV</span>
               <DollarSign size={16} className="text-[#9E593B]" />
             </div>
-            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">£32,450</p>
+            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">$42,850</p>
             <p className="mt-1 text-[11px] text-emerald-600 font-semibold">+18% this month</p>
           </div>
 
@@ -73,7 +73,7 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
               <span>Platform Net Revenue</span>
               <TrendingUp size={16} className="text-[#9E593B]" />
             </div>
-            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">£8,112</p>
+            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">$10,712</p>
             <p className="mt-1 text-[11px] text-[#7A7E85]">Avg take-rate: 25.0%</p>
           </div>
 
@@ -82,7 +82,7 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
               <span>Partner Studio Payouts</span>
               <Store size={16} className="text-[#9E593B]" />
             </div>
-            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">£24,338</p>
+            <p className="mt-3 font-serif text-3xl font-bold text-[#18191B]">$32,138</p>
             <p className="mt-1 text-[11px] text-emerald-600 font-semibold">100% reconciled on-time</p>
           </div>
 
@@ -92,7 +92,7 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
               <ShoppingBag size={16} className="text-[#9E593B]" />
             </div>
             <p className="mt-3 font-serif text-3xl font-bold text-emerald-700">38.4%</p>
-            <p className="mt-1 text-[11px] text-emerald-600 font-semibold">£14,680 merchandise sold</p>
+            <p className="mt-1 text-[11px] text-emerald-600 font-semibold">$18,450 merchandise sold</p>
           </div>
         </div>
 

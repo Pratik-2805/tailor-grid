@@ -6,18 +6,18 @@ import { TESTIMONIALS } from './data'
 
 export function TestimonialsSection() {
   return (
-    <section className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E5E7EB]">
+    <section className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="text-center max-w-[580px] mx-auto mb-12">
-          <span className="pill-badge bg-white text-[#9E593B] border border-[#E5E7EB] mb-3">
+          <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
             Customer Reviews
           </span>
           <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
             Loved by 15,000+ conscious dressers.
           </h2>
-          <p className="mt-2 text-sm text-[#6B7280]">
+          <p className="mt-2 text-sm text-[#5A5D64]">
             Real reviews from customers who saved time and gave their favorite clothes a second life.
           </p>
         </div>

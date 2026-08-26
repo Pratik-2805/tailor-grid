@@ -22,7 +22,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E5E7EB] transition-all">
+    <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
         
         {/* Brand Logo + City Selector */}
@@ -44,13 +44,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
               </span>
             </div>
           </button>
-
-          {/* Certified Network Pill */}
-          <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] text-[12px] font-medium text-[#1E2229] border border-[#EBE6DF] whitespace-nowrap shrink-0">
-            <MapPin size={12} className="text-[#9E593B] shrink-0" />
-            <span>Certified Atelier Network</span>
-            <span className="size-1.5 rounded-full bg-[#10B981] animate-pulse shrink-0"></span>
-          </div>
         </div>
 
         {/* Desktop Navigation Links */}
@@ -77,7 +70,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             onClick={() => nav('for-partners')}
             className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
-            For Tailors
+            For Studios
           </button>
         </nav>
 
@@ -141,13 +134,13 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
 
       {/* Mobile Menu Dropdown */}
       {open && (
-        <div className="md:hidden border-t border-[#E5E7EB] bg-white px-5 py-5 flex flex-col gap-3 shadow-lg">
-          <div className="flex items-center justify-between pb-3 border-b border-[#F3F4F6]">
+        <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-5 py-5 flex flex-col gap-3 shadow-lg">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E1D5]">
             <div className="flex items-center gap-2 text-xs font-semibold text-[#1E2229]">
               <ShieldCheck size={14} className="text-[#9E593B]" />
-              <span>100% Free Fit Guarantee</span>
+              <span>Audited Craft Standards</span>
             </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] font-medium">Active</span>
+            <span className="text-[11px] px-2 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] font-medium">Certified</span>
           </div>
 
           {[
@@ -155,7 +148,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             { label: 'How it Works', screen: 'how-it-works' as Screen },
             { label: 'Track My Orders', screen: 'orders' as Screen },
             { label: 'About Us', screen: 'about' as Screen },
-            { label: 'For Tailors & Partners', screen: 'for-partners' as Screen },
+            { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
           ].map((item) => (
             <button
               key={item.label}
@@ -167,12 +160,12 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             </button>
           ))}
 
-          <div className="pt-3 border-t border-[#F3F4F6] flex flex-col gap-2">
+          <div className="pt-3 border-t border-[#E8E1D5] flex flex-col gap-2">
             <button
               onClick={() => nav('booking')}
               className="w-full rounded-full bg-[#0F1115] py-3 text-center text-[13.5px] font-semibold text-white shadow-sm"
             >
-              Book Doorstep or Studio
+              Book Fitting Pass
             </button>
           </div>
         </div>

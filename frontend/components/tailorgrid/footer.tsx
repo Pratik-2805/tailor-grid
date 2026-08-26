@@ -43,7 +43,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter email for £10 off first fit"
+                  placeholder="Enter email for $10 off first fit"
                   required
                   className="flex-1 rounded-xl border border-[#2D333D] bg-[#1A1E24] px-3.5 py-2.5 text-xs text-white placeholder:text-[#6B7280] focus:border-white focus:outline-none"
                 />

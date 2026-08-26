@@ -21,24 +21,36 @@ export function OrdersView({ go, user }: { go: (s: Screen) => void; user?: User 
       id: 'TG-1048',
       garment: 'Levi\'s 501 Selvedge Denim',
       service: 'Shorten Hem (Original Jean Hem)',
-      studio: 'Atelier North Kensington',
-      address: '18 Kensington Church St, W8 4EP',
+      studio: 'Atelier SoHo Tailors',
+      address: '452 West Broadway, New York, NY 10012',
       status: 'In Workshop · Tailoring',
-      price: '£26.00',
+      price: '$28.00',
       slot: 'Today @ 11:30 AM',
       otp: '8492',
       isCurrent: true,
     },
     {
       id: 'TG-1039',
-      garment: 'Turnbull & Asser Poplin Shirt',
+      garment: 'Classic Cotton Poplin Shirt',
       service: 'Take In Sides & Back Darts',
-      studio: 'Stitch & Form Atelier',
-      address: '42 Westbourne Grove, W2 5SH',
+      studio: 'Stitch & Form Beverly Hills',
+      address: '9410 Brighton Way, Beverly Hills, CA 90210',
       status: 'Ready for Collection',
-      price: '£22.00',
+      price: '$26.00',
       slot: 'Yesterday @ 03:00 PM',
       otp: '5190',
+      isCurrent: false,
+    },
+    {
+      id: 'TG-1021',
+      garment: 'Camel Wool Blazer',
+      service: 'Shorten Sleeves & Side Suppression',
+      studio: 'The Hem Room Studio',
+      address: '1024 Lexington Ave, New York, NY 10021',
+      status: 'Completed & Collected',
+      price: '$55.00',
+      slot: '14 Aug @ 10:00 AM',
+      otp: '3341',
       isCurrent: false,
     },
   ]
@@ -51,7 +63,7 @@ export function OrdersView({ go, user }: { go: (s: Screen) => void; user?: User 
         studio: bo.storeName || 'Atelier North Kensington',
         address: bo.postcode ? `Postcode: ${bo.postcode}` : '18 Kensington Church St, W8 4EP',
         status: bo.status || 'Allocated',
-        price: `£${bo.price || 25}.00`,
+        price: `$${bo.price || 25}.00`,
         slot: `${bo.date} @ ${bo.timeSlot}`,
         otp: bo.otp || '1234',
         isCurrent: idx === 0,
@@ -172,7 +184,7 @@ export function OrdersView({ go, user }: { go: (s: Screen) => void; user?: User 
             <div className="flex items-center justify-between border-b border-[#EAE4DC] pb-5">
               <div className="flex items-center gap-4">
                 <div className="grid size-12 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5]">
-                  <User size={22} />
+                  <UserIcon size={22} />
                 </div>
                 <div>
                   <h3 className="font-serif text-xl font-bold text-[#18191B]">Camilla Harrington</h3>

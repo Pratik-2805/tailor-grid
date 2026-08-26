@@ -86,7 +86,7 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
                   <span className="text-xs text-white/70">Average Monthly Partner Payout</span>
-                  <span className="font-serif text-lg font-bold text-white">£3,400+</span>
+                  <span className="font-serif text-lg font-bold text-white">$3,400+</span>
                 </div>
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
                   <span className="text-xs text-white/70">Customer Retail Upsell Rate</span>

@@ -15,19 +15,19 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
   const cat = GARMENT_CATEGORIES.find((c) => c.id === activeCategoryId) || GARMENT_CATEGORIES[0]
 
   return (
-    <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E5E7EB]">
+    <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <span className="pill-badge bg-white text-[#9E593B] border border-[#E5E7EB] mb-3">
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
               Upfront Pricing Matrix
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
               Standardized, transparent rates.
             </h2>
-            <p className="mt-2 text-sm text-[#6B7280] max-w-[520px]">
+            <p className="mt-2 text-sm text-[#5A5D64] max-w-[520px]">
               No hidden fees, no studio markups. All prices include precision artisan work and our 100% Free Fit Guarantee.
             </p>
           </div>
@@ -70,7 +70,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
               <Clock size={13} className="text-[#9E593B]" /> Avg. {cat.avgTurnaround}
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#EBE6DF] text-[#9E593B]">
-              Starting at £{cat.startingPrice}
+              Starting at ${cat.startingPrice}
             </span>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
 
               <div className="flex items-center justify-between sm:justify-end gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#F3F4F6] shrink-0">
                 <div className="text-left sm:text-right">
-                  <div className="font-serif text-2xl font-bold text-[#0F1115]">£{svc.customerPrice}</div>
+                  <div className="font-serif text-2xl font-bold text-[#0F1115]">${svc.customerPrice}</div>
                   <span className="text-[11px] font-medium text-[#10B981]">{svc.turnaroundDays} days delivery</span>
                 </div>
                 <button

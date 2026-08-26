@@ -4,15 +4,15 @@ import { Clock, Leaf, Scissors, ShieldCheck, Star } from 'lucide-react'
 
 export function TrustBar() {
   const items = [
-    { icon: ShieldCheck, title: '100% Free Fit Guarantee', desc: 'Complimentary re-adjustment on every order' },
+    { icon: ShieldCheck, title: 'Audited Craft Standards', desc: 'Certified machinery calibration & seam quality' },
     { icon: Scissors,    title: 'Savile Row Artisans',    desc: 'Audited master tailors with 5+ yrs craft' },
-    { icon: Clock,       title: '48-Hour Turnaround',    desc: 'Rapid return with live status tracking' },
+    { icon: Clock,       title: '24h & 48h Turnaround',  desc: 'Rapid return with live status tracking' },
     { icon: Star,        title: '4.96 / 5.0 Rating',      desc: 'Across 15,000+ tailored garments' },
     { icon: Leaf,        title: 'Circular & Local',       desc: 'Zero shipping waste, hyper-local ateliers' },
   ]
 
   return (
-    <section className="py-8 bg-[#F3EFEA] border-b border-[#E5E7EB]">
+    <section className="py-8 bg-[#F4EFEA] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
           {items.map((item, i) => {
