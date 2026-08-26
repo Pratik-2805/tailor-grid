@@ -1,169 +1,256 @@
 'use client'
 
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Compass, HelpCircle, MapPin, Ruler, Scissors, ShieldCheck, Sparkles, UserCheck } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Lock,
+  MapPin,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 import { FaqAccordion } from './faq-accordion'
 import { type Screen } from './data'
 
 export function HowItWorksView({ go }: { go: (s: Screen) => void }) {
-  const steps = [
+  const uberGuideSteps = [
     {
-      num: '01',
-      title: 'Choose your garment and service',
-      desc: 'Select from our standardized catalog of trousers, shirts, dresses, suits, and occasion wear. You see fixed, guaranteed pricing before confirming — zero hidden fees.',
-      tips: ['Standardized transparent rates', 'Custom notes for vintage or designer garments'],
-      icon: Scissors,
+      num: 1,
+      title: 'Getting started & requesting alterations',
+      desc: 'The customer enters their garment type (trousers, suit blazer, dress, shirt) into the "Garment & Service" selector, reviews fixed transparent pricing, and confirms doorstep pickup or atelier drop-off.',
+      image: '/images/hero_alteration_art.jpg',
+      linkText: 'Book an alteration now',
+      screen: 'booking' as Screen,
     },
     {
-      num: '02',
-      title: 'Smart neighborhood studio allocation',
-      desc: 'Enter your postcode and TailorGrid instantly matches your order to the best-rated certified atelier within 1–3 miles, equipped with the exact specialist machinery your fabric requires.',
-      tips: ['Verified master artisans', 'Accurate walking/transit distance'],
-      icon: Compass,
+      num: 2,
+      title: 'Matching customer and certified atelier',
+      desc: 'A nearby certified master tailor accepts the alteration request. The customer is automatically notified with matched studio details, walking distance, and artisan profile.',
+      image: '/images/about_network_art.jpg',
+      linkText: 'Explore certified ateliers',
+      screen: 'booking' as Screen,
     },
     {
-      num: '03',
-      title: 'Visit your studio for fitting or drop-off',
-      desc: 'Walk into your matched studio with your Digital Fitting Pass. If you need fitting advice, the master tailor will pin and measure your garment in person. If pre-pinned, drop off in under a minute.',
-      tips: ['Private fitting rooms', 'Bring the shoes you plan to wear for perfect hems'],
-      icon: UserCheck,
+      num: 3,
+      title: 'Fitting and garment handoff',
+      desc: 'The customer meets the tailor for an in-person pin fitting or drops off pre-pinned items with their 10-second Digital QR Fitting Pass.',
+      image: '/images/partner_team_art.jpg',
+      linkText: 'How fitting passes work',
+      screen: 'how-it-works' as Screen,
     },
     {
-      num: '04',
-      title: 'Live tracking and 48-hour completion',
-      desc: 'Your garment is tailored with OEM thread and precision stitching. Follow every status update in real-time. You receive an instant notification the moment your piece is pressed and ready.',
-      tips: ['Live order status tracker', 'Automatic digital fit passport recording'],
-      icon: Clock,
+      num: 4,
+      title: 'Precision crafting & live tracking',
+      desc: 'The master artisan tailors the garment with original thread matching and steam pressing. The app provides real-time status updates from cutting to pressing.',
+      image: '/images/about_founder_art.jpg',
+      linkText: 'Track an existing order',
+      screen: 'orders' as Screen,
     },
     {
-      num: '05',
-      title: 'Try on in studio & 100% Fit Guarantee',
-      desc: 'Pick up your garment and try it on in the studio fitting room. If any micro-adjustment is needed, our 100% Fit Guarantee ensures your tailor refines it complimentary.',
-      tips: ['100% satisfaction guarantee', 'Free in-store adjustment if needed'],
-      icon: ShieldCheck,
+      num: 5,
+      title: 'Leaving ratings & 100% Fit Guarantee',
+      desc: 'At completion, the customer receives their pressed garment at their door or in studio. They try it on, with our 100% Free Fit Guarantee ensuring free refits if any micro-adjustment is needed. Customers and tailors can rate each other and leave compliments.',
+      image: '/images/about_standards_art.jpg',
+      linkText: 'Read about our 100% Fit Guarantee',
+      screen: 'about' as Screen,
     },
   ]
 
   return (
-    <div className="py-12 lg:py-16">
+    <div className="py-10 lg:py-16 bg-[#FAF8F5]">
       <div className="mx-auto max-w-[1280px] px-5 lg:px-8">
         
-        {/* Back navigation & Page Header */}
+        {/* Back Navigation */}
         <button
           onClick={() => go('home')}
-          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors mb-6"
         >
           <ArrowLeft size={14} /> Back to Overview
         </button>
 
-        <div className="max-w-[780px]">
-          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-            The In-Studio Experience
-          </span>
-          <h1 className="mt-4 font-serif text-4xl sm:text-6xl font-normal tracking-[-0.04em] text-[#18191B]">
-            Alterations made seamless, transparent &amp; local.
-          </h1>
-          <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#5A5D64]">
-            TailorGrid connects you directly with neighborhood master tailors. No confusing price lists, no awkward dry-cleaner fittings, and no guesswork.
-          </p>
-        </div>
+        {/* ========================================================
+            HERO SECTION (Uber Style Split Layout)
+        ======================================================== */}
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center border-b border-[#DDD6CB] pb-16">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F4EFEA] text-[12px] font-semibold text-[#9E593B] border border-[#E2DDD5] mb-4">
+              <Sparkles size={13} />
+              <span>Uber for Clothing Alterations</span>
+            </div>
 
-        {/* Detailed 5-Step Process */}
-        <div className="mt-16 space-y-8">
-          {steps.map((step) => {
-            const Icon = step.icon
-            return (
-              <div
-                key={step.num}
-                className="rounded-2xl border border-[#DDD6CB] bg-white p-7 sm:p-10 shadow-xs hover:border-[#9E593B] transition-all duration-300 grid lg:grid-cols-[1.4fr_1fr] gap-8 items-center"
-              >
-                <div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-bold text-[#9E593B] bg-[#F4EFEA] px-3 py-1 rounded">
-                      STEP {step.num}
-                    </span>
-                    <span className="text-xs font-semibold uppercase tracking-wider text-[#7A7E85]">
-                      Studio Journey
-                    </span>
-                  </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#18191B] leading-[1.1]">
+              How TailorGrid works: an overview for everyone.
+            </h1>
 
-                  <h3 className="mt-4 font-serif text-2xl sm:text-3xl font-semibold text-[#18191B]">
-                    {step.title}
-                  </h3>
-
-                  <p className="mt-3 text-sm sm:text-base leading-relaxed text-[#5A5D64]">
-                    {step.desc}
-                  </p>
-
-                  <div className="mt-6 flex flex-wrap gap-4">
-                    {step.tips.map((tip, idx) => (
-                      <span
-                        key={idx}
-                        className="inline-flex items-center gap-1.5 text-xs text-[#18191B] bg-[#FAF8F5] px-3 py-1 rounded-full border border-[#E2DDD5]"
-                      >
-                        <CheckCircle2 size={13} className="text-[#9E593B]" />
-                        <span>{tip}</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-[#F4EFEA] p-6 border border-[#E2DDD5] flex flex-col justify-center items-center text-center">
-                  <div className="grid size-14 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5] shadow-sm">
-                    <Icon size={24} />
-                  </div>
-                  <h4 className="mt-4 font-serif text-lg font-semibold text-[#18191B]">
-                    {step.title.split(' ')[0]} {step.title.split(' ')[1]}
-                  </h4>
-                  <p className="text-xs text-[#7A7E85] mt-1">Coordinated via TailorGrid</p>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Studio Fitting Pro-Tips */}
-        <div className="mt-20 rounded-2xl bg-[#18191B] p-8 sm:p-12 text-[#FAF8F5]">
-          <div className="max-w-[680px]">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#E7C9BA]">
-              Studio Fitting Guide
-            </span>
-            <h3 className="mt-3 font-serif text-3xl font-normal text-white">
-              How to prepare for your studio visit
-            </h3>
-            <p className="mt-4 text-sm leading-relaxed text-[#B1ACA4]">
-              A few simple steps help our partner master tailors achieve your ideal silhouette on the first try.
+            <p className="mt-6 text-base sm:text-lg text-[#5A5D64] leading-relaxed font-normal">
+              TailorGrid connects customers needing precision clothing alterations directly with certified local master tailors. Choose doorstep pickup &amp; delivery or visit neighborhood studios in minutes.
             </p>
+
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => go('booking')}
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#18191B] px-7 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
+              >
+                <span>Book an Alteration</span>
+                <ArrowRight size={15} />
+              </button>
+
+              <button
+                onClick={() => go('for-partners')}
+                className="inline-flex items-center gap-2.5 rounded-full border border-[#18191B] bg-transparent px-7 py-4 text-xs font-semibold uppercase tracking-wider text-[#18191B] transition-all hover:bg-[#18191B] hover:text-white active:scale-95"
+              >
+                <span>Join as a Partner Atelier</span>
+              </button>
+            </div>
+
+            {/* Feature Pills */}
+            <div className="mt-10 flex flex-wrap gap-4 text-xs font-medium text-[#18191B]">
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2DDD5]">
+                <ShieldCheck size={16} className="text-[#9E593B]" />
+                <span>100% Free Fit Guarantee</span>
+              </div>
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2DDD5]">
+                <Clock size={16} className="text-[#9E593B]" />
+                <span>48h Standard Turnaround</span>
+              </div>
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-[#E2DDD5]">
+                <MapPin size={16} className="text-[#9E593B]" />
+                <span>Certified Local Ateliers</span>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-8 grid gap-6 sm:grid-cols-3 text-xs">
-            <div className="rounded-xl bg-[#25282F] p-5 border border-[#3A3F4A]">
-              <p className="font-serif text-sm font-semibold text-white">1. Bring your shoes</p>
-              <p className="mt-2 text-[#B1ACA4] leading-relaxed">
-                For trouser and dress hemming, wear or bring the exact heel height and shoe style you plan to wear.
-              </p>
-            </div>
-            <div className="rounded-xl bg-[#25282F] p-5 border border-[#3A3F4A]">
-              <p className="font-serif text-sm font-semibold text-white">2. Wear intended undergarments</p>
-              <p className="mt-2 text-[#B1ACA4] leading-relaxed">
-                For bodice, waist, or gown tailoring, wear the correct bra or base layers for accurate contouring.
-              </p>
-            </div>
-            <div className="rounded-xl bg-[#25282F] p-5 border border-[#3A3F4A]">
-              <p className="font-serif text-sm font-semibold text-white">3. Show your Digital Fitting Pass</p>
-              <p className="mt-2 text-[#B1ACA4] leading-relaxed">
-                Your QR pass allows the studio to scan and pull up your order instructions with zero paperwork.
-              </p>
+          {/* Hero Illustration */}
+          <div className="relative overflow-hidden rounded-3xl border border-[#E2DDD5] bg-white p-3 shadow-xl group">
+            <img
+              src="/images/about_hero_art.jpg"
+              alt="How TailorGrid Works Illustration"
+              className="w-full h-auto rounded-2xl object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================
+            EXACT UBER-STYLE VERTICAL TIMELINE SECTION
+            ("A quick guide to TailorGrid")
+        ======================================================== */}
+        <div className="mt-20 border-b border-[#DDD6CB] pb-20">
+          <div className="max-w-[920px] mx-auto">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#18191B]">
+              A quick guide to TailorGrid
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
+              Here's how the TailorGrid app and TailorGrid.com connect customers and master tailors on demand, step by step:
+            </p>
+
+            <div className="mt-12 relative">
+              {/* Continuous Vertical Timeline Line */}
+              <div className="hidden md:block absolute left-[300px] top-[12px] bottom-[120px] w-[2px] bg-[#18191B] z-0" />
+
+              <div className="space-y-12">
+                {uberGuideSteps.map((step) => (
+                  <div
+                    key={step.num}
+                    className="grid md:grid-cols-[280px_40px_1fr] gap-6 md:gap-8 items-start relative z-10"
+                  >
+                    {/* Step Illustration */}
+                    <div className="rounded-xl border border-[#DDD6CB] overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <img
+                        src={step.image}
+                        alt={step.title}
+                        className="w-full h-[165px] object-cover"
+                      />
+                    </div>
+
+                    {/* Timeline Square Dot */}
+                    <div className="hidden md:flex flex-col items-center pt-2 h-full">
+                      <div className="size-2.5 bg-[#18191B] rounded-xs shrink-0" />
+                    </div>
+
+                    {/* Step Title & Content */}
+                    <div className="pt-0.5">
+                      <h3 className="text-lg font-bold text-[#18191B] tracking-tight">
+                        {step.num}. {step.title}
+                      </h3>
+                      <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
+                        {step.desc}
+                      </p>
+                      {step.linkText && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => go(step.screen)}
+                            className="text-xs font-semibold text-[#18191B] underline hover:text-[#9E593B] transition-colors"
+                          >
+                            {step.linkText}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* FAQ Section */}
-        <div className="mt-20">
-          <div className="text-center max-w-[640px] mx-auto mb-10">
+        {/* ========================================================
+            SAFETY & QUALITY GUARANTEE (Uber Style)
+        ======================================================== */}
+        <div className="mt-20 rounded-3xl border border-[#E2DDD5] bg-white p-8 sm:p-12 shadow-sm grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Safety &amp; Quality Guarantee
+            </span>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-[#18191B]">
+              Your garments are in certified artisan hands.
+            </h2>
+            <p className="mt-4 text-sm text-[#5A5D64] leading-relaxed">
+              Every tailor in the TailorGrid network undergoes rigorous craft verification, studio equipment inspection, and quality auditing. We treat designer garments and vintage heirlooms with extreme care.
+            </p>
+
+            <div className="mt-8 space-y-4 text-xs font-semibold text-[#18191B]">
+              <div className="flex items-center gap-3">
+                <div className="grid size-7 place-items-center rounded-full bg-[#F4EFEA] text-[#9E593B]">
+                  <CheckCircle2 size={16} />
+                </div>
+                <span>Certified Master Atelier Standards (20+ years craftsmanship benchmark)</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="grid size-7 place-items-center rounded-full bg-[#F4EFEA] text-[#9E593B]">
+                  <ShieldCheck size={16} />
+                </div>
+                <span>100% Free Refit Guarantee within 14 days of delivery</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="grid size-7 place-items-center rounded-full bg-[#F4EFEA] text-[#9E593B]">
+                  <Lock size={16} />
+                </div>
+                <span>256-Bit Encrypted Escrow Payment (funds released only when satisfied)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-[#E2DDD5] overflow-hidden shadow-md bg-white">
+            <img
+              src="/images/about_charter_art.jpg"
+              alt="Quality and Safety Guarantee Badge"
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================
+            FAQ SECTION
+        ======================================================== */}
+        <div className="mt-24">
+          <div className="text-center max-w-[640px] mx-auto mb-12">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
               Got Questions?
             </span>
-            <h2 className="mt-3 font-serif text-3xl sm:text-4xl font-normal text-[#18191B]">
+            <h2 className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-[#18191B]">
               Frequently Asked Questions
             </h2>
           </div>
@@ -173,15 +260,53 @@ export function HowItWorksView({ go }: { go: (s: Screen) => void }) {
           </div>
         </div>
 
-        {/* CTA Bar */}
-        <div className="mt-16 text-center">
-          <button
-            onClick={() => go('booking')}
-            className="inline-flex items-center gap-3 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-md"
-          >
-            <span>Book Your Studio Fitting Now</span>
-            <ArrowRight size={15} />
-          </button>
+        {/* ========================================================
+            DUAL CALL TO ACTION CARDS (Uber Style)
+        ======================================================== */}
+        <div className="mt-20 grid md:grid-cols-2 gap-6">
+          {/* Customer CTA Card */}
+          <div className="rounded-3xl border border-[#DDD6CB] bg-[#F4EFEA] p-8 sm:p-10 flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#9E593B]">
+                For Clothing Owners
+              </span>
+              <h3 className="mt-3 text-3xl font-bold tracking-tight text-[#18191B]">
+                Ready for garments that fit perfectly?
+              </h3>
+              <p className="mt-3 text-xs sm:text-sm text-[#5A5D64]">
+                Book doorstep collection or allocate your neighborhood atelier in under 60 seconds.
+              </p>
+            </div>
+            <button
+              onClick={() => go('booking')}
+              className="mt-8 w-fit inline-flex items-center gap-2.5 rounded-full bg-[#18191B] px-7 py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-all shadow-sm"
+            >
+              <span>Book an Alteration</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
+
+          {/* Partner CTA Card */}
+          <div className="rounded-3xl border border-[#DDD6CB] bg-[#18191B] p-8 sm:p-10 text-white flex flex-col justify-between">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#E7C9BA]">
+                For Tailors &amp; Ateliers
+              </span>
+              <h3 className="mt-3 text-3xl font-bold tracking-tight text-white">
+                Become a Certified Partner Atelier
+              </h3>
+              <p className="mt-3 text-xs sm:text-sm text-[#B1ACA4]">
+                Receive steady local alteration orders, digitized ticketing, and guaranteed payouts.
+              </p>
+            </div>
+            <button
+              onClick={() => go('for-partners')}
+              className="mt-8 w-fit inline-flex items-center gap-2.5 rounded-full bg-[#9E593B] px-7 py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#b06746] transition-all shadow-sm"
+            >
+              <span>Apply as a Partner</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
         </div>
 
       </div>
