@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AboutView } from '@/components/tailorgrid/about-view'
 import { AdminView } from '@/components/tailorgrid/admin-view'
+import { AuthModal } from '@/components/tailorgrid/auth-modal'
 import { CustomerFlow } from '@/components/tailorgrid/customer-flow'
-import { makeOtp, type Screen, type StoreOption } from '@/components/tailorgrid/data'
+import { makeOtp, type Screen, type StoreOption, type User } from '@/components/tailorgrid/data'
 import { Footer } from '@/components/tailorgrid/footer'
 import { ForPartnersView } from '@/components/tailorgrid/for-partners-view'
 import { Header } from '@/components/tailorgrid/header'
@@ -12,12 +13,20 @@ import { HomeView } from '@/components/tailorgrid/home-view'
 import { HowItWorksView } from '@/components/tailorgrid/how-it-works-view'
 import { OrdersView } from '@/components/tailorgrid/orders-view'
 import { PartnerFlow } from '@/components/tailorgrid/partner-flow'
+import { getCurrentUser } from '@/lib/api'
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
   const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [otp] = useState(() => makeOtp())
+
+  // Load authenticated user on mount
+  useEffect(() => {
+    getCurrentUser().then((u) => {
+      if (u) setUser(u)
+    })
+  }, [])
 
   // Booking pre-fill state
   const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
@@ -44,10 +53,28 @@ export default function Page() {
     setPrefilledStore(store)
   }
 
+  const handleAuthSuccess = (loggedUser: User) => {
+    setUser(loggedUser)
+    setIsAuthOpen(false)
+  }
+
+  const handleSignOut = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+    }
+    setUser(null)
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
       {/* Universal Luxury Navigation Header */}
-      <Header currentScreen={screen} go={handleNavigate} />
+      <Header
+        currentScreen={screen}
+        go={handleNavigate}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onSignOut={handleSignOut}
+      />
 
       {/* Main Page Views */}
       <main className="flex-1">
@@ -77,7 +104,7 @@ export default function Page() {
           />
         )}
 
-        {screen === 'orders' && <OrdersView go={handleNavigate} />}
+        {screen === 'orders' && <OrdersView go={handleNavigate} user={user} />}
 
         {screen === 'partner' && <PartnerFlow go={handleNavigate} otp={otp} />}
 
@@ -86,6 +113,13 @@ export default function Page() {
 
       {/* Universal Footer */}
       <Footer go={handleNavigate} />
+
+      {/* Authentication Modal (Google Auth, Email & Mobile) */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   )
 }

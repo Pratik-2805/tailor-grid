@@ -1,14 +1,22 @@
-'use client'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Clock, MapPin, QrCode, Ruler, Scissors, Sparkles, User as UserIcon } from 'lucide-react'
+import { type Screen, type User, type FittingBooking } from './data'
+import { fetchOrders } from '@/lib/api'
 
-import { useState } from 'react'
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronRight, Clock, MapPin, QrCode, Ruler, Scissors, Sparkles, User } from 'lucide-react'
-import { type Screen } from './data'
-
-export function OrdersView({ go }: { go: (s: Screen) => void }) {
+export function OrdersView({ go, user }: { go: (s: Screen) => void; user?: User | null }) {
   const [activeTab, setActiveTab] = useState<'orders' | 'fit-profile'>('orders')
   const [selectedOrderModal, setSelectedOrderModal] = useState<string | null>(null)
+  const [backendOrders, setBackendOrders] = useState<FittingBooking[]>([])
 
-  const orders = [
+  useEffect(() => {
+    fetchOrders(user?.contact || user?.email).then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        setBackendOrders(fetched)
+      }
+    })
+  }, [user])
+
+  const initialOrders = [
     {
       id: 'TG-1048',
       garment: 'Levi\'s 501 Selvedge Denim',
@@ -33,19 +41,22 @@ export function OrdersView({ go }: { go: (s: Screen) => void }) {
       otp: '5190',
       isCurrent: false,
     },
-    {
-      id: 'TG-1021',
-      garment: 'Totême Camel Wool Blazer',
-      service: 'Shorten Sleeves & Side Suppression',
-      studio: 'The Hem Room Studio',
-      address: '74 Marylebone High St, W1U 5JW',
-      status: 'Completed & Collected',
-      price: '£42.00',
-      slot: '14 Aug @ 10:00 AM',
-      otp: '3341',
-      isCurrent: false,
-    },
   ]
+
+  const displayOrders = backendOrders.length > 0
+    ? backendOrders.map((bo, idx) => ({
+        id: bo.id,
+        garment: bo.garmentBrand ? `${bo.garmentBrand} (${bo.garmentName || 'Garment'})` : (bo.garmentName || 'Custom Garment'),
+        service: bo.serviceName || 'Alteration Service',
+        studio: bo.storeName || 'Atelier North Kensington',
+        address: bo.postcode ? `Postcode: ${bo.postcode}` : '18 Kensington Church St, W8 4EP',
+        status: bo.status || 'Allocated',
+        price: `£${bo.price || 25}.00`,
+        slot: `${bo.date} @ ${bo.timeSlot}`,
+        otp: bo.otp || '1234',
+        isCurrent: idx === 0,
+      }))
+    : initialOrders
 
   return (
     <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
@@ -92,7 +103,7 @@ export function OrdersView({ go }: { go: (s: Screen) => void }) {
                 : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
             }`}
           >
-            Active &amp; Past Fittings ({orders.length})
+            Active &amp; Past Fittings ({displayOrders.length})
           </button>
           <button
             onClick={() => setActiveTab('fit-profile')}
@@ -110,7 +121,7 @@ export function OrdersView({ go }: { go: (s: Screen) => void }) {
         {/* TAB 1: ORDERS LIST */}
         {activeTab === 'orders' && (
           <div className="mt-8 space-y-4">
-            {orders.map((o) => (
+            {displayOrders.map((o) => (
               <div
                 key={o.id}
                 className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6"
