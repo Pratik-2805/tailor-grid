@@ -124,7 +124,7 @@ export function CustomerFlow({
   return (
     <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
       <div className="mx-auto max-w-[1040px] px-5 lg:px-8">
-        
+
         {/* Top Header Navigation */}
         <div className="flex items-center justify-between pb-6 border-b border-[#DDD6CB]">
           <button
@@ -155,9 +155,8 @@ export function CustomerFlow({
             {stepsList.map((s, idx) => (
               <div
                 key={s.key}
-                className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                  idx <= currentStepIndex ? 'bg-[#18191B]' : 'bg-[#DDD6CB]'
-                }`}
+                className={`h-1 flex-1 rounded-full transition-all duration-300 ${idx <= currentStepIndex ? 'bg-[#18191B]' : 'bg-[#DDD6CB]'
+                  }`}
               />
             ))}
           </div>
@@ -244,11 +243,10 @@ export function CustomerFlow({
                       setCategoryId(cat.id)
                       setSelectedServiceId(cat.popularServices[0].id)
                     }}
-                    className={`cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${
-                      isSelected
+                    className={`cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${isSelected
                         ? 'border-[#9E593B] bg-[#F4EFEA] shadow-sm ring-1 ring-[#9E593B]'
                         : 'border-[#DDD6CB] bg-white hover:border-[#B1ACA4]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="font-serif text-lg font-semibold text-[#18191B]">{cat.name}</h3>
@@ -296,11 +294,10 @@ export function CustomerFlow({
                   <div
                     key={svc.id}
                     onClick={() => setSelectedServiceId(svc.id)}
-                    className={`cursor-pointer rounded-2xl border p-5 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                      isChosen
+                    className={`cursor-pointer rounded-2xl border p-5 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isChosen
                         ? 'border-[#9E593B] bg-[#F4EFEA] shadow-sm ring-1 ring-[#9E593B]'
                         : 'border-[#DDD6CB] bg-white hover:border-[#B1ACA4]'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-4">
                       <div className={`grid size-6 place-items-center rounded-full mt-0.5 ${isChosen ? 'bg-[#9E593B] text-white' : 'border border-[#DDD6CB]'}`}>
@@ -359,11 +356,10 @@ export function CustomerFlow({
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               <div
                 onClick={() => setFittingType('in-person')}
-                className={`cursor-pointer rounded-2xl border p-5 transition-all ${
-                  fittingType === 'in-person'
+                className={`cursor-pointer rounded-2xl border p-5 transition-all ${fittingType === 'in-person'
                     ? 'border-[#9E593B] bg-[#F4EFEA] ring-1 ring-[#9E593B]'
                     : 'border-[#DDD6CB] bg-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <User size={16} className="text-[#9E593B]" />
@@ -377,11 +373,10 @@ export function CustomerFlow({
 
               <div
                 onClick={() => setFittingType('pre-pinned')}
-                className={`cursor-pointer rounded-2xl border p-5 transition-all ${
-                  fittingType === 'pre-pinned'
+                className={`cursor-pointer rounded-2xl border p-5 transition-all ${fittingType === 'pre-pinned'
                     ? 'border-[#9E593B] bg-[#F4EFEA] ring-1 ring-[#9E593B]'
                     : 'border-[#DDD6CB] bg-white'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <Ruler size={16} className="text-[#9E593B]" />
@@ -620,7 +615,7 @@ export function CustomerFlow({
               {/* Order Summary Sidebar */}
               <div className="rounded-2xl border border-[#DDD6CB] bg-[#F4EFEA] p-6 text-xs h-fit space-y-4">
                 <h4 className="font-serif text-base font-semibold text-[#18191B]">Order Breakdown</h4>
-                
+
                 <div className="space-y-2 border-b border-[#DDD6CB] pb-4">
                   <div className="flex justify-between">
                     <span className="text-[#5A5D64]">{selectedCategory.name}</span>
@@ -795,9 +790,8 @@ export function CustomerFlow({
 
                   return (
                     <div key={st.key} className="flex items-start gap-4">
-                      <div className={`grid size-7 place-items-center rounded-full mt-0.5 font-mono text-xs font-bold ${
-                        isDone ? 'bg-[#18191B] text-[#FAF8F5]' : 'bg-[#FAF8F5] border border-[#DDD6CB] text-[#7A7E85]'
-                      }`}>
+                      <div className={`grid size-7 place-items-center rounded-full mt-0.5 font-mono text-xs font-bold ${isDone ? 'bg-[#18191B] text-[#FAF8F5]' : 'bg-[#FAF8F5] border border-[#DDD6CB] text-[#7A7E85]'
+                        }`}>
                         {isDone ? '✓' : i + 1}
                       </div>
                       <div className="flex-1">
@@ -870,7 +864,7 @@ export function CustomerFlow({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B]">Step 14 · Rate Experience</span>
                     <h4 className="font-serif text-2xl font-semibold text-[#18191B] mt-1">How was your alteration fit?</h4>
                     <p className="text-xs text-[#5A5D64] mt-1">Rate your experience with {allocatedStore.leadTailor} at {allocatedStore.name}.</p>
-                    
+
                     <div className="mt-4 flex gap-2">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button

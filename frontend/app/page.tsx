@@ -15,6 +15,8 @@ import { PartnerFlow } from '@/components/tailorgrid/partner-flow'
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
+  const [user, setUser] = useState<User | null>(null)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [otp] = useState(() => makeOtp())
 
   // Booking pre-fill state
