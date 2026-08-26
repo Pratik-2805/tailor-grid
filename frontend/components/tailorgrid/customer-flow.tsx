@@ -29,6 +29,7 @@ import {
   type Screen,
   type StoreOption,
 } from './data'
+import { createOrder } from '@/lib/api'
 
 type BookingStep =
   | 'location'
@@ -105,8 +106,30 @@ export function CustomerFlow({
     setStep('garment')
   }
 
-  const handlePayment = (e: React.FormEvent) => {
+  const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
+    try {
+      await createOrder({
+        customerName,
+        customerEmail,
+        customerPhone,
+        postcode,
+        garmentId: selectedCategory.id,
+        garmentName: selectedCategory.name,
+        serviceId: selectedService.id,
+        serviceName: selectedService.name,
+        storeId: allocatedStore.id,
+        storeName: allocatedStore.name,
+        date: fittingDate,
+        timeSlot,
+        garmentBrand: brand,
+        fitNotes: notes,
+        price: selectedService.customerPrice,
+        otp
+      })
+    } catch (err) {
+      console.warn('Backend order recording notice:', err)
+    }
     setStep('pass')
   }
 

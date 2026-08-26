@@ -15,19 +15,19 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
   const cat = GARMENT_CATEGORIES.find((c) => c.id === activeCategoryId) || GARMENT_CATEGORIES[0]
 
   return (
-    <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E5E7EB]">
+    <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <span className="pill-badge bg-white text-[#9E593B] border border-[#E5E7EB] mb-3">
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
               Upfront Pricing Matrix
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
               Standardized, transparent rates.
             </h2>
-            <p className="mt-2 text-sm text-[#6B7280] max-w-[520px]">
+            <p className="mt-2 text-sm text-[#5A5D64] max-w-[520px]">
               No hidden fees, no studio markups. All prices include precision artisan work and our 100% Free Fit Guarantee.
             </p>
           </div>

@@ -7,11 +7,9 @@ import {
   ChevronDown,
   Clock,
   MapPin,
-  Navigation,
   Scissors,
-  ShieldCheck,
-  Star,
-  Store
+  Sparkles,
+  Zap,
 } from 'lucide-react'
 import { GARMENT_CATEGORIES, type Screen } from './data'
 
@@ -20,149 +18,181 @@ interface HeroSectionProps {
   onQuickSearch?: (postcode: string, garmentId: string) => void
 }
 
-export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
-  const [postcode, setPostcode] = useState('10012 (SoHo, NY)')
-  const [selectedGarment, setSelectedGarment] = useState('trousers')
+const COMMON_ALTERATIONS: Record<string, string[]> = {
+  trousers: ['Plain Hem Shortening', 'Denim Original Hem', 'Waist Take-in / Let-out', 'Leg Tapering & Slimming'],
+  shirts: ['Sleeve Shortening', 'Side Tapering Darts', 'Shoulder Slimming', 'Collar Adjustment'],
+  dresses: ['Hem Adjustment', 'Strap & Shoulder Shortening', 'Side Seam Contouring', 'Zipper Replacement'],
+  jackets: ['Sleeve Shortening with Buttons', 'Waist Suppression', 'Shoulder Narrowing', 'Center Seam Taper'],
+  suits: ['Full 2-Piece Fitting', 'Jacket Sleeves & Waist', 'Trouser Hem & Taper', '3-Piece Formal Fitting'],
+  ethnic: ['Lehenga Hem Shortening', 'Blouse Side Fitting & Padding', 'Kurta Sleeve & Length', 'Anarkali Seam Contouring'],
+}
 
-  const handleFindNearest = () => {
-    onQuickSearch?.(postcode || '10012', selectedGarment)
+const CITIES = [
+  'New York, NY (SoHo & Manhattan)',
+  'Los Angeles, CA (Beverly Hills)',
+  'Brooklyn, NY (Williamsburg)',
+  'Chicago, IL (Magnificent Mile)',
+]
+
+export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
+  const [selectedGarment, setSelectedGarment] = useState('trousers')
+  const [selectedAlteration, setSelectedAlteration] = useState('Plain Hem Shortening')
+  const [speed, setSpeed] = useState<'48h' | '24h'>('48h')
+  const [selectedCity, setSelectedCity] = useState(CITIES[0])
+  const [showCityPicker, setShowCityPicker] = useState(false)
+
+  const handleGarmentChange = (garmentId: string) => {
+    setSelectedGarment(garmentId)
+    const defaults = COMMON_ALTERATIONS[garmentId] || []
+    if (defaults.length > 0) {
+      setSelectedAlteration(defaults[0])
+    }
+  }
+
+  const handleSeePrices = () => {
+    onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarment)
     go('booking')
   }
 
-  const handleUseLocation = () => {
-    setPostcode('90210 (Beverly Hills, CA)')
-  }
+  const alterationOptions = COMMON_ALTERATIONS[selectedGarment] || ['Standard Seam Alteration']
 
   return (
-    <section className="relative overflow-hidden bg-[#F8F9FD] pt-10 pb-16 lg:pt-16 lg:pb-24">
+    <section className="relative overflow-hidden bg-[#FAF8F5] pt-10 pb-16 lg:pt-14 lg:pb-20 border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
         
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
           
-          {/* LEFT: Rapido / Uber Style Headline & Quick Booking Card */}
+          {/* LEFT: Authentic Uber Style Hero Booking Box */}
           <div className="lg:col-span-6 flex flex-col justify-center">
             
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-black tracking-tight text-[#0F1115] leading-[1.12]">
-              Your Clothes,<br />
-              <span className="text-[#0F1115]">Altered to Perfection.</span>
+            {/* City Selector (Uber Style: 📍 City, State · Change city) */}
+            <div className="relative mb-3.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0F1115]">
+                <MapPin size={14} className="text-[#0F1115]" />
+                <span className="font-bold">{selectedCity.split(' (')[0]}</span>
+                <button
+                  type="button"
+                  onClick={() => setShowCityPicker(!showCityPicker)}
+                  className="text-[#9E593B] underline font-bold hover:text-[#0F1115] ml-1 transition-colors"
+                >
+                  Change city
+                </button>
+              </div>
+
+              {showCityPicker && (
+                <div className="absolute top-6 left-0 z-30 w-72 rounded-2xl bg-white p-2 border border-[#E8E1D5] shadow-xl space-y-1 mt-1">
+                  {CITIES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCity(c)
+                        setShowCityPicker(false)
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-[#0F1115] hover:bg-[#FAF8F5] transition-colors"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Main Headline (Uber Style: Go anywhere with Uber -> Alter anything with TailorGrid) */}
+            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight text-[#0F1115] leading-[1.08] mb-6">
+              Alter clothes with TailorGrid
             </h1>
-            
-            <p className="mt-3.5 text-base sm:text-lg text-[#4B5563] font-normal">
-              Fixed upfront prices · 24h Express &amp; 48h Standard · 5-min store fitting
-            </p>
 
-            {/* Rapido-Style Floating Booking Box */}
-            <div className="mt-8 bg-white rounded-3xl p-5 sm:p-7 shadow-[0_16px_48px_rgba(0,0,0,0.06)] border border-[#E5E7EB] max-w-[500px]">
-              
-              <div className="space-y-3.5">
-                {/* Input 1: Location */}
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-[#0F1115]">
-                    <MapPin size={18} className="text-[#0F1115]" />
-                  </div>
-                  <input
-                    type="text"
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value)}
-                    placeholder="Enter ZIP Code or City (e.g. 10012)"
-                    className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] pl-11 pr-24 py-3.5 text-[15px] font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#0F1115] focus:outline-none transition-colors"
-                  />
-                  <button
-                    onClick={handleUseLocation}
-                    type="button"
-                    className="absolute right-2.5 flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-[#E5E7EB] text-xs font-semibold text-[#0F1115] hover:bg-[#F3F4F6] transition-colors"
-                  >
-                    <Navigation size={12} className="text-[#F59E0B]" />
-                    Locate
-                  </button>
-                </div>
+            {/* Uber-Style Clean Connected Input Box */}
+            <div className="space-y-4 max-w-[480px]">
 
-                {/* Input 2: Garment Category Selector */}
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-[#0F1115]">
-                    <Scissors size={18} className="text-[#0F1115]" />
+              {/* Connected Input Fields (Uber Route Container) */}
+              <div className="relative rounded-2xl bg-[#F4EFEA] p-2 border border-[#E8E1D5]">
+                
+                {/* Vertical connecting line */}
+                <div className="absolute left-[23px] top-[26px] bottom-[26px] w-[2px] bg-[#0F1115] z-0" />
+
+                {/* Input 1: Category of Clothes (Circle Marker) */}
+                <div className="relative z-10 flex items-center bg-white rounded-xl mb-1.5 border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors">
+                  <div className="pl-3.5 pr-2.5">
+                    <span className="block size-2 rounded-full bg-[#0F1115]" />
                   </div>
-                  <select
-                    value={selectedGarment}
-                    onChange={(e) => setSelectedGarment(e.target.value)}
-                    className="w-full appearance-none rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] pl-11 pr-10 py-3.5 text-[15px] font-medium text-[#0F1115] focus:bg-white focus:border-[#0F1115] focus:outline-none transition-colors cursor-pointer"
-                  >
-                    {GARMENT_CATEGORIES.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name} (Fixed from ${cat.startingPrice})
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 pointer-events-none text-[#6B7280]">
-                    <ChevronDown size={18} />
+                  <div className="flex-1 py-1.5 pr-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
+                      Category of clothes
+                    </label>
+                    <select
+                      value={selectedGarment}
+                      onChange={(e) => handleGarmentChange(e.target.value)}
+                      className="w-full bg-transparent text-sm font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
+                    >
+                      {GARMENT_CATEGORIES.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name} (from ${cat.startingPrice})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+
+                {/* Input 2: What needs to be done? (Square Marker) */}
+                <div className="relative z-10 flex items-center bg-white rounded-xl border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors">
+                  <div className="pl-3.5 pr-2.5">
+                    <span className="block size-2 bg-[#0F1115]" />
+                  </div>
+                  <div className="flex-1 py-1.5 pr-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
+                      What needs to be done?
+                    </label>
+                    <select
+                      value={selectedAlteration}
+                      onChange={(e) => setSelectedAlteration(e.target.value)}
+                      className="w-full bg-transparent text-sm font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
+                    >
+                      {alterationOptions.map((alt) => (
+                        <option key={alt} value={alt}>
+                          {alt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Quick Area Tags */}
-              <div className="flex items-center gap-1.5 mt-3 overflow-x-auto scrollbar-none">
-                <span className="text-xs text-[#9CA3AF] shrink-0">Popular:</span>
-                {['SoHo (10012)', 'Beverly Hills (90210)', 'Upper East (10021)', 'Brooklyn (11211)', 'Chicago (60611)'].map((area) => (
-                  <button
-                    key={area}
-                    type="button"
-                    onClick={() => setPostcode(area)}
-                    className="rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] px-2.5 py-0.5 text-xs font-medium text-[#4B5563] shrink-0 transition-colors"
-                  >
-                    {area.split(' ')[0]}
-                  </button>
-                ))}
+              {/* Action Buttons & Activity Link (Uber Style) */}
+              <div className="pt-2 flex flex-wrap items-center gap-4">
+                <button
+                  onClick={handleSeePrices}
+                  className="rounded-xl bg-[#0F1115] hover:bg-[#9E593B] px-7 py-3.5 text-sm font-extrabold text-white transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                >
+                  See prices
+                </button>
+
+                <button
+                  onClick={() => go('how-it-works')}
+                  className="text-xs font-bold text-[#0F1115] hover:text-[#9E593B] underline transition-colors"
+                >
+                  How 5-minute walk-in fitting works
+                </button>
               </div>
 
-              {/* Themed Action Button */}
-              <button
-                onClick={handleFindNearest}
-                className="mt-5 w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-4 text-base font-bold tracking-wide text-white shadow-md transition-all active:scale-[0.99] cursor-pointer"
-              >
-                <span>Find Nearest Store</span>
-                <ArrowRight size={18} />
-              </button>
-
-              <div className="mt-3.5 flex items-center justify-between text-xs text-[#6B7280]">
-                <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-[#10B981]" /> 100% Free Re-fit</span>
-                <span className="flex items-center gap-1"><Clock size={14} className="text-[#0F1115]" /> 24h &amp; 48h Service</span>
-                <span className="flex items-center gap-1"><Store size={14} className="text-[#0F1115]" /> Partner Network</span>
-              </div>
             </div>
 
           </div>
 
-          {/* RIGHT: Clean Hero Image Frame */}
+          {/* RIGHT: Clean Tailoring & Clothes Atelier Illustration */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            
-            <div className="relative w-full max-w-[560px] h-[360px] sm:h-[420px] lg:h-[460px]">
-              
-              {/* Organic Cutout Image Container */}
-              <div className="absolute inset-0 rounded-[36px] overflow-hidden shadow-2xl border-4 border-white">
-                <Image
-                  src="/images/craft_fitting.jpg"
-                  alt="Master tailor fitting clothes at partner atelier"
-                  fill
-                  priority
-                  className="object-cover object-center"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F1115]/75 via-transparent to-transparent" />
-                
-                {/* Bottom Overlay Label */}
-                <div className="absolute bottom-6 left-6 right-6 text-white">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#E7C9BA] block mb-1">
-                    Verified Partner Atelier Network
-                  </span>
-                  <p className="font-serif text-lg sm:text-xl font-bold leading-tight">
-                    Walk in for a 5-minute precision fitting at your nearest store.
-                  </p>
-                </div>
-              </div>
-
+            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[32px] overflow-hidden shadow-xl border-4 border-white bg-[#FAF8F5]">
+              <Image
+                src="/images/about_hero_art.jpg"
+                alt="Modern tailoring salon with tailored suit mannequins, garment racks, and craft tools"
+                fill
+                priority
+                className="object-cover object-center"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
             </div>
-
           </div>
 
         </div>
@@ -171,6 +201,3 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
     </section>
   )
 }
-
-
-

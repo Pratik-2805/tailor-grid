@@ -33,19 +33,19 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
   ]
 
   return (
-    <section className="py-16 sm:py-24 bg-white border-b border-[#E5E7EB]">
+    <section className="py-16 sm:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
           <div>
-            <span className="pill-badge bg-[#FAF8F5] text-[#9E593B] border border-[#EBE6DF] mb-3">
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
               Core Customer Journey
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
               How the Alteration Network Works.
             </h2>
-            <p className="mt-2 text-sm text-[#6B7280] max-w-[500px]">
+            <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
               Simple, transparent, and hyper-local. We connect you with vetted neighborhood partner tailors in minutes.
             </p>
           </div>

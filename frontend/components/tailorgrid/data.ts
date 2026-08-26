@@ -31,12 +31,12 @@ export type AlterationService = {
 export type User = {
   name: string
   contact: string
+  email?: string
   avatar?: string
   address?: string
   postcode?: string
   method: 'google' | 'apple' | 'email' | 'mobile' | 'guest'
 }
-
 
 export type StoreOption = {
   id: string
@@ -75,8 +75,11 @@ export type FittingBooking = {
   customerPhone: string
   postcode: string
   garmentId: string
+  garmentName?: string
   serviceId: string
+  serviceName?: string
   storeId: string
+  storeName?: string
   date: string
   timeSlot: string
   garmentBrand?: string

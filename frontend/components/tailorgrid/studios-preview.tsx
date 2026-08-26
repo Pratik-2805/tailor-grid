@@ -11,19 +11,19 @@ interface StudiosPreviewProps {
 
 export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
   return (
-    <section className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E5E7EB]">
+    <section className="py-16 sm:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
-            <span className="pill-badge bg-white text-[#9E593B] border border-[#E5E7EB] mb-3">
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
               Verified Atelier Network
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
               42 certified neighbourhood studios.
             </h2>
-            <p className="mt-2 text-sm text-[#6B7280] max-w-[500px]">
+            <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
               Every atelier in our network is audited for master craftsmanship, industrial overlock machinery, and fitting comfort.
             </p>
           </div>
