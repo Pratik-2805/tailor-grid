@@ -250,7 +250,7 @@ export function CustomerFlow({
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="font-serif text-lg font-semibold text-[#18191B]">{cat.name}</h3>
-                      <span className="font-mono text-xs font-bold text-[#9E593B]">From £{cat.startingPrice}</span>
+                      <span className="font-mono text-xs font-bold text-[#9E593B]">From ${cat.startingPrice}</span>
                     </div>
                     <p className="mt-2 text-xs text-[#5A5D64] leading-relaxed">{cat.tagline}</p>
                     <div className="mt-4 pt-3 border-t border-[#EAE4DC] flex items-center justify-between text-[11px] text-[#7A7E85]">
@@ -318,7 +318,7 @@ export function CustomerFlow({
 
                     <div className="flex items-center justify-between sm:justify-end gap-6 sm:text-right pl-10 sm:pl-0">
                       <div>
-                        <span className="font-serif text-xl font-bold text-[#18191B]">£{svc.customerPrice}</span>
+                        <span className="font-serif text-xl font-bold text-[#18191B]">${svc.customerPrice}</span>
                         <span className="block text-[10px] text-[#7A7E85]">{svc.turnaroundDays} days SLA</span>
                       </div>
                     </div>
@@ -608,7 +608,7 @@ export function CustomerFlow({
                   className="mt-6 w-full rounded-full bg-[#18191B] py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95 flex items-center justify-center gap-2"
                 >
                   <Lock size={14} />
-                  <span>Pay £{totalPrice}.00 &amp; Generate Fitting Pass</span>
+                  <span>Pay ${totalPrice}.00 &amp; Generate Fitting Pass</span>
                 </button>
               </form>
 
@@ -619,7 +619,7 @@ export function CustomerFlow({
                 <div className="space-y-2 border-b border-[#DDD6CB] pb-4">
                   <div className="flex justify-between">
                     <span className="text-[#5A5D64]">{selectedCategory.name}</span>
-                    <span className="font-semibold text-[#18191B]">£{selectedService.customerPrice}.00</span>
+                    <span className="font-semibold text-[#18191B]">${selectedService.customerPrice}.00</span>
                   </div>
                   <div className="text-[11px] text-[#7A7E85]">{selectedService.name}</div>
                   <div className="flex justify-between text-[11px] text-[#7A7E85]">
@@ -634,7 +634,7 @@ export function CustomerFlow({
 
                 <div className="flex justify-between text-sm font-bold text-[#18191B]">
                   <span>Total Amount</span>
-                  <span className="font-serif text-lg text-[#9E593B]">£{totalPrice}.00</span>
+                  <span className="font-serif text-lg text-[#9E593B]">${totalPrice}.00</span>
                 </div>
 
                 <div className="pt-2 text-[11px] text-[#7A7E85] space-y-1">
@@ -712,7 +712,7 @@ export function CustomerFlow({
                   </div>
                 </div>
                 <span className="rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] px-3 py-1">
-                  PAID £{totalPrice}
+                  PAID ${totalPrice}
                 </span>
               </div>
             </div>

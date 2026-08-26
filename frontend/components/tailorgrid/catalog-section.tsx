@@ -70,7 +70,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
               <Clock size={13} className="text-[#9E593B]" /> Avg. {cat.avgTurnaround}
             </span>
             <span className="px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#EBE6DF] text-[#9E593B]">
-              Starting at £{cat.startingPrice}
+              Starting at ${cat.startingPrice}
             </span>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
 
               <div className="flex items-center justify-between sm:justify-end gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#F3F4F6] shrink-0">
                 <div className="text-left sm:text-right">
-                  <div className="font-serif text-2xl font-bold text-[#0F1115]">£{svc.customerPrice}</div>
+                  <div className="font-serif text-2xl font-bold text-[#0F1115]">${svc.customerPrice}</div>
                   <span className="text-[11px] font-medium text-[#10B981]">{svc.turnaroundDays} days delivery</span>
                 </div>
                 <button

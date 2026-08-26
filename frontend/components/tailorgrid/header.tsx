@@ -41,13 +41,6 @@ export function Header({ currentScreen, go }: HeaderProps) {
               </span>
             </div>
           </button>
-
-          {/* Certified Network Pill */}
-          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FAF8F5] text-[12px] font-medium text-[#1E2229] border border-[#EBE6DF]">
-            <MapPin size={12} className="text-[#9E593B]" />
-            <span>Certified Atelier Network</span>
-            <span className="size-1.5 rounded-full bg-[#10B981] animate-pulse"></span>
-          </div>
         </div>
 
         {/* Desktop Navigation Links */}
@@ -74,7 +67,7 @@ export function Header({ currentScreen, go }: HeaderProps) {
             onClick={() => nav('for-partners')}
             className={`transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
           >
-            For Tailors
+            For Studios
           </button>
         </nav>
 
@@ -122,7 +115,7 @@ export function Header({ currentScreen, go }: HeaderProps) {
             { label: 'How it Works', screen: 'how-it-works' as Screen },
             { label: 'Track My Orders', screen: 'orders' as Screen },
             { label: 'About Us', screen: 'about' as Screen },
-            { label: 'For Tailors & Partners', screen: 'for-partners' as Screen },
+            { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
           ].map((item) => (
             <button
               key={item.label}
@@ -139,7 +132,7 @@ export function Header({ currentScreen, go }: HeaderProps) {
               onClick={() => nav('booking')}
               className="w-full rounded-full bg-[#0F1115] py-3 text-center text-[13.5px] font-semibold text-white shadow-sm"
             >
-              Book Doorstep or Studio
+              Book Fitting Pass
             </button>
           </div>
         </div>

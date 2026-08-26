@@ -21,16 +21,16 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
-  const [postcode, setPostcode] = useState('W8 4EP')
+  const [postcode, setPostcode] = useState('10012 (SoHo, NY)')
   const [selectedGarment, setSelectedGarment] = useState('trousers')
 
   const handleFindNearest = () => {
-    onQuickSearch?.(postcode || 'W8 4EP', selectedGarment)
+    onQuickSearch?.(postcode || '10012', selectedGarment)
     go('booking')
   }
 
   const handleUseLocation = () => {
-    setPostcode('W1K 7JA (Mayfair)')
+    setPostcode('90210 (Beverly Hills, CA)')
   }
 
   return (
@@ -49,7 +49,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
             </h1>
             
             <p className="mt-3.5 text-base sm:text-lg text-[#4B5563] font-normal">
-              Fixed upfront prices · 5-minute store fitting · Ready in 48 hours
+              Fixed upfront prices · 24h Express &amp; 48h Standard · 5-min store fitting
             </p>
 
             {/* Rapido-Style Floating Booking Box */}
@@ -65,7 +65,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                     type="text"
                     value={postcode}
                     onChange={(e) => setPostcode(e.target.value)}
-                    placeholder="Enter Postcode / Location"
+                    placeholder="Enter ZIP Code or City (e.g. 10012)"
                     className="w-full rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] pl-11 pr-24 py-3.5 text-[15px] font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#0F1115] focus:outline-none transition-colors"
                   />
                   <button
@@ -90,7 +90,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                   >
                     {GARMENT_CATEGORIES.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.name} (Fixed from £{cat.startingPrice})
+                        {cat.name} (Fixed from ${cat.startingPrice})
                       </option>
                     ))}
                   </select>
@@ -103,14 +103,14 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
               {/* Quick Area Tags */}
               <div className="flex items-center gap-1.5 mt-3 overflow-x-auto scrollbar-none">
                 <span className="text-xs text-[#9CA3AF] shrink-0">Popular:</span>
-                {['Kensington', 'Mayfair', 'Soho', 'Chelsea', 'Shoreditch'].map((area) => (
+                {['SoHo (10012)', 'Beverly Hills (90210)', 'Upper East (10021)', 'Brooklyn (11211)', 'Chicago (60611)'].map((area) => (
                   <button
                     key={area}
                     type="button"
                     onClick={() => setPostcode(area)}
                     className="rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] px-2.5 py-0.5 text-xs font-medium text-[#4B5563] shrink-0 transition-colors"
                   >
-                    {area}
+                    {area.split(' ')[0]}
                   </button>
                 ))}
               </div>
@@ -126,7 +126,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
 
               <div className="mt-3.5 flex items-center justify-between text-xs text-[#6B7280]">
                 <span className="flex items-center gap-1"><ShieldCheck size={14} className="text-[#10B981]" /> 100% Free Re-fit</span>
-                <span className="flex items-center gap-1"><Clock size={14} className="text-[#0F1115]" /> 48h Turnaround</span>
+                <span className="flex items-center gap-1"><Clock size={14} className="text-[#0F1115]" /> 24h &amp; 48h Service</span>
                 <span className="flex items-center gap-1"><Store size={14} className="text-[#0F1115]" /> Partner Network</span>
               </div>
             </div>

@@ -107,7 +107,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
           <div className="flex items-center gap-6 text-xs font-mono">
             <div>
               <span className="text-[#7A7E85] block">Today&apos;s Payouts</span>
-              <span className="font-serif text-xl font-bold text-[#18191B]">£185.00</span>
+              <span className="font-serif text-xl font-bold text-[#18191B]">$185.00</span>
             </div>
             <div>
               <span className="text-[#7A7E85] block">Studio Rating</span>
@@ -151,7 +151,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
 
                 <div className="text-right sm:self-start bg-white p-4 rounded-xl border border-[#DDD6CB]">
                   <span className="text-[11px] text-[#7A7E85] block">Your Studio Payout</span>
-                  <span className="font-serif text-2xl font-bold text-emerald-700">£20.00</span>
+                  <span className="font-serif text-2xl font-bold text-emerald-700">$21.00</span>
                   <span className="text-[10px] text-[#7A7E85] block">Standard 48h SLA</span>
                 </div>
               </div>
@@ -177,7 +177,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
               <div>
                 <span className="font-mono text-xs text-[#7A7E85]">#TG-1049 · Shirt Slimming</span>
                 <p className="font-serif text-base font-semibold text-[#18191B]">Oxford Cotton Shirt — Take In Darts</p>
-                <p className="text-xs text-[#7A7E85]">Slot: 02:00 PM · Payout: £16.00</p>
+                <p className="text-xs text-[#7A7E85]">Slot: 02:00 PM · Payout: $19.00</p>
               </div>
               <span className="text-xs font-semibold text-[#7A7E85] bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#DDD6CB]">
                 Scheduled
@@ -307,7 +307,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-[#B1ACA4]">Payout upon pick-up:</span>
-                  <p className="font-serif text-3xl font-bold text-emerald-400">£20.00</p>
+                  <p className="font-serif text-3xl font-bold text-emerald-400">$21.00</p>
                 </div>
               </div>
 
@@ -401,7 +401,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
               {boughtRetail === true && (
                 <div className="mt-6 space-y-3 pt-4 border-t border-[#EAE4DC] animate-in fade-in">
                   <div>
-                    <label className="block text-xs font-semibold text-[#18191B] mb-1">Approximate Purchase Value (£)</label>
+                    <label className="block text-xs font-semibold text-[#18191B] mb-1">Approximate Purchase Value ($)</label>
                     <input
                       type="number"
                       value={retailValue}
@@ -427,7 +427,7 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
                 onClick={() => setPhase('completed')}
                 className="mt-6 w-full rounded-full bg-[#18191B] py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] disabled:opacity-40"
               >
-                Complete Transaction &amp; Settle £20.00
+                Complete Transaction &amp; Settle $21.00
               </button>
             </div>
           </div>
@@ -445,12 +445,12 @@ export function PartnerFlow({ go, otp }: PartnerFlowProps) {
               Order Closed &amp; Reconciled
             </h2>
             <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
-              £20.00 payout added to your bi-weekly direct bank settlement. Camilla&apos;s fit profile updated.
+              $21.00 payout added to your bi-weekly direct bank settlement. Camilla&apos;s fit profile updated.
             </p>
 
             {boughtRetail && (
               <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
-                Logged retail merchandise purchase of <strong>£{retailValue}</strong> ({retailCategory}).
+                Logged retail merchandise purchase of <strong>${retailValue}</strong> ({retailCategory}).
               </div>
             )}
 
