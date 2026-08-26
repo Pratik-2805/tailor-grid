@@ -1,199 +1,469 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Clock3, MapPin, Navigation, Scissors } from 'lucide-react'
-import { LiveMap } from './live-map'
-import { formatClock, type Screen } from './data'
+import { useState } from 'react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Clock,
+  DollarSign,
+  MapPin,
+  PauseCircle,
+  PlayCircle,
+  Ruler,
+  Scissors,
+  ShoppingBag,
+  Sparkles,
+  Star,
+  User,
+} from 'lucide-react'
+import { formatClock, type OrderStatus, type Screen } from './data'
 
-type Phase = 'incoming' | 'navigate' | 'collect' | 'working' | 'done'
+type PartnerPhase =
+  | 'queue'
+  | 'checkin'
+  | 'measuring'
+  | 'working'
+  | 'ready'
+  | 'retail-tracking'
+  | 'completed'
 
-const REQUEST = {
-  ref: 'TG-1048',
-  garment: 'Navy wool trousers',
-  service: 'Shorten the hem',
-  tier: 'Priority · under 24 hours',
-  slaSeconds: 24 * 60 * 60,
-  area: 'W8 5TT · Kensington',
-  address: '18 Kensington Church St',
-  customer: 'Rhea M.',
+interface PartnerFlowProps {
+  go: (s: Screen) => void
+  otp: string
 }
 
-export function PartnerFlow({ go, otp }: { go: (s: Screen) => void; otp: string }) {
-  const [available, setAvailable] = useState(true)
-  const [phase, setPhase] = useState<Phase>('incoming')
-  const [courier, setCourier] = useState(0)
-  const [entry, setEntry] = useState('')
-  const [error, setError] = useState('')
-  const [sla, setSla] = useState(0)
+export function PartnerFlow({ go, otp }: PartnerFlowProps) {
+  const [acceptingOrders, setAcceptingOrders] = useState(true)
+  const [phase, setPhase] = useState<PartnerPhase>('queue')
+  const [inputOtp, setInputOtp] = useState('')
+  const [otpError, setOtpError] = useState('')
+  
+  // Fitting measurement logs
+  const [pinnedAdjustment, setPinnedAdjustment] = useState('Shorten hem by 3.5cm (1.37 in)')
+  const [sewingNotes, setSewingNotes] = useState('Preserve original wash chainstitch hem with gold Gütermann thread')
+  
+  // SLA Timer in seconds (e.g. 48 hours)
+  const [slaTime, setSlaTime] = useState(48 * 3600)
 
-  useEffect(() => {
-    if (phase !== 'navigate') return
-    const id = setInterval(() => {
-      setCourier((c) => {
-        const v = +(c + 0.1).toFixed(3)
-        if (v >= 1) {
-          clearInterval(id)
-          return 1
-        }
-        return v
-      })
-    }, 700)
-    return () => clearInterval(id)
-  }, [phase])
+  // Retail Purchase Tracking (CRITICAL FOR MVP as in Tech Brief)
+  const [boughtRetail, setBoughtRetail] = useState<boolean | null>(null)
+  const [retailValue, setRetailValue] = useState('45')
+  const [retailCategory, setRetailCategory] = useState('Merchandise / Linen Shirt')
 
-  useEffect(() => {
-    if (phase !== 'working') return
-    const id = setInterval(() => setSla((s) => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(id)
-  }, [phase])
-
-  const confirmOtp = () => {
-    if (entry.trim() === otp) {
-      setError('')
-      setSla(REQUEST.slaSeconds)
-      setPhase('working')
+  const verifyOtp = () => {
+    if (inputOtp.trim() === otp) {
+      setOtpError('')
+      setPhase('measuring')
     } else {
-      setError('That code doesn&apos;t match. Ask the customer to read it again.')
+      setOtpError('Invalid fitting pass code. Please verify the 4-digit code on the customer pass.')
     }
   }
 
   return (
-    <section className="mx-auto max-w-[1000px] px-5 py-10 lg:py-14">
-      <button onClick={() => go('home')} className="mb-8 inline-flex items-center gap-2 text-sm text-[#5f625f]">
-        <ArrowLeft size={15} /> Back home
-      </button>
-
-      <div className="flex flex-col justify-between gap-5 border-b border-[#d9d5cd] pb-7 sm:flex-row sm:items-end">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[.2em] text-[#a6593b]">Partner portal · Atelier North</p>
-          <h1 className="mt-4 font-serif text-5xl tracking-[-.05em]">Today&apos;s pickups.</h1>
-        </div>
-        <button
-          onClick={() => setAvailable((a) => !a)}
-          className={`inline-flex items-center gap-2 border px-4 py-2 text-sm ${available ? 'border-[#a6593b] text-[#a6593b]' : 'border-[#d9d5cd] text-[#777973]'}`}
-        >
-          <span className={`size-2 rounded-full ${available ? 'bg-[#a6593b]' : 'bg-[#bcb8af]'}`} />
-          {available ? 'Accepting new orders' : 'Paused for now'}
-        </button>
-      </div>
-
-      {/* INCOMING — new request ping */}
-      {phase === 'incoming' && (
-        available ? (
-          <div className="mt-8 border-2 border-[#a6593b] bg-[#eeece6] p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="inline-flex items-center gap-2 font-mono text-xs text-[#a6593b]">
-                  <span className="size-1.5 animate-ping rounded-full bg-[#a6593b]" /> NEW PICKUP REQUEST · {REQUEST.ref}
-                </p>
-                <h2 className="mt-3 font-serif text-3xl">{REQUEST.garment}</h2>
-                <p className="mt-2 text-sm text-[#5f625f]">{REQUEST.service} · {REQUEST.tier}</p>
-                <p className="mt-1 text-sm text-[#5f625f]">{REQUEST.area}</p>
-              </div>
-              <span className="inline-flex items-center gap-1.5 text-sm text-[#a6593b]"><Clock3 size={15} /> Respond now</span>
-            </div>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <button onClick={() => { setCourier(0); setPhase('navigate') }} className="inline-flex items-center gap-2 bg-[#202b38] px-5 py-3 text-sm text-[#f8f7f3]">
-                Accept &amp; head to pickup <ArrowRight size={16} />
-              </button>
-              <button className="border border-[#d9d5cd] px-5 py-3 text-sm">Decline</button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-8 border border-dashed border-[#d9d5cd] p-10 text-center text-sm text-[#777973]">
-            You&apos;re paused. Turn on &ldquo;Accepting new orders&rdquo; to receive pickup requests.
-          </div>
-        )
-      )}
-
-      {/* NAVIGATE — driving to the customer */}
-      {phase === 'navigate' && (
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_.9fr]">
-          <div className="min-h-[300px]">
-            <LiveMap progress={courier} originLabel="Atelier North" destLabel={REQUEST.customer} etaLabel={courier >= 1 ? 'Arrived' : `${Math.max(1, Math.ceil((1 - courier) * 9))} min`} />
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[.2em] text-[#a6593b]">Heading to pickup</p>
-            <h1 className="mt-4 font-serif text-4xl tracking-[-.04em]">Collect from {REQUEST.customer}</h1>
-            <div className="mt-6 flex flex-col gap-3 text-sm">
-              <p className="flex items-center gap-2"><MapPin size={15} className="text-[#a6593b]" /> {REQUEST.address}</p>
-              <p className="flex items-center gap-2"><Scissors size={15} className="text-[#a6593b]" /> {REQUEST.garment} · {REQUEST.service}</p>
-              <p className="flex items-center gap-2"><Clock3 size={15} className="text-[#a6593b]" /> {REQUEST.tier}</p>
-            </div>
-            <button
-              onClick={() => setPhase('collect')}
-              disabled={courier < 1}
-              className="mt-8 inline-flex w-full items-center justify-center gap-2 bg-[#202b38] px-5 py-3.5 text-sm text-[#f8f7f3] disabled:opacity-40"
-            >
-              <Navigation size={16} /> {courier < 1 ? 'En route…' : "I've arrived"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* COLLECT — enter customer OTP */}
-      {phase === 'collect' && (
-        <div className="mt-10 mx-auto max-w-[460px] text-center">
-          <h1 className="font-serif text-4xl tracking-[-.04em]">Confirm the pickup code.</h1>
-          <p className="mt-3 leading-7 text-[#5f625f]">
-            Ask {REQUEST.customer} for their 4-digit code and enter it to collect the item. This starts the turnaround clock.
-          </p>
-          <input
-            value={entry}
-            onChange={(e) => setEntry(e.target.value.replace(/\D/g, '').slice(0, 4))}
-            inputMode="numeric"
-            placeholder="––––"
-            className="mt-8 w-full border-2 border-[#202b38] bg-transparent px-4 py-4 text-center font-mono text-4xl tracking-[.5em] outline-none placeholder:text-[#cfcabf]"
-            aria-label="Pickup code"
-          />
-          {error && <p className="mt-3 text-sm text-[#a6593b]" dangerouslySetInnerHTML={{ __html: error }} />}
-          <button onClick={confirmOtp} disabled={entry.length < 4} className="mt-6 inline-flex w-full items-center justify-center gap-2 bg-[#a6593b] px-5 py-3.5 text-sm text-[#f8f7f3] disabled:opacity-40">
-            Confirm &amp; collect item <ArrowRight size={16} />
+    <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
+      <div className="mx-auto max-w-[1080px] px-5 lg:px-8">
+        
+        {/* Header Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#DDD6CB]">
+          <button
+            onClick={() => go('home')}
+            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors"
+          >
+            <ArrowLeft size={14} /> Exit to Overview
           </button>
-          <p className="mt-4 text-xs text-[#777973]">Demo code for this request: {otp}</p>
-        </div>
-      )}
 
-      {/* WORKING — SLA running */}
-      {phase === 'working' && (
-        <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_300px]">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[.2em] text-[#a6593b]">{REQUEST.ref} · collected</p>
-            <h1 className="mt-4 font-serif text-5xl tracking-[-.05em]">Turnaround started.</h1>
-            <p className="mt-4 max-w-[460px] leading-7 text-[#5f625f]">
-              You&apos;ve collected {REQUEST.garment.toLowerCase()} from {REQUEST.customer} Finish within the window to keep your on-time rating.
-            </p>
-            <div className="mt-9 border border-[#202b38] bg-[#202b38] p-6 text-[#f8f7f3]">
-              <p className="text-xs uppercase tracking-[.2em] text-[#e7c9ba]">Time to complete · {REQUEST.tier}</p>
-              <p className="mt-3 font-mono text-5xl tabular-nums">{formatClock(sla)}</p>
-            </div>
-            <button onClick={() => setPhase('done')} className="mt-8 inline-flex items-center gap-2 bg-[#a6593b] px-5 py-3 text-sm text-[#f8f7f3]">
-              Mark ready for return <Check size={16} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAcceptingOrders(!acceptingOrders)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                acceptingOrders
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                  : 'bg-stone-200 text-stone-700 border border-stone-300'
+              }`}
+            >
+              <span className={`size-2 rounded-full ${acceptingOrders ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
+              <span>{acceptingOrders ? 'Studio Online: Accepting Jobs' : 'Studio Paused'}</span>
             </button>
           </div>
-          <aside className="h-fit border border-[#d9d5cd] bg-[#eeece6] p-6">
-            <p className="text-xs font-semibold uppercase tracking-[.16em] text-[#a6593b]">Job details</p>
-            <div className="mt-5 flex flex-col gap-4 text-sm">
-              <div><span className="text-[#777973]">Customer</span><p className="mt-1">{REQUEST.customer}</p></div>
-              <div><span className="text-[#777973]">Item</span><p className="mt-1">{REQUEST.garment}</p></div>
-              <div><span className="text-[#777973]">Service</span><p className="mt-1">{REQUEST.service}</p></div>
-              <div><span className="text-[#777973]">Collected with</span><p className="mt-1 font-mono">Code {otp}</p></div>
-            </div>
-          </aside>
         </div>
-      )}
 
-      {/* DONE */}
-      {phase === 'done' && (
-        <div className="mt-12 flex flex-col items-center text-center">
-          <span className="grid size-14 place-items-center rounded-full bg-[#202b38] text-[#f8f7f3]"><Check size={24} /></span>
-          <h1 className="mt-6 font-serif text-4xl tracking-[-.04em]">Marked ready for return.</h1>
-          <p className="mt-3 max-w-[420px] leading-7 text-[#5f625f]">
-            {REQUEST.customer} has been notified that {REQUEST.garment.toLowerCase()} is ready. Nice work.
-          </p>
-          <button onClick={() => setPhase('incoming')} className="mt-8 border border-[#202b38] px-5 py-3 text-sm">Back to queue</button>
+        {/* Studio Banner */}
+        <div className="mt-8 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#DDD6CB]">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Partner Studio Portal
+            </span>
+            <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-normal text-[#18191B]">
+              Atelier North Kensington
+            </h1>
+            <p className="text-xs sm:text-sm text-[#5A5D64] mt-1">
+              Lead Master Tailor: Marco Rossi · 18 Kensington Church St, W8 4EP
+            </p>
+          </div>
+
+          <div className="flex items-center gap-6 text-xs font-mono">
+            <div>
+              <span className="text-[#7A7E85] block">Today&apos;s Payouts</span>
+              <span className="font-serif text-xl font-bold text-[#18191B]">£185.00</span>
+            </div>
+            <div>
+              <span className="text-[#7A7E85] block">Studio Rating</span>
+              <span className="font-serif text-xl font-bold text-[#9E593B]">4.96 ★</span>
+            </div>
+          </div>
         </div>
-      )}
-    </section>
+
+        {/* ========================================================
+            PHASE 1: INCOMING JOBS QUEUE
+        ======================================================== */}
+        {phase === 'queue' && (
+          <div className="mt-8 space-y-6">
+            <h3 className="font-serif text-xl font-semibold text-[#18191B]">
+              Incoming Alteration Orders
+            </h3>
+
+            {/* Active Highlighted Order */}
+            <div className="rounded-2xl border-2 border-[#9E593B] bg-[#F4EFEA] p-6 sm:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold bg-[#18191B] text-white px-2.5 py-0.5 rounded">
+                      NEW FITTING · #TG-1048
+                    </span>
+                    <span className="text-xs font-semibold text-[#9E593B] uppercase tracking-wider">
+                      Fitting Window: 11:30 AM
+                    </span>
+                  </div>
+
+                  <h4 className="mt-4 font-serif text-2xl font-bold text-[#18191B]">
+                    Trousers &amp; Jeans · Shorten with Original Jean Hem
+                  </h4>
+                  <p className="mt-1 text-xs text-[#5A5D64]">
+                    Customer: Camilla Harrington · Levi&apos;s 501 Selvedge (Brand new with tags)
+                  </p>
+                  <p className="mt-2 text-xs italic text-[#7A7E85] bg-white p-2.5 rounded-lg border border-[#DDD6CB] max-w-[560px]">
+                    Customer note: &ldquo;Keep original distressed factory hem, shorten for slight shoe break.&rdquo;
+                  </p>
+                </div>
+
+                <div className="text-right sm:self-start bg-white p-4 rounded-xl border border-[#DDD6CB]">
+                  <span className="text-[11px] text-[#7A7E85] block">Your Studio Payout</span>
+                  <span className="font-serif text-2xl font-bold text-emerald-700">£20.00</span>
+                  <span className="text-[10px] text-[#7A7E85] block">Standard 48h SLA</span>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-[#DDD6CB] flex flex-wrap gap-4 items-center justify-between">
+                <span className="text-xs text-[#5A5D64]">
+                  Pre-paid via TailorGrid. Guaranteed direct settlement.
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPhase('checkin')}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#18191B] px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-all"
+                  >
+                    <span>Check-In Customer Arrival</span>
+                    <ArrowRight size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Other Queued Orders */}
+            <div className="rounded-xl border border-[#DDD6CB] bg-white p-5 flex items-center justify-between opacity-80">
+              <div>
+                <span className="font-mono text-xs text-[#7A7E85]">#TG-1049 · Shirt Slimming</span>
+                <p className="font-serif text-base font-semibold text-[#18191B]">Oxford Cotton Shirt — Take In Darts</p>
+                <p className="text-xs text-[#7A7E85]">Slot: 02:00 PM · Payout: £16.00</p>
+              </div>
+              <span className="text-xs font-semibold text-[#7A7E85] bg-[#FAF8F5] px-3 py-1.5 rounded-full border border-[#DDD6CB]">
+                Scheduled
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 2: CUSTOMER ARRIVAL & OTP SCAN
+        ======================================================== */}
+        {phase === 'checkin' && (
+          <div className="mt-10 max-w-[580px] mx-auto text-center">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Step 02 · Check In Fitting Pass
+            </span>
+            <h2 className="mt-2 font-serif text-3xl font-normal text-[#18191B]">
+              Verify Customer Fitting Code
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
+              Ask Camilla for the 4-digit code shown on her digital fitting pass.
+            </p>
+
+            <div className="mt-8 rounded-2xl border border-[#DDD6CB] bg-white p-8 shadow-sm">
+              <input
+                type="text"
+                maxLength={4}
+                value={inputOtp}
+                onChange={(e) => setInputOtp(e.target.value)}
+                placeholder="––––"
+                className="w-full text-center font-mono text-4xl font-bold tracking-[0.5em] py-4 border-2 border-[#18191B] rounded-xl bg-[#FAF8F5] focus:outline-none"
+              />
+
+              {otpError && (
+                <p className="mt-3 text-xs text-red-600 flex items-center justify-center gap-1">
+                  <AlertCircle size={14} /> {otpError}
+                </p>
+              )}
+
+              <p className="mt-4 text-[11px] text-[#7A7E85]">
+                Demo fitting pass code for this booking is: <strong className="font-mono text-[#9E593B]">{otp}</strong>
+              </p>
+
+              <button
+                onClick={verifyOtp}
+                className="mt-6 w-full rounded-full bg-[#18191B] py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-all"
+              >
+                Verify Code &amp; Start Fitting Session
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 3: RECORD FITTING MEASUREMENTS
+        ======================================================== */}
+        {phase === 'measuring' && (
+          <div className="mt-8 max-w-[760px] mx-auto">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Step 03 · Fitting Completed &amp; Pinned
+            </span>
+            <h2 className="mt-2 font-serif text-3xl font-normal text-[#18191B]">
+              Log Pinning &amp; Adjustment Specs
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
+              These adjustments will be saved into Camilla&apos;s Customer Fit Profile for future orders.
+            </p>
+
+            <div className="mt-6 rounded-2xl border border-[#DDD6CB] bg-white p-6 sm:p-8 space-y-4 shadow-sm">
+              <div>
+                <label className="block text-xs font-semibold text-[#18191B] mb-1.5">
+                  Exact Adjustment Performed / Pinned
+                </label>
+                <input
+                  type="text"
+                  value={pinnedAdjustment}
+                  onChange={(e) => setPinnedAdjustment(e.target.value)}
+                  className="w-full rounded-xl border border-[#DDD6CB] bg-[#FAF8F5] px-4 py-3 text-xs sm:text-sm font-medium focus:border-[#9E593B] focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#18191B] mb-1.5">
+                  Sewing &amp; Machinery Instructions
+                </label>
+                <textarea
+                  rows={2}
+                  value={sewingNotes}
+                  onChange={(e) => setSewingNotes(e.target.value)}
+                  className="w-full rounded-xl border border-[#DDD6CB] bg-[#FAF8F5] p-3 text-xs sm:text-sm font-medium focus:border-[#9E593B] focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t border-[#EAE4DC] flex items-center justify-between">
+                <span className="text-xs text-[#7A7E85]">Promised Turnaround: 48 Hours</span>
+                <button
+                  onClick={() => setPhase('working')}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#18191B] px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B]"
+                >
+                  <span>Mark &ldquo;Work In Progress&rdquo;</span>
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 4: WORK IN PROGRESS & SLA COUNTDOWN
+        ======================================================== */}
+        {phase === 'working' && (
+          <div className="mt-8 max-w-[760px] mx-auto">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Step 04 · Tailoring in Progress
+            </span>
+            <h2 className="mt-2 font-serif text-3xl font-normal text-[#18191B]">
+              Active Workshop Ticket #TG-1048
+            </h2>
+
+            <div className="mt-6 rounded-2xl border border-[#DDD6CB] bg-[#18191B] p-8 text-[#FAF8F5]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] uppercase tracking-wider text-[#E7C9BA]">SLA Turnaround Timer</span>
+                  <p className="mt-2 font-mono text-4xl sm:text-5xl font-bold text-white tabular-nums">
+                    {formatClock(slaTime)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-[#B1ACA4]">Payout upon pick-up:</span>
+                  <p className="font-serif text-3xl font-bold text-emerald-400">£20.00</p>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-[#2C3038] text-xs text-[#B1ACA4] space-y-1">
+                <p>• Item: Levi&apos;s 501 Selvedge Jeans</p>
+                <p>• Pinned spec: {pinnedAdjustment}</p>
+                <p>• Notes: {sewingNotes}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setPhase('ready')}
+              className="mt-6 w-full rounded-full bg-[#9E593B] py-4 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#B85F3B] transition-all flex items-center justify-center gap-2"
+            >
+              <Check size={16} />
+              <span>Mark Tailoring Complete &amp; Notify Customer Ready for Pick-Up</span>
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 5: GARMENT READY & PICK-UP
+        ======================================================== */}
+        {phase === 'ready' && (
+          <div className="mt-8 max-w-[620px] mx-auto text-center">
+            <div className="grid size-14 place-items-center rounded-full bg-emerald-100 text-emerald-800 mx-auto">
+              <CheckCircle2 size={30} />
+            </div>
+            <span className="mt-4 inline-block text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+              Step 05 · Ready for Collection
+            </span>
+            <h2 className="mt-1 font-serif text-3xl font-normal text-[#18191B]">
+              Garment Pressed &amp; Stored on Rack
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
+              SMS sent to Camilla. When customer arrives to try on and collect, click below to close order.
+            </p>
+
+            <button
+              onClick={() => setPhase('retail-tracking')}
+              className="mt-8 rounded-full bg-[#18191B] px-8 py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B]"
+            >
+              Customer Has Collected &middot; Close Order
+            </button>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 6: RETAIL PURCHASE TRACKING (TECH BRIEF CRITICAL REQ)
+        ======================================================== */}
+        {phase === 'retail-tracking' && (
+          <div className="mt-8 max-w-[640px] mx-auto">
+            <div className="rounded-2xl border-2 border-[#9E593B] bg-white p-6 sm:p-8 shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E593B]">
+                Tech Brief MVP Requirement · Retail Purchase Tracking
+              </span>
+              <h3 className="mt-2 font-serif text-2xl font-semibold text-[#18191B]">
+                Did this customer purchase merchandise from your store?
+              </h3>
+              <p className="mt-2 text-xs text-[#5A5D64]">
+                We track in-store conversion to measure how alteration footfall drives additional retail sales for your studio.
+              </p>
+
+              {/* YES / NO Toggle */}
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setBoughtRetail(true)}
+                  className={`py-3.5 rounded-xl border font-semibold text-xs transition-all ${
+                    boughtRetail === true
+                      ? 'border-[#9E593B] bg-[#F4EFEA] text-[#18191B] ring-1 ring-[#9E593B]'
+                      : 'border-[#DDD6CB] bg-[#FAF8F5] text-[#5A5D64]'
+                  }`}
+                >
+                  YES (Merchandise Purchased)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBoughtRetail(false)}
+                  className={`py-3.5 rounded-xl border font-semibold text-xs transition-all ${
+                    boughtRetail === false
+                      ? 'border-[#18191B] bg-[#18191B] text-white'
+                      : 'border-[#DDD6CB] bg-[#FAF8F5] text-[#5A5D64]'
+                  }`}
+                >
+                  NO (Alteration Only)
+                </button>
+              </div>
+
+              {/* If YES: value & category */}
+              {boughtRetail === true && (
+                <div className="mt-6 space-y-3 pt-4 border-t border-[#EAE4DC] animate-in fade-in">
+                  <div>
+                    <label className="block text-xs font-semibold text-[#18191B] mb-1">Approximate Purchase Value (£)</label>
+                    <input
+                      type="number"
+                      value={retailValue}
+                      onChange={(e) => setRetailValue(e.target.value)}
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-[#FAF8F5] px-4 py-2.5 text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-[#18191B] mb-1">Product Category</label>
+                    <input
+                      type="text"
+                      value={retailCategory}
+                      onChange={(e) => setRetailCategory(e.target.value)}
+                      placeholder="e.g. Linen Shirt, Tie, Accessories"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-[#FAF8F5] px-4 py-2.5 text-xs font-medium focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                disabled={boughtRetail === null}
+                onClick={() => setPhase('completed')}
+                className="mt-6 w-full rounded-full bg-[#18191B] py-3.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] disabled:opacity-40"
+              >
+                Complete Transaction &amp; Settle £20.00
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================
+            PHASE 7: ORDER CLOSED & SETTLED
+        ======================================================== */}
+        {phase === 'completed' && (
+          <div className="mt-10 max-w-[540px] mx-auto text-center">
+            <div className="grid size-16 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5] mx-auto">
+              <Sparkles size={28} className="text-[#9E593B]" />
+            </div>
+            <h2 className="mt-4 font-serif text-3xl font-normal text-[#18191B]">
+              Order Closed &amp; Reconciled
+            </h2>
+            <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
+              £20.00 payout added to your bi-weekly direct bank settlement. Camilla&apos;s fit profile updated.
+            </p>
+
+            {boughtRetail && (
+              <div className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
+                Logged retail merchandise purchase of <strong>£{retailValue}</strong> ({retailCategory}).
+              </div>
+            )}
+
+            <button
+              onClick={() => setPhase('queue')}
+              className="mt-6 rounded-full border border-[#DDD6CB] bg-white px-6 py-2.5 text-xs font-semibold text-[#18191B] hover:bg-[#FAF8F5]"
+            >
+              Back to Incoming Queue
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
   )
 }

@@ -1,10 +1,23 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+})
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-sans',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: 'TailorGrid — Alterations, coordinated',
-  description: 'Book trusted alterations, track every fitting, and keep your fit details in one place.',
+  title: 'TailorGrid — The Neighborhood Alteration Network',
+  description: 'Book verified local master tailors, get upfront fixed pricing, and schedule studio fittings in minutes.',
   generator: 'TailorGrid',
   icons: {
     icon: [
@@ -28,8 +41,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: 'light dark',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
+    { media: '(prefers-color-scheme: light)', color: '#FAF8F5' },
+    { media: '(prefers-color-scheme: dark)', color: '#18191B' },
   ],
 }
 
@@ -39,8 +52,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="light bg-background">
-      <body className="antialiased">
+    <html lang="en" className={`${playfair.variable} ${jakarta.variable} scroll-smooth`}>
+      <body className="font-sans antialiased bg-[#FAF8F5] text-[#1D2024] selection:bg-[#9E593B]/20 selection:text-[#9E593B]">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
