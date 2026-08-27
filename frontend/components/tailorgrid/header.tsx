@@ -24,7 +24,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
   return (
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
-        
+
         {/* Brand Logo + City Selector */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <button
@@ -37,7 +37,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             </div>
             <div className="whitespace-nowrap">
               <span className="font-serif font-bold text-[19px] tracking-tight text-[#0F1115] block leading-none">
-                TailorGrid
+                Darzi
               </span>
               <span className="text-[10px] font-semibold tracking-wider uppercase text-[#9E593B] block mt-0.5">
                 On-Demand Alterations

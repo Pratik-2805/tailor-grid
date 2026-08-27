@@ -41,21 +41,16 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
           {/* Main Footer Navigation Grid */}
           <div className="grid gap-10 pb-12 lg:grid-cols-12 border-b border-[#1E2229]/80">
 
-            {/* Brand & Newsletter Column */}
-            <div className="lg:col-span-4 space-y-4">
-              <button
-                onClick={() => nav('home')}
-                className="flex items-center gap-2.5 group text-left"
-                aria-label="TailorGrid Home"
-              >
-                <div className="grid size-8 place-items-center rounded-lg bg-white text-[#0F1115] shadow-xs group-hover:scale-105 transition-transform">
-                  <Scissors size={16} />
+            {/* Brand Col */}
+            <div className="lg:col-span-4">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="grid size-9 place-items-center rounded-xl bg-white text-[#0F1115]">
+                  <Scissors size={18} />
                 </div>
-                <span className="font-serif text-xl font-bold text-white tracking-tight">TailorGrid</span>
-              </button>
-
-              <p className="text-xs text-[#9CA3AF] leading-relaxed max-w-[320px]">
-                On-demand master tailoring and precision alterations network. Standardized pricing, digital QR fitting passes, and guaranteed perfect fit.
+                <span className="font-serif text-xl font-bold text-white tracking-tight">Darzi</span>
+              </div>
+              <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
+                On-demand master tailoring and alterations network. Guaranteed fit, upfront fixed rates, and doorstep service.
               </p>
 
               {/* Newsletter Subscription */}
@@ -116,40 +111,14 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               </ul>
             </div>
 
-            {/* Company Column */}
-            <div className="lg:col-span-3 sm:col-span-4 space-y-3">
-              <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold">
-                Company
-              </h5>
-              <ul className="space-y-2 text-xs text-[#9CA3AF]">
-                <li>
-                  <button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors text-left">
-                    How It Works
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => nav('about')} className="hover:text-white transition-colors text-left">
-                    About TailorGrid
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => nav('for-partners')} className="hover:text-white transition-colors text-left">
-                    Partner With Us
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => nav('orders')} className="hover:text-white transition-colors text-left">
-                    Digital Fit Passport
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => setActiveModal('guarantee')}
-                    className="hover:text-white transition-colors text-left"
-                  >
-                    100% Fit Guarantee Policy
-                  </button>
-                </li>
+            {/* Company */}
+            <div className="lg:col-span-3 sm:col-span-4">
+              <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
+              <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
+                <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
+                <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
+                <li><button onClick={() => nav('for-partners')} className="hover:text-white transition-colors">Partner With Us</button></li>
+                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Digital Fit Passport</button></li>
               </ul>
             </div>
 
@@ -183,43 +152,21 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             </div>
 
           </div>
+        </div>
 
-          {/* Bottom Bar: Legal, Hubs & Copyright */}
-          <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
-            
-            {/* Left: Copyright & Legal Links */}
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
-              <span>© {new Date().getFullYear()} TailorGrid Technologies Ltd.</span>
-              <span>·</span>
-              <button
-                onClick={() => setActiveModal('privacy')}
-                className="hover:text-[#9CA3AF] transition-colors"
-              >
-                Privacy Policy
-              </button>
-              <span>·</span>
-              <button
-                onClick={() => setActiveModal('terms')}
-                className="hover:text-[#9CA3AF] transition-colors"
-              >
-                Terms of Service
-              </button>
-            </div>
-
-            {/* Right: Active Metropolitan Hubs */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center text-[#9CA3AF]">
-              <span className="flex items-center gap-1 text-[#D1D5DB] font-medium">
-                <MapPin size={12} className="text-[#9E593B]" /> Hubs:
-              </span>
-              <span>London</span>
-              <span>·</span>
-              <span>New York</span>
-              <span>·</span>
-              <span>Los Angeles</span>
-              <span>·</span>
-              <span>Manchester</span>
-            </div>
-
+        {/* Bottom */}
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
+          <div className="flex items-center gap-2">
+            <span>© {new Date().getFullYear()} Darzi Technologies Ltd.</span>
+            <span>·</span>
+            <span className="flex items-center gap-1 text-[#10B981]"><ShieldCheck size={13} /> 100% Fit Guarantee</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1"><MapPin size={12} /> London</span>
+            <span>·</span>
+            <span>Manchester</span>
+            <span>·</span>
+            <span>Birmingham</span>
           </div>
 
         </div>
@@ -229,7 +176,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
       {activeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
           <div className="relative w-full max-w-[540px] rounded-3xl bg-[#FAF8F5] text-[#0F1115] p-6 sm:p-8 shadow-2xl border border-[#EBE6DF] max-h-[85vh] overflow-y-auto">
-            
+
             {/* Close button */}
             <button
               onClick={() => setActiveModal(null)}
