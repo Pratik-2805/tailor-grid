@@ -117,9 +117,7 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps) {
               </div>
 
               {/* Bottom Card Footer with Details Pill Button */}
-              <div className="flex items-center justify-between pt-4 border-t border-[#E8E1D5]">
-                <span className="text-xs font-bold text-[#0F1115]">{svc.price} · {svc.turnaround.split(' ')[0]}</span>
-
+              <div className="flex items-center justify-end pt-4 border-t border-[#E8E1D5]">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

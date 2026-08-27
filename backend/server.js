@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { checkDbConnection } = require('./lib/prisma');
 
 const authRoutes = require('./routes/auth');
 const ordersRoutes = require('./routes/orders');
@@ -18,11 +19,18 @@ app.use(cors({
 
 app.use(express.json());
 
-// API Health Check
-app.get('/api/health', (req, res) => {
+// API Health Check with Database Status
+app.get('/api/health', async (req, res) => {
+  const dbStatus = await checkDbConnection();
   res.json({
     status: 'ok',
     service: 'TailorGrid Backend API',
+    database: {
+      orm: 'Prisma 6',
+      provider: 'postgresql',
+      connected: dbStatus.connected,
+      error: dbStatus.error || null,
+    },
     timestamp: new Date().toISOString()
   });
 });
@@ -43,9 +51,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`=================================`);
   console.log(`TailorGrid Backend Running on http://localhost:${PORT}`);
   console.log(`Health Check: http://localhost:${PORT}/api/health`);
+  const dbCheck = await checkDbConnection();
+  if (dbCheck.connected) {
+    console.log(`PostgreSQL Database: Connected via Prisma ✅`);
+  } else {
+    console.log(`PostgreSQL Database: Standing by / Local fallback active ⚡`);
+  }
   console.log(`=================================`);
 });

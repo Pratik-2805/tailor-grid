@@ -57,18 +57,18 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
   const alterationOptions = COMMON_ALTERATIONS[selectedGarment] || ['Standard Seam Alteration']
 
   return (
-    <section className="relative overflow-hidden bg-[#FAF8F5] pt-10 pb-16 lg:pt-14 lg:pb-20 border-b border-[#E8E1D5]">
-      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-[#FAF8F5] pt-12 pb-20 lg:pt-20 lg:pb-28 border-b border-[#E8E1D5]">
+      <div className="mx-auto max-w-[1340px] px-4 sm:px-6 lg:px-10">
         
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
           
           {/* LEFT: Authentic Uber Style Hero Booking Box */}
           <div className="lg:col-span-6 flex flex-col justify-center">
             
             {/* City Selector (Uber Style: 📍 City, State · Change city) */}
-            <div className="relative mb-3.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0F1115]">
-                <MapPin size={14} className="text-[#0F1115]" />
+            <div className="relative mb-4">
+              <div className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#0F1115]">
+                <MapPin size={15} className="text-[#0F1115]" />
                 <span className="font-bold">{selectedCity.split(' (')[0]}</span>
                 <button
                   type="button"
@@ -80,7 +80,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
               </div>
 
               {showCityPicker && (
-                <div className="absolute top-6 left-0 z-30 w-72 rounded-2xl bg-white p-2 border border-[#E8E1D5] shadow-xl space-y-1 mt-1">
+                <div className="absolute top-7 left-0 z-30 w-72 rounded-2xl bg-white p-2 border border-[#E8E1D5] shadow-xl space-y-1 mt-1">
                   {CITIES.map((c) => (
                     <button
                       key={c}
@@ -99,32 +99,32 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
             </div>
 
             {/* Main Headline (Uber Style: Go anywhere with Uber -> Alter anything with TailorGrid) */}
-            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight text-[#0F1115] leading-[1.08] mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-[60px] font-black tracking-tight text-[#0F1115] leading-[1.06] mb-7">
               Alter clothes with TailorGrid
             </h1>
 
             {/* Uber-Style Clean Connected Input Box */}
-            <div className="space-y-4 max-w-[480px]">
+            <div className="space-y-4 max-w-[520px] w-full">
 
               {/* Connected Input Fields (Uber Route Container) */}
-              <div className="relative rounded-2xl bg-[#F4EFEA] p-2 border border-[#E8E1D5]">
+              <div className="relative rounded-2xl bg-[#F4EFEA] p-2.5 border border-[#E8E1D5]">
                 
                 {/* Vertical connecting line */}
-                <div className="absolute left-[23px] top-[26px] bottom-[26px] w-[2px] bg-[#0F1115] z-0" />
+                <div className="absolute left-[26px] top-[30px] bottom-[30px] w-[2px] bg-[#0F1115] z-0" />
 
                 {/* Input 1: Category of Clothes (Circle Marker) */}
-                <div className="relative z-10 flex items-center bg-white rounded-xl mb-1.5 border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors">
-                  <div className="pl-3.5 pr-2.5">
-                    <span className="block size-2 rounded-full bg-[#0F1115]" />
+                <div className="relative z-10 flex items-center bg-white rounded-xl mb-2 border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors shadow-2xs">
+                  <div className="pl-4 pr-3">
+                    <span className="block size-2.5 rounded-full bg-[#0F1115]" />
                   </div>
-                  <div className="flex-1 py-1.5 pr-3">
+                  <div className="flex-1 py-2 pr-3">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
                       Category of clothes
                     </label>
                     <select
                       value={selectedGarment}
                       onChange={(e) => handleGarmentChange(e.target.value)}
-                      className="w-full bg-transparent text-sm font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
+                      className="w-full bg-transparent text-[15px] font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
                     >
                       {GARMENT_CATEGORIES.map((cat) => (
                         <option key={cat.id} value={cat.id}>
@@ -136,18 +136,18 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                 </div>
 
                 {/* Input 2: What needs to be done? (Square Marker) */}
-                <div className="relative z-10 flex items-center bg-white rounded-xl border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors">
-                  <div className="pl-3.5 pr-2.5">
-                    <span className="block size-2 bg-[#0F1115]" />
+                <div className="relative z-10 flex items-center bg-white rounded-xl border border-[#E8E1D5] focus-within:border-[#0F1115] transition-colors shadow-2xs">
+                  <div className="pl-4 pr-3">
+                    <span className="block size-2.5 bg-[#0F1115]" />
                   </div>
-                  <div className="flex-1 py-1.5 pr-3">
+                  <div className="flex-1 py-2 pr-3">
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
                       What needs to be done?
                     </label>
                     <select
                       value={selectedAlteration}
                       onChange={(e) => setSelectedAlteration(e.target.value)}
-                      className="w-full bg-transparent text-sm font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
+                      className="w-full bg-transparent text-[15px] font-bold text-[#0F1115] focus:outline-none cursor-pointer py-0.5"
                     >
                       {alterationOptions.map((alt) => (
                         <option key={alt} value={alt}>
@@ -164,14 +164,14 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
               <div className="pt-2 flex flex-wrap items-center gap-4">
                 <button
                   onClick={handleSeePrices}
-                  className="rounded-xl bg-[#0F1115] hover:bg-[#9E593B] px-7 py-3.5 text-sm font-extrabold text-white transition-all active:scale-[0.98] shadow-sm cursor-pointer"
+                  className="rounded-xl bg-[#0F1115] hover:bg-[#9E593B] px-8 py-4 text-base font-extrabold text-white transition-all active:scale-[0.98] shadow-sm cursor-pointer"
                 >
                   See prices
                 </button>
 
                 <button
                   onClick={() => go('how-it-works')}
-                  className="text-xs font-bold text-[#0F1115] hover:text-[#9E593B] underline transition-colors"
+                  className="text-xs sm:text-sm font-bold text-[#0F1115] hover:text-[#9E593B] underline transition-colors"
                 >
                   How 5-minute walk-in fitting works
                 </button>
@@ -183,7 +183,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
 
           {/* RIGHT: Clean Tailoring & Clothes Atelier Illustration */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[32px] overflow-hidden shadow-xl border-4 border-white bg-[#FAF8F5]">
+            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
               <Image
                 src="/images/about_hero_art.jpg"
                 alt="Modern tailoring salon with tailored suit mannequins, garment racks, and craft tools"

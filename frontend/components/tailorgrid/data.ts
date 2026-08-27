@@ -29,6 +29,7 @@ export type AlterationService = {
 }
 
 export type User = {
+  id?: string
   name: string
   contact: string
   email?: string
@@ -36,6 +37,9 @@ export type User = {
   address?: string
   postcode?: string
   method: 'google' | 'apple' | 'email' | 'mobile' | 'guest'
+  role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
+  studioId?: string
+  studioName?: string
 }
 
 export type StoreOption = {
@@ -70,6 +74,7 @@ export type OrderStatus =
 
 export type FittingBooking = {
   id: string
+  userId?: string
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -84,15 +89,39 @@ export type FittingBooking = {
   timeSlot: string
   garmentBrand?: string
   fitNotes?: string
+  pinnedAdjustment?: string
+  sewingNotes?: string
+  slaHours?: number
+  partnerPayout?: number
+  retailSold?: boolean
+  retailValue?: number
+  retailCategory?: string
+  assignedWorker?: string
+  machineNo?: string
+  hangTagNo?: string
+  intakePhotoUrl?: string
+  fabricConditionNotes?: string
+  fittingType?: 'PRE_PINNED' | 'NEED_STUDIO_FITTING'
+  measurements?: {
+    waist?: string
+    inseam?: string
+    sleeve?: string
+    shoulder?: string
+    hem?: string
+    chest?: string
+    custom?: string
+  }
+  distanceMiles?: number
+  priceAdjustment?: number
+  priceAdjustmentReason?: string
+  priceAdjustmentStatus?: 'NONE' | 'PENDING_APPROVAL' | 'APPROVED' | 'DECLINED'
+  slaStartedAt?: string
+  rating?: number
+  ratingFeedback?: string
   status: OrderStatus
   price: number
   otp: string
-  createdAt: string
-  retailPurchase?: {
-    made: boolean
-    amount?: number
-    category?: string
-  }
+  createdAt?: string
 }
 
 // 7 Categories strictly matching US Tailor Market Benchmark Rates & Tech Brief
