@@ -79,7 +79,7 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps) {
         {/* Section Header (Uber Style: Explore what you can do with Uber) */}
         <div className="mb-10 text-left">
           <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-[#0F1115] tracking-tight">
-            Explore what you can do with TailorGrid
+            Explore what you can do with Darzi
           </h2>
           <p className="mt-2 text-sm text-[#5A5D64]">
             Standardized alteration services across all garments with guaranteed 24h &amp; 48h turnaround speeds.

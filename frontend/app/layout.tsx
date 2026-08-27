@@ -16,9 +16,9 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'TailorGrid — The Neighborhood Alteration Network',
+  title: 'Darzi — The Neighborhood Alteration Network',
   description: 'Book verified local master tailors, get upfront fixed pricing, and schedule studio fittings in minutes.',
-  generator: 'TailorGrid',
+  generator: 'Darzi',
   icons: {
     icon: [
       {

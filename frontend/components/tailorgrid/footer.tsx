@@ -26,7 +26,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               <div className="grid size-9 place-items-center rounded-xl bg-white text-[#0F1115]">
                 <Scissors size={18} />
               </div>
-              <span className="font-serif text-xl font-bold text-white tracking-tight">TailorGrid</span>
+              <span className="font-serif text-xl font-bold text-white tracking-tight">Darzi</span>
             </div>
             <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
               On-demand master tailoring and alterations network. Guaranteed fit, upfront fixed rates, and doorstep service.
@@ -75,7 +75,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
           <div className="lg:col-span-3 sm:col-span-4">
             <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
             <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
-              <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About TailorGrid</button></li>
+              <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
               <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
               <li><button onClick={() => nav('for-partners')} className="hover:text-white transition-colors">Partner With Us</button></li>
               <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Digital Fit Passport</button></li>
@@ -96,7 +96,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
         {/* Bottom */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
           <div className="flex items-center gap-2">
-            <span>© {new Date().getFullYear()} TailorGrid Technologies Ltd.</span>
+            <span>© {new Date().getFullYear()} Darzi Technologies Ltd.</span>
             <span>·</span>
             <span className="flex items-center gap-1 text-[#10B981]"><ShieldCheck size={13} /> 100% Fit Guarantee</span>
           </div>
