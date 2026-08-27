@@ -26,7 +26,9 @@
   "devDependencies": {
     "prisma": "^7.10.0"
   },
-  "overrides": {
-    "deepmerge-ts": "^8.0.2"
+  "allowScripts": {
+    "prisma@7.10.0": true,
+    "@prisma/client@7.10.0": true,
+    "@prisma/engines@7.10.0": true
   }
 }
