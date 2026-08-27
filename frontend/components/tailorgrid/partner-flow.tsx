@@ -1691,7 +1691,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               <div className="bg-white border border-[#E8E1D5] rounded-3xl p-5 shadow-xs">
                 <span className="text-[10px] font-bold uppercase text-[#9CA3AF] tracking-wider block">Studio Revenue Share</span>
                 <div className="text-2xl font-black text-[#0F1115] mt-1">80% Net</div>
-                <div className="text-xs text-[#6B7280] mt-1">20% TailorGrid platform fee</div>
+                <div className="text-xs text-[#6B7280] mt-1">20% Darzi platform fee</div>
               </div>
             </div>
 
@@ -2009,7 +2009,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     <span className="font-bold text-[#0F1115]">${pickupModalOrder.price || 35}.00 Paid (Card/Stripe)</span>
                   </div>
                   <div className="flex justify-between text-xs pb-2 border-b border-[#E8E1D5]">
-                    <span className="text-[#6B7280]">TailorGrid Platform Fee (20%):</span>
+                    <span className="text-[#6B7280]">Darzi Platform Fee (20%):</span>
                     <span className="font-medium text-[#6B7280]">-${Math.round((pickupModalOrder.price || 35) * 0.2)}.00</span>
                   </div>
                   <div className="flex justify-between text-sm pt-1">

@@ -41,19 +41,19 @@ export function StudioHeader({
     <header className="sticky top-0 z-50 bg-[#0F1115] text-[#FAF8F5] border-b border-[#1E2229] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
         
-        {/* Clean TailorGrid Brand Logo */}
+        {/* Clean Darzi Brand Logo */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <button
             onClick={() => nav('home')}
             className="flex items-center gap-2.5 group text-left shrink-0"
-            aria-label="TailorGrid Home"
+            aria-label="Darzi Home"
           >
             <div className="grid size-9 place-items-center rounded-xl bg-white text-[#0F1115] shadow-xs group-hover:scale-105 transition-transform">
               <Scissors size={18} />
             </div>
             <div className="flex flex-col text-left">
               <span className="font-serif font-extrabold text-[19px] tracking-tight text-white leading-none">
-                TailorGrid
+                Darzi
               </span>
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#9E593B] mt-0.5">
                 On-Demand Alterations

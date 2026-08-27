@@ -73,7 +73,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
     {
       num: '2',
       title: 'Matching customer and master atelier',
-      desc: 'TailorGrid instantly matches your order to the best-rated certified master atelier within 1–3 miles, verified to have the exact specialist industrial machinery (OEM blindstitch, heavy denim chainstitch, overlock) your fabric requires.',
+      desc: 'Darzi instantly matches your order to the best-rated certified master atelier within 1–3 miles, verified to have the exact specialist industrial machinery (OEM blindstitch, heavy denim chainstitch, overlock) your fabric requires.',
       tips: ['Vetted master artisans', 'Accurate neighborhood walking distance'],
       Illustration: Step2Illustration,
     },
@@ -162,11 +162,11 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
           {/* Left Column: Heading, Description & Quick Input Form */}
           <div className="lg:col-span-6 xl:col-span-6 space-y-6">
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0F1115] leading-[1.1]">
-              How TailorGrid works
+              How Darzi works
             </h1>
 
             <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[540px]">
-              Understanding how TailorGrid connects you with certified master ateliers and alteration studios can enhance your experience. Scroll to learn how the service works, or request a fitting now by entering your service and location below.
+              Understanding how Darzi connects you with certified master ateliers and alteration studios can enhance your experience. Scroll to learn how the service works, or request a fitting now by entering your service and location below.
             </p>
 
             {/* Quick Interactive Location / Service Box */}
@@ -257,10 +257,10 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
           
           <div className="max-w-[760px] mb-16">
             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#0F1115]">
-              A quick guide to TailorGrid
+              A quick guide to Darzi
             </h2>
             <p className="mt-3 text-base sm:text-lg text-[#5A5D64]">
-              Here&apos;s how the TailorGrid app and web platform connect master artisans with customers on demand, step by step:
+              Here&apos;s how the Darzi app and web platform connect master artisans with customers on demand, step by step:
             </p>
           </div>
 
@@ -393,7 +393,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
               </h2>
 
               <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[500px]">
-                You can find verified master ateliers and book fitting appointments online without needing to download an app. Simply head to the TailorGrid web booking tool, and you&apos;re ready to enjoy the convenience of precision alterations from your computer, tablet, or phone.
+                You can find verified master ateliers and book fitting appointments online without needing to download an app. Simply head to the Darzi web booking tool, and you&apos;re ready to enjoy the convenience of precision alterations from your computer, tablet, or phone.
               </p>
 
               <div className="pt-2">
@@ -419,13 +419,13 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
         </section>
 
         {/* ========================================================================= */}
-        {/* "IT'S EASIER WITH TAILORGRID" FEATURE CARDS (Screenshot 4 Bottom) */}
+        {/* "IT'S EASIER WITH DARZI" FEATURE CARDS (Screenshot 4 Bottom) */}
         {/* ========================================================================= */}
         <section className="py-16 sm:py-24 border-b border-[#EBE6DF]">
           
           <div className="max-w-[760px] mb-12">
             <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0F1115]">
-              It&apos;s easier with TailorGrid
+              It&apos;s easier with Darzi
             </h2>
             <p className="mt-2 text-base text-[#5A5D64]">
               Built from the ground up for transparent craftsmanship and effortless garment care.

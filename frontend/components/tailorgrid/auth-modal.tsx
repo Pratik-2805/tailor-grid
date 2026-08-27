@@ -206,7 +206,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
     setError('')
     try {
       const result = await signUpUser({
-        name: cName || 'TailorGrid Member',
+        name: cName || 'Darzi Member',
         email: cEmail,
         postcode: cPostcode,
         role: 'CUSTOMER',
@@ -339,7 +339,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
                 {targetRole === 'STUDIO' ? <Store size={16} className="text-white" /> : <Scissors size={16} className="text-white" />}
               </div>
             )}
-            <span className="font-serif font-bold text-[17px] text-[#0F1115] tracking-tight">TailorGrid</span>
+            <span className="font-serif font-bold text-[17px] text-[#0F1115] tracking-tight">Darzi</span>
           </div>
           <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
             <X size={14} className="text-[#374151]" />
@@ -481,7 +481,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Certified Partner Portal</p>
                 <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Sign Up for Studio</h2>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">Join TailorGrid as a partner atelier. 3 quick steps — live in under 5 minutes.</p>
+                <p className="text-[13px] text-[#6B7280] mt-1.5">Join Darzi as a partner atelier. 3 quick steps — live in under 5 minutes.</p>
               </div>
 
               <div className="space-y-2.5">
@@ -538,7 +538,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Sign Up</p>
                 <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Create your Studio Account</h2>
-                <p className="text-xs text-[#6B7280] mt-1">3 quick steps — get live on TailorGrid in under 5 minutes.</p>
+                <p className="text-xs text-[#6B7280] mt-1">3 quick steps — get live on Darzi in under 5 minutes.</p>
               </div>
 
               {/* Progress bar */}

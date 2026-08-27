@@ -196,7 +196,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   100% Fit Guarantee Policy
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  Every order booked through TailorGrid is protected by our zero-risk Fit Guarantee. When you collect your tailored garment at the partner studio, you are invited to try it on in the private fitting room.
+                  Every order booked through Darzi is protected by our zero-risk Fit Guarantee. When you collect your tailored garment at the partner studio, you are invited to try it on in the private fitting room.
                 </p>
                 <div className="rounded-xl bg-white border border-[#EBE6DF] p-4 text-xs space-y-2">
                   <p className="font-bold text-[#0F1115]">What is covered:</p>
@@ -222,7 +222,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Privacy & Data Policy
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  TailorGrid Technologies Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
+                  Darzi Technologies Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
                 </p>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
                   Your payment information is encrypted end-to-end and never stored in plain text. We do not sell personal data to third parties.
@@ -243,7 +243,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Terms of Service
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  By using the TailorGrid platform and partner atelier network, you agree to our standardized craft guidelines, transparent fixed fee structure, and studio fitting room safety protocols.
+                  By using the Darzi platform and partner atelier network, you agree to our standardized craft guidelines, transparent fixed fee structure, and studio fitting room safety protocols.
                 </p>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
                   Alterations are completed within the agreed 48–72 hour turnaround timeline barring specialist luxury fabrics with prior customer notice.
@@ -269,7 +269,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
                     <Mail size={16} className="text-[#9E593B]" />
-                    <span>support@tailorgrid.com</span>
+                    <span>support@darzi.com</span>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
                     <Phone size={16} className="text-[#10B981]" />

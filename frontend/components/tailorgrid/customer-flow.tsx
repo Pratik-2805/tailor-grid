@@ -693,7 +693,7 @@ export function CustomerFlow({
             <div className="mt-8 rounded-3xl border-2 border-[#18191B] bg-white p-6 sm:p-8 shadow-lg text-left relative overflow-hidden">
               <div className="flex items-center justify-between border-b border-[#DDD6CB] pb-4">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-[#9E593B] tracking-wider">TailorGrid Verified Pass</span>
+                  <span className="text-[10px] uppercase font-bold text-[#9E593B] tracking-wider">Darzi Verified Pass</span>
                   <h3 className="font-serif text-xl font-bold text-[#18191B]">Order #TG-1048</h3>
                 </div>
                 <div className="text-right">
@@ -919,7 +919,7 @@ export function CustomerFlow({
                 onClick={() => go('home')}
                 className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] underline underline-offset-4"
               >
-                Return to TailorGrid Overview
+                Return to Darzi Overview
               </button>
             </div>
           </div>

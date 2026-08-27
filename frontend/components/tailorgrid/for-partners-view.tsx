@@ -79,7 +79,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
     },
     {
       q: 'Do I have to do any marketing or payment processing?',
-      a: 'No. TailorGrid handles 100% of customer acquisition, SEO, digital booking, and secure upfront online payment processing. Customers arrive at your studio with a pre-paid Fitting Pass.',
+      a: 'No. Darzi handles 100% of customer acquisition, SEO, digital booking, and secure upfront online payment processing. Customers arrive at your studio with a pre-paid Fitting Pass.',
     },
     {
       q: 'How does the 5-minute walk-in fitting process work?',
@@ -87,7 +87,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
     },
     {
       q: 'What happens if a customer needs an adjustment after pick-up?',
-      a: 'TailorGrid protects partner studios with our 100% Free Re-fit Guarantee. In the rare event of a minor adjustment, TailorGrid subsidizes the additional artisan labor so your shop is always fairly compensated.',
+      a: 'Darzi protects partner studios with our 100% Free Re-fit Guarantee. In the rare event of a minor adjustment, Darzi subsidizes the additional artisan labor so your shop is always fairly compensated.',
     },
     {
       q: 'Can I track in-store retail merchandise purchases?',
@@ -371,7 +371,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 Protection on every order
               </h3>
               <p className="text-xs text-[#5A5D64] leading-relaxed">
-                Every alteration ticket is 100% pre-paid via TailorGrid. If a customer cancels late or fails to pick up, your full payout is guaranteed and settled automatically.
+                Every alteration ticket is 100% pre-paid via Darzi. If a customer cancels late or fails to pick up, your full payout is guaranteed and settled automatically.
               </p>
             </div>
 
@@ -573,7 +573,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               </button>
               
               <p className="text-[11px] text-[#7A7E85] text-center mt-2">
-                By submitting, you agree to TailorGrid partner studio quality standards and audit terms.
+                By submitting, you agree to Darzi partner studio quality standards and audit terms.
               </p>
             </form>
           )}

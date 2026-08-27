@@ -72,7 +72,7 @@ export async function signUpUser(data: {
     return result
   } catch (err) {
     const fallbackUser: User = {
-      name: data.name || (data.role === 'STUDIO' ? data.storeName || 'Partner Atelier' : 'TailorGrid User'),
+      name: data.name || (data.role === 'STUDIO' ? data.storeName || 'Partner Atelier' : 'Darzi User'),
       contact: data.email || data.phone || 'user@example.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'user')}`,
       address: data.address || '18 Kensington Church St',
@@ -110,7 +110,7 @@ export async function loginUser(data: {
     return result
   } catch (err) {
     const fallbackUser: User = {
-      name: data.role === 'STUDIO' ? 'Master Tailor Marco' : 'TailorGrid Member',
+      name: data.role === 'STUDIO' ? 'Master Tailor Marco' : 'Darzi Member',
       contact: data.email || data.phone || 'partner@tailorgrid.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || 'partner')}`,
       address: '18 Kensington Church St',

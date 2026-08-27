@@ -389,7 +389,7 @@ export function OnlineBookingIllustration({ className = 'w-full h-auto' }: { cla
         <circle cx="34" cy="20" r="4" fill="#F59E0B" />
         <circle cx="46" cy="20" r="4" fill="#10B981" />
         <rect x="80" y="14" width="160" height="12" rx="6" fill="#E8E2D8" />
-        <text x="100" y="23" fill="#7A7E85" fontSize="7" fontFamily="sans-serif">tailorgrid.com/book</text>
+        <text x="100" y="23" fill="#7A7E85" fontSize="7" fontFamily="sans-serif">darzi.com/book</text>
 
         {/* Left Side: Services List */}
         <rect x="20" y="46" width="110" height="135" rx="8" fill="#FAF8F5" stroke="#EBE6DF" strokeWidth="1" />
