@@ -81,7 +81,7 @@ function getCityLocalDateTime(timeZone: string) {
       minute: 'numeric',
       hour12: false,
     })
-    
+
     const parts = formatter.formatToParts(now)
     let year = 0, month = 0, day = 0, hour = 0, minute = 0
     for (const p of parts) {
@@ -232,13 +232,12 @@ function CustomDarziCalendar({
               type="button"
               disabled={isPast}
               onClick={() => onSelectDate(dateObj)}
-              className={`h-8 w-8 mx-auto rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
-                isSelected
+              className={`h-8 w-8 mx-auto rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${isSelected
                   ? 'bg-black text-white shadow-xs scale-105'
                   : isPast
-                  ? 'text-gray-300 pointer-events-none line-through'
-                  : 'text-black hover:bg-[#E8E8E8]'
-              }`}
+                    ? 'text-gray-300 pointer-events-none line-through'
+                    : 'text-black hover:bg-[#E8E8E8]'
+                }`}
             >
               {dateObj.getDate()}
             </button>
@@ -397,11 +396,10 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       key={c}
                       type="button"
                       onClick={() => handleCitySelect(c)}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${
-                        selectedCity === c
+                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${selectedCity === c
                           ? 'bg-black text-white'
                           : 'text-black hover:bg-[#F3F3F3]'
-                      }`}
+                        }`}
                     >
                       <span>{c}</span>
                       {selectedCity === c && <Check size={16} className="text-white shrink-0" />}
@@ -455,9 +453,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       setPickupOption('now')
                       setShowTimePicker(false)
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${
-                      pickupOption === 'now' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                    }`}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${pickupOption === 'now' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
+                      }`}
                   >
                     <Clock size={16} />
                     <span>Pickup now</span>
@@ -469,9 +466,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       setShowTimePicker(false)
                       setIsScheduleModalOpen(true)
                     }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${
-                      pickupOption === 'schedule' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                    }`}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${pickupOption === 'schedule' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
+                      }`}
                   >
                     <Calendar size={16} />
                     <span>Schedule</span>
@@ -491,9 +487,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       setShowCityPicker(false)
                       setShowTimePicker(false)
                     }}
-                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${
-                      showGarmentPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
-                    }`}
+                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showGarmentPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
+                      }`}
                   >
                     <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
                       <GarmentCategoryIcon categoryId={selectedGarmentId} className="size-3.5 text-white" />
@@ -521,14 +516,12 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                             key={cat.id}
                             type="button"
                             onClick={() => handleGarmentChange(cat.id)}
-                            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${
-                              isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                            }`}
+                            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
+                              }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-black group-hover:bg-white'
-                              }`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-black group-hover:bg-white'
+                                }`}>
                                 <GarmentCategoryIcon categoryId={cat.id} className="size-4" />
                               </div>
                               <div className="min-w-0">
@@ -554,9 +547,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       setShowCityPicker(false)
                       setShowTimePicker(false)
                     }}
-                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${
-                      showAlterationPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
-                    }`}
+                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showAlterationPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
+                      }`}
                   >
                     <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
                       <Ruler className="size-3.5 text-white" />
@@ -584,17 +576,15 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                             key={svc.id}
                             type="button"
                             onClick={() => handleAlterationSelect(svc.name)}
-                            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${
-                              isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                            }`}
+                            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
+                              }`}
                           >
                             <div className="min-w-0 pr-3">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold truncate leading-tight">{svc.name}</span>
                                 {svc.popular && (
-                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0 ${
-                                    isSelected ? 'bg-white/20 text-white' : 'bg-black text-white'
-                                  }`}>
+                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-black text-white'
+                                    }`}>
                                     Popular
                                   </span>
                                 )}
@@ -604,9 +594,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-xs font-extrabold px-2.5 py-1 rounded-lg ${
-                                isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-black group-hover:bg-white'
-                              }`}>
+                              <span className={`text-xs font-extrabold px-2.5 py-1 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-black group-hover:bg-white'
+                                }`}>
                                 ${svc.customerPrice}
                               </span>
                               {isSelected && <Check size={16} className="text-white shrink-0" />}
@@ -682,7 +671,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
 
           {/* RIGHT: Modern Clean Studio & Atelier Illustration */}
           <div className="lg:col-span-6 relative flex justify-center items-center">
-            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-[32px] overflow-hidden shadow-xl border-4 border-white bg-[#FAF8F5]">
+            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
               <Image
                 src="/images/about_hero_art.jpg"
                 alt="Modern tailoring atelier salon with garments and craft tools"
@@ -701,7 +690,7 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
       {isScheduleModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150">
-            
+
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
@@ -756,13 +745,12 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
                       type="button"
                       disabled={passed}
                       onClick={() => setSelectedTime(t)}
-                      className={`py-2 rounded-xl text-xs font-bold text-center transition-all border ${
-                        isSelected
+                      className={`py-2 rounded-xl text-xs font-bold text-center transition-all border ${isSelected
                           ? 'bg-black text-white border-black shadow-xs scale-105'
                           : passed
-                          ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
-                          : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
-                      }`}
+                            ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
+                            : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
+                        }`}
                     >
                       {t}
                     </button>

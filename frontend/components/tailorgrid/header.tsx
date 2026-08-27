@@ -30,7 +30,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           <button
             onClick={() => nav('home')}
             className="flex items-center gap-2.5 group text-left shrink-0"
-            aria-label="TailorGrid home"
+            aria-label="Darzi home"
           >
             <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
               <Scissors size={16} className="text-white" />

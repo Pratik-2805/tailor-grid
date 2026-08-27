@@ -161,7 +161,7 @@ export function AboutView({ go }: AboutViewProps) {
                   onClick={() => go('how-it-works')}
                   className="text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
                 >
-                  How to use TailorGrid
+                  How to use Darzi
                 </button>
                 <button
                   onClick={() => go('booking')}
@@ -181,7 +181,7 @@ export function AboutView({ go }: AboutViewProps) {
               </h3>
 
               <p className="mt-4 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
-                Over 60% of unworn clothes sit idle in wardrobes simply due to minor fit flaws: long hems, loose waists, or sleeve lengths. TailorGrid is committed to extending the lifespan of 1,000,000 garments by 2030, keeping high-quality textiles out of landfills through precision seam adjustments, denim hemming, and jacket tapering. Extending a garment&apos;s life by just 9 months cuts its carbon and water footprint by 20% to 30%.
+                Over 60% of unworn clothes sit idle in wardrobes simply due to minor fit flaws: long hems, loose waists, or sleeve lengths. Darzi is committed to extending the lifespan of 1,000,000 garments by 2030, keeping high-quality textiles out of landfills through precision seam adjustments, denim hemming, and jacket tapering. Extending a garment&apos;s life by just 9 months cuts its carbon and water footprint by 20% to 30%.
               </p>
 
               <div className="mt-6">
@@ -267,10 +267,10 @@ export function AboutView({ go }: AboutViewProps) {
               </div>
               <div className="p-6 sm:p-8 border-t border-[#E8E1D5]">
                 <h3 className="text-xl font-bold text-[#0F1115] mb-2">
-                  Who&apos;s crafting TailorGrid
+                  Who&apos;s crafting Darzi
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-6">
-                  We&apos;re building a culture within TailorGrid that emphasizes doing the right thing, period, for customers, studio partners, and our engineering team. Find out more about the craftsmen leading the way.
+                  We&apos;re building a culture within Darzi that emphasizes doing the right thing, period, for customers, studio partners, and our engineering team. Find out more about the craftsmen leading the way.
                 </p>
                 <button
                   onClick={() => go('for-partners')}
@@ -297,7 +297,7 @@ export function AboutView({ go }: AboutViewProps) {
                   Acting with integrity &amp; craft
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-6">
-                  TailorGrid&apos;s Quality Charter outlines our commitment to transparency at the highest levels. We achieve this through thread matching audits, blind-stitch capability testing, and non-destructive alteration methods.
+                  Darzi&apos;s Quality Charter outlines our commitment to transparency at the highest levels. We achieve this through thread matching audits, blind-stitch capability testing, and non-destructive alteration methods.
                 </p>
                 <button
                   onClick={() => go('how-it-works')}
@@ -451,13 +451,13 @@ export function AboutView({ go }: AboutViewProps) {
 
             <div className="space-y-4 text-xs sm:text-sm text-[#374151] leading-relaxed">
               <p>
-                When we started TailorGrid, we noticed a glaring disconnect in modern retail: brands manufacture millions of standardized garments, yet no two human bodies are identical.
+                When we started Darzi, we noticed a glaring disconnect in modern retail: brands manufacture millions of standardized garments, yet no two human bodies are identical.
               </p>
               <p>
                 The traditional alteration experience was broken — opaque pricing, cash-only transactions, long 2-week turnarounds, and zero communication. At the same time, master artisan tailors in our neighborhoods had idle machines and empty fitting cabins between walk-in rush hours.
               </p>
               <p>
-                TailorGrid bridges this gap with technology. By providing fixed upfront rates, instant neighborhood routing, and guaranteed 48-hour turnarounds backed by audited craftsmanship, we make tailoring as easy as ordering a ride.
+                Darzi bridges this gap with technology. By providing fixed upfront rates, instant neighborhood routing, and guaranteed 48-hour turnarounds backed by audited craftsmanship, we make tailoring as easy as ordering a ride.
               </p>
               <p className="font-serif italic text-base pt-2 text-[#0F1115]">
                 &ldquo;Every garment you alter is a garment you love for another decade. Thank you for joining us on this mission.&rdquo;
@@ -465,7 +465,7 @@ export function AboutView({ go }: AboutViewProps) {
             </div>
 
             <div className="mt-8 pt-6 border-t border-[#E8E1D5] flex items-center justify-between">
-              <span className="text-xs font-bold text-[#0F1115]">Founder &amp; CEO, TailorGrid</span>
+              <span className="text-xs font-bold text-[#0F1115]">Founder &amp; CEO, Darzi</span>
               <button
                 onClick={() => setShowCeoLetter(false)}
                 className="rounded-full bg-[#0F1115] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"

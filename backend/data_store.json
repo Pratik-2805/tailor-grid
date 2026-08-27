@@ -47,6 +47,29 @@
   ],
   "orders": [
     {
+      "id": "TG-471060",
+      "userId": null,
+      "customerName": "Alex Thorne",
+      "customerEmail": "alex.thorne@example.com",
+      "customerPhone": "+44 7700 900000",
+      "postcode": "W8 4EP",
+      "garmentId": "trousers",
+      "garmentName": "Trousers & Jeans",
+      "serviceId": "trouser-hem-plain",
+      "serviceName": "Shorten Hem (Plain)",
+      "storeId": "kensington-atelier",
+      "storeName": "Kensington Bespoke Atelier",
+      "date": "2026-08-27",
+      "timeSlot": "14:00 - 15:00",
+      "garmentBrand": "",
+      "fitNotes": "",
+      "status": "Closed",
+      "price": 20,
+      "otp": "6951",
+      "createdAt": "2026-08-27T07:05:37.819Z",
+      "updatedAt": "2026-08-27T07:05:37.819Z"
+    },
+    {
       "id": "TG-452183",
       "customerName": "Camilla Harrington",
       "customerEmail": "google.test@example.com",
@@ -62,7 +85,7 @@
       "timeSlot": "14:00 - 15:00",
       "garmentBrand": "",
       "fitNotes": "",
-      "status": "Allocated",
+      "status": "Collected",
       "price": 25,
       "otp": "5417",
       "createdAt": "2026-08-26T06:28:16.036Z"
@@ -83,7 +106,7 @@
       "timeSlot": "14:00 - 15:00",
       "garmentBrand": "Reiss",
       "fitNotes": "Slim taper down to 14 inch leg opening",
-      "status": "Work in Progress",
+      "status": "Closed",
       "price": 22,
       "otp": "4829",
       "createdAt": "2026-08-25T06:27:06.587Z"
@@ -104,7 +127,7 @@
       "timeSlot": "11:00 - 12:00",
       "garmentBrand": "Hugo Boss",
       "fitNotes": "Show 0.5 inches of shirt cuff",
-      "status": "Collected",
+      "status": "Closed",
       "price": 35,
       "otp": "9120",
       "createdAt": "2026-08-19T07:47:06.587Z"
