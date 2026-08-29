@@ -262,6 +262,15 @@ const DARZI_TIME_SLOTS = [
 interface HeroSectionProps {
   go: (s: Screen) => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
+  onRequestMeasurement?: (params: {
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+  }) => void
 }
 
 const CITIES = [
@@ -273,7 +282,7 @@ const CITIES = [
   'Los Angeles, CA',
 ]
 
-export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
+export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
   const [selectedCity, setSelectedCity] = useState('Mumbai, IN')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
@@ -342,17 +351,37 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
+
   const handleBookNow = () => {
+    onRequestMeasurement?.({
+      city: selectedCity,
+      garmentId: selectedGarmentId,
+      serviceId: selectedServiceObj.id,
+      pickupOption: 'now',
+      scheduleDate: scheduleDateObj,
+      scheduleTime: selectedTime,
+      images: uploadedImages,
+    })
     onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarmentId)
-    go('booking')
+    go('confirm-measurement')
   }
 
   const handleConfirmSchedule = () => {
     setPickupOption('schedule')
     setIsScheduleModalOpen(false)
     setShowTimePicker(false)
+    onRequestMeasurement?.({
+      city: selectedCity,
+      garmentId: selectedGarmentId,
+      serviceId: selectedServiceObj.id,
+      pickupOption: 'schedule',
+      scheduleDate: scheduleDateObj,
+      scheduleTime: selectedTime,
+      images: uploadedImages,
+    })
     onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarmentId)
-    go('booking')
+    go('confirm-measurement')
   }
 
   const formattedDateDisplay = scheduleDateObj.toLocaleDateString('en-US', {
@@ -361,10 +390,8 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
     day: 'numeric',
   })
 
-  const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
-
   return (
-    <section className="relative bg-white py-10 lg:py-16 border-b border-[#E8E1D5]">
+    <section className="relative bg-white py-6 sm:py-8 lg:py-10">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
 
@@ -410,73 +437,11 @@ export function HeroSection({ go, onQuickSearch }: HeroSectionProps) {
             </div>
 
             {/* 2. Main Title */}
-            <h1 className="text-3xl sm:text-[44px] lg:text-[48px] font-extrabold tracking-tight text-black leading-[1.08] mb-4">
+            <h1 className="text-3xl sm:text-[44px] lg:text-[48px] font-extrabold tracking-tight text-black leading-[1.08] mb-6">
               Request an alteration
             </h1>
 
-            {/* 3. Time Pill Dropdown */}
-            <div className="relative mb-5 inline-block">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowTimePicker(!showTimePicker)
-                  setShowCityPicker(false)
-                  setShowGarmentPicker(false)
-                  setShowAlterationPicker(false)
-                }}
-                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#F3F3F3] hover:bg-[#E8E8E8] transition-colors text-sm font-medium text-black cursor-pointer"
-              >
-                <div className="w-5 h-5 rounded-full bg-black flex items-center justify-center shrink-0">
-                  {pickupOption === 'now' ? (
-                    <Clock size={12} className="text-white" />
-                  ) : (
-                    <Calendar size={12} className="text-white" />
-                  )}
-                </div>
-                <span>
-                  {pickupOption === 'now'
-                    ? 'Pickup now'
-                    : `${formattedDateDisplay} at ${selectedTime}`}
-                </span>
-                <ChevronDown size={16} className="text-black ml-0.5" />
-              </button>
-
-              {/* Schedule Popover Overlay */}
-              {showTimePicker && (
-                <div className="absolute top-11 left-0 z-50 w-72 rounded-2xl bg-white p-3 border border-gray-200 shadow-2xl space-y-2 animate-in fade-in duration-150">
-                  <div className="text-xs font-bold uppercase tracking-wider text-gray-500 px-2 pt-1">
-                    Select Pickup Time
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPickupOption('now')
-                      setShowTimePicker(false)
-                    }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${pickupOption === 'now' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                      }`}
-                  >
-                    <Clock size={16} />
-                    <span>Pickup now</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowTimePicker(false)
-                      setIsScheduleModalOpen(true)
-                    }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-3 ${pickupOption === 'schedule' ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                      }`}
-                  >
-                    <Calendar size={16} />
-                    <span>Schedule</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 4. Uber-Style Input Fields */}
+            {/* Uber-Style Input Fields */}
             <div className="relative w-full mb-4">
               <div className="space-y-2">
                 <div className="relative">

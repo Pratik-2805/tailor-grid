@@ -12,19 +12,19 @@ export function TrustBar() {
   ]
 
   return (
-    <section className="py-8 bg-[#F4EFEA] border-b border-[#E8E1D5]">
+    <section className="py-4 sm:py-5 bg-[#F4EFEA] border-y border-[#E8E1D5] w-full shrink-0">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
           {items.map((item, i) => {
             const Icon = item.icon
             return (
-              <div key={i} className="flex items-start gap-3 p-2">
-                <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#0F1115] text-white shadow-xs">
-                  <Icon size={16} />
+              <div key={i} className="flex items-center gap-2.5 p-1">
+                <div className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-xl bg-[#0F1115] text-white shadow-xs">
+                  <Icon size={15} />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-[#0F1115] leading-tight">{item.title}</p>
-                  <p className="text-[11px] text-[#6B7280] mt-1 leading-snug">{item.desc}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#0F1115] leading-tight truncate">{item.title}</p>
+                  <p className="text-[10.5px] text-[#6B7280] mt-0.5 leading-snug truncate">{item.desc}</p>
                 </div>
               </div>
             )

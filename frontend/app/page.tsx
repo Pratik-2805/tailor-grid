@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { AboutView } from '@/components/tailorgrid/about-view'
 import { AdminView } from '@/components/tailorgrid/admin-view'
 import { AuthModal } from '@/components/tailorgrid/auth-modal'
+import { ConfirmMeasurementView } from '@/components/tailorgrid/confirm-measurement-view'
 import { CustomerFlow } from '@/components/tailorgrid/customer-flow'
 import { makeOtp, type Screen, type StoreOption, type User } from '@/components/tailorgrid/data'
 import { Footer } from '@/components/tailorgrid/footer'
@@ -24,6 +25,29 @@ export default function Page() {
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
   const [otp] = useState(() => makeOtp())
 
+  // Measurement state from HeroSection to ConfirmMeasurementView
+  const [measurementDraft, setMeasurementDraft] = useState<{
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+    measurements?: Record<string, string>
+    brand?: string
+    notes?: string
+    fittingMode?: string
+  }>({
+    city: 'Mumbai, IN',
+    garmentId: 'trousers',
+    serviceId: 'trouser-hem-plain',
+    pickupOption: 'now',
+    scheduleDate: new Date(),
+    scheduleTime: '03:30 PM',
+    images: [],
+  })
+
   // Read screen from URL on initial load and handle browser back/forward buttons
   useEffect(() => {
     const validScreens: Screen[] = [
@@ -35,10 +59,15 @@ export default function Page() {
       'orders',
       'partner',
       'admin',
+      'confirm-measurement',
     ]
 
     const getScreenFromUrl = (): Screen => {
       if (typeof window === 'undefined') return 'home'
+
+      if (window.location.pathname === '/confirm-measurement') {
+        return 'confirm-measurement'
+      }
 
       // Check URL query param ?page=xxx
       const params = new URLSearchParams(window.location.search)
@@ -88,15 +117,53 @@ export default function Page() {
   const [prefilledGarmentId, setPrefilledGarmentId] = useState('trousers')
   const [prefilledServiceId, setPrefilledServiceId] = useState<string | undefined>()
   const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
+  const [confirmedMeasurements, setConfirmedMeasurements] = useState<Record<string, string> | undefined>()
+  const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
+  const [garmentNotes, setGarmentNotes] = useState<string | undefined>()
 
   const handleNavigate = (nextScreen: Screen) => {
     setScreen(nextScreen)
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_screen', nextScreen)
-      const newUrl = nextScreen === 'home' ? '/' : `?page=${nextScreen}`
+      const newUrl = nextScreen === 'home'
+        ? '/'
+        : nextScreen === 'confirm-measurement'
+          ? '/confirm-measurement'
+          : `?page=${nextScreen}`
       window.history.pushState({ screen: nextScreen }, '', newUrl)
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleRequestMeasurement = (params: {
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+  }) => {
+    setMeasurementDraft(params)
+    setPrefilledGarmentId(params.garmentId)
+    setPrefilledServiceId(params.serviceId)
+    setPrefilledPostcode(params.city.includes('Los Angeles') ? '90210' : params.city.includes('London') ? 'W8 4EP' : '10012')
+  }
+
+  const handleConfirmMeasurements = (data: {
+    garmentId: string
+    serviceId: string
+    measurements: Record<string, string>
+    brand?: string
+    notes?: string
+    images?: string[]
+    fittingMode?: string
+  }) => {
+    setPrefilledGarmentId(data.garmentId)
+    setPrefilledServiceId(data.serviceId)
+    setConfirmedMeasurements(data.measurements)
+    setGarmentBrand(data.brand)
+    setGarmentNotes(data.notes)
   }
 
   const handleOpenAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
@@ -187,6 +254,21 @@ export default function Page() {
             onQuickSearch={handleQuickSearch}
             onSelectService={handleSelectService}
             onSelectStore={handleSelectStore}
+            onRequestMeasurement={handleRequestMeasurement}
+          />
+        )}
+
+        {screen === 'confirm-measurement' && (
+          <ConfirmMeasurementView
+            go={handleNavigate}
+            initialCity={measurementDraft.city}
+            initialGarmentId={measurementDraft.garmentId}
+            initialServiceId={measurementDraft.serviceId}
+            initialPickupOption={measurementDraft.pickupOption}
+            initialScheduleDate={measurementDraft.scheduleDate}
+            initialScheduleTime={measurementDraft.scheduleTime}
+            initialImages={measurementDraft.images}
+            onConfirmMeasurements={handleConfirmMeasurements}
           />
         )}
 
@@ -216,6 +298,23 @@ export default function Page() {
             initialGarmentId={prefilledGarmentId}
             initialServiceId={prefilledServiceId}
             initialStore={prefilledStore}
+            initialMeasurements={confirmedMeasurements}
+            initialBrand={garmentBrand}
+            initialNotes={garmentNotes}
+            initialDate={
+              measurementDraft.pickupOption === 'schedule'
+                ? measurementDraft.scheduleDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                : 'Today (Immediate slot)'
+            }
+            initialTimeSlot={
+              measurementDraft.pickupOption === 'schedule'
+                ? measurementDraft.scheduleTime
+                : '11:30 AM – 01:00 PM'
+            }
           />
         )}
 
