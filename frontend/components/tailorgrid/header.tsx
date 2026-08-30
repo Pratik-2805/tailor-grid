@@ -77,7 +77,13 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
           <button
-            onClick={() => nav('orders')}
+            onClick={() => {
+              if (!user) {
+                onOpenAuth?.()
+              } else {
+                nav('orders')
+              }
+            }}
             className="flex items-center gap-1.5 rounded-full px-3 lg:px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors whitespace-nowrap shrink-0"
           >
             <Package size={14} className="text-[#6B7280] shrink-0" />
@@ -152,7 +158,14 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => nav(item.screen)}
+              onClick={() => {
+                if (item.screen === 'orders' && !user && onOpenAuth) {
+                  setOpen(false)
+                  onOpenAuth()
+                } else {
+                  nav(item.screen)
+                }
+              }}
               className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
             >
               <span>{item.label}</span>

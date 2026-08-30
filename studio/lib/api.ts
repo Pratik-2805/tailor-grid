@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, PARTNER_STORES } from '../components/tailorgrid/data'
+import type { User, FittingBooking } from '../components/data'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -28,13 +28,15 @@ export async function loginWithGoogle(params: {
   } catch (err: any) {
     if (params.profile) {
       const fallbackUser: User = {
-        name: params.profile.name || 'Google User',
-        contact: params.profile.contact || 'google.user@example.com',
-        avatar: params.profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=google',
+        name: params.profile.name || 'Studio Partner',
+        contact: params.profile.contact || 'partner@tailorgrid.com',
+        avatar: params.profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=studio',
         address: params.profile.address || '18 Kensington Church St',
         postcode: params.profile.postcode || 'W8 4EP',
         method: 'google',
-        role: params.role || 'CUSTOMER',
+        role: 'STUDIO',
+        studioId: 'store-1',
+        studioName: 'Kensington Bespoke Atelier',
       }
       return { token: 'mock_token_' + Date.now(), user: fallbackUser }
     }
@@ -57,7 +59,7 @@ export async function signUpUser(data: {
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, role: 'STUDIO' }),
     })
 
     if (!res.ok) {
@@ -72,15 +74,15 @@ export async function signUpUser(data: {
     return result
   } catch (err) {
     const fallbackUser: User = {
-      name: data.name || (data.role === 'STUDIO' ? data.storeName || 'Partner Atelier' : 'Darzi User'),
-      contact: data.email || data.phone || 'user@example.com',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'user')}`,
+      name: data.name || data.storeName || 'Master Tailor',
+      contact: data.email || data.phone || 'partner@tailorgrid.com',
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'partner')}`,
       address: data.address || '18 Kensington Church St',
       postcode: data.postcode || 'W8 4EP',
       method: data.email ? 'email' : 'mobile',
-      role: data.role || 'CUSTOMER',
-      studioId: data.role === 'STUDIO' ? 'kensington-atelier' : undefined,
-      studioName: data.storeName || (data.role === 'STUDIO' ? 'Kensington Bespoke Atelier' : undefined),
+      role: 'STUDIO',
+      studioId: 'kensington-atelier',
+      studioName: data.storeName || 'Kensington Bespoke Atelier',
     }
     return { token: 'mock_token_' + Date.now(), user: fallbackUser }
   }
@@ -95,7 +97,7 @@ export async function loginUser(data: {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ ...data, role: 'STUDIO' }),
     })
 
     if (!res.ok) {
@@ -110,15 +112,15 @@ export async function loginUser(data: {
     return result
   } catch (err) {
     const fallbackUser: User = {
-      name: data.role === 'STUDIO' ? 'Master Tailor Marco' : 'Darzi Member',
+      name: 'Master Tailor Marco',
       contact: data.email || data.phone || 'partner@tailorgrid.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || 'partner')}`,
       address: '18 Kensington Church St',
       postcode: 'W8 4EP',
       method: data.email ? 'email' : 'mobile',
-      role: data.role || 'CUSTOMER',
-      studioId: data.role === 'STUDIO' ? 'atelier-soho' : undefined,
-      studioName: data.role === 'STUDIO' ? 'Atelier SoHo Tailors' : undefined,
+      role: 'STUDIO',
+      studioId: 'atelier-soho',
+      studioName: 'Atelier SoHo Tailors',
     }
     return { token: 'mock_token_' + Date.now(), user: fallbackUser }
   }
@@ -137,18 +139,6 @@ export async function getCurrentUser(): Promise<User | null> {
     return data.user
   } catch (err) {
     return null
-  }
-}
-
-export async function fetchOrders(email?: string): Promise<FittingBooking[]> {
-  try {
-    const url = email ? `${API_BASE}/orders?email=${encodeURIComponent(email)}` : `${API_BASE}/orders`
-    const res = await fetch(url)
-    if (!res.ok) return []
-    const data = await res.json()
-    return data.orders || []
-  } catch (err) {
-    return []
   }
 }
 
@@ -201,68 +191,3 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
     return null
   }
 }
-
-export async function createOrder(orderData: any): Promise<{ success: boolean; order?: FittingBooking; error?: string }> {
-  try {
-    const res = await fetch(`${API_BASE}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(orderData),
-    })
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.error || 'Failed to place order')
-    }
-
-    return await res.json()
-  } catch (err: any) {
-    const newOrder: FittingBooking = {
-      id: `TG-${Math.floor(100000 + Math.random() * 900000)}`,
-      customerName: orderData.customerName || 'Customer',
-      customerEmail: orderData.customerEmail || 'customer@example.com',
-      customerPhone: orderData.customerPhone || '+44 7700 900000',
-      postcode: orderData.postcode || 'W8 4EP',
-      garmentId: orderData.garmentId || 'trousers',
-      garmentName: orderData.garmentName || 'Trousers & Jeans',
-      serviceId: orderData.serviceId || 'trouser-hem',
-      serviceName: orderData.serviceName || 'Standard Hemming',
-      storeId: orderData.storeId || 'store-1',
-      storeName: orderData.storeName || 'Kensington Bespoke Atelier',
-      date: orderData.date || new Date().toISOString().split('T')[0],
-      timeSlot: orderData.timeSlot || '14:00 - 15:00',
-      garmentBrand: orderData.garmentBrand || '',
-      fitNotes: orderData.fitNotes || '',
-      status: 'Allocated',
-      price: orderData.price || 25,
-      otp: Math.floor(1000 + Math.random() * 9000).toString(),
-      createdAt: new Date().toISOString(),
-    }
-    return { success: true, order: newOrder }
-  }
-}
-
-export async function fetchStores(search?: string): Promise<StoreOption[]> {
-  try {
-    const url = search ? `${API_BASE}/stores?search=${encodeURIComponent(search)}` : `${API_BASE}/stores`
-    const res = await fetch(url)
-    if (!res.ok) throw new Error('Failed to fetch stores')
-    const data = await res.json()
-    if (Array.isArray(data.stores) && data.stores.length > 0) {
-      // Merge with default stores so verified ones are always present
-      const fetched: StoreOption[] = data.stores
-      const combined = [...fetched]
-      for (const defStore of PARTNER_STORES) {
-        if (!combined.some((s) => s.id === defStore.id || s.name.toLowerCase() === defStore.name.toLowerCase())) {
-          combined.push(defStore)
-        }
-      }
-      return combined
-    }
-    return PARTNER_STORES
-  } catch (err) {
-    console.warn('Using fallback partner stores:', err)
-    return PARTNER_STORES
-  }
-}
-

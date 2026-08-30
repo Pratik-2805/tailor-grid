@@ -162,29 +162,57 @@ router.post('/signup', async (req, res) => {
 
     try {
       // If signing up as a studio, create a partner store if storeName provided
-      if (role === 'STUDIO' && storeName) {
-        const storeSlug = storeName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
+      if (role === 'STUDIO' && (storeName || name)) {
+        const actualStoreName = storeName || `${name}'s Bespoke Studio`;
+        const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
         studioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
+
+        const newStoreData = {
+          id: studioId,
+          name: actualStoreName,
+          area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
+          address: address || '18 Kensington Church St',
+          postcode: postcode || 'W8 4EP',
+          distance: '0.4 mi away',
+          distanceMiles: 0.4,
+          rating: 5.0,
+          reviewCount: 1,
+          openingHours: 'Mon–Sat: 09:00 – 19:00',
+          dailyCapacity: 25,
+          machines: machines ? parseInt(machines) || 6 : 6,
+          workers: 4,
+          leadTailor: name || 'Master Tailor',
+          specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+          retailSold: true,
+          lat: 51.5033,
+          lng: -0.1925,
+        };
 
         try {
           await prisma.partnerStore.create({
-            data: {
-              id: studioId,
-              name: storeName,
-              area: storeArea || 'Neighborhood Atelier',
-              address: address || '18 Kensington Church St',
-              postcode: postcode || 'W8 4EP',
-              leadTailor: name || 'Master Tailor',
-              machines: machines ? parseInt(machines) || 6 : 6,
-              workers: 4,
-              dailyCapacity: 25,
-              specialties: ['Precision Hemming', 'Suit Tailoring', 'Express Alterations'],
-              lat: 51.5033,
-              lng: -0.1925,
-            },
+            data: newStoreData,
           });
         } catch (storeErr) {
-          console.warn('Store creation warning:', storeErr.message);
+          console.warn('Store creation warning (Prisma):', storeErr.message);
+        }
+
+        // Always ensure newly registered studio is also saved to local JSON data store
+        try {
+          const db = readDb();
+          if (!db.stores) db.stores = [];
+          const existingIdx = db.stores.findIndex((s) => s.id === studioId || s.name.toLowerCase() === actualStoreName.toLowerCase());
+          const storeEntry = {
+            ...newStoreData,
+            coords: { lat: newStoreData.lat, lng: newStoreData.lng }
+          };
+          if (existingIdx >= 0) {
+            db.stores[existingIdx] = storeEntry;
+          } else {
+            db.stores.unshift(storeEntry);
+          }
+          writeDb(db);
+        } catch (jsonErr) {
+          console.warn('Failed to save store to local db:', jsonErr.message);
         }
       }
 
@@ -224,6 +252,7 @@ router.post('/signup', async (req, res) => {
     } catch (prismaErr) {
       console.warn('Prisma signup fallback:', prismaErr.message);
       const db = readDb();
+      if (!db.users) db.users = [];
       user = db.users.find((u) => u.contact === contactStr || u.email === contactStr);
 
       if (!user) {
@@ -237,11 +266,36 @@ router.post('/signup', async (req, res) => {
           postcode: postcode || 'W8 4EP',
           method: email ? 'email' : 'mobile',
           role: role || 'CUSTOMER',
-          studioId: studioId || 'kensington-atelier',
-          studioName: storeName || 'Kensington Bespoke Atelier',
+          studioId: studioId || (role === 'STUDIO' ? `store-${Date.now()}` : undefined),
+          studioName: storeName || (role === 'STUDIO' ? 'Partner Atelier' : undefined),
           createdAt: new Date().toISOString(),
         };
         db.users.push(user);
+
+        if (role === 'STUDIO') {
+          if (!db.stores) db.stores = [];
+          const actualStoreName = storeName || `${name || 'Master'}'s Studio`;
+          const storeEntry = {
+            id: user.studioId || `store-${Date.now()}`,
+            name: actualStoreName,
+            area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
+            address: address || '18 Kensington Church St',
+            postcode: postcode || 'W8 4EP',
+            distance: '0.4 mi away',
+            distanceMiles: 0.4,
+            rating: 5.0,
+            reviewCount: 1,
+            openingHours: 'Mon–Sat: 09:00 – 19:00',
+            dailyCapacity: 25,
+            machines: machines ? parseInt(machines) || 6 : 6,
+            workers: 4,
+            leadTailor: name || 'Master Tailor',
+            specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+            retailSold: true,
+            coords: { lat: 51.5033, lng: -0.1925 }
+          };
+          db.stores.unshift(storeEntry);
+        }
         writeDb(db);
       }
     }

@@ -10,7 +10,7 @@ import { makeOtp, type Screen, type StoreOption, type User } from '@/components/
 import { Footer } from '@/components/tailorgrid/footer'
 import { ForPartnersView } from '@/components/tailorgrid/for-partners-view'
 import { Header } from '@/components/tailorgrid/header'
-import { StudioHeader } from '@/components/tailorgrid/studio-header'
+import { StudioSubNav } from '@/components/tailorgrid/studio-sub-nav'
 import { HomeView } from '@/components/tailorgrid/home-view'
 import { HowItWorksView } from '@/components/tailorgrid/how-it-works-view'
 import { OrdersView } from '@/components/tailorgrid/orders-view'
@@ -158,12 +158,16 @@ export default function Page() {
     notes?: string
     images?: string[]
     fittingMode?: string
+    matchedStore?: StoreOption
   }) => {
     setPrefilledGarmentId(data.garmentId)
     setPrefilledServiceId(data.serviceId)
     setConfirmedMeasurements(data.measurements)
     setGarmentBrand(data.brand)
     setGarmentNotes(data.notes)
+    if (data.matchedStore) {
+      setPrefilledStore(data.matchedStore)
+    }
   }
 
   const handleOpenAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
@@ -197,11 +201,13 @@ export default function Page() {
 
     // Role-based post-auth redirect
     if (loggedUser.role === 'STUDIO') {
-      // Studio users always land on the partner dashboard
-      handleNavigate('partner')
+      // Studio partners are redirected to dedicated Studio domain on port 3001
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+      const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
+      window.location.href = studioUrl
+      return
     } else {
-      // Customer users stay where they are (booking, orders, home)
-      // — do NOT redirect to studio screens
+      // Customer users stay on main portal
       if (screen === 'partner' || screen === 'for-partners') {
         handleNavigate('home')
       }
@@ -227,22 +233,22 @@ export default function Page() {
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
       
-      {/* Route-Aware Navigation Header */}
-      {isStudioScreen ? (
-        <StudioHeader
+      {/* Primary Global Navigation Header (Always Visible) */}
+      <Header
+        currentScreen={screen}
+        go={handleNavigate}
+        user={user}
+        onOpenAuth={() => handleOpenAuth('CUSTOMER')}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Secondary Sub-Navbar (Uber-style, appears below primary navbar for Studio pages) */}
+      {isStudioScreen && (
+        <StudioSubNav
           currentScreen={screen}
           go={handleNavigate}
-          user={user?.role === 'STUDIO' ? user : null}
+          user={user}
           onOpenAuth={handleOpenAuth}
-          onSignOut={handleSignOut}
-        />
-      ) : (
-        <Header
-          currentScreen={screen}
-          go={handleNavigate}
-          user={user?.role === 'CUSTOMER' ? user : null}
-          onOpenAuth={() => handleOpenAuth('CUSTOMER')}
-          onSignOut={handleSignOut}
         />
       )}
 
@@ -318,7 +324,13 @@ export default function Page() {
           />
         )}
 
-        {screen === 'orders' && <OrdersView go={handleNavigate} user={user} />}
+        {screen === 'orders' && (
+          <OrdersView
+            go={handleNavigate}
+            user={user}
+            onOpenAuth={() => handleOpenAuth('CUSTOMER', 'signin')}
+          />
+        )}
 
         {screen === 'partner' && (
           <PartnerFlow
