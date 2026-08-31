@@ -124,12 +124,13 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
 
                 <button
                   onClick={() => {
-                    if (onOpenAuth) onOpenAuth('STUDIO')
-                    else go('partner')
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
+                    window.location.href = studioUrl
                   }}
                   className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
                 >
-                  <span>Log in</span>
+                  <span>Studio Log in ↗</span>
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -468,10 +469,14 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 Thank you, <strong className="text-[#0F1115]">{contactName}</strong>. Our partner onboarding director will contact <strong className="text-[#0F1115]">{email}</strong> within 24 hours to schedule a brief studio visit and machine calibration check.
               </p>
               <button
-                onClick={() => go('partner')}
+                onClick={() => {
+                  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                  const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
+                  window.location.href = studioUrl
+                }}
                 className="mt-6 rounded-full bg-[#0F1115] px-8 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"
               >
-                Launch Studio Portal Demo
+                Launch Studio Portal Demo ↗
               </button>
             </div>
           ) : (

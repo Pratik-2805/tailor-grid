@@ -25,6 +25,7 @@ import { useCityLocation } from './use-city-location'
 import { SewingLoader } from './sewing-loader'
 import { GARMENT_CATEGORIES, type Screen } from './data'
 import { TrustBar } from './trust-bar'
+import { FindingStudioModal } from './finding-studio-modal'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -248,6 +249,7 @@ export interface ConfirmMeasurementProps {
     notes?: string
     images?: string[]
     fittingMode?: string
+    matchedStore?: StoreOption
   }) => void
 }
 
@@ -264,6 +266,7 @@ export function ConfirmMeasurementView({
 }: ConfirmMeasurementProps) {
   const [selectedCity, setSelectedCity] = useCityLocation(initialCity || 'New York City, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
+  const [isFindingStudio, setIsFindingStudio] = useState(false)
 
   // Category & Alteration
   const [selectedGarmentId, setSelectedGarmentId] = useState(initialGarmentId)
@@ -372,6 +375,7 @@ export function ConfirmMeasurementView({
       notes,
       images: uploadedImages,
       fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
+      matchedStore: matched,
     })
     go('booking')
   }
@@ -640,6 +644,25 @@ export function ConfirmMeasurementView({
         </section>
       </div>
       <TrustBar />
+
+      {/* Live Finding Studio Radar Animation Modal */}
+      <FindingStudioModal
+        isOpen={isFindingStudio}
+        city={selectedCity}
+        garmentId={selectedGarmentId}
+        garmentName={currentCategory.name}
+        serviceId={selectedService.id}
+        serviceName={selectedService.name}
+        price={selectedService.customerPrice}
+        measurements={measurements}
+        brand={brand}
+        notes={notes}
+        scheduleDate={scheduleDateObj}
+        scheduleTime={selectedTime}
+        images={uploadedImages}
+        onMatched={handleStudioMatched}
+        onCancel={() => setIsFindingStudio(false)}
+      />
     </div>
   )
 }

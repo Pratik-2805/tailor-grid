@@ -66,7 +66,11 @@ router.get('/', async (req, res) => {
       };
     }
     if (storeId) {
-      where.storeId = storeId;
+      // When a studio queries, show both their assigned orders AND unassigned/allocated broadcast orders
+      where.OR = [
+        { storeId: storeId },
+        { status: 'Allocated' },
+      ];
     }
     if (status) {
       where.status = status;
@@ -96,7 +100,7 @@ router.get('/', async (req, res) => {
       );
     }
     if (storeId) {
-      localOrders = localOrders.filter((o) => o.storeId === storeId);
+      localOrders = localOrders.filter((o) => !o.storeId || o.storeId === storeId || o.status === 'Allocated');
     }
     if (status) {
       localOrders = localOrders.filter((o) => o.status === status);
@@ -106,6 +110,30 @@ router.get('/', async (req, res) => {
     console.error('Fetch orders error:', err);
     const db = readDb();
     return res.json({ orders: db.orders || [] });
+  }
+});
+
+// GET /api/orders/:id - Fetch single order details
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    try {
+      const order = await prisma.order.findUnique({
+        where: { id },
+      });
+      if (order) return res.json({ order });
+    } catch (prismaErr) {
+      console.warn('Prisma get order by id fallback:', prismaErr.message);
+    }
+
+    const db = readDb();
+    const order = (db.orders || []).find((o) => o.id === id);
+    if (order) return res.json({ order });
+
+    return res.status(404).json({ error: 'Order not found' });
+  } catch (err) {
+    console.error('Get order error:', err);
+    return res.status(500).json({ error: 'Failed to fetch order' });
   }
 });
 
@@ -127,7 +155,11 @@ router.post('/', async (req, res) => {
       timeSlot,
       garmentBrand,
       fitNotes,
+      measurements,
+      fittingType,
+      imageUrl,
       price,
+      status,
     } = req.body;
 
     if (!customerEmail && !customerPhone) {
@@ -135,9 +167,14 @@ router.post('/', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const orderId = `TG-${Math.floor(100000 + Math.random() * 900000)}`;
+    const orderId = req.body.id || `TG-${Math.floor(100000 + Math.random() * 900000)}`;
     const parsedPrice = price ? parseFloat(price) : 25;
     const partnerPayout = Math.round(parsedPrice * 0.75 * 100) / 100;
+
+    let measurementsStr = '';
+    if (measurements) {
+      measurementsStr = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
+    }
 
     const orderData = {
       id: orderId,
@@ -149,20 +186,21 @@ router.post('/', async (req, res) => {
       garmentName: garmentName || 'Trousers & Jeans',
       serviceId: serviceId || 'trouser-hem',
       serviceName: serviceName || 'Standard Hemming',
-      storeId: storeId || 'kensington-atelier',
-      storeName: storeName || 'Kensington Bespoke Atelier',
+      storeId: storeId || null,
+      storeName: storeName || null,
       date: date || new Date().toISOString().split('T')[0],
       timeSlot: timeSlot || '14:00 - 15:00',
       garmentBrand: garmentBrand || '',
-      fitNotes: fitNotes || '',
-      pinnedAdjustment: '',
+      fitNotes: fitNotes || (measurementsStr ? `Measurements: ${measurementsStr}` : ''),
+      pinnedAdjustment: measurementsStr || '',
       sewingNotes: '',
       slaHours: 48,
       partnerPayout,
       retailSold: false,
       retailValue: null,
       retailCategory: null,
-      status: 'Allocated',
+      intakePhotoUrl: imageUrl || null,
+      status: status || 'Allocated',
       price: parsedPrice,
       otp,
     };
@@ -173,7 +211,13 @@ router.post('/', async (req, res) => {
       });
 
       const db = readDb();
-      db.orders.unshift(created);
+      if (!db.orders) db.orders = [];
+      const existingIdx = db.orders.findIndex((o) => o.id === orderId);
+      if (existingIdx >= 0) {
+        db.orders[existingIdx] = created;
+      } else {
+        db.orders.unshift(created);
+      }
       writeDb(db);
 
       return res.status(201).json({
@@ -185,10 +229,18 @@ router.post('/', async (req, res) => {
       console.warn('Prisma create order fallback:', prismaErr.message);
       const newOrder = {
         ...orderData,
+        measurements: measurements || undefined,
+        fittingType: fittingType || undefined,
         createdAt: new Date().toISOString(),
       };
       const db = readDb();
-      db.orders.unshift(newOrder);
+      if (!db.orders) db.orders = [];
+      const existingIdx = db.orders.findIndex((o) => o.id === orderId);
+      if (existingIdx >= 0) {
+        db.orders[existingIdx] = newOrder;
+      } else {
+        db.orders.unshift(newOrder);
+      }
       writeDb(db);
 
       return res.status(201).json({
@@ -209,6 +261,8 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const {
       status,
+      storeId,
+      storeName,
       otp,
       fitNotes,
       pinnedAdjustment,
@@ -231,6 +285,8 @@ router.put('/:id', async (req, res) => {
 
     const updateData = {};
     if (status !== undefined) updateData.status = status;
+    if (storeId !== undefined) updateData.storeId = storeId;
+    if (storeName !== undefined) updateData.storeName = storeName;
     if (otp !== undefined) updateData.otp = otp;
     if (fitNotes !== undefined) updateData.fitNotes = fitNotes;
     if (pinnedAdjustment !== undefined) updateData.pinnedAdjustment = pinnedAdjustment;
@@ -250,43 +306,73 @@ router.put('/:id', async (req, res) => {
     if (rating !== undefined) updateData.rating = parseFloat(rating);
     if (ratingFeedback !== undefined) updateData.ratingFeedback = ratingFeedback;
 
+    let updated = null;
     try {
-      const updated = await prisma.order.update({
+      if (storeId) {
+        try {
+          const storeExists = await prisma.partnerStore.findUnique({ where: { id: storeId } });
+          if (!storeExists) {
+            await prisma.partnerStore.create({
+              data: {
+                id: storeId,
+                name: storeName || 'Partner Atelier',
+                area: 'Neighborhood Atelier',
+                address: '18 Kensington Church St',
+                postcode: 'W8 4EP',
+                leadTailor: 'Master Tailor',
+                specialties: ['Custom Alterations', 'Precision Hemming'],
+                lat: 51.5033,
+                lng: -0.1925,
+              },
+            });
+          }
+        } catch (storeCheckErr) {
+          console.warn('Store check in order update warning:', storeCheckErr.message);
+        }
+      }
+
+      updated = await prisma.order.update({
         where: { id },
         data: updateData,
       });
-
-      const db = readDb();
-      const idx = db.orders.findIndex((o) => o.id === id);
-      if (idx !== -1) {
-        db.orders[idx] = { ...db.orders[idx], ...updateData };
-        writeDb(db);
-      }
-
-      return res.json({
-        success: true,
-        order: updated,
-      });
     } catch (prismaErr) {
       console.warn('Prisma update order fallback:', prismaErr.message);
-      const db = readDb();
-      const orderIndex = db.orders.findIndex((o) => o.id === id);
-
-      if (orderIndex === -1) {
-        return res.status(404).json({ error: 'Order not found' });
+      // If foreign key constraint failed on storeId, retry without storeId
+      try {
+        const { storeId: _ignored, ...safeData } = updateData;
+        updated = await prisma.order.update({
+          where: { id },
+          data: safeData,
+        });
+      } catch (retryErr) {
+        console.warn('Prisma safe update retry failed:', retryErr.message);
       }
+    }
 
+    const db = readDb();
+    if (!db.orders) db.orders = [];
+    const orderIndex = db.orders.findIndex((o) => o.id === id);
+
+    if (orderIndex !== -1) {
       db.orders[orderIndex] = {
         ...db.orders[orderIndex],
         ...updateData,
       };
       writeDb(db);
-
       return res.json({
         success: true,
         order: db.orders[orderIndex],
       });
+    } else if (updated) {
+      db.orders.unshift(updated);
+      writeDb(db);
+      return res.json({
+        success: true,
+        order: updated,
+      });
     }
+
+    return res.status(404).json({ error: 'Order not found' });
   } catch (err) {
     console.error('Update order error:', err);
     return res.status(500).json({ error: 'Failed to update order' });
