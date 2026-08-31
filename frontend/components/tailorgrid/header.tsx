@@ -25,22 +25,24 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
 
-        {/* Brand Logo + City Selector */}
+        {/* Brand Logo */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <button
             onClick={() => nav('home')}
-            className="flex items-center gap-2.5 group text-left shrink-0"
+            className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Darzi home"
           >
-            <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
-              <Scissors size={16} className="text-white" />
-            </div>
-            <div className="whitespace-nowrap">
-              <span className="font-serif font-bold text-[19px] tracking-tight text-[#0F1115] block leading-none">
-                Darzi
+            <img
+              src="/landscape_logo.jpeg"
+              alt="Darzi"
+              className="h-10 sm:h-12 w-auto object-contain mix-blend-multiply rounded-md transition-transform duration-200 group-hover:scale-105"
+            />
+            <div className="hidden sm:flex flex-col justify-center">
+              <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+                On-Demand
               </span>
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-[#9E593B] block mt-0.5">
-                On-Demand Alterations
+              <span className="text-[9px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
+                Alterations
               </span>
             </div>
           </button>
