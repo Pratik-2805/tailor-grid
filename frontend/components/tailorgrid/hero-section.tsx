@@ -19,6 +19,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { CityModal } from './city-modal'
+import { useCityLocation } from './use-city-location'
 import { GARMENT_CATEGORIES, type Screen } from './data'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
@@ -284,7 +285,7 @@ const CITIES = [
 ]
 
 export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
-  const [selectedCity, setSelectedCity] = useState('New York, NY')
+  const [selectedCity, setSelectedCity] = useCityLocation('New York City, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
   // Pickup / Schedule time selection state

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Navigation, Loader2 } from 'lucide-react'
+import { setStoredCity } from './use-city-location'
 
 export interface CityItem {
   name: string
@@ -89,6 +90,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   if (!isOpen) return null
 
   const handleSelect = (c: CityItem) => {
+    setStoredCity(c.fullName)
     onSelectCity(c.fullName)
     onClose()
   }
@@ -101,7 +103,9 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     setIsLocating(true)
 
     if (!navigator.geolocation) {
-      onSelectCity('New York City, NY')
+      const fallback = 'New York City, NY'
+      setStoredCity(fallback)
+      onSelectCity(fallback)
       setIsLocating(false)
       onClose()
       return
@@ -126,12 +130,17 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             )
             
             const finalCity = matched ? matched.fullName : `${cityName}, ${stateCode}`
+            setStoredCity(finalCity)
             onSelectCity(finalCity)
           } else {
-            onSelectCity('New York City, NY')
+            const fallback = 'New York City, NY'
+            setStoredCity(fallback)
+            onSelectCity(fallback)
           }
         } catch {
-          onSelectCity('New York City, NY')
+          const fallback = 'New York City, NY'
+          setStoredCity(fallback)
+          onSelectCity(fallback)
         } finally {
           setIsLocating(false)
           onClose()
@@ -139,7 +148,9 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       },
       (err) => {
         console.warn('Geolocation failed:', err)
-        onSelectCity('New York City, NY')
+        const fallback = 'New York City, NY'
+        setStoredCity(fallback)
+        onSelectCity(fallback)
         setIsLocating(false)
         onClose()
       },
