@@ -691,10 +691,14 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const handleCompletePickupAndSettlement = () => {
     if (!pickupModalOrder) return
     const hasRetail = retailAnswer === 'YES'
+    const retailVal = hasRetail ? parseFloat(retailValueInput || '0') : 0
+    const retailCat = hasRetail ? retailCategoryInput : undefined
 
     const updates: Partial<FittingBooking> = {
       status: 'Closed',
       retailSold: hasRetail,
+      retailValue: retailVal,
+      retailCategory: retailCat,
     }
 
     setOrders((prev) => prev.map((o) => (o.id === pickupModalOrder.id ? { ...o, ...updates } : o)))
@@ -2281,7 +2285,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                         <span>Did the customer purchase clothing in-store?</span>
                       </div>
                       <p className="text-[11px] text-[#6B7280] mt-0.5">
-                        Record whether this visit resulted in an in-store garment or retail purchase
+                        Record whether this customer purchased clothes or retail items in-store
                       </p>
                     </div>
                   </div>
@@ -2298,7 +2302,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       }`}
                     >
                       <CheckCircle size={15} />
-                      <span>Yes, purchased clothing</span>
+                      <span>Yes</span>
                     </button>
                     <button
                       type="button"
@@ -2310,7 +2314,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       }`}
                     >
                       <X size={15} />
-                      <span>No, alteration only</span>
+                      <span>No</span>
                     </button>
                   </div>
                 </div>
@@ -2328,7 +2332,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
                 {pickupCompleted && (
                   <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300 animate-fadeIn">
-                    🎉 Handover complete! {retailAnswer === 'YES' ? 'In-store clothing purchase recorded. ' : ''}80% payout scheduled for 15-day Stripe transfer.
+                    🎉 Handover complete! {retailAnswer === 'YES' ? 'In-store clothing purchase recorded (Yes). ' : ''}80% payout scheduled for 15-day Stripe transfer.
                   </div>
                 )}
               </div>

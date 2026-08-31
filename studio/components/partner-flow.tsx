@@ -809,7 +809,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 if (onSignOut) {
                   onSignOut()
                 } else {
-                  go('for-partners')
+                  go('partner')
                 }
               }}
               title="Sign Out & Return to Partner Page"
@@ -2168,10 +2168,53 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   </div>
                 </div>
 
+                {/* Question: Did the customer buy clothes/garments as well? */}
+                <div className="p-4 rounded-2xl bg-white border border-[#E8E1D5] space-y-3 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-[#0F1115] flex items-center gap-1.5">
+                        <ShoppingBag size={14} className="text-[#9E593B]" />
+                        <span>Did the customer purchase clothing in-store?</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] mt-0.5">
+                        Record whether this customer purchased clothes or retail items in-store
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Yes / No Toggle Buttons */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('YES')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'YES'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <CheckCircle size={15} />
+                      <span>Yes</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('NO')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'NO'
+                          ? 'bg-[#0F1115] text-white border-[#0F1115] shadow-xs ring-2 ring-[#0F1115]/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <X size={15} />
+                      <span>No</span>
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleCompletePickupAndSettlement}
-                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   <span>
@@ -2180,8 +2223,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 </button>
 
                 {pickupCompleted && (
-                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300">
-                    🎉 Handover complete! 80% payout scheduled for 15-day Stripe transfer.
+                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300 animate-fadeIn">
+                    🎉 Handover complete! {retailAnswer === 'YES' ? 'In-store clothing purchase recorded (Yes). ' : ''}80% payout scheduled for 15-day Stripe transfer.
                   </div>
                 )}
               </div>
