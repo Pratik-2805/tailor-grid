@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, PARTNER_STORES } from '../components/data'
+import { type User, type FittingBooking, type StoreOption, PARTNER_STORES, getClosestStoreForLocation } from '../components/data'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -217,18 +217,20 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
 
     return await res.json()
   } catch (err: any) {
+    const closestStore = getClosestStoreForLocation(orderData.city || orderData.postcode || orderData.customerAddress)
     const newOrder: FittingBooking = {
       id: `TG-${Math.floor(100000 + Math.random() * 900000)}`,
       customerName: orderData.customerName || 'Customer',
       customerEmail: orderData.customerEmail || 'customer@example.com',
       customerPhone: orderData.customerPhone || '+44 7700 900000',
-      postcode: orderData.postcode || 'W8 4EP',
+      postcode: orderData.postcode || closestStore.postcode,
       garmentId: orderData.garmentId || 'trousers',
       garmentName: orderData.garmentName || 'Trousers & Jeans',
       serviceId: orderData.serviceId || 'trouser-hem',
       serviceName: orderData.serviceName || 'Standard Hemming',
-      storeId: orderData.storeId || 'store-1',
-      storeName: orderData.storeName || 'Kensington Bespoke Atelier',
+      storeId: orderData.storeId || closestStore.id,
+      storeName: orderData.storeName || closestStore.name,
+      storeAddress: (orderData.storeAddress || closestStore.address) + (closestStore.area ? `, ${closestStore.area}` : ''),
       date: orderData.date || new Date().toISOString().split('T')[0],
       timeSlot: orderData.timeSlot || '14:00 - 15:00',
       garmentBrand: orderData.garmentBrand || '',

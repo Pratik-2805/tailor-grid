@@ -23,7 +23,7 @@ import {
 import { CityModal } from './city-modal'
 import { useCityLocation } from './use-city-location'
 import { SewingLoader } from './sewing-loader'
-import { GARMENT_CATEGORIES, type Screen, type StoreOption } from './data'
+import { GARMENT_CATEGORIES, getClosestStoreForLocation, type Screen, type StoreOption } from './data'
 import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
 
@@ -372,8 +372,9 @@ export function ConfirmMeasurementView({
       id: newOrderId,
       otp: String(Math.floor(1000 + Math.random() * 9000)),
       customerName: 'Gaurav Rai',
+      storeId: matchedStore.id,
       storeName: matchedStore.name,
-      storeAddress: matchedStore.address,
+      storeAddress: matchedStore.address + (matchedStore.area ? `, ${matchedStore.area}` : ''),
       garmentId: selectedGarmentId,
       garmentName: currentCategory.name,
       serviceId: selectedService.id,
@@ -406,13 +407,15 @@ export function ConfirmMeasurementView({
 
   const handleLoaderComplete = () => {
     setIsProcessing(false)
+    const closestStore = getClosestStoreForLocation(selectedCity)
     const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
     const orderData = {
       id: newOrderId,
       otp: String(Math.floor(1000 + Math.random() * 9000)),
       customerName: 'Gaurav Rai',
-      storeName: 'Atelier SoHo · Master Seamstress',
-      storeAddress: selectedCity ? `Main Street, ${selectedCity}` : '480 Broadway, SoHo, NY 10013',
+      storeId: closestStore.id,
+      storeName: closestStore.name,
+      storeAddress: closestStore.address + (closestStore.area ? `, ${closestStore.area}` : ''),
       garmentId: selectedGarmentId,
       garmentName: currentCategory.name,
       serviceId: selectedService.id,

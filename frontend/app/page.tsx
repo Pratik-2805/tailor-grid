@@ -128,11 +128,14 @@ export default function Page() {
     setScreen(nextScreen)
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_screen', nextScreen)
-      const newUrl = nextScreen === 'home'
-        ? '/'
-        : nextScreen === 'confirm-measurement'
-          ? '/confirm-measurement'
-          : `?page=${nextScreen}`
+      let newUrl = '/'
+      if (nextScreen === 'confirm-measurement') {
+        newUrl = '/confirm-measurement'
+      } else if (nextScreen === 'order') {
+        newUrl = `/order/${createdOrderId || 'ORD-6812'}`
+      } else if (nextScreen !== 'home') {
+        newUrl = `?page=${nextScreen}`
+      }
       window.history.pushState({ screen: nextScreen }, '', newUrl)
     }
     window.scrollTo({ top: 0, behavior: 'smooth' })
