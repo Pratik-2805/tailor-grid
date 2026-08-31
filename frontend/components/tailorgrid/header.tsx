@@ -33,9 +33,9 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             aria-label="Darzi home"
           >
             <img
-              src="/landscape_logo.jpeg"
+              src="/bg_logo.png"
               alt="Darzi"
-              className="h-10 sm:h-12 w-auto object-contain mix-blend-multiply rounded-md transition-transform duration-200 group-hover:scale-105"
+              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
             />
             <div className="hidden sm:flex flex-col justify-center">
               <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">

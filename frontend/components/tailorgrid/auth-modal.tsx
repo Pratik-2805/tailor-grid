@@ -335,7 +335,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
                 <ArrowLeft size={14} className="text-[#374151]" />
               </button>
             ) : (
-              <img src="/landscape_logo.jpeg" alt="Darzi" className="h-8 w-auto object-contain mix-blend-multiply rounded-md" />
+              <img src="/bg_logo.png" alt="Darzi" className="h-8 w-auto object-contain" />
             )}
           </div>
           <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">

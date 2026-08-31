@@ -44,7 +44,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             {/* Brand Col */}
             <div className="lg:col-span-4">
               <div className="flex items-center gap-3 mb-4">
-                <img src="/landscape_logo.jpeg" alt="Darzi Logo" className="h-10 w-auto object-contain rounded-lg" />
+                <img src="/bg_logo.png" alt="Darzi Logo" className="h-10 w-auto object-contain" />
               </div>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
                 On-demand master tailoring and alterations network. Guaranteed fit, upfront fixed rates, and doorstep service.
