@@ -23,9 +23,12 @@ import {
 import { CityModal } from './city-modal'
 import { useCityLocation } from './use-city-location'
 import { SewingLoader } from './sewing-loader'
-import { GARMENT_CATEGORIES, getClosestStoreForLocation, type Screen, type StoreOption } from './data'
+import { GARMENT_CATEGORIES, getClosestStoreForLocation, type Screen, type StoreOption, type User } from './data'
 import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
+import { AuthModal } from './auth-modal'
+import { getCurrentUser } from '@/lib/api'
+import { Lock, LogIn } from 'lucide-react'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -234,6 +237,8 @@ export const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
 
 export interface ConfirmMeasurementProps {
   go: (s: Screen) => void
+  user?: User | null
+  onOpenAuth?: () => void
   initialCity?: string
   initialGarmentId?: string
   initialServiceId?: string
@@ -255,6 +260,8 @@ export interface ConfirmMeasurementProps {
 
 export function ConfirmMeasurementView({
   go,
+  user,
+  onOpenAuth,
   initialCity = 'Mumbai, IN',
   initialGarmentId = 'trousers',
   initialServiceId,
@@ -264,6 +271,47 @@ export function ConfirmMeasurementView({
   initialImages = [],
   onConfirmMeasurements,
 }: ConfirmMeasurementProps) {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (user !== undefined) return user
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('tg_token')
+      const stored = localStorage.getItem('tg_user')
+      if (token && stored) {
+        try {
+          return JSON.parse(stored)
+        } catch {}
+      }
+    }
+    return null
+  })
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  // Verify auth on mount
+  useEffect(() => {
+    let isMounted = true
+    if (user !== undefined) {
+      setCurrentUser(user)
+      setAuthChecked(true)
+      if (!user) {
+        setIsAuthOpen(true)
+      }
+    } else {
+      getCurrentUser().then((u) => {
+        if (isMounted) {
+          setCurrentUser(u)
+          setAuthChecked(true)
+          if (!u) {
+            setIsAuthOpen(true)
+          }
+        }
+      })
+    }
+    return () => {
+      isMounted = false
+    }
+  }, [user])
+
   const [selectedCity, setSelectedCity] = useCityLocation(initialCity || 'New York City, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
   const [isFindingStudio, setIsFindingStudio] = useState(false)
@@ -457,6 +505,50 @@ export function ConfirmMeasurementView({
 
   // Get measurement definitions for current category
   const currentFields = CATEGORY_MEASUREMENTS[selectedGarmentId] || CATEGORY_MEASUREMENTS['trousers']
+
+  if (authChecked && !currentUser) {
+    return (
+      <div className="min-h-[calc(100vh-68px)] flex flex-col items-center justify-center px-4 py-16 text-center max-w-lg mx-auto bg-[#FAF8F5]">
+        <div className="size-16 rounded-3xl bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center mb-6 shadow-sm">
+          <Lock size={30} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
+          Authentication Required
+        </h1>
+        <p className="mt-3 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
+          Please sign in to your account to view your measurement form and proceed with booking.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setIsAuthOpen(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-[#0F1115] text-white text-sm font-bold shadow-md hover:bg-[#9E593B] transition-all"
+          >
+            <LogIn size={16} />
+            <span>Sign In to Continue</span>
+          </button>
+          <button
+            onClick={() => go('home')}
+            className="w-full sm:w-auto px-6 py-3 rounded-full border border-[#D5CEB9] text-[#0F1115] text-sm font-bold hover:bg-[#F4EFEA] transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+        <AuthModal
+          isOpen={isAuthOpen}
+          targetRole="CUSTOMER"
+          authType="signin"
+          onClose={() => {
+            setIsAuthOpen(false)
+            if (!currentUser) go('home')
+          }}
+          onSuccess={(u) => {
+            setCurrentUser(u)
+            setIsAuthOpen(false)
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-[calc(100vh-68px)] min-h-[calc(100dvh-68px)] flex flex-col justify-between bg-white">

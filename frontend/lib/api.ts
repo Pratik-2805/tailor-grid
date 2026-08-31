@@ -23,6 +23,9 @@ export async function loginWithGoogle(params: {
     const data = await res.json()
     if (data.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', data.token)
+      if (data.user) {
+        localStorage.setItem('tg_user', JSON.stringify(data.user))
+      }
     }
     return data
   } catch (err: any) {
@@ -36,7 +39,12 @@ export async function loginWithGoogle(params: {
         method: 'google',
         role: params.role || 'CUSTOMER',
       }
-      return { token: 'mock_token_' + Date.now(), user: fallbackUser }
+      const token = 'mock_token_' + Date.now()
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tg_token', token)
+        localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
+      }
+      return { token, user: fallbackUser }
     }
     throw err
   }
@@ -68,6 +76,9 @@ export async function signUpUser(data: {
     const result = await res.json()
     if (result.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', result.token)
+      if (result.user) {
+        localStorage.setItem('tg_user', JSON.stringify(result.user))
+      }
     }
     return result
   } catch (err) {
@@ -82,7 +93,12 @@ export async function signUpUser(data: {
       studioId: data.role === 'STUDIO' ? 'kensington-atelier' : undefined,
       studioName: data.storeName || (data.role === 'STUDIO' ? 'Kensington Bespoke Atelier' : undefined),
     }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser }
+    const token = 'mock_token_' + Date.now()
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_token', token)
+      localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
+    }
+    return { token, user: fallbackUser }
   }
 }
 
@@ -106,6 +122,9 @@ export async function loginUser(data: {
     const result = await res.json()
     if (result.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', result.token)
+      if (result.user) {
+        localStorage.setItem('tg_user', JSON.stringify(result.user))
+      }
     }
     return result
   } catch (err) {
@@ -120,7 +139,12 @@ export async function loginUser(data: {
       studioId: data.role === 'STUDIO' ? 'atelier-soho' : undefined,
       studioName: data.role === 'STUDIO' ? 'Atelier SoHo Tailors' : undefined,
     }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser }
+    const token = 'mock_token_' + Date.now()
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_token', token)
+      localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
+    }
+    return { token, user: fallbackUser }
   }
 }
 
@@ -132,12 +156,30 @@ export async function getCurrentUser(): Promise<User | null> {
     const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.user
+    if (res.ok) {
+      const data = await res.json()
+      if (data.user) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(data.user))
+        }
+        return data.user
+      }
+    }
   } catch (err) {
-    return null
+    // API failed or offline
   }
+
+  // Fallback to local stored user
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('tg_user')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch {}
+    }
+  }
+
+  return null
 }
 
 export async function fetchOrders(email?: string): Promise<FittingBooking[]> {
