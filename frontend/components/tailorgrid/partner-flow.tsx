@@ -55,12 +55,14 @@ interface BroadcastRequest {
   garmentName: string
   serviceName: string
   fittingType: 'PRE_PINNED' | 'NEED_STUDIO_FITTING'
-  garmentBrand: string
+  garmentBrand?: string
   fitNotes: string
   partnerPayout: number
   slaHours: number
   imageUrl: string
   otp: string
+  isRealCustomerOrder?: boolean
+  realOrder?: FittingBooking
 }
 
 const GARMENT_FALLBACK_IMAGES: Record<string, string> = {
@@ -318,25 +320,6 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [timerSecs, setTimerSecs] = useState(15)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
-  // Broadcast timer countdown (runs continuously without pausing on hover)
-  useEffect(() => {
-    if (!online || broadcasts.length === 0) return
-    const interval = setInterval(() => {
-      setTimerSecs((prev) => {
-        if (prev <= 1) {
-          // Auto-skip to next broadcast
-          setBroadcastIdx((curr) => (curr + 1) % broadcasts.length)
-          return 15
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [online, broadcasts.length])
-
-  // Current active broadcast request
-  const currentBroadcast = broadcasts.length > 0 ? broadcasts[broadcastIdx % broadcasts.length] : null
-
   // ── 2. Drop-off Intake State ────────────────────────────────────────────────
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
@@ -387,12 +370,105 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     setRefreshing(false)
   }
 
+  // Periodic real-time polling every 2.5s for live incoming alteration requests
   useEffect(() => {
     handleRefresh()
-  }, [user])
+    const interval = setInterval(() => {
+      if (online) {
+        fetchStudioOrders(user?.studioId).then((fetched) => {
+          if (fetched?.length) setOrders(fetched)
+        }).catch(() => {})
+      }
+    }, 2500)
+
+    return () => clearInterval(interval)
+  }, [user, online])
+
+  // Live incoming unaccepted requests from real customers
+  const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated')
+
+  // Real customer broadcast requests formatted as BroadcastRequest
+  const realBroadcastRequests: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
+    const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
+    return {
+      id: o.id,
+      customerName: o.customerName || 'Customer',
+      customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
+      distanceMiles: 0.8,
+      garmentName: o.garmentName || 'Garment Alteration',
+      serviceName: o.serviceName || 'Custom Fit & Alteration',
+      fittingType: (o.fittingType as any) || 'NEED_STUDIO_FITTING',
+      garmentBrand: o.garmentBrand,
+      fitNotes: o.fitNotes || 'Customer requested standard alteration pinning at counter.',
+      partnerPayout: payout,
+      slaHours: o.slaHours || 24,
+      imageUrl: o.intakePhotoUrl || '',
+      otp: o.otp || '0000',
+      isRealCustomerOrder: true,
+      realOrder: o,
+    }
+  })
+
+  // Combined queue: Real customer requests are prioritized first
+  const allBroadcasts: BroadcastRequest[] = [
+    ...realBroadcastRequests,
+    ...broadcasts.map((b) => ({ ...b, isRealCustomerOrder: false })),
+  ]
+
+  // Broadcast timer countdown
+  useEffect(() => {
+    if (!online || allBroadcasts.length === 0 || timerPaused) return
+    const interval = setInterval(() => {
+      setTimerSecs((prev) => {
+        if (prev <= 1) {
+          // Auto-skip to next broadcast
+          setBroadcastIdx((curr) => (curr + 1) % allBroadcasts.length)
+          return 15
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [online, allBroadcasts.length, timerPaused])
+
+  // Current active broadcast request
+  const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
+
+  const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
+    const assignedStudioId = user?.studioId || 'atelier-soho'
+    const assignedStudioName = studioName || user?.studioName || 'Atelier SoHo'
+    const partnerPayout = order.partnerPayout || Math.round((order.price || 30) * 0.75)
+
+    const updates: Partial<FittingBooking> = {
+      status: 'Accepted',
+      storeId: assignedStudioId,
+      storeName: assignedStudioName,
+      partnerPayout,
+    }
+
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+    try {
+      await updateOrder(order.id, updates)
+    } catch (err) {
+      console.warn('Failed to update order acceptance on backend:', err)
+    }
+
+    setBroadcastToast(`✓ Live Request Accepted: ${order.customerName} - ${order.garmentName} ($${partnerPayout}) — PIN: #${order.otp}`)
+    setTimeout(() => setBroadcastToast(null), 5000)
+  }
+
+  const handleDeclineAllocatedOrder = (orderId: string) => {
+    setOrders((prev) => prev.filter((o) => o.id !== orderId))
+  }
 
   // ── HANDLERS: BROADCAST ────────────────────────────────────────────────────
-  const handleAcceptBroadcast = (bc: BroadcastRequest) => {
+  const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
+    if (bc.isRealCustomerOrder && bc.realOrder) {
+      await handleAcceptAllocatedOrder(bc.realOrder)
+      setTimerSecs(15)
+      return
+    }
+
     const newOrder: FittingBooking = {
       id: bc.id.replace('TG-BC-', 'TG-'),
       customerName: bc.customerName,
@@ -430,9 +506,14 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     setTimeout(() => setBroadcastToast(null), 5000)
   }
 
-  const handleSkipBroadcast = () => {
-    if (broadcasts.length > 0) {
-      setBroadcastIdx((prev) => (prev + 1) % broadcasts.length)
+  const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
+    if (bc?.isRealCustomerOrder && bc.realOrder) {
+      handleDeclineAllocatedOrder(bc.realOrder.id)
+      setTimerSecs(15)
+      return
+    }
+    if (allBroadcasts.length > 0) {
+      setBroadcastIdx((prev) => (prev + 1) % allBroadcasts.length)
       setTimerSecs(15)
     }
   }
@@ -728,37 +809,58 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
         </div>
       )}
 
-      {/* ── 2. UPCOMING JOBS (UNIFIED ATELIER BROADCAST CARD) ─────── */}
+      {/* ── 2. LIVE JOB BROADCAST CARD (UNIFIED REAL-TIME & UPCOMING JOBS) ── */}
       {online && currentBroadcast && (
-        <section className="bg-[#FAF4EB] border-b border-[#E8DFC9] px-4 sm:px-6 py-3.5 transition-all">
+        <section
+          className="bg-[#FAF8F5] px-4 sm:px-6 py-4 transition-all"
+          onMouseEnter={() => setTimerPaused(true)}
+          onMouseLeave={() => setTimerPaused(false)}
+        >
           <div className="mx-auto max-w-7xl">
             {/* Unified Card Container */}
             <div className="bg-white rounded-2xl border border-[#E8DFC9] shadow-xs overflow-hidden transition-all hover:border-[#9E593B]/40">
               {/* Card Integrated Progress Bar */}
               <div className="h-1 w-full bg-[#FAF4EB] relative">
                 <div
-                  className="h-full bg-gradient-to-r from-[#9E593B] to-amber-600 transition-all duration-1000 ease-linear"
+                  className={`h-full transition-all duration-1000 ease-linear ${
+                    currentBroadcast.isRealCustomerOrder ? 'bg-emerald-600' : 'bg-[#D97706]'
+                  }`}
                   style={{ width: `${(timerSecs / 15) * 100}%` }}
                 />
               </div>
 
               {/* Card Header Strip */}
-              <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 bg-[#FAF8F5] border-b border-[#E8E1D5]">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[#F0EBE1]">
                 {/* Left: Broadcast Status + Queue Navigation */}
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="relative flex size-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full size-2 bg-amber-500" />
+                  <div className="flex items-center gap-2">
+                    {currentBroadcast.isRealCustomerOrder ? (
+                      <span className="relative flex size-2.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
+                      </span>
+                    ) : (
+                      <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                    )}
+                    <span
+                      className={`text-[11px] font-extrabold uppercase tracking-wider ${
+                        currentBroadcast.isRealCustomerOrder ? 'text-emerald-700' : 'text-[#9E593B]'
+                      }`}
+                    >
+                      {currentBroadcast.isRealCustomerOrder ? 'LIVE CUSTOMER REQUEST' : 'LIVE JOB BROADCAST'}
                     </span>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#9E593B]">Live Job Broadcast</span>
+                    {currentBroadcast.isRealCustomerOrder && (
+                      <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Customer Waiting
+                      </span>
+                    )}
                   </div>
 
-                  <div className="h-3.5 w-px bg-[#D1D5DB]" />
+                  <div className="h-3.5 w-px bg-[#E5DFD5]" />
 
                   {/* Segmented Queue Navigation Pills */}
-                  <div className="flex items-center gap-1">
-                    {broadcasts.map((b, idx) => (
+                  <div className="flex items-center gap-1.5">
+                    {allBroadcasts.map((b, idx) => (
                       <button
                         key={b.id}
                         onClick={() => {
@@ -766,30 +868,31 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           setTimerSecs(15)
                         }}
                         className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                          idx === broadcastIdx % broadcasts.length
-                            ? 'w-5 bg-[#9E593B]'
-                            : 'w-2 bg-[#D1D5DB] hover:bg-[#9CA3AF]'
+                          idx === broadcastIdx % allBroadcasts.length
+                            ? b.isRealCustomerOrder
+                              ? 'w-5 bg-emerald-600'
+                              : 'w-5 bg-[#9E593B]'
+                            : 'w-2 bg-[#E5DFD5] hover:bg-[#D1D5DB]'
                         }`}
                         title={`View ${b.garmentName}`}
                       />
                     ))}
-                    <span className="text-[10px] font-bold text-[#4B5563] ml-1">
-                      Job {broadcastIdx + 1} of {broadcasts.length}
+                    <span className="text-xs font-semibold text-[#52525B] ml-1.5">
+                      Job {(broadcastIdx % allBroadcasts.length) + 1} of {allBroadcasts.length}
                     </span>
                   </div>
                 </div>
 
-                {/* Right: Integrated Timer Badge (Non-stopping) */}
-                <div
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border transition-colors ${
-                    timerSecs <= 4
-                      ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
-                      : 'bg-white text-[#9E593B] border-[#E8DFC9]'
-                  }`}
-                >
-                  <Clock size={11} className={timerSecs <= 4 ? 'text-red-600' : 'text-[#9E593B]'} />
+                {/* Right: Integrated Timer Badge */}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E8DFC9] bg-white text-xs font-mono font-bold text-[#52525B]">
+                  <Clock
+                    size={12}
+                    className={currentBroadcast.isRealCustomerOrder ? 'text-emerald-600' : 'text-[#9E593B]'}
+                  />
                   <span>{timerSecs}s</span>
-                  <span className="text-[10px] font-sans text-[#6B7280]">Next broadcast</span>
+                  <span className="text-[11px] font-sans font-normal text-[#71717A]">
+                    {timerPaused ? '(Paused)' : 'Next broadcast'}
+                  </span>
                 </div>
               </div>
 
@@ -797,7 +900,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               <div className="p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-5">
                 {/* Left: Garment Image & Core Details */}
                 <div className="flex items-start gap-4 flex-1 min-w-0 w-full">
-                  <div className="relative size-20 sm:size-24 rounded-2xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0 shadow-2xs">
+                  <div className="relative size-20 sm:size-22 rounded-xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0 shadow-2xs">
                     <img
                       src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
                       alt={currentBroadcast.garmentName}
@@ -808,13 +911,15 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     </span>
                   </div>
 
-                  <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex-1 min-w-0 space-y-2">
                     {/* Title & Fabric/Brand */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-base text-[#0F1115] truncate">{currentBroadcast.garmentName}</h3>
+                      <h3 className="font-bold text-base text-[#0F1115] truncate">
+                        {currentBroadcast.garmentName}
+                      </h3>
                       {currentBroadcast.garmentBrand && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded-md border border-[#E5E7EB]">
-                          <Tag size={10} className="text-[#6B7280]" />
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#4B5563] bg-[#F4F4F5] border border-[#E4E4E7] px-2 py-0.5 rounded-md">
+                          <Tag size={10} className="text-[#71717A]" />
                           <span>{currentBroadcast.garmentBrand}</span>
                         </span>
                       )}
@@ -822,40 +927,40 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
                     {/* Service & Fitting Mode Badges */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] bg-[#FAF4EB] px-2.5 py-0.5 rounded-md border border-[#E8DFC9]">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] bg-[#FAF4EB] border border-[#E8DFC9] px-2.5 py-0.5 rounded-md">
                         <Scissors size={11} className="text-[#9E593B]" />
                         <span>{currentBroadcast.serviceName}</span>
                       </span>
 
                       {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-900 border border-purple-200">
-                          <Ruler size={11} className="text-purple-600" />
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-md bg-[#FAF5FF] text-[#6B21A8] border border-[#E9D5FF]">
+                          <Ruler size={11} className="text-[#9333EA]" />
                           <span>Fitting in Store</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-900 border border-emerald-200">
-                          <CheckCircle2 size={11} className="text-emerald-600" />
-                          <span>Pinned by Customer</span>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-md bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
+                          <CheckCircle2 size={11} className="text-[#059669]" />
+                          <span>Pre-Pinned</span>
                         </span>
                       )}
                     </div>
 
                     {/* Customer Fit Notes */}
-                    <p className="text-xs text-[#4B5563] line-clamp-1 italic bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#E8E1D5]">
+                    <p className="text-xs text-[#52525B] line-clamp-1 italic bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#E8E1D5]">
                       "{currentBroadcast.fitNotes}"
                     </p>
 
                     {/* Meta Specs with Icons */}
-                    <div className="flex items-center gap-4 text-xs text-[#6B7280] pt-0.5 flex-wrap">
-                      <span className="flex items-center gap-1 font-medium text-[#1F2937]">
-                        <User size={12} className="text-[#9E593B]" />
+                    <div className="flex items-center gap-4 text-xs text-[#71717A] pt-0.5 flex-wrap">
+                      <span className="flex items-center gap-1 font-medium text-[#18181B]">
+                        <User size={12} className="text-[#9CA3AF]" />
                         <span>{currentBroadcast.customerName}</span>
                       </span>
                       <span className="flex items-center gap-1">
-                        <MapPin size={12} className="text-[#9E593B]" />
+                        <MapPin size={12} className="text-[#9CA3AF]" />
                         <span>{currentBroadcast.customerArea}</span>
                       </span>
-                      <span className="inline-flex items-center gap-1 font-semibold text-[#0F1115] bg-[#FAF4EB] border border-[#E8DFC9] px-2 py-0.5 rounded-md text-[11px]">
+                      <span className="inline-flex items-center gap-1 font-semibold text-[#0F1115] bg-[#FAF4EB] border border-[#E8DFC9] px-2.5 py-0.5 rounded-md text-[11px]">
                         <Clock size={11} className="text-[#9E593B]" />
                         <span>{currentBroadcast.slaHours}h Turnaround</span>
                       </span>
@@ -864,25 +969,36 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 </div>
 
                 {/* Right: Payout & Actions Box */}
-                <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8E1D5] shrink-0 pl-0 lg:pl-5 lg:border-l lg:border-[#E8E1D5]">
+                <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8E1D5] shrink-0 pl-0 lg:pl-6 lg:border-l lg:border-[#E8E1D5]">
                   <div className="text-left lg:text-right">
-                    <div className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">You Earn</div>
-                    <div className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight">${currentBroadcast.partnerPayout}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-[#71717A] font-extrabold">
+                      YOU EARN
+                    </div>
+                    <div className="text-3xl font-black text-[#047857] leading-tight">
+                      ${currentBroadcast.partnerPayout}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={handleSkipBroadcast}
-                      className="px-3.5 py-2 rounded-xl border border-[#D1D5DB] text-xs font-bold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                      onClick={() => handleSkipBroadcast(currentBroadcast)}
+                      className="px-4 py-2 rounded-full border border-[#D1D5DB] bg-white text-xs font-bold text-[#374151] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
                     >
-                      Skip
+                      {currentBroadcast.isRealCustomerOrder ? 'Decline' : 'Skip'}
                     </button>
                     <button
                       onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                      className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      className={`px-5 py-2.5 rounded-full text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 ${
+                        currentBroadcast.isRealCustomerOrder
+                          ? 'bg-emerald-600 hover:bg-emerald-500'
+                          : 'bg-[#0F1115] hover:bg-[#9E593B]'
+                      }`}
                     >
-                      <Zap size={13} className="text-amber-300" />
-                      <span>Accept Job (${currentBroadcast.partnerPayout})</span>
+                      <Zap size={13} className="text-amber-300 fill-amber-300" />
+                      <span>
+                        Accept {currentBroadcast.isRealCustomerOrder ? 'Request' : 'Job'} ($
+                        {currentBroadcast.partnerPayout})
+                      </span>
                     </button>
                   </div>
                 </div>

@@ -1,24 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  Check,
   CheckCircle2,
   Clock,
   Compass,
   CreditCard,
+  Filter,
   Lock,
   MapPin,
   QrCode,
   Ruler,
   Scissors,
+  Search,
   ShieldCheck,
   Sparkles,
   Star,
+  Store,
   User,
+  X,
 } from 'lucide-react'
 import {
   GARMENT_CATEGORIES,
@@ -29,7 +34,7 @@ import {
   type Screen,
   type StoreOption,
 } from './data'
-import { createOrder } from '@/lib/api'
+import { createOrder, fetchStores } from '@/lib/api'
 
 type BookingStep =
   | 'studio'
@@ -80,10 +85,72 @@ export function CustomerFlow({
   const [customerPhone, setCustomerPhone] = useState('+44 7700 900077')
   const [customerEmail, setCustomerEmail] = useState('camilla.h@example.com')
 
-  // Matched store
-  const [allocatedStore] = useState<StoreOption>(
+  // All registered & partner studios list
+  const [allStores, setAllStores] = useState<StoreOption[]>(PARTNER_STORES)
+  const [loadingStores, setLoadingStores] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTag, setSelectedTag] = useState<'all' | 'hemming' | 'suiting' | 'dresses' | 'express' | 'top'>('all')
+
+  // Selected studio
+  const [allocatedStore, setAllocatedStore] = useState<StoreOption>(
     initialStore || PARTNER_STORES[0]
   )
+
+  // Fetch all registered studios from backend
+  useEffect(() => {
+    let mounted = true
+    fetchStores()
+      .then((stores) => {
+        if (mounted && stores && stores.length > 0) {
+          setAllStores(stores)
+          if (initialStore) {
+            const found = stores.find((s) => s.id === initialStore.id || s.name.toLowerCase() === initialStore.name.toLowerCase())
+            if (found) setAllocatedStore(found)
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch dynamic stores, using defaults:', err)
+      })
+      .finally(() => {
+        if (mounted) setLoadingStores(false)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [initialStore])
+
+  // Filtered stores based on search query and category tags
+  const filteredStores = useMemo(() => {
+    let list = allStores
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          s.area.toLowerCase().includes(q) ||
+          s.address.toLowerCase().includes(q) ||
+          s.postcode.toLowerCase().includes(q) ||
+          s.leadTailor.toLowerCase().includes(q) ||
+          s.specialties.some((spec) => spec.toLowerCase().includes(q))
+      )
+    }
+
+    if (selectedTag === 'hemming') {
+      list = list.filter((s) => s.specialties.some((spec) => spec.toLowerCase().includes('hem') || spec.toLowerCase().includes('denim') || spec.toLowerCase().includes('trouser')))
+    } else if (selectedTag === 'suiting') {
+      list = list.filter((s) => s.specialties.some((spec) => spec.toLowerCase().includes('suit') || spec.toLowerCase().includes('blazer') || spec.toLowerCase().includes('savile')))
+    } else if (selectedTag === 'dresses') {
+      list = list.filter((s) => s.specialties.some((spec) => spec.toLowerCase().includes('dress') || spec.toLowerCase().includes('silk') || spec.toLowerCase().includes('gown') || spec.toLowerCase().includes('evening')))
+    } else if (selectedTag === 'express') {
+      list = list.filter((s) => s.specialties.some((spec) => spec.toLowerCase().includes('24h') || spec.toLowerCase().includes('express') || spec.toLowerCase().includes('fast')))
+    } else if (selectedTag === 'top') {
+      list = list.filter((s) => s.rating >= 4.95)
+    }
+
+    return list
+  }, [allStores, searchQuery, selectedTag])
 
   // Live order status simulation
   const [orderStatus, setOrderStatus] = useState<OrderStatus>('Accepted')
@@ -134,7 +201,7 @@ export function CustomerFlow({
 
   return (
     <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
-      <div className="mx-auto max-w-[1040px] px-5 lg:px-8">
+      <div className="mx-auto max-w-[1140px] px-4 sm:px-6 lg:px-8">
 
         {/* Top Header Navigation */}
         <div className="flex items-center justify-between pb-6 border-b border-[#DDD6CB]">
@@ -170,79 +237,261 @@ export function CustomerFlow({
         )}
 
         {/* ========================================================
-            STEP 1: ALLOCATED PARTNER STUDIO
+            STEP 1: ALLOCATED & REGISTERED PARTNER STUDIOS
         ======================================================== */}
         {step === 'studio' && (
-          <div className="mt-10 max-w-[780px]">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 01 · Studio Allocation
-            </span>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
-              Your allocated partner studio.
-            </h1>
-            <p className="mt-3 text-sm text-[#5A5D64]">
-              Based on your area (<strong>{postcode}</strong>) and <strong>{selectedCategory.name}</strong> ({selectedService.name}), we matched you with:
-            </p>
-
-            {/* Studio Highlight Card */}
-            <div className="mt-8 rounded-2xl border border-[#9E593B] bg-[#F4EFEA] p-6 sm:p-8 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#9E593B] border border-[#DDD6CB]">
-                    <MapPin size={13} /> {allocatedStore.distance} ({allocatedStore.area})
-                  </span>
-                  <h3 className="mt-3 font-serif text-2xl sm:text-3xl font-bold text-[#18191B]">
-                    {allocatedStore.name}
-                  </h3>
-                  <p className="mt-1 text-xs sm:text-sm text-[#5A5D64]">
-                    {allocatedStore.address}, {allocatedStore.postcode}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-1 text-sm font-bold bg-white px-3 py-1.5 rounded-xl border border-[#DDD6CB] self-start">
-                  <Star size={15} className="fill-[#9E593B] text-[#9E593B]" />
-                  <span>{allocatedStore.rating}</span>
-                  <span className="text-xs font-normal text-[#7A7E85]">({allocatedStore.reviewCount} reviews)</span>
-                </div>
+          <div className="mt-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
+                  Step 01 · Select Atelier Studio
+                </span>
+                <h1 className="mt-2 font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-[-0.03em] text-[#18191B]">
+                  Choose your alteration studio.
+                </h1>
+                <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] max-w-2xl">
+                  Showing all certified and signed-up atelier studios. Select your preferred studio for your fitting session and garment alteration.
+                </p>
               </div>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-3 pt-6 border-t border-[#DDD6CB] text-xs">
-                <div>
-                  <span className="text-[#7A7E85] block">Lead Master Tailor</span>
-                  <span className="font-semibold text-[#18191B] mt-0.5 block">{allocatedStore.leadTailor}</span>
-                </div>
-                <div>
-                  <span className="text-[#7A7E85] block">Opening Hours</span>
-                  <span className="font-semibold text-[#18191B] mt-0.5 block">{allocatedStore.openingHours}</span>
-                </div>
-                <div>
-                  <span className="text-[#7A7E85] block">Specialist Machines</span>
-                  <span className="font-semibold text-[#18191B] mt-0.5 block">{allocatedStore.machines} Industrial Units</span>
-                </div>
-              </div>
-
-              {/* Interactive Directions Preview */}
-              <div className="mt-6 rounded-xl bg-white p-4 border border-[#DDD6CB] flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="grid size-9 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5]">
-                    <Compass size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[#18191B]">Directions &amp; Studio Access Guide</p>
-                    <p className="text-[11px] text-[#7A7E85]">3 min walk from Kensington High St tube station</p>
-                  </div>
-                </div>
-                <span className="text-xs font-mono font-bold text-[#9E593B]">SLOT: {timeSlot}</span>
+              <div className="flex items-center gap-2 shrink-0 self-start md:self-auto">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800 border border-emerald-200">
+                  <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                  {allStores.length} Registered Studios
+                </span>
               </div>
             </div>
 
-            <button
-              onClick={() => setStep('payment')}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
-            >
-              <span>Proceed to Secure Payment</span>
-              <ArrowRight size={14} />
-            </button>
+            {/* Search & Filter Toolbar */}
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#7A7E85]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search registered studios by name, area, postcode, or master tailor..."
+                  className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-10 pr-10 py-2.5 text-xs sm:text-sm text-[#18191B] placeholder-[#9CA3AF] focus:border-[#9E593B] focus:outline-none shadow-xs"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#7A7E85] hover:text-[#18191B]"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Filter Tags */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  { id: 'all', label: 'All Studios' },
+                  { id: 'hemming', label: 'Hemming & Denim' },
+                  { id: 'suiting', label: 'Suits & Tailoring' },
+                  { id: 'dresses', label: 'Dresses & Silk' },
+                  { id: 'express', label: 'Express 24h' },
+                  { id: 'top', label: 'Top Rated (4.95+)' },
+                ].map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() => setSelectedTag(tag.id as any)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                      selectedTag === tag.id
+                        ? 'bg-[#18191B] text-white shadow-xs'
+                        : 'bg-white text-[#5A5D64] border border-[#DDD6CB] hover:border-[#9E593B] hover:text-[#18191B]'
+                    }`}
+                  >
+                    {tag.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Currently Selected Studio Highlight Banner */}
+            <div className="mt-6 rounded-2xl border-2 border-[#9E593B] bg-[#FAF4ED] p-5 sm:p-6 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#9E593B] text-white text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5">
+                      <Check size={11} /> Selected Atelier
+                    </span>
+                    <span className="text-xs text-[#7A7E85]">
+                      {allocatedStore.area} &middot; {allocatedStore.distance}
+                    </span>
+                  </div>
+                  <h3 className="font-serif text-xl sm:text-2xl font-bold text-[#18191B]">
+                    {allocatedStore.name}
+                  </h3>
+                  <p className="text-xs text-[#5A5D64]">
+                    {allocatedStore.address}, {allocatedStore.postcode} &middot; Lead: <strong className="text-[#18191B]">{allocatedStore.leadTailor}</strong>
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+                  <div className="bg-white/90 border border-[#E8DFC8] rounded-xl px-3 py-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1 text-xs font-bold text-[#18191B]">
+                      <Star size={13} className="fill-[#9E593B] text-[#9E593B]" />
+                      <span>{allocatedStore.rating}</span>
+                    </div>
+                    <span className="text-[10px] text-[#7A7E85]">{allocatedStore.reviewCount} reviews</span>
+                  </div>
+
+                  <button
+                    onClick={() => setStep('payment')}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#18191B] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-[#9E593B] shadow-sm active:scale-95 whitespace-nowrap"
+                  >
+                    <span>Proceed with this Atelier</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Grid of All Registered Studios */}
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-lg font-bold text-[#18191B]">
+                  All Registered &amp; Certified Studios ({filteredStores.length})
+                </h3>
+                <span className="text-xs text-[#7A7E85]">Click any studio card to select it for your booking</span>
+              </div>
+
+              {filteredStores.length === 0 ? (
+                <div className="text-center py-12 rounded-2xl bg-white border border-[#DDD6CB]">
+                  <Store size={36} className="text-[#9CA3AF] mx-auto mb-2" />
+                  <h4 className="font-serif text-base font-semibold text-[#18191B]">No studios match your filter</h4>
+                  <p className="text-xs text-[#7A7E85] mt-1">Try clearing your search query or selecting "All Studios"</p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSelectedTag('all')
+                    }}
+                    className="mt-3 rounded-full bg-[#18191B] text-white text-xs font-semibold px-4 py-2"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredStores.map((store) => {
+                    const isSelected = allocatedStore.id === store.id
+
+                    return (
+                      <div
+                        key={store.id}
+                        onClick={() => setAllocatedStore(store)}
+                        className={`group relative flex flex-col justify-between rounded-2xl p-5 border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-[#9E593B] bg-[#FAF4ED] ring-2 ring-[#9E593B]/20 shadow-md'
+                            : 'border-[#E5E7EB] bg-white hover:border-[#DDD6CB] hover:shadow-sm'
+                        }`}
+                      >
+                        {/* Top Meta Row */}
+                        <div>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#9E593B]">
+                              <MapPin size={12} />
+                              <span>{store.distance || 'Nearby'}</span>
+                            </span>
+
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-[#9E593B] text-white text-[10px] font-bold px-2 py-0.5">
+                                <Check size={10} /> Active Choice
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-1 text-xs font-bold text-[#18191B]">
+                                <Star size={12} className="fill-[#F59E0B] text-[#F59E0B]" />
+                                <span>{store.rating}</span>
+                                <span className="text-[10px] text-[#7A7E85]">({store.reviewCount})</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <h4 className="font-serif text-lg font-bold text-[#18191B] leading-snug group-hover:text-[#9E593B] transition-colors">
+                            {store.name}
+                          </h4>
+                          <p className="text-xs text-[#5A5D64] mt-0.5">
+                            {store.area} &middot; {store.postcode}
+                          </p>
+                          <p className="text-[11px] text-[#7A7E85] mt-0.5 truncate">
+                            {store.address}
+                          </p>
+
+                          {/* Lead tailor & machinery */}
+                          <div className="mt-3 pt-3 border-t border-[#EAE4DC] grid grid-cols-2 gap-2 text-[11px]">
+                            <div>
+                              <span className="text-[#7A7E85] block text-[10px] uppercase font-semibold">Lead Artisan</span>
+                              <span className="font-medium text-[#18191B] truncate block">{store.leadTailor}</span>
+                            </div>
+                            <div>
+                              <span className="text-[#7A7E85] block text-[10px] uppercase font-semibold">Machinery</span>
+                              <span className="font-medium text-[#18191B]">{store.machines} Industrial Units</span>
+                            </div>
+                          </div>
+
+                          {/* Specialties Tags */}
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {store.specialties.map((spec) => (
+                              <span
+                                key={spec}
+                                className="rounded-md bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 text-[10px] font-medium text-[#5A5D64]"
+                              >
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Bottom action button */}
+                        <div className="mt-5 pt-3 border-t border-[#EAE4DC]">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAllocatedStore(store)
+                            }}
+                            className={`w-full rounded-xl py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+                              isSelected
+                                ? 'bg-[#18191B] text-white shadow-xs'
+                                : 'bg-[#FAF8F5] text-[#18191B] border border-[#DDD6CB] hover:bg-[#18191B] hover:text-white'
+                            }`}
+                          >
+                            {isSelected ? 'Selected Atelier ✓' : 'Select This Studio'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Directions & Service Access Preview */}
+            <div className="mt-8 rounded-2xl bg-white p-5 sm:p-6 border border-[#DDD6CB] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="grid size-10 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5] shrink-0">
+                  <Compass size={18} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[#18191B]">Studio Access &amp; Fitting Room Priority</p>
+                  <p className="text-[11px] text-[#7A7E85]">
+                    Selected Atelier: <strong>{allocatedStore.name}</strong> ({allocatedStore.address}, {allocatedStore.postcode})
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                <span className="text-xs font-mono font-bold text-[#9E593B] bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#E8E1D5]">
+                  SLOT: {fittingDate} @ {timeSlot}
+                </span>
+                <button
+                  onClick={() => setStep('payment')}
+                  className="rounded-full bg-[#18191B] text-white px-5 py-2 text-xs font-bold uppercase tracking-wider hover:bg-[#9E593B] transition-all"
+                >
+                  Continue →
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

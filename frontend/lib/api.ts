@@ -1,4 +1,4 @@
-import type { User, FittingBooking } from '../components/tailorgrid/data'
+import { type User, type FittingBooking, type StoreOption, PARTNER_STORES } from '../components/tailorgrid/data'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -164,6 +164,17 @@ export async function fetchStudioOrders(storeId?: string): Promise<FittingBookin
   }
 }
 
+export async function fetchOrderById(id: string): Promise<FittingBooking | null> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.order || null
+  } catch (err) {
+    return null
+  }
+}
+
 export async function fetchStudioStats(storeId?: string): Promise<any> {
   try {
     const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
@@ -230,3 +241,28 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
     return { success: true, order: newOrder }
   }
 }
+
+export async function fetchStores(search?: string): Promise<StoreOption[]> {
+  try {
+    const url = search ? `${API_BASE}/stores?search=${encodeURIComponent(search)}` : `${API_BASE}/stores`
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('Failed to fetch stores')
+    const data = await res.json()
+    if (Array.isArray(data.stores) && data.stores.length > 0) {
+      // Merge with default stores so verified ones are always present
+      const fetched: StoreOption[] = data.stores
+      const combined = [...fetched]
+      for (const defStore of PARTNER_STORES) {
+        if (!combined.some((s) => s.id === defStore.id || s.name.toLowerCase() === defStore.name.toLowerCase())) {
+          combined.push(defStore)
+        }
+      }
+      return combined
+    }
+    return PARTNER_STORES
+  } catch (err) {
+    console.warn('Using fallback partner stores:', err)
+    return PARTNER_STORES
+  }
+}
+
