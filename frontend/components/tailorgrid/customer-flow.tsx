@@ -32,10 +32,6 @@ import {
 import { createOrder } from '@/lib/api'
 
 type BookingStep =
-  | 'location'
-  | 'garment'
-  | 'service'
-  | 'schedule'
   | 'studio'
   | 'payment'
   | 'pass'
@@ -48,6 +44,12 @@ interface CustomerFlowProps {
   initialGarmentId?: string
   initialServiceId?: string
   initialStore?: StoreOption
+  initialMeasurements?: Record<string, string>
+  initialBrand?: string
+  initialNotes?: string
+  initialDate?: string
+  initialTimeSlot?: string
+  initialFittingType?: 'in-person' | 'pre-pinned'
 }
 
 export function CustomerFlow({
@@ -57,24 +59,29 @@ export function CustomerFlow({
   initialGarmentId = 'trousers',
   initialServiceId,
   initialStore,
+  initialMeasurements,
+  initialBrand,
+  initialNotes,
+  initialDate,
+  initialTimeSlot,
+  initialFittingType,
 }: CustomerFlowProps) {
-  const [step, setStep] = useState<BookingStep>('location')
-  const [postcode, setPostcode] = useState(initialPostcode)
-  const [categoryId, setCategoryId] = useState(initialGarmentId)
-  const [selectedServiceId, setSelectedServiceId] = useState<string>(
+  const [step, setStep] = useState<BookingStep>('studio')
+  const [postcode] = useState(initialPostcode)
+  const [categoryId] = useState(initialGarmentId)
+  const [selectedServiceId] = useState<string>(
     initialServiceId || GARMENT_CATEGORIES[0].popularServices[0].id
   )
-  const [fittingType, setFittingType] = useState<'in-person' | 'pre-pinned'>('in-person')
-  const [fittingDate, setFittingDate] = useState('Tomorrow')
-  const [timeSlot, setTimeSlot] = useState('11:30 AM')
-  const [brand, setBrand] = useState('Levi\'s / Bespoke')
-  const [notes, setNotes] = useState('Shorten length with original hem finish, slight shoe break')
+  const [timeSlot] = useState(initialTimeSlot || '11:30 AM')
+  const [fittingDate] = useState(initialDate || 'Tomorrow')
+  const [brand] = useState(initialBrand || 'Levi\'s / Bespoke')
+  const [notes] = useState(initialNotes || 'Shorten length with original hem finish, slight shoe break')
   const [customerName, setCustomerName] = useState('Camilla Harrington')
   const [customerPhone, setCustomerPhone] = useState('+44 7700 900077')
   const [customerEmail, setCustomerEmail] = useState('camilla.h@example.com')
 
   // Matched store
-  const [allocatedStore, setAllocatedStore] = useState<StoreOption>(
+  const [allocatedStore] = useState<StoreOption>(
     initialStore || PARTNER_STORES[0]
   )
 
@@ -90,21 +97,6 @@ export function CustomerFlow({
     selectedCategory.popularServices[0]
 
   const totalPrice = selectedService.customerPrice
-
-  const handleNextFromLocation = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Allocate closest store based on postcode
-    if (postcode.toUpperCase().includes('W1') || postcode.toUpperCase().includes('WC')) {
-      setAllocatedStore(PARTNER_STORES[3]) // Soho
-    } else if (postcode.toUpperCase().includes('W2')) {
-      setAllocatedStore(PARTNER_STORES[1]) // Notting Hill
-    } else if (postcode.toUpperCase().includes('W1U')) {
-      setAllocatedStore(PARTNER_STORES[2]) // Marylebone
-    } else {
-      setAllocatedStore(PARTNER_STORES[0]) // Kensington
-    }
-    setStep('garment')
-  }
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,12 +126,8 @@ export function CustomerFlow({
   }
 
   const stepsList: { key: BookingStep; label: string }[] = [
-    { key: 'location', label: 'Area' },
-    { key: 'garment', label: 'Garment' },
-    { key: 'service', label: 'Alteration' },
-    { key: 'schedule', label: 'Fitting Slot' },
-    { key: 'studio', label: 'Matched Studio' },
-    { key: 'payment', label: 'Pay' },
+    { key: 'studio', label: '1. Atelier Studio' },
+    { key: 'payment', label: '2. Review & Pay' },
   ]
 
   const currentStepIndex = stepsList.findIndex((s) => s.key === step)
@@ -152,11 +140,7 @@ export function CustomerFlow({
         <div className="flex items-center justify-between pb-6 border-b border-[#DDD6CB]">
           <button
             onClick={() => {
-              if (step === 'location') go('home')
-              else if (step === 'garment') setStep('location')
-              else if (step === 'service') setStep('garment')
-              else if (step === 'schedule') setStep('service')
-              else if (step === 'studio') setStep('schedule')
+              if (step === 'studio') go('confirm-measurement')
               else if (step === 'payment') setStep('studio')
               else if (step === 'pass' || step === 'tracking') go('home')
             }}
@@ -186,310 +170,18 @@ export function CustomerFlow({
         )}
 
         {/* ========================================================
-            STEP 1: LOCATION / ZIP CODE
-        ======================================================== */}
-        {step === 'location' && (
-          <div className="mt-10 max-w-[620px]">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 01 · Neighborhood Studio Search
-            </span>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
-              Where is your wardrobe located?
-            </h1>
-            <p className="mt-4 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
-              We&apos;ll match your garment with the highest-rated certified master alteration studio within your neighborhood.
-            </p>
-
-            <form onSubmit={handleNextFromLocation} className="mt-8">
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#7A7E85]">
-                  <MapPin size={18} />
-                </span>
-                <input
-                  type="text"
-                  required
-                  value={postcode}
-                  onChange={(e) => setPostcode(e.target.value)}
-                  placeholder="Enter Postcode / ZIP (e.g. W8 4EP, SW3, 10001)"
-                  className="w-full rounded-2xl border border-[#DDD6CB] bg-white py-4 pl-12 pr-4 text-sm sm:text-base font-medium text-[#18191B] placeholder:text-[#8E8A82] focus:border-[#9E593B] focus:outline-none shadow-xs"
-                />
-              </div>
-
-              {/* Quick Area Chips */}
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="text-[#7A7E85] self-center">Popular hubs:</span>
-                {['W8 (Kensington)', 'W2 (Notting Hill)', 'W1U (Marylebone)', 'W1F (Soho)'].map((hub) => (
-                  <button
-                    type="button"
-                    key={hub}
-                    onClick={() => setPostcode(hub.split(' ')[0])}
-                    className="rounded-full bg-[#F4EFEA] px-3 py-1 text-xs text-[#5A5D64] hover:bg-[#ECE6DD] hover:text-[#18191B] transition-colors"
-                  >
-                    {hub}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="submit"
-                className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
-              >
-                <span>Select Garment Type</span>
-                <ArrowRight size={14} />
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* ========================================================
-            STEP 2: SELECT GARMENT CATEGORY
-        ======================================================== */}
-        {step === 'garment' && (
-          <div className="mt-10">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 02 · Garment Category
-            </span>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
-              What item are we altering?
-            </h1>
-            <p className="mt-3 text-sm sm:text-base text-[#5A5D64]">
-              Select the garment category. Prices and specialist machines will be tailored to this item.
-            </p>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {GARMENT_CATEGORIES.map((cat) => {
-                const isSelected = cat.id === categoryId
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => {
-                      setCategoryId(cat.id)
-                      setSelectedServiceId(cat.popularServices[0].id)
-                    }}
-                    className={`cursor-pointer rounded-2xl border p-6 transition-all duration-200 ${isSelected
-                        ? 'border-[#9E593B] bg-[#F4EFEA] shadow-sm ring-1 ring-[#9E593B]'
-                        : 'border-[#DDD6CB] bg-white hover:border-[#B1ACA4]'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-serif text-lg font-semibold text-[#18191B]">{cat.name}</h3>
-                      <span className="font-mono text-xs font-bold text-[#9E593B]">From ${cat.startingPrice}</span>
-                    </div>
-                    <p className="mt-2 text-xs text-[#5A5D64] leading-relaxed">{cat.tagline}</p>
-                    <div className="mt-4 pt-3 border-t border-[#EAE4DC] flex items-center justify-between text-[11px] text-[#7A7E85]">
-                      <span>Avg. {cat.avgTurnaround}</span>
-                      <span className="text-[#18191B] font-semibold">{cat.popularServices.length} services</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <button
-              onClick={() => setStep('service')}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
-            >
-              <span>Choose Alteration Service</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* ========================================================
-            STEP 3: SELECT ALTERATION SERVICE
-        ======================================================== */}
-        {step === 'service' && (
-          <div className="mt-10">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 03 · Alteration &amp; Pricing
-            </span>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
-              Select the exact tailoring required.
-            </h1>
-            <p className="mt-3 text-sm sm:text-base text-[#5A5D64]">
-              Itemized alterations for <strong>{selectedCategory.name}</strong> with transparent fixed pricing.
-            </p>
-
-            <div className="mt-8 space-y-3">
-              {selectedCategory.popularServices.map((svc) => {
-                const isChosen = svc.id === selectedServiceId
-                return (
-                  <div
-                    key={svc.id}
-                    onClick={() => setSelectedServiceId(svc.id)}
-                    className={`cursor-pointer rounded-2xl border p-5 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isChosen
-                        ? 'border-[#9E593B] bg-[#F4EFEA] shadow-sm ring-1 ring-[#9E593B]'
-                        : 'border-[#DDD6CB] bg-white hover:border-[#B1ACA4]'
-                      }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className={`grid size-6 place-items-center rounded-full mt-0.5 ${isChosen ? 'bg-[#9E593B] text-white' : 'border border-[#DDD6CB]'}`}>
-                        {isChosen && <CheckCircle2 size={14} />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-serif text-base font-semibold text-[#18191B]">{svc.name}</h4>
-                          {svc.popular && (
-                            <span className="rounded bg-white px-2 py-0.5 text-[10px] font-bold text-[#9E593B] uppercase border border-[#DDD6CB]">
-                              Most Popular
-                            </span>
-                          )}
-                        </div>
-                        <p className="mt-1 text-xs text-[#5A5D64] max-w-[500px]">{svc.description}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-6 sm:text-right pl-10 sm:pl-0">
-                      <div>
-                        <span className="font-serif text-xl font-bold text-[#18191B]">${svc.customerPrice}</span>
-                        <span className="block text-[10px] text-[#7A7E85]">{svc.turnaroundDays} days SLA</span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <button
-              onClick={() => setStep('schedule')}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
-            >
-              <span>Schedule Fitting &amp; Drop-off</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* ========================================================
-            STEP 4: SCHEDULE FITTING & GARMENT DETAILS
-        ======================================================== */}
-        {step === 'schedule' && (
-          <div className="mt-10 max-w-[720px]">
-            <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 04 · Studio Fitting &amp; Garment Details
-            </span>
-            <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
-              Fitting preference &amp; time slot.
-            </h1>
-            <p className="mt-3 text-sm text-[#5A5D64]">
-              Choose how you would like to drop off your garment at the partner studio.
-            </p>
-
-            {/* Fitting Type Toggle */}
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div
-                onClick={() => setFittingType('in-person')}
-                className={`cursor-pointer rounded-2xl border p-5 transition-all ${fittingType === 'in-person'
-                    ? 'border-[#9E593B] bg-[#F4EFEA] ring-1 ring-[#9E593B]'
-                    : 'border-[#DDD6CB] bg-white'
-                  }`}
-              >
-                <div className="flex items-center gap-2">
-                  <User size={16} className="text-[#9E593B]" />
-                  <h4 className="font-serif text-sm font-semibold text-[#18191B]">In-Studio Pin &amp; Measure</h4>
-                </div>
-                <p className="mt-2 text-xs text-[#5A5D64]">
-                  Spend 5 minutes in a private fitting room. Master tailor personally pins your garment.
-                </p>
-                <span className="mt-3 inline-block text-[10px] font-bold uppercase text-[#9E593B]">Recommended</span>
-              </div>
-
-              <div
-                onClick={() => setFittingType('pre-pinned')}
-                className={`cursor-pointer rounded-2xl border p-5 transition-all ${fittingType === 'pre-pinned'
-                    ? 'border-[#9E593B] bg-[#F4EFEA] ring-1 ring-[#9E593B]'
-                    : 'border-[#DDD6CB] bg-white'
-                  }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Ruler size={16} className="text-[#9E593B]" />
-                  <h4 className="font-serif text-sm font-semibold text-[#18191B]">Pre-Pinned Quick Drop-off</h4>
-                </div>
-                <p className="mt-2 text-xs text-[#5A5D64]">
-                  Already pinned at home or sending a sample fit garment. 60-second counter drop-off.
-                </p>
-              </div>
-            </div>
-
-            {/* Date & Time Selection */}
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-[#18191B] mb-2">Preferred Drop-Off Date</label>
-                <select
-                  value={fittingDate}
-                  onChange={(e) => setFittingDate(e.target.value)}
-                  className="w-full rounded-xl border border-[#DDD6CB] bg-white px-4 py-3 text-xs sm:text-sm font-medium focus:border-[#9E593B] focus:outline-none"
-                >
-                  <option>Today (Immediate slot)</option>
-                  <option>Tomorrow (Morning / Afternoon)</option>
-                  <option>In 2 Days</option>
-                  <option>This Saturday</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#18191B] mb-2">Fitting Window</label>
-                <select
-                  value={timeSlot}
-                  onChange={(e) => setTimeSlot(e.target.value)}
-                  className="w-full rounded-xl border border-[#DDD6CB] bg-white px-4 py-3 text-xs sm:text-sm font-medium focus:border-[#9E593B] focus:outline-none"
-                >
-                  <option>10:00 AM – 11:30 AM</option>
-                  <option>11:30 AM – 01:00 PM</option>
-                  <option>02:00 PM – 04:00 PM</option>
-                  <option>04:00 PM – 06:30 PM</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Garment Details & Notes */}
-            <div className="mt-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-[#18191B] mb-1.5">Garment Brand &amp; Tag Size</label>
-                <input
-                  type="text"
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  placeholder="e.g. Levi's 501 / Size 32"
-                  className="w-full rounded-xl border border-[#DDD6CB] bg-white px-4 py-3 text-xs sm:text-sm focus:border-[#9E593B] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-[#18191B] mb-1.5">Fit Preference &amp; Special Instructions</label>
-                <textarea
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Shorten by 3.5cm, keep original chainstitch hem, slight shoe break"
-                  className="w-full rounded-xl border border-[#DDD6CB] bg-white p-3 text-xs sm:text-sm focus:border-[#9E593B] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <button
-              onClick={() => setStep('studio')}
-              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-8 py-4 text-xs font-semibold uppercase tracking-wider text-[#FAF8F5] transition-all hover:bg-[#9E593B] shadow-sm active:scale-95"
-            >
-              <span>Allocate Nearby Studio</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* ========================================================
-            STEP 5: ALLOCATED PARTNER STUDIO
+            STEP 1: ALLOCATED PARTNER STUDIO
         ======================================================== */}
         {step === 'studio' && (
           <div className="mt-10 max-w-[780px]">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 05 · Studio Allocation
+              Step 01 · Studio Allocation
             </span>
             <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
               Your allocated partner studio.
             </h1>
             <p className="mt-3 text-sm text-[#5A5D64]">
-              Based on your area (<strong>{postcode}</strong>) and <strong>{selectedCategory.name}</strong> requirements, we matched you with:
+              Based on your area (<strong>{postcode}</strong>) and <strong>{selectedCategory.name}</strong> ({selectedService.name}), we matched you with:
             </p>
 
             {/* Studio Highlight Card */}
@@ -555,12 +247,12 @@ export function CustomerFlow({
         )}
 
         {/* ========================================================
-            STEP 6: SECURE ONLINE PAYMENT
+            STEP 2: SECURE ONLINE PAYMENT
         ======================================================== */}
         {step === 'payment' && (
           <div className="mt-10 max-w-[720px]">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9E593B]">
-              Step 06 · Transparent Checkout
+              Step 02 · Checkout &amp; Payment
             </span>
             <h1 className="mt-3 font-serif text-4xl sm:text-5xl font-normal tracking-[-0.04em] text-[#18191B]">
               Confirm your alteration booking.
