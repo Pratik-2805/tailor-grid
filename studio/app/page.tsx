@@ -19,7 +19,7 @@ import { makeOtp, type Screen, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow } from '@/components/partner-flow'
 import { AuthModal } from '@/components/auth-modal'
-import { getCurrentUser } from '@/lib/api'
+import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
 export default function StudioPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -28,7 +28,7 @@ export default function StudioPage() {
   const [otp] = useState(() => makeOtp())
   const [loadingUser, setLoadingUser] = useState(true)
 
-  const customerSiteUrl = process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL || 'http://localhost:3000'
+  const customerSiteUrl = CUSTOMER_SITE_URL
 
   // Token handover from main website (port 3000 -> port 3001)
   useEffect(() => {

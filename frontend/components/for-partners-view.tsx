@@ -27,7 +27,7 @@ import {
   Users
 } from 'lucide-react'
 import { type Screen } from './data'
-import { signUpUser } from '@/lib/api'
+import { signUpUser, getStudioUrl } from '@/lib/api'
 
 interface ForPartnersViewProps {
   go: (s: Screen) => void
@@ -125,8 +125,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 <button
                   onClick={() => {
                     const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                    const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
-                    window.location.href = studioUrl
+                    window.location.href = getStudioUrl('/', token)
                   }}
                   className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
                 >
@@ -471,8 +470,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               <button
                 onClick={() => {
                   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                  const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
-                  window.location.href = studioUrl
+                  window.location.href = getStudioUrl('/', token)
                 }}
                 className="mt-6 rounded-full bg-[#0F1115] px-8 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"
               >

@@ -18,7 +18,7 @@ import { HowItWorksView } from '@/components/how-it-works-view'
 import { OrderDetailsView } from '@/components/order-details-view'
 import { OrdersView } from '@/components/orders-view'
 import { PartnerFlow } from '@/components/partner-flow'
-import { getCurrentUser } from '@/lib/api'
+import { getCurrentUser, getStudioUrl } from '@/lib/api'
 
 export default function Page() {
   const router = useRouter()
@@ -260,10 +260,9 @@ export default function Page() {
 
     // Role-based post-auth redirect
     if (loggedUser.role === 'STUDIO') {
-      // Studio partners are redirected to dedicated Studio domain on port 3001
+      // Studio partners are redirected to dedicated Studio domain
       const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-      const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
-      window.location.href = studioUrl
+      window.location.href = getStudioUrl('/', token)
       return
     } else {
       // Customer users stay on main portal
