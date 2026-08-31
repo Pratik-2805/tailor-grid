@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -89,7 +90,7 @@ export default function Page() {
           try {
             const parsed = JSON.parse(latestOrder)
             if (parsed.id) orderId = parsed.id
-          } catch {}
+          } catch { }
         }
         window.location.replace(`/order/${orderId}`)
         return 'home'
@@ -132,8 +133,19 @@ export default function Page() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  // Load authenticated user on mount
+  // Load authenticated user on mount & check for auth redirection
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const authParam = params.get('auth')
+      if (authParam === 'required' || authParam === 'signin') {
+        setIsAuthOpen(true)
+        setAuthRole('CUSTOMER')
+        setAuthType('signin')
+        window.history.replaceState({}, '', '/')
+      }
+    }
+
     getCurrentUser().then((u) => {
       if (u) setUser(u)
     })
