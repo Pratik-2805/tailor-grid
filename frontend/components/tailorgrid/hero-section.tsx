@@ -18,6 +18,7 @@ import {
   Camera,
   Sparkles,
 } from 'lucide-react'
+import { CityModal } from './city-modal'
 import { GARMENT_CATEGORIES, type Screen } from './data'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
@@ -283,7 +284,7 @@ const CITIES = [
 ]
 
 export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
-  const [selectedCity, setSelectedCity] = useState('Mumbai, IN')
+  const [selectedCity, setSelectedCity] = useState('New York, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
   // Pickup / Schedule time selection state
@@ -405,35 +406,22 @@ export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSec
               <button
                 type="button"
                 onClick={() => {
-                  setShowCityPicker(!showCityPicker)
+                  setShowCityPicker(true)
                   setShowTimePicker(false)
                   setShowGarmentPicker(false)
                   setShowAlterationPicker(false)
                 }}
-                className="underline text-black font-normal hover:text-gray-700 ml-1 transition-colors cursor-pointer"
+                className="underline text-[#9E593B] font-semibold hover:text-[#0F1115] ml-1 transition-colors cursor-pointer"
               >
                 Change city
               </button>
 
-              {/* City Dropdown Menu Overlay */}
-              {showCityPicker && (
-                <div className="absolute top-7 left-0 z-50 w-64 rounded-2xl bg-white p-2 border border-gray-200 shadow-2xl space-y-1 animate-in fade-in duration-150">
-                  {CITIES.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => handleCitySelect(c)}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${selectedCity === c
-                          ? 'bg-black text-white'
-                          : 'text-black hover:bg-[#F3F3F3]'
-                        }`}
-                    >
-                      <span>{c}</span>
-                      {selectedCity === c && <Check size={16} className="text-white shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <CityModal
+                isOpen={showCityPicker}
+                onClose={() => setShowCityPicker(false)}
+                selectedCity={selectedCity}
+                onSelectCity={(c) => handleCitySelect(c)}
+              />
             </div>
 
             {/* 2. Main Title */}
