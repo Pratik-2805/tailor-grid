@@ -201,7 +201,7 @@ export function Step1Illustration({ className = 'w-full h-full' }: { className?:
 
       {/* Upfront Transparency Pill */}
       <g transform="translate(80, 168)">
-        <rect width="160" height="20" rx="10" fill="#ECFDF5" border="#A7F3D0" />
+        <rect width="160" height="20" rx="10" fill="#ECFDF5" stroke="#A7F3D0" />
         <text x="80" y="14" textAnchor="middle" fill="#10B981" fontSize="8.5" fontWeight="700" fontFamily="sans-serif">✓ Fixed Rates · Zero Hidden Surcharges</text>
       </g>
     </svg>
