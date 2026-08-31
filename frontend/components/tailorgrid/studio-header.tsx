@@ -107,29 +107,31 @@ export function StudioHeader({
           </button>
 
           {isStudioUser ? (
-            <div className="flex items-center gap-2.5 bg-[#1A1E24] border border-[#2D333D] rounded-full pl-3 pr-2 py-1">
+            <div className="flex items-center gap-2.5 bg-[#1A1E24] border border-[#2D333D] rounded-full pl-3 pr-2.5 py-1">
               <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center text-xs font-bold shrink-0">
                 <Store size={12} />
               </div>
               <div className="text-left">
-                <span className="text-[12px] font-semibold text-white block leading-tight max-w-[110px] truncate">
+                <span className="text-[12px] font-semibold text-white block leading-tight max-w-[120px] truncate">
                   {user.studioName || user.name.split(' ')[0]}
                 </span>
                 <span className="text-[9px] text-[#10B981] font-bold uppercase tracking-wider block">
                   Studio Active
                 </span>
               </div>
-              <button
-                onClick={() => nav('partner')}
-                className="rounded-full bg-white text-[#0F1115] px-3.5 py-1 text-xs font-bold hover:bg-[#FAF8F5] transition-colors ml-1"
-              >
-                Dashboard
-              </button>
+              {currentScreen !== 'partner' ? (
+                <button
+                  onClick={() => nav('partner')}
+                  className="rounded-full bg-white text-[#0F1115] px-3.5 py-1 text-xs font-bold hover:bg-[#FAF8F5] transition-colors ml-1 cursor-pointer"
+                >
+                  Dashboard
+                </button>
+              ) : null}
               {onSignOut && (
                 <button
                   onClick={onSignOut}
                   title="Sign out"
-                  className="p-1 hover:text-red-400 text-gray-400 transition-colors shrink-0"
+                  className="p-1 hover:text-red-400 text-gray-400 hover:bg-white/10 rounded-full transition-colors shrink-0 ml-1 cursor-pointer"
                 >
                   <LogOut size={13} />
                 </button>
