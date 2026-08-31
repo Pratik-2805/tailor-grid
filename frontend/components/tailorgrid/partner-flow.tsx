@@ -318,6 +318,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [broadcasts, setBroadcasts] = useState<BroadcastRequest[]>(INITIAL_BROADCASTS)
   const [broadcastIdx, setBroadcastIdx] = useState(0)
   const [timerSecs, setTimerSecs] = useState(15)
+  const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
   // ── 2. Drop-off Intake State ────────────────────────────────────────────────

@@ -23,7 +23,7 @@ import {
 import { CityModal } from './city-modal'
 import { useCityLocation } from './use-city-location'
 import { SewingLoader } from './sewing-loader'
-import { GARMENT_CATEGORIES, type Screen } from './data'
+import { GARMENT_CATEGORIES, type Screen, type StoreOption } from './data'
 import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
 
@@ -365,6 +365,21 @@ export function ConfirmMeasurementView({
     setIsProcessing(true)
   }
 
+  const handleStudioMatched = (matchedStore: StoreOption, _orderData?: any) => {
+    setIsFindingStudio(false)
+    onConfirmMeasurements?.({
+      garmentId: selectedGarmentId,
+      serviceId: selectedService.id,
+      measurements,
+      brand,
+      notes,
+      images: uploadedImages,
+      fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
+      matchedStore,
+    })
+    go('booking')
+  }
+
   const handleLoaderComplete = () => {
     setIsProcessing(false)
     onConfirmMeasurements?.({
@@ -375,7 +390,6 @@ export function ConfirmMeasurementView({
       notes,
       images: uploadedImages,
       fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
-      matchedStore: matched,
     })
     go('booking')
   }
