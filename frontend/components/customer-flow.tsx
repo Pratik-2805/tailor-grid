@@ -28,6 +28,7 @@ import {
 import {
   GARMENT_CATEGORIES,
   PARTNER_STORES,
+  getClosestStoreForLocation,
   type AlterationService,
   type GarmentCategory,
   type OrderStatus,
@@ -93,7 +94,7 @@ export function CustomerFlow({
 
   // Selected studio
   const [allocatedStore, setAllocatedStore] = useState<StoreOption>(
-    initialStore || PARTNER_STORES[0]
+    initialStore || getClosestStoreForLocation(initialPostcode) || PARTNER_STORES[0]
   )
 
   // Fetch all registered studios from backend

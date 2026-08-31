@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { AboutView } from '@/components/about-view'
 import { AdminView } from '@/components/admin-view'
 import { AuthModal } from '@/components/auth-modal'
@@ -19,6 +20,7 @@ import { PartnerFlow } from '@/components/partner-flow'
 import { getCurrentUser } from '@/lib/api'
 
 export default function Page() {
+  const router = useRouter()
   const [screen, setScreen] = useState<Screen>('home')
   const [createdOrderId, setCreatedOrderId] = useState<string>('ORD-2654')
   const [user, setUser] = useState<User | null>(null)
@@ -68,13 +70,29 @@ export default function Page() {
     const getScreenFromUrl = (): Screen => {
       if (typeof window === 'undefined') return 'home'
 
-      if (window.location.pathname === '/confirm-measurement') {
-        return 'confirm-measurement'
-      }
-
       // Check URL query param ?page=xxx
       const params = new URLSearchParams(window.location.search)
       const pageParam = params.get('page') as Screen | null
+
+      // Automatically forward legacy query parameters to official Next.js routes
+      if (pageParam === 'order') {
+        const latestOrder = localStorage.getItem('tg_latest_order')
+        let orderId = createdOrderId || 'ORD-2654'
+        if (latestOrder) {
+          try {
+            const parsed = JSON.parse(latestOrder)
+            if (parsed.id) orderId = parsed.id
+          } catch {}
+        }
+        window.location.replace(`/order/${orderId}`)
+        return 'home'
+      }
+
+      if (pageParam === 'confirm-measurement') {
+        window.location.replace('/confirm-measurement')
+        return 'home'
+      }
+
       if (pageParam && validScreens.includes(pageParam)) {
         return pageParam
       }
@@ -85,19 +103,12 @@ export default function Page() {
         return hash
       }
 
-      // Check localStorage
-      const saved = localStorage.getItem('tg_screen') as Screen | null
-      if (saved && validScreens.includes(saved)) {
-        return saved
-      }
-
+      // Root path '/' is ALWAYS home
       return 'home'
     }
 
     const initialScreen = getScreenFromUrl()
-    if (initialScreen !== 'home') {
-      setScreen(initialScreen)
-    }
+    setScreen(initialScreen)
 
     const handlePopState = () => {
       const current = getScreenFromUrl()
@@ -125,16 +136,21 @@ export default function Page() {
   const [garmentNotes, setGarmentNotes] = useState<string | undefined>()
 
   const handleNavigate = (nextScreen: Screen) => {
-    setScreen(nextScreen)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_screen', nextScreen)
-      const newUrl = nextScreen === 'home'
-        ? '/'
-        : nextScreen === 'confirm-measurement'
-          ? '/confirm-measurement'
-          : `?page=${nextScreen}`
-      window.history.pushState({ screen: nextScreen }, '', newUrl)
+    if (nextScreen === 'confirm-measurement') {
+      router.push('/confirm-measurement')
+      return
     }
+    if (nextScreen === 'order') {
+      router.push(`/order/${createdOrderId || 'ORD-2654'}`)
+      return
+    }
+    if (nextScreen === 'home') {
+      router.push('/')
+      setScreen('home')
+      return
+    }
+    setScreen(nextScreen)
+    router.push(`/?page=${nextScreen}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -151,6 +167,9 @@ export default function Page() {
     setPrefilledGarmentId(params.garmentId)
     setPrefilledServiceId(params.serviceId)
     setPrefilledPostcode(params.city.includes('Los Angeles') ? '90210' : params.city.includes('London') ? 'W8 4EP' : '10012')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_measurement_draft', JSON.stringify(params))
+    }
   }
 
   const handleConfirmMeasurements = (data: {

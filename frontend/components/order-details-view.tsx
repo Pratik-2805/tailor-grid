@@ -18,7 +18,10 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { fetchOrderById } from '@/lib/api'
-import { PARTNER_STORES } from './data'
+import { PARTNER_STORES, getClosestStoreForLocation } from './data'
+import CleanGoogleMap from './CleanGoogleMap'
+import { TrustBar } from './trust-bar'
+import { SewingLoader } from './sewing-loader'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId?: string; className?: string }) {
   switch (categoryId) {
@@ -65,6 +68,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLoading, setIsLoading] = useState(true)
   const [copiedToast, setCopiedToast] = useState(false)
   const [pinCopied, setPinCopied] = useState(false)
+  const [isLocating, setIsLocating] = useState(false)
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -98,19 +103,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               setIsLoading(false)
               return
             }
-          } catch {}
+          } catch { }
         }
       }
 
       // 3. Fallback mock order if not found
       if (isMounted) {
-        const defaultStore = PARTNER_STORES[0]
+        const defaultStore = getClosestStoreForLocation()
         setOrder({
           id: slugId || 'ORD-6154',
           otp: slugId.replace(/[^0-9]/g, '') || '6154',
           customerName: 'Gaurav Rai',
-          storeName: defaultStore.name || 'Atelier SoHo · Master Seamstress',
-          storeAddress: defaultStore.address || '480 Broadway, SoHo, NY 10013',
+          storeName: defaultStore.name,
+          storeAddress: defaultStore.address + (defaultStore.area ? `, ${defaultStore.area}` : ''),
           garmentId: 'trousers',
           garmentName: 'Trousers & Jeans',
           serviceName: 'Shorten Hem (Plain)',
@@ -131,12 +136,18 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }, [slugId])
 
+  const closestStore = getClosestStoreForLocation(order?.city || order?.storeAddress || order?.postcode)
   const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '6154')
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
-  const storeNameDisplay = order?.storeName || 'Atelier SoHo · Master Seamstress'
-  const storeAddressDisplay = order?.storeAddress || '480 Broadway, SoHo, NY 10013'
+  const storeNameDisplay = (order?.storeName && !order.storeName.includes('Atelier SoHo') ? order.storeName : closestStore.name)
+  const storeAddressDisplay = (order?.storeAddress && !order.storeAddress.includes('480 Broadway') ? order.storeAddress : closestStore.address)
+  const cleanStudioBadgeName = storeNameDisplay
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Trousers & Jeans'
   const serviceDisplay = order?.serviceName || 'Shorten Hem (Plain)'
+
+  const destinationCoords = closestStore?.coords || { lat: 19.3705, lng: 72.8228 }
+  const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
+  const cleanMapUrl = `https://maps.google.com/maps?q=${storeQuery}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`
 
   const handleCopyPin = () => {
     if (typeof window !== 'undefined') {
@@ -154,7 +165,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           title: `Darzi Order #${order?.id || slugId}`,
           text: `Tailor Studio Location: ${storeNameDisplay} - ${storeAddressDisplay}`,
           url: shareUrl,
-        }).catch(() => {})
+        }).catch(() => { })
       } else {
         navigator.clipboard.writeText(shareUrl)
         setCopiedToast(true)
@@ -171,24 +182,52 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }
 
+  const handleFetchCurrentLocation = () => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      setIsLocating(true)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          setUserCoords({ lat: latitude, lng: longitude })
+          const closestStore = getClosestStoreForLocation(`${latitude},${longitude}`) || PARTNER_STORES[0]
+
+          setOrder((prev: any) => ({
+            ...prev,
+            storeName: closestStore.name,
+            storeAddress: closestStore.address + (closestStore.area ? `, ${closestStore.area}` : ''),
+            city: closestStore.area || 'Current Spot',
+          }))
+          setIsLocating(false)
+        },
+        (err) => {
+          console.warn('Geolocation failed:', err)
+          setIsLocating(false)
+          const closestStore = getClosestStoreForLocation('vasai')
+          setOrder((prev: any) => ({
+            ...prev,
+            storeName: closestStore.name,
+            storeAddress: closestStore.address + (closestStore.area ? `, ${closestStore.area}` : ''),
+          }))
+        },
+        { timeout: 10000, enableHighAccuracy: true }
+      )
+    }
+  }
+
   if (isLoading) {
-    return (
-      <div className="py-20 bg-[#FAF8F5] flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="size-8 border-3 border-black border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm font-bold text-[#0F1115]">Loading Order details...</p>
-      </div>
-    )
+    return <SewingLoader active={true} onComplete={() => setIsLoading(false)} />
   }
 
   return (
-    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] py-5 sm:py-8 px-3 sm:px-6 select-none font-sans">
-      <div className="max-w-[980px] mx-auto">
-        
+    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
+      <div className="flex-1 py-6 sm:py-10 px-3 sm:px-6 flex flex-col justify-center items-center">
+        <div className="max-w-[1040px] w-full mx-auto">
+
         {/* ========================================================================= */}
         {/* 1. UBER-STYLE HEADER & PROGRESS TIMELINE */}
         {/* ========================================================================= */}
         <div className="mb-6 bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
-          
+
           <div className="flex items-center justify-between gap-3 mb-5">
             <div className="flex items-center gap-3">
               <button
@@ -253,22 +292,20 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
           </div>
 
-        </div>
-
-        {/* ========================================================================= */}
+        </div>        {/* ========================================================================= */}
         {/* 2. UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
         {/* ========================================================================= */}
-        <div className="grid lg:grid-cols-12 gap-5 items-start">
-          
+        <div className="grid lg:grid-cols-12 gap-5 items-stretch">
+
           {/* ───────────────────────────────────────────────────────────────────────── */}
           {/* LEFT COLUMN: Atelier Info, High-Visibility PIN Badge, Work & Measurements */}
           {/* ───────────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between">
-            
+          <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+
             <div>
               {/* Top Row: Store Name & Location vs Uber-Style Black PIN Box */}
               <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-100">
-                
+
                 {/* Store Info */}
                 <div className="min-w-0 flex-1">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-1">
@@ -302,7 +339,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
               {/* Middle Row: Itemized Work & Garment Cards (Uber Clean) */}
               <div className="grid grid-cols-2 gap-3 py-4 border-b border-gray-100">
-                
+
                 {/* Cloth Type */}
                 <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
                   <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
@@ -384,11 +421,11 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           </div>
 
           {/* ───────────────────────────────────────────────────────────────────────── */}
-          {/* RIGHT COLUMN: Uber-Style Map Canvas & Action Buttons */}
+          {/* RIGHT COLUMN: Real Interactive Google Map & Action Buttons */}
           {/* ───────────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 p-4 shadow-xs flex flex-col justify-between">
-            
-            <div>
+          <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+
+            <div className="flex-1 flex flex-col">
               {/* Map Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
@@ -402,60 +439,45 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 </span>
               </div>
 
-              {/* Uber-Style Graphic Map Canvas */}
-              <div className="h-[210px] rounded-2xl border border-gray-200 relative overflow-hidden bg-[#EAE6DF] flex flex-col justify-between p-3 shadow-inner">
-                
-                {/* Vector Map Roads background */}
-                <svg className="absolute inset-0 w-full h-full stroke-white fill-none opacity-80" strokeWidth="10">
-                  {/* Primary Avenue */}
-                  <path d="M-20 80 Q 140 180 360 80 T 500 240" stroke="#FDFBF7" strokeWidth="16" />
-                  <path d="M-20 80 Q 140 180 360 80 T 500 240" stroke="#D1CCC1" strokeWidth="12" />
+              {/* Tailor Studio Map Canvas (Google Maps JS API / Clean Styled) */}
+              <div
+                onClick={handleOpenAppMap}
+                className="flex-1 min-h-[280px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
+                title="Click map to open in Google Maps"
+              >
+                <CleanGoogleMap
+                  lat={destinationCoords.lat}
+                  lng={destinationCoords.lng}
+                  storeName={storeNameDisplay}
+                  storeAddress={storeAddressDisplay}
+                />
 
-                  {/* Secondary Streets */}
-                  <path d="M120 -20 Q 180 140 140 300" stroke="#FDFBF7" strokeWidth="10" />
-                  <path d="M260 -20 Q 240 160 280 300" stroke="#FDFBF7" strokeWidth="8" />
-
-                  {/* Route Line Connecting User to Studio */}
-                  <path
-                    d="M 60 160 Q 150 140 220 75"
-                    stroke="#10B981"
-                    strokeWidth="4"
-                    strokeDasharray="6 4"
-                    className="animate-pulse"
-                  />
-                </svg>
-
-                {/* Studio Location Pin (Top Right Area) */}
-                <div className="relative z-10 self-end mt-4 mr-2 flex flex-col items-center">
-                  <div className="bg-black text-white px-3 py-1 rounded-full text-xs font-extrabold shadow-lg border border-white flex items-center gap-1.5">
-                    <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span className="truncate max-w-[140px]">{storeNameDisplay}</span>
-                  </div>
-                  <div className="w-2.5 h-2.5 bg-black transform rotate-45 -mt-1 border-r border-b border-white" />
-                </div>
-
-                {/* Client Location Pin (Bottom Left Area) */}
-                <div className="relative z-10 self-start mb-2 ml-2 bg-white/95 backdrop-blur-xs text-black px-2.5 py-1 rounded-lg text-[11px] font-extrabold border border-gray-300 shadow-md flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
-                  </span>
-                  <span>You (Current Spot)</span>
-                </div>
+                {/* Floating Blue GPS Target Button */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleFetchCurrentLocation()
+                  }}
+                  disabled={isLocating}
+                  className="absolute bottom-4 right-4 z-30 size-11 rounded-2xl bg-[#0066FF] hover:bg-[#0052CC] active:scale-90 text-white shadow-xl flex items-center justify-center transition-all border border-white/30 cursor-pointer group/btn"
+                  title="Find nearest studio to my location"
+                >
+                  <Navigation size={18} className={`fill-white ${isLocating ? 'animate-spin text-amber-300' : 'group-hover/btn:scale-110'} transition-transform`} />
+                </button>
 
                 {/* Copy Toast Alert */}
                 {copiedToast && (
-                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-black text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 animate-in fade-in zoom-in">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-black text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 animate-in fade-in zoom-in pointer-events-none">
                     <Check size={13} className="text-emerald-400" />
-                    <span>Map link copied to clipboard!</span>
+                    <span>Tracking link copied to clipboard!</span>
                   </div>
                 )}
-
               </div>
             </div>
 
             {/* Uber-Style Action Buttons Row */}
-            <div className="grid grid-cols-2 gap-2.5 mt-4 pt-3 border-t border-gray-100">
+            <div className="grid grid-cols-2 gap-2.5 mt-5 pt-3 border-t border-gray-100 mt-auto">
               <button
                 type="button"
                 onClick={handleShareMap}
@@ -476,10 +498,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
 
           </div>
-
         </div>
-
       </div>
     </div>
-  )
+
+    {/* Fixed Bottom Trust Strip */}
+    <TrustBar />
+  </div>
+)
 }

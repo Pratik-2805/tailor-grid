@@ -16,7 +16,7 @@ import {
   Check,
 } from 'lucide-react'
 import { createOrder, fetchOrderById, updateOrder, fetchStores } from '@/lib/api'
-import { type StoreOption, PARTNER_STORES } from './data'
+import { type StoreOption, PARTNER_STORES, getClosestStoreForLocation } from './data'
 
 interface FindingStudioModalProps {
   isOpen: boolean
@@ -176,25 +176,7 @@ export function FindingStudioModal({
             (s) => s.id === orderData.storeId || s.name.toLowerCase() === orderData.storeName?.toLowerCase()
           )
           if (!matched) {
-            matched = {
-              id: orderData.storeId || 'studio-accepted',
-              name: orderData.storeName || 'Partner Bespoke Atelier',
-              area: city,
-              address: '18 Kensington Church St',
-              postcode: 'W8 4EP',
-              distance: '0.4 mi away',
-              distanceMiles: 0.4,
-              rating: 4.98,
-              reviewCount: 312,
-              openingHours: 'Mon–Sat: 09:00 – 19:00',
-              dailyCapacity: 25,
-              machines: 6,
-              workers: 4,
-              leadTailor: 'Master Tailor Marco',
-              specialties: ['Custom Alterations', 'Precision Hemming'],
-              retailSold: true,
-              coords: { lat: 51.5033, lng: -0.1925 },
-            }
+            matched = getClosestStoreForLocation(city)
           }
 
           setIsAccepted(true)
@@ -216,7 +198,7 @@ export function FindingStudioModal({
 
   // 6. Manual Simulator Trigger (for instant testing without 2nd screen)
   const handleSimulateStudioAccept = async () => {
-    const chosenStore = storesList[0] || PARTNER_STORES[0]
+    const chosenStore = getClosestStoreForLocation(city) || storesList[0] || PARTNER_STORES[0]
     const currentId = orderIdRef.current || (createdOrder && createdOrder.id) || `TG-DEMO`
 
     try {
@@ -224,6 +206,7 @@ export function FindingStudioModal({
         status: 'Accepted',
         storeId: chosenStore.id,
         storeName: chosenStore.name,
+        storeAddress: chosenStore.address + (chosenStore.area ? `, ${chosenStore.area}` : ''),
       })
     } catch {}
 
@@ -231,7 +214,13 @@ export function FindingStudioModal({
     setMatchedStore(chosenStore)
 
     setTimeout(() => {
-      onMatched(chosenStore, { ...createdOrder, status: 'Accepted', storeId: chosenStore.id, storeName: chosenStore.name })
+      onMatched(chosenStore, {
+        ...createdOrder,
+        status: 'Accepted',
+        storeId: chosenStore.id,
+        storeName: chosenStore.name,
+        storeAddress: chosenStore.address + (chosenStore.area ? `, ${chosenStore.area}` : ''),
+      })
     }, 1800)
   }
 
