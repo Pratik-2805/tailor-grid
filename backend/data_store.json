@@ -95,9 +95,9 @@
       "timeSlot": "14:00 - 15:00",
       "garmentBrand": "",
       "fitNotes": "",
-      "status": "Work in Progress",
+      "status": "Closed",
       "price": 25,
-      "otp": "5417",
+      "otp": "4419",
       "createdAt": "2026-08-26T06:28:16.036Z",
       "pinnedAdjustment": "Standard alteration",
       "sewingNotes": "",
@@ -107,7 +107,8 @@
       "fabricConditionNotes": "Clean condition, no fabric flaws.",
       "priceAdjustment": null,
       "priceAdjustmentStatus": "NONE",
-      "slaStartedAt": "2026-08-27T15:44:49.735Z"
+      "slaStartedAt": "2026-08-27T15:44:49.735Z",
+      "retailSold": true
     },
     {
       "id": "TG-849201",
@@ -125,9 +126,9 @@
       "timeSlot": "14:00 - 15:00",
       "garmentBrand": "Reiss",
       "fitNotes": "Slim taper down to 14 inch leg opening",
-      "status": "Closed",
+      "status": "Ready",
       "price": 22,
-      "otp": "8406",
+      "otp": "4413",
       "createdAt": "2026-08-25T06:27:06.587Z",
       "retailSold": false
     },

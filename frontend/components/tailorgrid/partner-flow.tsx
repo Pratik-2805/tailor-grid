@@ -589,9 +589,9 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     setPickupOtpInput('')
     setPickupOtpError('')
     setPickupVerified(false)
-    setRetailAnswer(null)
-    setRetailValueInput('45')
-    setRetailCategoryInput('Accessories & Ties')
+    setRetailAnswer(order.retailSold ? 'YES' : 'NO')
+    setRetailValueInput(order.retailValue ? String(order.retailValue) : '45')
+    setRetailCategoryInput(order.retailCategory || 'Garments & Clothing')
     setPickupCompleted(false)
   }
 
@@ -609,14 +609,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const handleCompletePickupAndSettlement = () => {
     if (!pickupModalOrder) return
     const hasRetail = retailAnswer === 'YES'
-    const retailVal = hasRetail ? parseFloat(retailValueInput || '0') : null
-    const retailCat = hasRetail ? retailCategoryInput : null
 
     const updates: Partial<FittingBooking> = {
       status: 'Closed',
       retailSold: hasRetail,
-      retailValue: retailVal ?? undefined,
-      retailCategory: retailCat ?? undefined,
     }
 
     setOrders((prev) => prev.map((o) => (o.id === pickupModalOrder.id ? { ...o, ...updates } : o)))
@@ -1516,19 +1512,38 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     )}
 
                     {selectedOrder.status === 'Closed' && (
-                      <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
-                          <div>
-                            <div className="font-bold text-emerald-900">
-                              Paid ${(selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8))} to Studio Balance
+                      <div className="space-y-2">
+                        <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
+                            <div>
+                              <div className="font-bold text-emerald-900">
+                                Paid ${(selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8))} to Studio Balance
+                              </div>
+                              <div className="text-[11px] text-emerald-700">Customer pickup code verified &amp; payout cleared</div>
                             </div>
-                            <div className="text-[11px] text-emerald-700">Customer pickup code verified &amp; payout cleared</div>
                           </div>
+                          <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                            Paid Out ✓
+                          </span>
                         </div>
-                        <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
-                          Paid Out ✓
-                        </span>
+
+                        {selectedOrder.retailSold && (
+                          <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center gap-2">
+                              <ShoppingBag size={16} className="text-amber-700 shrink-0" />
+                              <div>
+                                <div className="font-bold text-amber-900">
+                                  In-Store Clothes Purchased: {selectedOrder.retailCategory || 'Garments'} (${selectedOrder.retailValue || 0})
+                                </div>
+                                <div className="text-[11px] text-amber-700">Recorded during customer pickup handover</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold bg-white text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                              +${selectedOrder.retailValue || 0} In-Store
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2140,10 +2155,53 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   </div>
                 </div>
 
+                {/* Question: Did the customer buy clothes/garments as well? */}
+                <div className="p-4 rounded-2xl bg-white border border-[#E8E1D5] space-y-3 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-[#0F1115] flex items-center gap-1.5">
+                        <ShoppingBag size={14} className="text-[#9E593B]" />
+                        <span>Did the customer purchase clothing in-store?</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] mt-0.5">
+                        Record whether this visit resulted in an in-store garment or retail purchase
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Yes / No Toggle Buttons */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('YES')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'YES'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <CheckCircle size={15} />
+                      <span>Yes, purchased clothing</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('NO')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'NO'
+                          ? 'bg-[#0F1115] text-white border-[#0F1115] shadow-xs ring-2 ring-[#0F1115]/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <X size={15} />
+                      <span>No, alteration only</span>
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleCompletePickupAndSettlement}
-                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   <span>
@@ -2152,8 +2210,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 </button>
 
                 {pickupCompleted && (
-                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300">
-                    🎉 Handover complete! 80% payout scheduled for 15-day Stripe transfer.
+                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300 animate-fadeIn">
+                    🎉 Handover complete! {retailAnswer === 'YES' ? 'In-store clothing purchase recorded. ' : ''}80% payout scheduled for 15-day Stripe transfer.
                   </div>
                 )}
               </div>
