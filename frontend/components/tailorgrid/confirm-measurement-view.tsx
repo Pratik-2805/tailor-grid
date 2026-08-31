@@ -21,6 +21,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { CityModal } from './city-modal'
+import { useCityLocation } from './use-city-location'
 import { GARMENT_CATEGORIES, type Screen } from './data'
 import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
@@ -262,7 +263,7 @@ export function ConfirmMeasurementView({
   initialImages = [],
   onConfirmMeasurements,
 }: ConfirmMeasurementProps) {
-  const [selectedCity, setSelectedCity] = useState(initialCity)
+  const [selectedCity, setSelectedCity] = useCityLocation(initialCity || 'New York City, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
   const [isFindingStudio, setIsFindingStudio] = useState(false)
 
