@@ -1,4 +1,4 @@
-// Prisma Schema for TailorGrid Backend
+// Prisma Schema for Darzi Backend
 // Database: PostgreSQL
 
 generator client {
@@ -10,36 +10,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  contact   String?
-  phone     String?
-  avatar    String?
-  address   String?
-  postcode  String?
-  method    String   @default("email") // google, email, mobile, apple, guest
-  role      String   @default("CUSTOMER") // CUSTOMER, STUDIO, ADMIN
-  studioId  String?
+  id         String   @id @default(cuid())
+  name       String
+  email      String?  @unique
+  contact    String?
+  phone      String?
+  avatar     String?
+  address    String?
+  postcode   String?
+  method     String   @default("email") // google, email, mobile, apple, guest
+  role       String   @default("CUSTOMER") // CUSTOMER, STUDIO, ADMIN
+  studioId   String?
   studioName String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  orders    Order[]
+  orders Order[]
 
   @@map("users")
 }
 
 model GarmentCategory {
-  id            String              @id
+  id            String   @id
   name          String
   tagline       String?
   startingPrice Float
-  avgTurnaround String              @default("48 hours")
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  avgTurnaround String   @default("48 hours")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  services      AlterationService[]
+  services AlterationService[]
 
   @@map("garment_categories")
 }
@@ -83,53 +83,53 @@ model PartnerStore {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  orders        Order[]
+  orders Order[]
 
   @@map("partner_stores")
 }
 
 model Order {
-  id            String        @id
-  userId        String?
-  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  customerName  String
-  customerEmail String
-  customerPhone String?
-  postcode      String
-  garmentId     String
-  garmentName   String
-  serviceId     String
-  serviceName   String
-  storeId       String?
-  store         PartnerStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
-  storeName     String?
-  date          String
-  timeSlot      String
-  garmentBrand     String?
-  fitNotes         String?
-  pinnedAdjustment String?
-  sewingNotes      String?
-  slaHours         Int           @default(48)
-  partnerPayout    Float         @default(18.0)
-  retailSold       Boolean       @default(false)
-  retailValue      Float?
-  retailCategory   String?
-  assignedWorker   String?
-  machineNo        String?
-  hangTagNo        String?
-  intakePhotoUrl   String?
-  fabricConditionNotes String?
-  priceAdjustment  Float?
+  id                    String        @id
+  userId                String?
+  user                  User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName          String
+  customerEmail         String
+  customerPhone         String?
+  postcode              String
+  garmentId             String
+  garmentName           String
+  serviceId             String
+  serviceName           String
+  storeId               String?
+  store                 PartnerStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  storeName             String?
+  date                  String
+  timeSlot              String
+  garmentBrand          String?
+  fitNotes              String?
+  pinnedAdjustment      String?
+  sewingNotes           String?
+  slaHours              Int           @default(48)
+  partnerPayout         Float         @default(18.0)
+  retailSold            Boolean       @default(false)
+  retailValue           Float?
+  retailCategory        String?
+  assignedWorker        String?
+  machineNo             String?
+  hangTagNo             String?
+  intakePhotoUrl        String?
+  fabricConditionNotes  String?
+  priceAdjustment       Float?
   priceAdjustmentReason String?
-  priceAdjustmentStatus String   @default("NONE") // NONE, PENDING_APPROVAL, APPROVED, DECLINED
-  slaStartedAt     DateTime?
-  rating           Float?
-  ratingFeedback   String?
-  status           String        @default("Allocated") // Allocated, Accepted, Customer Arrived, Fitting Completed, Work in Progress, Ready, Collected, Closed
-  price            Float
-  otp              String
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  priceAdjustmentStatus String        @default("NONE") // NONE, PENDING_APPROVAL, APPROVED, DECLINED
+  slaStartedAt          DateTime?
+  rating                Float?
+  ratingFeedback        String?
+  status                String        @default("Allocated") // Allocated, Accepted, Customer Arrived, Fitting Completed, Work in Progress, Ready, Collected, Closed
+  price                 Float
+  otp                   String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   @@map("orders")
 }

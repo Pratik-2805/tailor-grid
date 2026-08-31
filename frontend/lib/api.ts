@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, PARTNER_STORES } from '../components/tailorgrid/data'
+import { type User, type FittingBooking, type StoreOption, PARTNER_STORES } from '../components/data'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -111,7 +111,7 @@ export async function loginUser(data: {
   } catch (err) {
     const fallbackUser: User = {
       name: data.role === 'STUDIO' ? 'Master Tailor Marco' : 'Darzi Member',
-      contact: data.email || data.phone || 'partner@tailorgrid.com',
+      contact: data.email || data.phone || 'partner@Darzi.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || 'partner')}`,
       address: '18 Kensington Church St',
       postcode: 'W8 4EP',

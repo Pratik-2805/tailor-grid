@@ -1,24 +1,26 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AboutView } from '@/components/tailorgrid/about-view'
-import { AdminView } from '@/components/tailorgrid/admin-view'
-import { AuthModal } from '@/components/tailorgrid/auth-modal'
-import { ConfirmMeasurementView } from '@/components/tailorgrid/confirm-measurement-view'
-import { CustomerFlow } from '@/components/tailorgrid/customer-flow'
-import { makeOtp, type Screen, type StoreOption, type User } from '@/components/tailorgrid/data'
-import { Footer } from '@/components/tailorgrid/footer'
-import { ForPartnersView } from '@/components/tailorgrid/for-partners-view'
-import { Header } from '@/components/tailorgrid/header'
-import { StudioSubNav } from '@/components/tailorgrid/studio-sub-nav'
-import { HomeView } from '@/components/tailorgrid/home-view'
-import { HowItWorksView } from '@/components/tailorgrid/how-it-works-view'
-import { OrdersView } from '@/components/tailorgrid/orders-view'
-import { PartnerFlow } from '@/components/tailorgrid/partner-flow'
+import { AboutView } from '@/components/about-view'
+import { AdminView } from '@/components/admin-view'
+import { AuthModal } from '@/components/auth-modal'
+import { ConfirmMeasurementView } from '@/components/confirm-measurement-view'
+import { CustomerFlow } from '@/components/customer-flow'
+import { makeOtp, type Screen, type StoreOption, type User } from '@/components/data'
+import { Footer } from '@/components/footer'
+import { ForPartnersView } from '@/components/for-partners-view'
+import { Header } from '@/components/header'
+import { StudioSubNav } from '@/components/studio-sub-nav'
+import { HomeView } from '@/components/home-view'
+import { HowItWorksView } from '@/components/how-it-works-view'
+import { OrderDetailsView } from '@/components/order-details-view'
+import { OrdersView } from '@/components/orders-view'
+import { PartnerFlow } from '@/components/partner-flow'
 import { getCurrentUser } from '@/lib/api'
 
 export default function Page() {
   const [screen, setScreen] = useState<Screen>('home')
+  const [createdOrderId, setCreatedOrderId] = useState<string>('ORD-2654')
   const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
@@ -60,6 +62,7 @@ export default function Page() {
       'partner',
       'admin',
       'confirm-measurement',
+      'order',
     ]
 
     const getScreenFromUrl = (): Screen => {
@@ -159,12 +162,16 @@ export default function Page() {
     images?: string[]
     fittingMode?: string
     matchedStore?: StoreOption
+    createdOrderId?: string
   }) => {
     setPrefilledGarmentId(data.garmentId)
     setPrefilledServiceId(data.serviceId)
     setConfirmedMeasurements(data.measurements)
     setGarmentBrand(data.brand)
     setGarmentNotes(data.notes)
+    if (data.createdOrderId) {
+      setCreatedOrderId(data.createdOrderId)
+    }
     if (data.matchedStore) {
       setPrefilledStore(data.matchedStore)
     }
@@ -232,7 +239,7 @@ export default function Page() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
-      
+
       {/* Primary Global Navigation Header (Always Visible) */}
       <Header
         currentScreen={screen}
@@ -310,10 +317,10 @@ export default function Page() {
             initialDate={
               measurementDraft.pickupOption === 'schedule'
                 ? measurementDraft.scheduleDate.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                  })
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                })
                 : 'Today (Immediate slot)'
             }
             initialTimeSlot={
@@ -321,6 +328,14 @@ export default function Page() {
                 ? measurementDraft.scheduleTime
                 : '11:30 AM – 01:00 PM'
             }
+          />
+        )}
+
+        {screen === 'order' && (
+          <OrderDetailsView
+            slugId={createdOrderId}
+            onGoHome={() => handleNavigate('home')}
+            onGoOrders={() => handleNavigate('orders')}
           />
         )}
 

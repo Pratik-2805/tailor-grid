@@ -3,7 +3,7 @@
 import React from 'react'
 
 /**
- * High-end, bespoke vector illustrations crafted in pure SVG with the exact TailorGrid palette:
+ * High-end, bespoke vector illustrations crafted in pure SVG with the exact Darzi palette:
  * Obsidian (#0F1115), Charcoal (#1E2229), Terracotta (#9E593B), Warm Sand (#FAF8F5),
  * Cream Border (#EBE6DF), Gold Accent (#F59E0B), and Emerald (#10B981).
  * Completely crisp, lightweight, legible, and directly communicates each tailoring milestone.
@@ -44,7 +44,7 @@ export function HeroTailoringIllustration({ className = 'w-full h-auto' }: { cla
 
       {/* Frame Background */}
       <rect width="540" height="380" rx="24" fill="url(#heroBgGrad)" />
-      
+
       {/* Studio Atmosphere Geometry */}
       <circle cx="420" cy="100" r="130" fill="#EBE6DF" fillOpacity="0.45" />
       <circle cx="100" cy="300" r="80" fill="#9E593B" fillOpacity="0.05" />
@@ -117,11 +117,11 @@ export function HeroTailoringIllustration({ className = 'w-full h-auto' }: { cla
         {/* Digital Fitting Pass Card */}
         <g transform="translate(18, 62)">
           <rect width="184" height="162" rx="14" fill="url(#phoneCardGrad)" stroke="#EBE6DF" strokeWidth="1.2" />
-          
+
           {/* Header */}
           <rect x="12" y="12" width="60" height="14" rx="4" fill="#9E593B" fillOpacity="0.12" />
           <text x="18" y="22" fill="#9E593B" fontSize="8" fontWeight="700" fontFamily="sans-serif">FITTING PASS</text>
-          
+
           <text x="12" y="42" fill="#0F1115" fontSize="12" fontWeight="800" fontFamily="sans-serif">Trouser Hemming</text>
           <text x="12" y="53" fill="#7A7E85" fontSize="8" fontFamily="sans-serif">Atelier SoHo · 0.4 mi away</text>
 
@@ -168,11 +168,11 @@ export function Step1Illustration({ className = 'w-full h-full' }: { className?:
   return (
     <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect width="320" height="200" rx="16" fill="#F8F5F0" />
-      
+
       {/* Interactive Selection Card 1: Active */}
       <g transform="translate(24, 22)">
         <rect width="272" height="66" rx="12" fill="#FFFFFF" stroke="#9E593B" strokeWidth="2" />
-        
+
         {/* Selected Checkmark Badge */}
         <circle cx="28" cy="33" r="14" fill="#9E593B" />
         <path d="M 22 33 L 26 37 L 34 29" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -189,7 +189,7 @@ export function Step1Illustration({ className = 'w-full h-full' }: { className?:
       {/* Item 2: Secondary Option */}
       <g transform="translate(24, 98)">
         <rect width="272" height="60" rx="12" fill="#FFFFFF" stroke="#E8E2D8" strokeWidth="1.2" />
-        
+
         <circle cx="28" cy="30" r="12" fill="#F3EFEA" />
         <circle cx="28" cy="30" r="4" fill="#DDD6CB" />
 
@@ -215,7 +215,7 @@ export function Step2Illustration({ className = 'w-full h-full' }: { className?:
   return (
     <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect width="320" height="200" rx="16" fill="#F8F5F0" />
-      
+
       {/* Clean Grid Lines */}
       <path d="M 20 60 L 300 60 M 20 120 L 300 120 M 20 160 L 300 160" stroke="#E8E2D8" strokeWidth="1" strokeDasharray="3 4" />
       <path d="M 80 20 L 80 180 M 160 20 L 160 180 M 240 20 L 240 180" stroke="#E8E2D8" strokeWidth="1" strokeDasharray="3 4" />
@@ -237,7 +237,7 @@ export function Step2Illustration({ className = 'w-full h-full' }: { className?:
       {/* Matched Master Atelier Card */}
       <g transform="translate(165, 30)">
         <rect width="135" height="100" rx="12" fill="#FFFFFF" stroke="#0F1115" strokeWidth="1.5" />
-        
+
         {/* Badge Header */}
         <circle cx="20" cy="22" r="10" fill="#9E593B" />
         <path d="M 16 22 L 24 22 M 20 18 L 20 26" stroke="#FFFFFF" strokeWidth="1.5" />
@@ -248,12 +248,12 @@ export function Step2Illustration({ className = 'w-full h-full' }: { className?:
 
         {/* Verification Checks */}
         <text x="14" y="55" fill="#1E2229" fontSize="8" fontWeight="700" fontFamily="sans-serif">Machinery Verified:</text>
-        
+
         <g transform="translate(14, 63)">
           <rect width="107" height="14" rx="3" fill="#FAF8F5" />
           <text x="6" y="10" fill="#7A7E85" fontSize="7.5" fontWeight="600" fontFamily="sans-serif">✓ OEM Blindstitch</text>
         </g>
-        
+
         <g transform="translate(14, 80)">
           <rect width="107" height="14" rx="3" fill="#FAF8F5" />
           <text x="6" y="10" fill="#7A7E85" fontSize="7.5" fontWeight="600" fontFamily="sans-serif">✓ Heavy Denim Chainstitch</text>
@@ -275,7 +275,7 @@ export function Step3Illustration({ className = 'w-full h-full' }: { className?:
       <g transform="translate(45, 20)">
         {/* Trouser Cuff Silhouette */}
         <path d="M 20 15 L 80 15 L 85 140 L 15 140 Z" fill="#1E2229" rx="4" />
-        
+
         {/* Chalk Adjustment Line */}
         <line x1="15" y1="105" x2="85" y2="105" stroke="#FFFFFF" strokeWidth="2" strokeDasharray="4 3" />
         <text x="92" y="108" fill="#9E593B" fontSize="9" fontWeight="800" fontFamily="sans-serif">-1.5″ Hem Break</text>
@@ -299,7 +299,7 @@ export function Step3Illustration({ className = 'w-full h-full' }: { className?:
       {/* 5-Minute In-Studio Fitting Card */}
       <g transform="translate(170, 45)">
         <rect width="125" height="105" rx="12" fill="#FFFFFF" stroke="#0F1115" strokeWidth="1.5" />
-        
+
         <rect x="12" y="14" width="28" height="28" rx="8" fill="#FAF8F5" stroke="#E5DFD5" strokeWidth="1" />
         <path d="M 21 21 L 31 31 M 31 21 L 21 31" stroke="#0F1115" strokeWidth="2" strokeLinecap="round" />
         <circle cx="20" cy="20" r="3" stroke="#9E593B" strokeWidth="1.5" fill="none" />
@@ -327,7 +327,7 @@ export function Step4Illustration({ className = 'w-full h-full' }: { className?:
   return (
     <svg viewBox="0 0 320 200" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
       <rect width="320" height="200" rx="16" fill="#F8F5F0" />
-      
+
       {/* Industrial Machine & Stitching Visual */}
       <g transform="translate(30, 25)">
         {/* Machine Head */}
@@ -350,7 +350,7 @@ export function Step4Illustration({ className = 'w-full h-full' }: { className?:
       {/* 48h Turnaround Status Card */}
       <g transform="translate(170, 30)">
         <rect width="125" height="110" rx="12" fill="#FFFFFF" stroke="#0F1115" strokeWidth="1.5" />
-        
+
         <text x="14" y="20" fill="#9E593B" fontSize="8" fontWeight="700" fontFamily="sans-serif">GUARANTEED TURNAROUND</text>
         <text x="14" y="38" fill="#0F1115" fontSize="16" fontWeight="800" fontFamily="sans-serif">48 Hours</text>
 
@@ -402,7 +402,7 @@ export function Step5Illustration({ className = 'w-full h-full' }: { className?:
       {/* 100% Fit Guarantee Card */}
       <g transform="translate(155, 30)">
         <rect width="140" height="140" rx="14" fill="#FFFFFF" stroke="#0F1115" strokeWidth="1.5" />
-        
+
         {/* 5 Golden Stars */}
         <g transform="translate(18, 18)">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -421,7 +421,7 @@ export function Step5Illustration({ className = 'w-full h-full' }: { className?:
         <g transform="translate(16, 48)">
           <circle cx="16" cy="16" r="16" fill="#ECFDF5" />
           <path d="M 10 16 L 14 20 L 22 12" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          
+
           <text x="38" y="14" fill="#0F1115" fontSize="10.5" fontWeight="800" fontFamily="sans-serif">100% Fit Guarantee</text>
           <text x="38" y="26" fill="#7A7E85" fontSize="8" fontFamily="sans-serif">Complimentary tweaks</text>
         </g>
@@ -457,11 +457,11 @@ export function OnlineBookingIllustration({ className = 'w-full h-auto' }: { cla
         {/* Left Side: Services List */}
         <rect x="18" y="44" width="115" height="138" rx="8" fill="#FAF8F5" stroke="#EBE6DF" strokeWidth="1" />
         <text x="28" y="60" fill="#0F1115" fontSize="8.5" fontWeight="800" fontFamily="sans-serif">Choose Service</text>
-        
+
         <rect x="26" y="70" width="99" height="26" rx="4" fill="#FFFFFF" stroke="#9E593B" strokeWidth="1.2" />
         <text x="32" y="82" fill="#0F1115" fontSize="7.5" fontWeight="700" fontFamily="sans-serif">Trouser Alterations</text>
         <text x="32" y="90" fill="#9E593B" fontSize="6.5" fontFamily="sans-serif">From $20 · 48h</text>
-        
+
         <rect x="26" y="102" width="99" height="22" rx="4" fill="#FFFFFF" stroke="#EBE6DF" strokeWidth="1" />
         <text x="32" y="116" fill="#7A7E85" fontSize="7.5" fontFamily="sans-serif">Suit & Blazer Adjust</text>
 
@@ -471,10 +471,10 @@ export function OnlineBookingIllustration({ className = 'w-full h-auto' }: { cla
         {/* Right Side: Map & Atelier Selection */}
         <rect x="145" y="44" width="158" height="138" rx="8" fill="#F3EFEA" />
         <path d="M 155 70 L 295 70 M 155 110 L 295 110 M 155 150 L 295 150" stroke="#E5DFD5" strokeDasharray="3 3" />
-        
+
         <circle cx="215" cy="85" r="16" fill="#9E593B" fillOpacity="0.15" />
         <circle cx="215" cy="85" r="5" fill="#9E593B" />
-        
+
         <rect x="160" y="115" width="128" height="38" rx="6" fill="#FFFFFF" stroke="#0F1115" strokeWidth="1.2" />
         <text x="170" y="130" fill="#0F1115" fontSize="8" fontWeight="800" fontFamily="sans-serif">Atelier SoHo (0.4 mi)</text>
         <text x="170" y="140" fill="#10B981" fontSize="7" fontWeight="600" fontFamily="sans-serif">Instant Fitting Pass Ready ✓</text>
@@ -487,7 +487,7 @@ export function OnlineBookingIllustration({ className = 'w-full h-auto' }: { cla
       <g transform="translate(300, 90)">
         <rect width="145" height="215" rx="26" fill="#0F1115" />
         <rect x="4" y="4" width="137" height="207" rx="22" fill="#FFFFFF" />
-        
+
         {/* Dynamic Island */}
         <rect x="48" y="10" width="50" height="7" rx="3.5" fill="#0F1115" />
 

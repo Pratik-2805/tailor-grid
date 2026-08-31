@@ -29,7 +29,7 @@ export async function loginWithGoogle(params: {
     if (params.profile) {
       const fallbackUser: User = {
         name: params.profile.name || 'Studio Partner',
-        contact: params.profile.contact || 'partner@tailorgrid.com',
+        contact: params.profile.contact || 'partner@Darzi.com',
         avatar: params.profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=studio',
         address: params.profile.address || '18 Kensington Church St',
         postcode: params.profile.postcode || 'W8 4EP',
@@ -75,7 +75,7 @@ export async function signUpUser(data: {
   } catch (err) {
     const fallbackUser: User = {
       name: data.name || data.storeName || 'Master Tailor',
-      contact: data.email || data.phone || 'partner@tailorgrid.com',
+      contact: data.email || data.phone || 'partner@Darzi.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'partner')}`,
       address: data.address || '18 Kensington Church St',
       postcode: data.postcode || 'W8 4EP',
@@ -113,7 +113,7 @@ export async function loginUser(data: {
   } catch (err) {
     const fallbackUser: User = {
       name: 'Master Tailor Marco',
-      contact: data.email || data.phone || 'partner@tailorgrid.com',
+      contact: data.email || data.phone || 'partner@Darzi.com',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || 'partner')}`,
       address: '18 Kensington Church St',
       postcode: 'W8 4EP',

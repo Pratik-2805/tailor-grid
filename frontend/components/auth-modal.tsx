@@ -379,7 +379,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
 
               <Divider />
               <div className="text-center">
-                <button onClick={() => { onSuccess({ name: 'Guest', contact: 'guest@tailorgrid.com', method: 'guest', role: 'CUSTOMER' }) }} className="text-[12px] text-[#9CA3AF] hover:text-[#374151] underline underline-offset-4 transition-colors">
+                <button onClick={() => { onSuccess({ name: 'Guest', contact: 'guest@Darzi.com', method: 'guest', role: 'CUSTOMER' }) }} className="text-[12px] text-[#9CA3AF] hover:text-[#374151] underline underline-offset-4 transition-colors">
                   Continue as guest
                 </button>
               </div>
@@ -665,8 +665,8 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
                             type="button"
                             onClick={() => toggleSpecialty(s)}
                             className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${on
-                                ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                                : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
+                              ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                              : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
                               }`}
                           >
                             {on && <Check size={10} className="inline mr-1" />}
@@ -706,8 +706,8 @@ function GoogleButton({ label, loading, onClick, bordered }: {
       onClick={onClick}
       disabled={loading}
       className={`w-full flex items-center justify-center gap-3 rounded-xl py-3 text-[13px] font-semibold transition-all disabled:opacity-60 ${bordered
-          ? 'border-2 border-[#0F1115] bg-white text-[#0F1115] hover:bg-[#FAF8F5]'
-          : 'bg-white border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB]'
+        ? 'border-2 border-[#0F1115] bg-white text-[#0F1115] hover:bg-[#FAF8F5]'
+        : 'bg-white border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB]'
         }`}
     >
       <GoogleLogo />

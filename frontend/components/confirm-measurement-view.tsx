@@ -367,6 +367,25 @@ export function ConfirmMeasurementView({
 
   const handleStudioMatched = (matchedStore: StoreOption, _orderData?: any) => {
     setIsFindingStudio(false)
+    const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+    const orderData = {
+      id: newOrderId,
+      otp: String(Math.floor(1000 + Math.random() * 9000)),
+      customerName: 'Gaurav Rai',
+      storeName: matchedStore.name,
+      storeAddress: matchedStore.address,
+      garmentId: selectedGarmentId,
+      garmentName: currentCategory.name,
+      serviceId: selectedService.id,
+      serviceName: selectedService.name,
+      measurements,
+      brand,
+      notes,
+      images: uploadedImages,
+      city: selectedCity,
+      date: formattedDateDisplay,
+      timeSlot: selectedTime,
+    }
     onConfirmMeasurements?.({
       garmentId: selectedGarmentId,
       serviceId: selectedService.id,
@@ -376,12 +395,36 @@ export function ConfirmMeasurementView({
       images: uploadedImages,
       fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
       matchedStore,
-    })
-    go('booking')
+      createdOrderId: newOrderId,
+    } as any)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
+      localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
+    }
+    go('order')
   }
 
   const handleLoaderComplete = () => {
     setIsProcessing(false)
+    const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+    const orderData = {
+      id: newOrderId,
+      otp: String(Math.floor(1000 + Math.random() * 9000)),
+      customerName: 'Gaurav Rai',
+      storeName: 'Atelier SoHo · Master Seamstress',
+      storeAddress: selectedCity ? `Main Street, ${selectedCity}` : '480 Broadway, SoHo, NY 10013',
+      garmentId: selectedGarmentId,
+      garmentName: currentCategory.name,
+      serviceId: selectedService.id,
+      serviceName: selectedService.name,
+      measurements,
+      brand,
+      notes,
+      images: uploadedImages,
+      city: selectedCity,
+      date: formattedDateDisplay,
+      timeSlot: selectedTime,
+    }
     onConfirmMeasurements?.({
       garmentId: selectedGarmentId,
       serviceId: selectedService.id,
@@ -390,8 +433,13 @@ export function ConfirmMeasurementView({
       notes,
       images: uploadedImages,
       fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
-    })
-    go('booking')
+      createdOrderId: newOrderId,
+    } as any)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
+      localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
+    }
+    go('order')
   }
 
   const formattedDateDisplay = scheduleDateObj.toLocaleDateString('en-US', {

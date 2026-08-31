@@ -374,7 +374,7 @@ const SEED_ORDERS = [
 ];
 
 async function main() {
-  console.log('🌱 Starting Prisma Database Seed for TailorGrid...');
+  console.log('🌱 Starting Prisma Database Seed for Darzi...');
 
   // 1. Seed Categories and Services
   for (const cat of SEED_CATEGORIES) {

@@ -5,7 +5,7 @@ const { prisma } = require('../lib/prisma');
 const { readDb, writeDb } = require('../db');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'tailorgrid_jwt_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com';
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -87,7 +87,7 @@ router.post('/google', async (req, res) => {
       if (!user) {
         user = await prisma.user.create({
           data: {
-            name: name || 'Google TailorGrid User',
+            name: name || 'Google Darzi User',
             email: email.toLowerCase(),
             contact: email.toLowerCase(),
             avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
@@ -108,7 +108,7 @@ router.post('/google', async (req, res) => {
       if (!user) {
         user = {
           id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          name: name || 'Google TailorGrid User',
+          name: name || 'Google Darzi User',
           email,
           contact: email,
           avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
@@ -225,7 +225,7 @@ router.post('/signup', async (req, res) => {
       if (!user) {
         user = await prisma.user.create({
           data: {
-            name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'TailorGrid Member'),
+            name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'Darzi Member'),
             email: email ? email.toLowerCase() : null,
             contact: contactStr,
             phone: phone || null,
@@ -258,7 +258,7 @@ router.post('/signup', async (req, res) => {
       if (!user) {
         user = {
           id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'TailorGrid Member'),
+          name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'Darzi Member'),
           email: email || contactStr,
           contact: contactStr,
           avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
@@ -340,8 +340,8 @@ router.post('/login', async (req, res) => {
         user = {
           id: 'usr_demo_partner',
           name: 'Marco Rossi (Master Tailor)',
-          email: contactStr || 'partner@tailorgrid.com',
-          contact: contactStr || 'partner@tailorgrid.com',
+          email: contactStr || 'partner@Darzi.com',
+          contact: contactStr || 'partner@Darzi.com',
           role: 'STUDIO',
           studioId: 'atelier-soho',
           studioName: 'Atelier SoHo Tailors',

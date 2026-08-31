@@ -24,7 +24,7 @@ app.get('/api/health', async (req, res) => {
   const dbStatus = await checkDbConnection();
   res.json({
     status: 'ok',
-    service: 'TailorGrid Backend API',
+    service: 'Darzi Backend API',
     database: {
       orm: 'Prisma 6',
       provider: 'postgresql',
@@ -53,7 +53,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, async () => {
   console.log(`=================================`);
-  console.log(`TailorGrid Backend Running on http://localhost:${PORT}`);
+  console.log(`Darzi Backend Running on http://localhost:${PORT}`);
   console.log(`Health Check: http://localhost:${PORT}/api/health`);
   const dbCheck = await checkDbConnection();
   if (dbCheck.connected) {
