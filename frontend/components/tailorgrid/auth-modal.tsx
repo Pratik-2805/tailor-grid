@@ -335,7 +335,17 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
                 <ArrowLeft size={14} className="text-[#374151]" />
               </button>
             ) : (
-              <img src="/bg_logo.png" alt="Darzi" className="h-8 w-auto object-contain" />
+              <div className="flex items-center gap-2">
+                <img src="/bg_logo.png" alt="Darzi" className="h-8 w-auto object-contain" />
+                <div className="flex flex-col justify-center border-l border-[#E5DFD5] pl-2">
+                  <span className="text-[9px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+                    On-Demand
+                  </span>
+                  <span className="text-[8px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
+                    Alterations
+                  </span>
+                </div>
+              </div>
             )}
           </div>
           <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
