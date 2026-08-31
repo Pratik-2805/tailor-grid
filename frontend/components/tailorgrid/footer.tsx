@@ -43,11 +43,8 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
 
             {/* Brand Col */}
             <div className="lg:col-span-4">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="grid size-9 place-items-center rounded-xl bg-white text-[#0F1115]">
-                  <Scissors size={18} />
-                </div>
-                <span className="font-serif text-xl font-bold text-white tracking-tight">Darzi</span>
+              <div className="flex items-center gap-3 mb-4">
+                <img src="/landscape_logo.jpeg" alt="Darzi Logo" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
               </div>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
                 On-demand master tailoring and alterations network. Guaranteed fit, upfront fixed rates, and doorstep service.

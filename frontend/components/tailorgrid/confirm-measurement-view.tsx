@@ -20,7 +20,8 @@ import {
   Edit3,
   RotateCcw,
 } from 'lucide-react'
-import { GARMENT_CATEGORIES, type Screen, type StoreOption } from './data'
+import { CityModal } from './city-modal'
+import { GARMENT_CATEGORIES, type Screen } from './data'
 import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
 
@@ -413,34 +414,21 @@ export function ConfirmMeasurementView({
                   <button
                     type="button"
                     onClick={() => {
-                      setShowCityPicker(!showCityPicker)
+                      setShowCityPicker(true)
                       setShowGarmentPicker(false)
                       setShowAlterationPicker(false)
                     }}
-                    className="underline text-black font-normal hover:text-gray-700 ml-1 transition-colors cursor-pointer"
+                    className="underline text-[#9E593B] font-semibold hover:text-[#0F1115] ml-1 transition-colors cursor-pointer"
                   >
                     Change city
                   </button>
 
-                  {/* City Dropdown Menu Overlay */}
-                  {showCityPicker && (
-                    <div className="absolute top-7 left-0 z-50 w-64 rounded-2xl bg-white p-2 border border-gray-200 shadow-2xl space-y-1 animate-in fade-in duration-150">
-                      {CITIES.map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => handleCitySelect(c)}
-                          className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between ${selectedCity === c
-                            ? 'bg-black text-white'
-                            : 'text-black hover:bg-[#F3F3F3]'
-                            }`}
-                        >
-                          <span>{c}</span>
-                          {selectedCity === c && <Check size={16} className="text-white shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <CityModal
+                    isOpen={showCityPicker}
+                    onClose={() => setShowCityPicker(false)}
+                    selectedCity={selectedCity}
+                    onSelectCity={(c) => handleCitySelect(c)}
+                  />
                 </div>
 
                 {/* 2. Main Title */}
@@ -636,8 +624,8 @@ export function ConfirmMeasurementView({
               <div className="lg:col-span-6 relative flex justify-center items-start">
                 <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
                   <Image
-                    src="/images/about_hero_art.jpg"
-                    alt="Modern tailoring atelier salon with garments and craft tools"
+                    src="/images/tailor_measuring.jpg"
+                    alt="Master tailor measuring client with clothes rack background"
                     fill
                     priority
                     className="object-cover object-center"

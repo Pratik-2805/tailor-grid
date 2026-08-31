@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut } from 'lucide-react'
-import { type Screen, type User } from './data'
+import { CityModal } from './city-modal'
 
 interface HeaderProps {
   currentScreen: Screen
@@ -14,6 +14,8 @@ interface HeaderProps {
 
 export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
+  const [selectedCity, setSelectedCity] = useState('New York, NY')
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false)
 
   const nav = (s: Screen) => {
     go(s)
@@ -25,26 +27,44 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
 
-        {/* Brand Logo + City Selector */}
-        <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+        {/* Brand Logo & City Switcher */}
+        <div className="flex items-center gap-3 lg:gap-5 shrink-0">
           <button
             onClick={() => nav('home')}
-            className="flex items-center gap-2.5 group text-left shrink-0"
+            className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Darzi home"
           >
-            <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
-              <Scissors size={16} className="text-white" />
-            </div>
-            <div className="whitespace-nowrap">
-              <span className="font-serif font-bold text-[19px] tracking-tight text-[#0F1115] block leading-none">
-                Darzi
+            <img
+              src="/bg_logo.png"
+              alt="Darzi"
+              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+            />
+            <div className="hidden sm:flex flex-col justify-center">
+              <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+                On-Demand
               </span>
-              <span className="text-[10px] font-semibold tracking-wider uppercase text-[#9E593B] block mt-0.5">
-                On-Demand Alterations
+              <span className="text-[9px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
+                Alterations
               </span>
             </div>
           </button>
+
+          {/* Quick Header City Switcher Badge */}
+          <button
+            onClick={() => setIsCityModalOpen(true)}
+            className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F4EFEA] hover:bg-[#EAE4DC] text-[11.5px] font-bold text-[#0F1115] transition-colors border border-[#E8E1D5]"
+          >
+            <MapPin size={12} className="text-[#9E593B] shrink-0" />
+            <span className="truncate max-w-[110px]">{selectedCity}</span>
+          </button>
         </div>
+
+        <CityModal
+          isOpen={isCityModalOpen}
+          onClose={() => setIsCityModalOpen(false)}
+          selectedCity={selectedCity}
+          onSelectCity={(c) => setSelectedCity(c)}
+        />
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">

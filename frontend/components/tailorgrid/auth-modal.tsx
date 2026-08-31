@@ -328,18 +328,25 @@ export function AuthModal({ isOpen, onClose, onSuccess, targetRole = 'CUSTOMER',
       <div className="relative w-full max-w-[420px] rounded-2xl bg-white shadow-2xl border border-[#E5E7EB] max-h-[94vh] overflow-y-auto">
 
         {/* Header bar */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#F3F4F6]">
           <div className="flex items-center gap-2.5">
             {isSubPage ? (
               <button onClick={goBack} className="size-7 rounded-lg bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
                 <ArrowLeft size={14} className="text-[#374151]" />
               </button>
             ) : (
-              <div className="size-8 rounded-full bg-[#0F1115] grid place-items-center">
-                {targetRole === 'STUDIO' ? <Store size={16} className="text-white" /> : <Scissors size={16} className="text-white" />}
+              <div className="flex items-center gap-2">
+                <img src="/bg_logo.png" alt="Darzi" className="h-8 w-auto object-contain" />
+                <div className="flex flex-col justify-center border-l border-[#E5DFD5] pl-2">
+                  <span className="text-[9px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+                    On-Demand
+                  </span>
+                  <span className="text-[8px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
+                    Alterations
+                  </span>
+                </div>
               </div>
             )}
-            <span className="font-serif font-bold text-[17px] text-[#0F1115] tracking-tight">Darzi</span>
           </div>
           <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
             <X size={14} className="text-[#374151]" />
