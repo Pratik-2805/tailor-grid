@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut } from 'lucide-react'
-import { CityModal } from './city-modal'
+import { type Screen, type User } from './data'
 
 interface HeaderProps {
   currentScreen: Screen
@@ -14,8 +14,6 @@ interface HeaderProps {
 
 export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
-  const [selectedCity, setSelectedCity] = useState('New York, NY')
-  const [isCityModalOpen, setIsCityModalOpen] = useState(false)
 
   const nav = (s: Screen) => {
     go(s)
