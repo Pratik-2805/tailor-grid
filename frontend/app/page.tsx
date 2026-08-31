@@ -75,7 +75,14 @@ export default function Page() {
       const pageParam = params.get('page') as Screen | null
 
       // Automatically forward legacy query parameters to official Next.js routes
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
       if (pageParam === 'order') {
+        if (!token) {
+          setIsAuthOpen(true)
+          setAuthRole('CUSTOMER')
+          setAuthType('signin')
+          return 'home'
+        }
         const latestOrder = localStorage.getItem('tg_latest_order')
         let orderId = createdOrderId || 'ORD-2654'
         if (latestOrder) {
@@ -89,6 +96,12 @@ export default function Page() {
       }
 
       if (pageParam === 'confirm-measurement') {
+        if (!token) {
+          setIsAuthOpen(true)
+          setAuthRole('CUSTOMER')
+          setAuthType('signin')
+          return 'home'
+        }
         window.location.replace('/confirm-measurement')
         return 'home'
       }
@@ -137,10 +150,18 @@ export default function Page() {
 
   const handleNavigate = (nextScreen: Screen) => {
     if (nextScreen === 'confirm-measurement') {
+      if (!user) {
+        handleOpenAuth('CUSTOMER', 'signin')
+        return
+      }
       router.push('/confirm-measurement')
       return
     }
     if (nextScreen === 'order') {
+      if (!user) {
+        handleOpenAuth('CUSTOMER', 'signin')
+        return
+      }
       router.push(`/order/${createdOrderId || 'ORD-2654'}`)
       return
     }
@@ -283,6 +304,8 @@ export default function Page() {
         {screen === 'home' && (
           <HomeView
             go={handleNavigate}
+            user={user}
+            onOpenAuth={() => handleOpenAuth('CUSTOMER', 'signin')}
             onQuickSearch={handleQuickSearch}
             onSelectService={handleSelectService}
             onSelectStore={handleSelectStore}
@@ -293,6 +316,8 @@ export default function Page() {
         {screen === 'confirm-measurement' && (
           <ConfirmMeasurementView
             go={handleNavigate}
+            user={user}
+            onOpenAuth={() => handleOpenAuth('CUSTOMER', 'signin')}
             initialCity={measurementDraft.city}
             initialGarmentId={measurementDraft.garmentId}
             initialServiceId={measurementDraft.serviceId}

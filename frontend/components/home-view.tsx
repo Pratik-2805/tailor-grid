@@ -9,10 +9,12 @@ import { ServiceGrid } from './service-grid'
 import { StudiosPreview } from './studios-preview'
 import { TestimonialsSection } from './testimonials-section'
 import { TrustBar } from './trust-bar'
-import { type Screen, type StoreOption } from './data'
+import { type Screen, type StoreOption, type User } from './data'
 
 interface HomeViewProps {
   go: (s: Screen) => void
+  user?: User | null
+  onOpenAuth?: () => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
   onSelectService?: (garmentId: string, serviceId: string) => void
   onSelectStore?: (store: StoreOption) => void
@@ -29,6 +31,8 @@ interface HomeViewProps {
 
 export function HomeView({
   go,
+  user,
+  onOpenAuth,
   onQuickSearch,
   onSelectService,
   onSelectStore,
@@ -41,6 +45,8 @@ export function HomeView({
         <div className="flex-1 flex flex-col justify-center">
           <HeroSection
             go={go}
+            user={user}
+            onOpenAuth={onOpenAuth}
             onQuickSearch={onQuickSearch}
             onRequestMeasurement={onRequestMeasurement}
           />

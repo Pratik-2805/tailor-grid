@@ -16,12 +16,15 @@ import {
   Sparkles,
   ShieldCheck,
   ChevronRight,
+  Lock,
+  LogIn,
 } from 'lucide-react'
-import { fetchOrderById } from '@/lib/api'
-import { PARTNER_STORES, getClosestStoreForLocation } from './data'
+import { fetchOrderById, getCurrentUser } from '@/lib/api'
+import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
+import { AuthModal } from './auth-modal'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId?: string; className?: string }) {
   switch (categoryId) {
@@ -64,12 +67,42 @@ interface OrderDetailsViewProps {
 }
 
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('tg_token')
+      const stored = localStorage.getItem('tg_user')
+      if (token && stored) {
+        try {
+          return JSON.parse(stored)
+        } catch {}
+      }
+    }
+    return null
+  })
+  const [authChecked, setAuthChecked] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [order, setOrder] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [copiedToast, setCopiedToast] = useState(false)
   const [pinCopied, setPinCopied] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    getCurrentUser().then((u) => {
+      if (isMounted) {
+        setCurrentUser(u)
+        setAuthChecked(true)
+        if (!u) {
+          setIsAuthOpen(true)
+        }
+      }
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -212,6 +245,53 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         { timeout: 10000, enableHighAccuracy: true }
       )
     }
+  }
+
+  if (authChecked && !currentUser) {
+    return (
+      <div className="bg-[#FAF8F5] min-h-[calc(100vh-68px)] flex flex-col justify-center items-center px-4 py-16 text-center max-w-lg mx-auto select-none font-sans">
+        <div className="size-16 rounded-3xl bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center mb-6 shadow-sm">
+          <Lock size={30} />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
+          Authentication Required
+        </h1>
+        <p className="mt-3 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
+          Please sign in to your account to view your confirmed order pass and tracking details.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <button
+            onClick={() => setIsAuthOpen(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-[#0F1115] text-white text-sm font-bold shadow-md hover:bg-[#9E593B] transition-all"
+          >
+            <LogIn size={16} />
+            <span>Sign In to Continue</span>
+          </button>
+          <button
+            onClick={onGoHome || (() => { window.location.href = '/' })}
+            className="w-full sm:w-auto px-6 py-3 rounded-full border border-[#D5CEB9] text-[#0F1115] text-sm font-bold hover:bg-[#F4EFEA] transition-colors"
+          >
+            Return to Home
+          </button>
+        </div>
+        <AuthModal
+          isOpen={isAuthOpen}
+          targetRole="CUSTOMER"
+          authType="signin"
+          onClose={() => {
+            setIsAuthOpen(false)
+            if (!currentUser) {
+              if (onGoHome) onGoHome()
+              else window.location.href = '/'
+            }
+          }}
+          onSuccess={(u) => {
+            setCurrentUser(u)
+            setIsAuthOpen(false)
+          }}
+        />
+      </div>
+    )
   }
 
   if (isLoading) {

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { CityModal } from './city-modal'
 import { useCityLocation } from './use-city-location'
-import { GARMENT_CATEGORIES, type Screen } from './data'
+import { GARMENT_CATEGORIES, type Screen, type User } from './data'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -263,6 +263,8 @@ const DARZI_TIME_SLOTS = [
 
 interface HeroSectionProps {
   go: (s: Screen) => void
+  user?: User | null
+  onOpenAuth?: () => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
   onRequestMeasurement?: (params: {
     city: string
@@ -284,7 +286,7 @@ const CITIES = [
   'Los Angeles, CA',
 ]
 
-export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
+export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
   const [selectedCity, setSelectedCity] = useCityLocation('New York City, NY')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
@@ -356,6 +358,10 @@ export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSec
   const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
 
   const handleBookNow = () => {
+    if (!user) {
+      onOpenAuth?.()
+      return
+    }
     onRequestMeasurement?.({
       city: selectedCity,
       garmentId: selectedGarmentId,
@@ -370,6 +376,12 @@ export function HeroSection({ go, onQuickSearch, onRequestMeasurement }: HeroSec
   }
 
   const handleConfirmSchedule = () => {
+    if (!user) {
+      setIsScheduleModalOpen(false)
+      setShowTimePicker(false)
+      onOpenAuth?.()
+      return
+    }
     setPickupOption('schedule')
     setIsScheduleModalOpen(false)
     setShowTimePicker(false)
