@@ -20,6 +20,8 @@ import {
 import { fetchOrderById } from '@/lib/api'
 import { PARTNER_STORES, getClosestStoreForLocation } from './data'
 import CleanGoogleMap from './CleanGoogleMap'
+import { TrustBar } from './trust-bar'
+import { SewingLoader } from './sewing-loader'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId?: string; className?: string }) {
   switch (categoryId) {
@@ -213,17 +215,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }
 
   if (isLoading) {
-    return (
-      <div className="py-20 bg-[#FAF8F5] flex flex-col items-center justify-center p-6 text-center select-none">
-        <div className="size-8 border-3 border-black border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-sm font-bold text-[#0F1115]">Loading Order details...</p>
-      </div>
-    )
+    return <SewingLoader active={true} onComplete={() => setIsLoading(false)} />
   }
 
   return (
-    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] py-5 sm:py-8 px-3 sm:px-6 select-none font-sans">
-      <div className="max-w-[980px] mx-auto">
+    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
+      <div className="flex-1 py-6 sm:py-10 px-3 sm:px-6 flex flex-col justify-center items-center">
+        <div className="max-w-[1040px] w-full mx-auto">
 
         {/* ========================================================================= */}
         {/* 1. UBER-STYLE HEADER & PROGRESS TIMELINE */}
@@ -500,10 +498,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
 
           </div>
-
         </div>
-
       </div>
     </div>
-  )
+
+    {/* Fixed Bottom Trust Strip */}
+    <TrustBar />
+  </div>
+)
 }

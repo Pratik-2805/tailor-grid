@@ -11,6 +11,8 @@ type Props = {
   className?: string
 }
 
+let isGoogleMapsOptionsConfigured = false
+
 export default function CleanGoogleMap({ lat, lng, storeName, storeAddress, className = '' }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const [loadError, setLoadError] = useState(false)
@@ -28,10 +30,13 @@ export default function CleanGoogleMap({ lat, lng, storeName, storeAddress, clas
 
     async function initMap() {
       try {
-        setOptions({
-          key: apiKey,
-          v: 'weekly',
-        })
+        if (!isGoogleMapsOptionsConfigured) {
+          setOptions({
+            key: apiKey,
+            v: 'weekly',
+          })
+          isGoogleMapsOptionsConfigured = true
+        }
 
         const { Map } = await importLibrary('maps')
         const { Marker } = await importLibrary('marker')

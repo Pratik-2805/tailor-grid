@@ -366,7 +366,6 @@ export function ConfirmMeasurementView({
   }
 
   const handleStudioMatched = (matchedStore: StoreOption, _orderData?: any) => {
-    setIsFindingStudio(false)
     const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
     const orderData = {
       id: newOrderId,
@@ -387,26 +386,28 @@ export function ConfirmMeasurementView({
       date: formattedDateDisplay,
       timeSlot: selectedTime,
     }
-    onConfirmMeasurements?.({
-      garmentId: selectedGarmentId,
-      serviceId: selectedService.id,
-      measurements,
-      brand,
-      notes,
-      images: uploadedImages,
-      fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
-      matchedStore,
-      createdOrderId: newOrderId,
-    } as any)
     if (typeof window !== 'undefined') {
       localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
       localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
     }
-    go('order')
+    if (onConfirmMeasurements) {
+      onConfirmMeasurements({
+        garmentId: selectedGarmentId,
+        serviceId: selectedService.id,
+        measurements,
+        brand,
+        notes,
+        images: uploadedImages,
+        fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
+        matchedStore,
+        createdOrderId: newOrderId,
+      } as any)
+    } else {
+      go('order')
+    }
   }
 
   const handleLoaderComplete = () => {
-    setIsProcessing(false)
     const closestStore = getClosestStoreForLocation(selectedCity)
     const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
     const orderData = {
@@ -428,21 +429,24 @@ export function ConfirmMeasurementView({
       date: formattedDateDisplay,
       timeSlot: selectedTime,
     }
-    onConfirmMeasurements?.({
-      garmentId: selectedGarmentId,
-      serviceId: selectedService.id,
-      measurements,
-      brand,
-      notes,
-      images: uploadedImages,
-      fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
-      createdOrderId: newOrderId,
-    } as any)
     if (typeof window !== 'undefined') {
       localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
       localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
     }
-    go('order')
+    if (onConfirmMeasurements) {
+      onConfirmMeasurements({
+        garmentId: selectedGarmentId,
+        serviceId: selectedService.id,
+        measurements,
+        brand,
+        notes,
+        images: uploadedImages,
+        fittingMode: Object.keys(measurements).length > 0 ? 'custom' : 'studio',
+        createdOrderId: newOrderId,
+      } as any)
+    } else {
+      go('order')
+    }
   }
 
   const formattedDateDisplay = scheduleDateObj.toLocaleDateString('en-US', {
@@ -710,23 +714,11 @@ export function ConfirmMeasurementView({
       </div>
       <TrustBar />
 
-      {/* Live Finding Studio Radar Animation Modal */}
-      <FindingStudioModal
-        isOpen={isFindingStudio}
-        city={selectedCity}
-        garmentId={selectedGarmentId}
-        garmentName={currentCategory.name}
-        serviceId={selectedService.id}
-        serviceName={selectedService.name}
-        price={selectedService.customerPrice}
-        measurements={measurements}
-        brand={brand}
-        notes={notes}
-        scheduleDate={scheduleDateObj}
-        scheduleTime={selectedTime}
-        images={uploadedImages}
-        onMatched={handleStudioMatched}
-        onCancel={() => setIsFindingStudio(false)}
+      {/* Full Screen Sewing Tools Animation Loader */}
+      <SewingLoader
+        active={isProcessing}
+        durationSeconds={3}
+        onComplete={handleLoaderComplete}
       />
     </div>
   )
