@@ -65,9 +65,19 @@
       "fitNotes": "",
       "status": "Closed",
       "price": 20,
-      "otp": "6951",
+      "otp": "9389",
       "createdAt": "2026-08-27T07:05:37.819Z",
-      "updatedAt": "2026-08-27T07:05:37.819Z"
+      "updatedAt": "2026-08-27T07:05:37.819Z",
+      "pinnedAdjustment": "Hem: 3 · Waist: 1 · Sleeves: Shorten 1.0 in from cuff · Inseam: 20 · Notes: do properly",
+      "sewingNotes": "",
+      "assignedWorker": "Marco Rossi",
+      "machineNo": "Juki DDL-8700 Lockstitch",
+      "hangTagNo": "Tag #18 · Rack A",
+      "fabricConditionNotes": "Clean condition, no fabric flaws.",
+      "priceAdjustment": null,
+      "priceAdjustmentStatus": "NONE",
+      "slaStartedAt": "2026-08-27T15:22:47.043Z",
+      "retailSold": false
     },
     {
       "id": "TG-452183",
@@ -85,10 +95,19 @@
       "timeSlot": "14:00 - 15:00",
       "garmentBrand": "",
       "fitNotes": "",
-      "status": "Collected",
+      "status": "Work in Progress",
       "price": 25,
       "otp": "5417",
-      "createdAt": "2026-08-26T06:28:16.036Z"
+      "createdAt": "2026-08-26T06:28:16.036Z",
+      "pinnedAdjustment": "Standard alteration",
+      "sewingNotes": "",
+      "assignedWorker": "Marco Rossi",
+      "machineNo": "Juki DDL-8700 Lockstitch",
+      "hangTagNo": "Tag #25 · Rack A",
+      "fabricConditionNotes": "Clean condition, no fabric flaws.",
+      "priceAdjustment": null,
+      "priceAdjustmentStatus": "NONE",
+      "slaStartedAt": "2026-08-27T15:44:49.735Z"
     },
     {
       "id": "TG-849201",
@@ -108,8 +127,9 @@
       "fitNotes": "Slim taper down to 14 inch leg opening",
       "status": "Closed",
       "price": 22,
-      "otp": "4829",
-      "createdAt": "2026-08-25T06:27:06.587Z"
+      "otp": "8406",
+      "createdAt": "2026-08-25T06:27:06.587Z",
+      "retailSold": false
     },
     {
       "id": "TG-739102",
