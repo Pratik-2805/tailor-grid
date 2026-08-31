@@ -16,16 +16,37 @@ interface HomeViewProps {
   onQuickSearch?: (postcode: string, garmentId: string) => void
   onSelectService?: (garmentId: string, serviceId: string) => void
   onSelectStore?: (store: StoreOption) => void
+  onRequestMeasurement?: (params: {
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+  }) => void
 }
 
-export function HomeView({ go, onQuickSearch, onSelectService, onSelectStore }: HomeViewProps) {
+export function HomeView({
+  go,
+  onQuickSearch,
+  onSelectService,
+  onSelectStore,
+  onRequestMeasurement,
+}: HomeViewProps) {
   return (
     <div className="flex flex-col">
-      {/* 1. Uber/Rapido-Style Interactive Hero with Instant Booking Widget */}
-      <HeroSection go={go} onQuickSearch={onQuickSearch} />
-
-      {/* 2. Key Trust & Metric Value Pillars */}
-      <TrustBar />
+      {/* 1. Full First-Screen Section (Hero + TrustBar anchored at bottom of 1st screen) */}
+      <div className="min-h-[calc(100vh-68px)] min-h-[calc(100dvh-68px)] flex flex-col justify-between bg-white">
+        <div className="flex-1 flex flex-col justify-center">
+          <HeroSection
+            go={go}
+            onQuickSearch={onQuickSearch}
+            onRequestMeasurement={onRequestMeasurement}
+          />
+        </div>
+        <TrustBar />
+      </div>
 
       {/* 3. Uber/Rapido Ride & Service Option Cards (Doorstep, Express, Bespoke) */}
       <ServiceGrid

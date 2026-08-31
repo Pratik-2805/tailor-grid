@@ -23,7 +23,7 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
             </h2>
 
             <p className="text-sm sm:text-base text-white/70 leading-relaxed max-w-[560px] mb-8">
-              Join the TailorGrid Partner Network. We allocate local paid alteration customers to your store for fittings and collections, while driving high-margin in-store retail sales.
+              Join the Darzi Partner Network. We allocate local paid alteration customers to your store for fittings and collections, while driving high-margin in-store retail sales.
             </p>
 
             {/* 3 Pillars matching Tech Brief */}

@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowRight, Check, MapPin, Scissors, Star } from 'lucide-react'
 import { PARTNER_STORES, type Screen, type StoreOption } from './data'
+import { fetchStores } from '@/lib/api'
 
 interface StudiosPreviewProps {
   go: (s: Screen) => void
@@ -10,6 +12,14 @@ interface StudiosPreviewProps {
 }
 
 export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
+  const [stores, setStores] = useState<StoreOption[]>(PARTNER_STORES)
+
+  useEffect(() => {
+    fetchStores().then((st) => {
+      if (st && st.length > 0) setStores(st)
+    }).catch(() => {})
+  }, [])
+
   return (
     <section className="py-16 sm:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
@@ -21,7 +31,7 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
               Verified Atelier Network
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
-              42 certified neighbourhood studios.
+              {stores.length} certified neighbourhood studios.
             </h2>
             <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
               Every atelier in our network is audited for master craftsmanship, industrial overlock machinery, and fitting comfort.
@@ -37,7 +47,7 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
 
         {/* Studios Grid (Uber/Rapido style cards) */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {PARTNER_STORES.map((store, i) => (
+          {stores.map((store, i) => (
             <div
               key={store.id}
               className="group flex flex-col justify-between bg-white rounded-3xl overflow-hidden border border-[#E5E7EB] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(0,0,0,0.08)] hover:border-[#D1D5DB]"

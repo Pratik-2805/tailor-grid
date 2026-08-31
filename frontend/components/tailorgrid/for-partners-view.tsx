@@ -27,11 +27,19 @@ import {
   Users
 } from 'lucide-react'
 import { type Screen } from './data'
+import { signUpUser } from '@/lib/api'
 
-export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
+interface ForPartnersViewProps {
+  go: (s: Screen) => void
+  onOpenAuth?: (role: 'CUSTOMER' | 'STUDIO') => void
+  onPartnerRegistered?: (user: any) => void
+}
+
+export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPartnersViewProps) {
   const [partnerTypeTab, setPartnerTypeTab] = useState<'tailors' | 'retailers'>('tailors')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [formSubmitted, setFormSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [storeName, setStoreName] = useState('')
   const [postcode, setPostcode] = useState('')
   const [contactName, setContactName] = useState('')
@@ -42,8 +50,25 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
     setOpenFaq(openFaq === idx ? null : idx)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
+    try {
+      const res = await signUpUser({
+        name: contactName.trim() || 'Master Tailor',
+        email: email.trim(),
+        storeName: storeName.trim(),
+        postcode: postcode.trim(),
+        machines,
+        role: 'STUDIO',
+      })
+      if (res && res.user && onPartnerRegistered) {
+        onPartnerRegistered(res.user)
+      }
+    } catch (err) {
+      console.warn('Registration notice:', err)
+    }
+    setSubmitting(false)
     setFormSubmitted(true)
   }
 
@@ -54,7 +79,7 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
     },
     {
       q: 'Do I have to do any marketing or payment processing?',
-      a: 'No. TailorGrid handles 100% of customer acquisition, SEO, digital booking, and secure upfront online payment processing. Customers arrive at your studio with a pre-paid Fitting Pass.',
+      a: 'No. Darzi handles 100% of customer acquisition, SEO, digital booking, and secure upfront online payment processing. Customers arrive at your studio with a pre-paid Fitting Pass.',
     },
     {
       q: 'How does the 5-minute walk-in fitting process work?',
@@ -62,7 +87,7 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
     },
     {
       q: 'What happens if a customer needs an adjustment after pick-up?',
-      a: 'TailorGrid protects partner studios with our 100% Free Re-fit Guarantee. In the rare event of a minor adjustment, TailorGrid subsidizes the additional artisan labor so your shop is always fairly compensated.',
+      a: 'Darzi protects partner studios with our 100% Free Re-fit Guarantee. In the rare event of a minor adjustment, Darzi subsidizes the additional artisan labor so your shop is always fairly compensated.',
     },
     {
       q: 'Can I track in-store retail merchandise purchases?',
@@ -72,41 +97,8 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
 
   return (
     <div className="bg-[#FAF8F5] min-h-screen">
-      
-      {/* 1. Sub-Header Navigation (Uber Drive style with Warm Cream Theme) */}
-      <div className="sticky top-[68px] z-40 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
-        <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 text-xs font-semibold">
-          <div className="flex items-center gap-2 text-[#0F1115]">
-            <Store size={16} className="text-[#9E593B]" />
-            <span className="font-extrabold text-sm tracking-tight">Studio Partner</span>
-          </div>
 
-          <div className="hidden md:flex items-center gap-7 text-[#5A5D64]">
-            <a href="#why-partner" className="hover:text-[#0F1115] transition-colors">Why partner</a>
-            <a href="#requirements" className="hover:text-[#0F1115] transition-colors">Requirements</a>
-            <a href="#safety" className="hover:text-[#0F1115] transition-colors">Standards</a>
-            <a href="#app" className="hover:text-[#0F1115] transition-colors">Studio app</a>
-            <a href="#faq" className="hover:text-[#0F1115] transition-colors">FAQ</a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => go('partner')}
-              className="text-xs font-bold text-[#0F1115] hover:text-[#9E593B] transition-colors"
-            >
-              Log in
-            </button>
-            <a
-              href="#apply-form"
-              className="rounded-full bg-[#0F1115] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors shadow-2xs"
-            >
-              Sign up
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Hero Section (Dark Luxury Atelier Theme) */}
+      {/* Hero Section (Dark Luxury Atelier Theme) */}
       <section className="bg-[#0F1115] text-white py-16 sm:py-24 relative overflow-hidden">
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
           
@@ -131,10 +123,14 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
                 </a>
 
                 <button
-                  onClick={() => go('partner')}
+                  onClick={() => {
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
+                    window.location.href = studioUrl
+                  }}
                   className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
                 >
-                  <span>Log in</span>
+                  <span>Studio Log in ↗</span>
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -376,7 +372,7 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
                 Protection on every order
               </h3>
               <p className="text-xs text-[#5A5D64] leading-relaxed">
-                Every alteration ticket is 100% pre-paid via TailorGrid. If a customer cancels late or fails to pick up, your full payout is guaranteed and settled automatically.
+                Every alteration ticket is 100% pre-paid via Darzi. If a customer cancels late or fails to pick up, your full payout is guaranteed and settled automatically.
               </p>
             </div>
 
@@ -408,90 +404,7 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
         </div>
       </section>
 
-      {/* 6. Section: The Studio App (Warm Theme + Without Prices) */}
-      <section id="app" className="py-20 sm:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
-          
-          <div className="grid lg:grid-cols-12 gap-10 items-center">
-            
-            <div className="lg:col-span-7">
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0F1115] tracking-tight">
-                The Studio app
-              </h2>
-              <p className="mt-3 text-sm sm:text-base text-[#5A5D64] leading-relaxed max-w-[540px]">
-                Easy to use and reliable, the app was built for tailors, with tailors. It shows you everything you need to manage walk-in fittings, monitor SLA countdowns, and grow your tailoring business with TailorGrid.
-              </p>
 
-              <div className="mt-4">
-                <button
-                  onClick={() => go('partner')}
-                  className="text-xs font-bold text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
-                >
-                  See how it works
-                </button>
-              </div>
-
-              {/* QR Download Mock (Uber style) */}
-              <div className="mt-8 bg-white p-6 rounded-3xl border border-[#E8E1D5] shadow-xs max-w-[460px] flex items-center gap-5">
-                <div className="size-16 rounded-2xl bg-[#0F1115] text-white grid place-items-center shrink-0">
-                  <QrCode size={32} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-[#0F1115]">Open the Studio app</h4>
-                  <p className="text-xs text-[#7A7E85] mt-0.5">Works on any tablet, iPad, or browser</p>
-                  <button
-                    onClick={() => go('partner')}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] hover:text-[#0F1115] transition-colors"
-                  >
-                    <span>Launch Studio Demo</span>
-                    <ArrowRight size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Visual Portal Tablet Preview */}
-            <div className="lg:col-span-5">
-              <div className="rounded-3xl bg-[#0F1115] text-white p-6 sm:p-7 shadow-xl border border-white/10">
-                <div className="flex items-center justify-between pb-4 border-b border-white/15">
-                  <div className="flex items-center gap-2">
-                    <span className="size-2 rounded-full bg-[#10B981] animate-pulse" />
-                    <span className="text-xs font-bold">Studio Portal · Live</span>
-                  </div>
-                  <span className="font-mono text-xs text-[#10B981] font-bold">Capacity: Active</span>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
-                    <div className="flex justify-between font-bold text-white mb-1">
-                      <span>#TG-1048 · Jeans Hemming</span>
-                      <span className="text-emerald-400 font-medium">48h SLA · Confirmed</span>
-                    </div>
-                    <p className="text-[11px] text-white/60">Fitting Window: 11:30 AM · Camilla H.</p>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
-                    <div className="flex justify-between font-bold text-white mb-1">
-                      <span>#TG-1049 · Shirt Slimming</span>
-                      <span className="text-emerald-400 font-medium">24h Express · Ready</span>
-                    </div>
-                    <p className="text-[11px] text-white/60">Fitting Window: 02:00 PM · David K.</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => go('partner')}
-                  className="mt-5 w-full rounded-2xl bg-white text-[#0F1115] py-3 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors"
-                >
-                  Open Studio Portal
-                </button>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
 
       {/* 7. Section: Frequently Asked Questions (Warm Theme) */}
       <section id="faq" className="py-20 sm:py-28 bg-[#FAF8F5] border-b border-[#E8E1D5]">
@@ -556,10 +469,14 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
                 Thank you, <strong className="text-[#0F1115]">{contactName}</strong>. Our partner onboarding director will contact <strong className="text-[#0F1115]">{email}</strong> within 24 hours to schedule a brief studio visit and machine calibration check.
               </p>
               <button
-                onClick={() => go('partner')}
+                onClick={() => {
+                  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                  const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
+                  window.location.href = studioUrl
+                }}
                 className="mt-6 rounded-full bg-[#0F1115] px-8 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"
               >
-                Launch Studio Portal Demo
+                Launch Studio Portal Demo ↗
               </button>
             </div>
           ) : (
@@ -661,7 +578,7 @@ export function ForPartnersView({ go }: { go: (s: Screen) => void }) {
               </button>
               
               <p className="text-[11px] text-[#7A7E85] text-center mt-2">
-                By submitting, you agree to TailorGrid partner studio quality standards and audit terms.
+                By submitting, you agree to Darzi partner studio quality standards and audit terms.
               </p>
             </form>
           )}

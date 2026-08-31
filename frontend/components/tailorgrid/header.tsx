@@ -24,20 +24,20 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
   return (
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
-        
+
         {/* Brand Logo + City Selector */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
           <button
             onClick={() => nav('home')}
             className="flex items-center gap-2.5 group text-left shrink-0"
-            aria-label="TailorGrid home"
+            aria-label="Darzi home"
           >
             <div className="grid size-9 place-items-center rounded-xl bg-[#0F1115] text-white shadow-sm transition-transform duration-200 group-hover:scale-105 shrink-0">
               <Scissors size={16} className="text-white" />
             </div>
             <div className="whitespace-nowrap">
               <span className="font-serif font-bold text-[19px] tracking-tight text-[#0F1115] block leading-none">
-                TailorGrid
+                Darzi
               </span>
               <span className="text-[10px] font-semibold tracking-wider uppercase text-[#9E593B] block mt-0.5">
                 On-Demand Alterations
@@ -77,7 +77,13 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
           <button
-            onClick={() => nav('orders')}
+            onClick={() => {
+              if (!user) {
+                onOpenAuth?.()
+              } else {
+                nav('orders')
+              }
+            }}
             className="flex items-center gap-1.5 rounded-full px-3 lg:px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors whitespace-nowrap shrink-0"
           >
             <Package size={14} className="text-[#6B7280] shrink-0" />
@@ -152,7 +158,14 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           ].map((item) => (
             <button
               key={item.label}
-              onClick={() => nav(item.screen)}
+              onClick={() => {
+                if (item.screen === 'orders' && !user && onOpenAuth) {
+                  setOpen(false)
+                  onOpenAuth()
+                } else {
+                  nav(item.screen)
+                }
+              }}
               className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
             >
               <span>{item.label}</span>
