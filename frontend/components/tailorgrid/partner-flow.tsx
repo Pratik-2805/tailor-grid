@@ -23,9 +23,7 @@ import {
   LogOut,
   MapPin,
   Package,
-  Pause,
   Phone,
-  Play,
   Plus,
   QrCode,
   Radio,
@@ -168,7 +166,6 @@ const INITIAL_ORDERS: FittingBooking[] = [
     pinnedAdjustment: 'Shorten hem 3.5 cm (1.4 in)',
     measurements: {
       hem: 'Shorten 3.5 cm',
-      waist: 'Standard (no change)',
       inseam: '30.5 in finished',
     },
     sewingNotes: 'Blind stitch lock, tone-on-tone navy thread #80.',
@@ -319,12 +316,11 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [broadcasts, setBroadcasts] = useState<BroadcastRequest[]>(INITIAL_BROADCASTS)
   const [broadcastIdx, setBroadcastIdx] = useState(0)
   const [timerSecs, setTimerSecs] = useState(15)
-  const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
-  // Broadcast timer countdown
+  // Broadcast timer countdown (runs continuously without pausing on hover)
   useEffect(() => {
-    if (!online || broadcasts.length === 0 || timerPaused) return
+    if (!online || broadcasts.length === 0) return
     const interval = setInterval(() => {
       setTimerSecs((prev) => {
         if (prev <= 1) {
@@ -336,7 +332,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
       })
     }, 1000)
     return () => clearInterval(interval)
-  }, [online, broadcasts.length, timerPaused])
+  }, [online, broadcasts.length])
 
   // Current active broadcast request
   const currentBroadcast = broadcasts.length > 0 ? broadcasts[broadcastIdx % broadcasts.length] : null
@@ -633,9 +629,9 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     setPickupOtpInput('')
     setPickupOtpError('')
     setPickupVerified(false)
-    setRetailAnswer(null)
-    setRetailValueInput('45')
-    setRetailCategoryInput('Accessories & Ties')
+    setRetailAnswer(order.retailSold ? 'YES' : 'NO')
+    setRetailValueInput(order.retailValue ? String(order.retailValue) : '45')
+    setRetailCategoryInput(order.retailCategory || 'Garments & Clothing')
     setPickupCompleted(false)
   }
 
@@ -653,14 +649,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const handleCompletePickupAndSettlement = () => {
     if (!pickupModalOrder) return
     const hasRetail = retailAnswer === 'YES'
-    const retailVal = hasRetail ? parseFloat(retailValueInput || '0') : null
-    const retailCat = hasRetail ? retailCategoryInput : null
 
     const updates: Partial<FittingBooking> = {
       status: 'Closed',
       retailSold: hasRetail,
-      retailValue: retailVal ?? undefined,
-      retailCategory: retailCat ?? undefined,
     }
 
     setOrders((prev) => prev.map((o) => (o.id === pickupModalOrder.id ? { ...o, ...updates } : o)))
@@ -701,11 +693,12 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#111827] font-sans antialiased">
       {/* ── 1. TOP ACTION BAR ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E8E1D5] px-4 sm:px-6 py-3 sticky top-0 z-30 shadow-xs">
-        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-4">
+      {/* ── 1. TOP WORKSPACE ACTION BAR ─────────────────────────────────── */}
+      <div className="bg-white border-b border-[#E8E1D5] px-4 sm:px-6 py-2.5 sticky top-[68px] z-30 shadow-xs">
+        <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3">
           {/* Shop / Tailor Info */}
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-[#0F1115] text-white grid place-items-center font-bold text-xs shadow-xs">
+            <div className="size-9 rounded-xl bg-[#0F1115] text-white grid place-items-center font-bold text-xs shadow-xs shrink-0">
               <Scissors size={16} />
             </div>
             <div>
@@ -713,7 +706,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 <span className="font-bold text-sm text-[#0F1115]">{studioName}</span>
                 <button
                   onClick={() => setOnline(!online)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
                     online
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                       : 'bg-stone-100 text-stone-600 border-stone-200'
@@ -723,7 +716,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   {online ? 'Online' : 'Paused'}
                 </button>
               </div>
-              <p className="text-[11px] text-[#6B7280]">{tailorName} · Tailor</p>
+              <p className="text-[11px] text-[#6B7280]">{tailorName} · Lead Tailor</p>
             </div>
           </div>
 
@@ -740,7 +733,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 <button
                   key={t.id}
                   onClick={() => setActiveTab(t.id as StudioTab)}
-                  className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer ${
                     active ? 'bg-[#0F1115] text-white font-bold shadow-xs' : 'text-[#5A5D64] hover:text-[#0F1115]'
                   }`}
                 >
@@ -750,32 +743,18 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             })}
           </nav>
 
-          {/* Earnings summary & Logout */}
+          {/* Earnings summary & Refresh */}
           <div className="flex items-center gap-3">
             <div className="text-right">
               <span className="text-[10px] font-bold uppercase text-[#9CA3AF] tracking-wider block">Today's Earnings</span>
-              <span className="font-bold text-sm text-emerald-700">${todayEarned}</span>
+              <span className="font-bold text-sm text-emerald-700 leading-tight">${todayEarned}</span>
             </div>
             <button
               onClick={handleRefresh}
-              title="Refresh"
-              className="size-8 rounded-lg border border-[#E8E1D5] bg-white grid place-items-center text-[#6B7280] hover:text-[#0F1115] transition-colors"
+              title="Refresh Workspace"
+              className="size-8 rounded-lg border border-[#E8E1D5] bg-white grid place-items-center text-[#6B7280] hover:text-[#0F1115] hover:border-[#D1D5DB] transition-colors cursor-pointer shadow-2xs"
             >
-              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
-            </button>
-            <button
-              onClick={() => {
-                if (onSignOut) {
-                  onSignOut()
-                } else {
-                  go('for-partners')
-                }
-              }}
-              title="Sign Out & Return to Partner Page"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E8E1D5] bg-white text-xs font-semibold text-[#4B5563] hover:text-red-600 hover:border-red-200 hover:bg-red-50/40 transition-colors shadow-2xs"
-            >
-              <LogOut size={13} />
-              <span className="hidden sm:inline">Sign Out</span>
+              <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#0F1115]' : ''} />
             </button>
           </div>
         </div>
@@ -891,131 +870,161 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
       {/* ── 2. UPCOMING JOBS (UPPER SECTION WITH 15-SECOND COUNTDOWN) ─────── */}
       {online && currentBroadcast && (
-        <section
-          className="bg-[#FAF4EB] border-b border-[#E8DFC9] px-4 sm:px-6 py-4 transition-all relative overflow-hidden"
-          onMouseEnter={() => setTimerPaused(true)}
-          onMouseLeave={() => setTimerPaused(false)}
-        >
-          {/* Animated 15s Timer Progress Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-[#E8DFC9]">
-            <div
-              className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
-              style={{ width: `${(timerSecs / 15) * 100}%` }}
-            />
-          </div>
-
+        <section className="bg-[#FAF4EB] border-b border-[#E8DFC9] px-4 sm:px-6 py-3.5 transition-all">
           <div className="mx-auto max-w-7xl">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex size-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-2.5 bg-amber-500" />
-                </span>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#9E593B]">Upcoming Jobs</span>
-                <span className="text-[11px] font-bold bg-white text-[#0F1115] border border-[#E8DFC9] px-2 py-0.5 rounded-full">
-                  Job {broadcastIdx + 1} of {broadcasts.length}
-                </span>
+            {/* Unified Card Container */}
+            <div className="bg-white rounded-2xl border border-[#E8DFC9] shadow-xs overflow-hidden transition-all hover:border-[#9E593B]/40">
+              {/* Card Integrated Progress Bar */}
+              <div className="h-1 w-full bg-[#FAF4EB] relative">
+                <div
+                  className="h-full bg-gradient-to-r from-[#9E593B] to-amber-600 transition-all duration-1000 ease-linear"
+                  style={{ width: `${(timerSecs / 15) * 100}%` }}
+                />
               </div>
 
-              {/* 15s Countdown Timer Badge */}
-              <div className="flex items-center gap-2 text-xs">
+              {/* Card Header Strip */}
+              <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 bg-[#FAF8F5] border-b border-[#E8E1D5]">
+                {/* Left: Broadcast Status + Queue Navigation */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="relative flex size-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full size-2 bg-amber-500" />
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#9E593B]">Live Job Broadcast</span>
+                  </div>
+
+                  <div className="h-3.5 w-px bg-[#D1D5DB]" />
+
+                  {/* Segmented Queue Navigation Pills */}
+                  <div className="flex items-center gap-1">
+                    {broadcasts.map((b, idx) => (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          setBroadcastIdx(idx)
+                          setTimerSecs(15)
+                        }}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          idx === broadcastIdx % broadcasts.length
+                            ? 'w-5 bg-[#9E593B]'
+                            : 'w-2 bg-[#D1D5DB] hover:bg-[#9CA3AF]'
+                        }`}
+                        title={`View ${b.garmentName}`}
+                      />
+                    ))}
+                    <span className="text-[10px] font-bold text-[#4B5563] ml-1">
+                      Job {broadcastIdx + 1} of {broadcasts.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right: Integrated Timer Badge (Non-stopping) */}
                 <div
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold border transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold border transition-colors ${
                     timerSecs <= 4
                       ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
                       : 'bg-white text-[#9E593B] border-[#E8DFC9]'
                   }`}
                 >
-                  <Clock size={12} />
+                  <Clock size={11} className={timerSecs <= 4 ? 'text-red-600' : 'text-[#9E593B]'} />
                   <span>{timerSecs}s</span>
-                  <span className="text-[10px] font-sans text-[#6B7280]">{timerPaused ? '(Paused)' : 'Next job soon'}</span>
+                  <span className="text-[10px] font-sans text-[#6B7280]">Next broadcast</span>
                 </div>
-
-                <button
-                  onClick={() => setTimerPaused(!timerPaused)}
-                  className="p-1 rounded-md text-[#6B7280] hover:text-[#0F1115] transition-colors"
-                  title={timerPaused ? 'Resume countdown' : 'Pause countdown'}
-                >
-                  {timerPaused ? <Play size={13} /> : <Pause size={13} />}
-                </button>
               </div>
-            </div>
 
-            {/* Upcoming Job Card */}
-            <div className="bg-white rounded-2xl border border-[#E8DFC9] p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-5">
-              {/* Garment Image & Details */}
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <div className="relative size-20 sm:size-24 rounded-xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0">
-                  <img
-                    src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                    alt={currentBroadcast.garmentName}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 font-mono text-[9px] font-bold bg-black/75 text-white px-1.5 py-0.5 rounded">
-                    {currentBroadcast.id}
-                  </span>
+              {/* Card Body */}
+              <div className="p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-5">
+                {/* Left: Garment Image & Core Details */}
+                <div className="flex items-start gap-4 flex-1 min-w-0 w-full">
+                  <div className="relative size-20 sm:size-24 rounded-2xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0 shadow-2xs">
+                    <img
+                      src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                      alt={currentBroadcast.garmentName}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute bottom-1 right-1 font-mono text-[9px] font-bold bg-black/80 backdrop-blur-xs text-white px-1.5 py-0.5 rounded">
+                      {currentBroadcast.id}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    {/* Title & Fabric/Brand */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-base text-[#0F1115] truncate">{currentBroadcast.garmentName}</h3>
+                      {currentBroadcast.garmentBrand && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#4B5563] bg-[#F3F4F6] px-2 py-0.5 rounded-md border border-[#E5E7EB]">
+                          <Tag size={10} className="text-[#6B7280]" />
+                          <span>{currentBroadcast.garmentBrand}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Service & Fitting Mode Badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] bg-[#FAF4EB] px-2.5 py-0.5 rounded-md border border-[#E8DFC9]">
+                        <Scissors size={11} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.serviceName}</span>
+                      </span>
+
+                      {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-purple-50 text-purple-900 border border-purple-200">
+                          <Ruler size={11} className="text-purple-600" />
+                          <span>Fitting in Store</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-900 border border-emerald-200">
+                          <CheckCircle2 size={11} className="text-emerald-600" />
+                          <span>Pinned by Customer</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Customer Fit Notes */}
+                    <p className="text-xs text-[#4B5563] line-clamp-1 italic bg-[#FAF8F5] px-2.5 py-1 rounded-lg border border-[#E8E1D5]">
+                      "{currentBroadcast.fitNotes}"
+                    </p>
+
+                    {/* Meta Specs with Icons */}
+                    <div className="flex items-center gap-4 text-xs text-[#6B7280] pt-0.5 flex-wrap">
+                      <span className="flex items-center gap-1 font-medium text-[#1F2937]">
+                        <User size={12} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.customerName}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.customerArea}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-[#0F1115] bg-[#FAF4EB] border border-[#E8DFC9] px-2 py-0.5 rounded-md text-[11px]">
+                        <Clock size={11} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.slaHours}h Turnaround</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="font-bold text-base text-[#0F1115] truncate">{currentBroadcast.garmentName}</h3>
-                    <span className="text-xs font-bold text-[#9E593B] bg-[#FAF4EB] px-2 py-0.5 rounded-md border border-[#E8DFC9]">
-                      {currentBroadcast.serviceName}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                        currentBroadcast.fittingType === 'NEED_STUDIO_FITTING'
-                          ? 'bg-purple-50 text-purple-800 border-purple-200'
-                          : 'bg-blue-50 text-blue-800 border-blue-200'
-                      }`}
+                {/* Right: Payout & Actions Box */}
+                <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8E1D5] shrink-0 pl-0 lg:pl-5 lg:border-l lg:border-[#E8E1D5]">
+                  <div className="text-left lg:text-right">
+                    <div className="text-[10px] uppercase tracking-wider text-[#6B7280] font-bold">You Earn</div>
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-700 leading-tight">${currentBroadcast.partnerPayout}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleSkipBroadcast}
+                      className="px-3.5 py-2 rounded-xl border border-[#D1D5DB] text-xs font-bold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
                     >
-                      {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? 'In-Shop Fitting' : 'Pre-Pinned'}
-                    </span>
+                      Skip
+                    </button>
+                    <button
+                      onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                      className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                    >
+                      <Zap size={13} className="text-amber-300" />
+                      <span>Accept Job (${currentBroadcast.partnerPayout})</span>
+                    </button>
                   </div>
-
-                  <p className="text-xs text-[#4B5563] line-clamp-1 italic bg-[#FAF8F5] p-1.5 rounded-lg border border-[#E8E1D5]">
-                    "{currentBroadcast.fitNotes}"
-                  </p>
-
-                  <div className="flex items-center gap-4 text-xs text-[#6B7280] mt-2">
-                    <span className="flex items-center gap-1 font-medium">
-                      <User size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.customerName}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.customerArea}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.slaHours}h turnaround</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payout & Actions */}
-              <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#E8E1D5] shrink-0">
-                <div className="text-left md:text-right">
-                  <div className="text-xs text-[#6B7280] font-semibold">You Earn</div>
-                  <div className="text-2xl font-black text-emerald-700">${currentBroadcast.partnerPayout}</div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleSkipBroadcast}
-                    className="px-3.5 py-2 rounded-xl border border-[#D1D5DB] text-xs font-bold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                    className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
-                  >
-                    <Zap size={13} className="text-amber-300" />
-                    <span>Accept Job (${currentBroadcast.partnerPayout})</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1045,6 +1054,33 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     </span>
                   </div>
 
+                  {/* 3-Step Atelier Intake Workflow Visual Guide */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3 p-3 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <div className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-[#E8E1D5]/70 shadow-2xs">
+                      <div className="size-8 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-[#9E593B] mb-1.5 shadow-2xs">
+                        <QrCode size={15} />
+                      </div>
+                      <span className="text-[11px] font-bold text-[#0F1115]">1. Request OTP</span>
+                      <span className="text-[9px] text-[#6B7280] leading-tight mt-0.5">Customer shows 4-digit code</span>
+                    </div>
+
+                    <div className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-[#E8E1D5]/70 shadow-2xs">
+                      <div className="size-8 rounded-full bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-700 mb-1.5 shadow-2xs">
+                        <Ruler size={15} />
+                      </div>
+                      <span className="text-[11px] font-bold text-[#0F1115]">2. Inspect &amp; Fit</span>
+                      <span className="text-[9px] text-[#6B7280] leading-tight mt-0.5">Verify pins &amp; garment specs</span>
+                    </div>
+
+                    <div className="flex flex-col items-center text-center p-2.5 rounded-xl bg-white border border-[#E8E1D5]/70 shadow-2xs">
+                      <div className="size-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700 mb-1.5 shadow-2xs">
+                        <Tag size={15} />
+                      </div>
+                      <span className="text-[11px] font-bold text-[#0F1115]">3. Hang Tag &amp; Rack</span>
+                      <span className="text-[9px] text-[#6B7280] leading-tight mt-0.5">Attach barcode &amp; assign rack</span>
+                    </div>
+                  </div>
+
                   <form
                     onSubmit={(e) => {
                       e.preventDefault()
@@ -1071,7 +1107,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
                     <button
                       type="submit"
-                      className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-colors shadow-xs flex items-center justify-center gap-2"
+                      className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <ShieldCheck size={16} />
                       <span>Verify Code &amp; Start Order →</span>
@@ -1163,21 +1199,41 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                        <span className="text-[10px] text-[#9CA3AF] font-bold block">HEM</span>
-                        <span className="font-bold text-[#0F1115]">{measHem || 'No change'}</span>
+                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                        <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                          <Scissors size={10} className="text-[#9E593B]" />
+                          <span>HEM</span>
+                        </div>
+                        <span className={`block truncate ${measHem ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                          {measHem || 'No measurements'}
+                        </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                        <span className="text-[10px] text-[#9CA3AF] font-bold block">WAIST / SEAT</span>
-                        <span className="font-bold text-[#0F1115]">{measWaist || 'No change'}</span>
+                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                        <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                          <Ruler size={10} className="text-purple-600" />
+                          <span>WAIST / SEAT</span>
+                        </div>
+                        <span className={`block truncate ${measWaist ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                          {measWaist || 'No measurements'}
+                        </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                        <span className="text-[10px] text-[#9CA3AF] font-bold block">SLEEVE</span>
-                        <span className="font-bold text-[#0F1115]">{measSleeve || 'No change'}</span>
+                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                        <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                          <Layers size={10} className="text-blue-600" />
+                          <span>SLEEVE</span>
+                        </div>
+                        <span className={`block truncate ${measSleeve ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                          {measSleeve || 'No measurements'}
+                        </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                        <span className="text-[10px] text-[#9CA3AF] font-bold block">INSEAM</span>
-                        <span className="font-bold text-[#0F1115]">{measInseam || 'Standard'}</span>
+                      <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                        <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                          <ArrowRight size={10} className="text-emerald-600 rotate-90" />
+                          <span>INSEAM</span>
+                        </div>
+                        <span className={`block truncate ${measInseam ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                          {measInseam || 'No measurements'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1510,6 +1566,27 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     </div>
                   )
                 })}
+
+                {filteredOrders.length === 0 && (
+                  <div className="bg-white border border-[#E8E1D5] rounded-3xl p-8 text-center space-y-3 shadow-xs">
+                    <div className="size-14 rounded-2xl bg-[#FAF4EB] border border-[#E8DFC9] flex items-center justify-center text-[#9E593B] mx-auto shadow-2xs">
+                      <Scissors size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-[#0F1115]">No orders in this status</h3>
+                      <p className="text-xs text-[#6B7280] mt-0.5 max-w-xs mx-auto">
+                        Switch filter tabs above or accept incoming broadcasts to populate your workbench.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setStatusFilter('ALL')}
+                      className="text-xs font-bold text-[#9E593B] hover:text-[#0F1115] bg-[#FAF4EB] border border-[#E8DFC9] px-3.5 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>View All Orders</span>
+                      <ArrowRight size={12} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Order Detail Drawer (Rich & Space-Efficient Order Docket) */}
@@ -1546,36 +1623,80 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                         <div className="text-xl font-black text-emerald-700">
                           ${selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8)}
                         </div>
-                        <div className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-wider">You Earn (80%)</div>
-                      </div>
-                    </div>
-
-                    {/* Platform Payment & 15-Day Escrow Card */}
-                    <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-xs flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
-                        <div>
-                          <div className="font-bold text-emerald-900">
-                            Paid ${(selectedOrder.price || 35)} Online (Card / Stripe)
-                          </div>
-                          <div className="text-[11px] text-emerald-700">80% (${selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8)}) releases 15 days post-pickup</div>
+                        <div className="text-[10px] text-[#9CA3AF] font-bold uppercase tracking-wider">
+                          {selectedOrder.status === 'Closed'
+                            ? 'Paid to Studio ✓'
+                            : selectedOrder.status === 'Ready'
+                            ? 'Payable at Pickup'
+                            : 'Payable upon Pickup'}
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
-                        Stripe Escrow
-                      </span>
                     </div>
 
-                    {/* Complete Tailor Measurement Grid */}
+                    {/* Payment Card - Shown Only After Job is Done (At Pickup or Completed) */}
+                    {selectedOrder.status === 'Ready' && (
+                      <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                        <div className="flex items-center gap-2">
+                          <DollarSign size={16} className="text-amber-700 shrink-0" />
+                          <div>
+                            <div className="font-bold text-amber-900">
+                              Payment Ready: ${(selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8))}
+                            </div>
+                            <div className="text-[11px] text-amber-700">Payment processes upon customer pickup code verification</div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold bg-white text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                          At Pickup
+                        </span>
+                      </div>
+                    )}
+
+                    {selectedOrder.status === 'Closed' && (
+                      <div className="space-y-2">
+                        <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
+                            <div>
+                              <div className="font-bold text-emerald-900">
+                                Paid ${(selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8))} to Studio Balance
+                              </div>
+                              <div className="text-[11px] text-emerald-700">Customer pickup code verified &amp; payout cleared</div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                            Paid Out ✓
+                          </span>
+                        </div>
+
+                        {selectedOrder.retailSold && (
+                          <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs flex items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center gap-2">
+                              <ShoppingBag size={16} className="text-amber-700 shrink-0" />
+                              <div>
+                                <div className="font-bold text-amber-900">
+                                  In-Store Clothes Purchased: {selectedOrder.retailCategory || 'Garments'} (${selectedOrder.retailValue || 0})
+                                </div>
+                                <div className="text-[11px] text-amber-700">Recorded during customer pickup handover</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold bg-white text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md shrink-0">
+                              +${selectedOrder.retailValue || 0} In-Store
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Complete Tailor Measurement Grid with Schematic Craft Icons */}
                     <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="text-xs font-bold text-[#0F1115] uppercase tracking-wider flex items-center gap-1.5">
-                          <Ruler size={13} />
+                          <Ruler size={13} className="text-[#9E593B]" />
                           <span>Garment Measurements</span>
                         </div>
                         <button
                           onClick={() => handleOpenEditMeasurements(selectedOrder)}
-                          className="text-xs font-bold text-[#0F1115] hover:text-[#9E593B] flex items-center gap-1 bg-white border border-[#D1D5DB] px-2.5 py-1 rounded-xl shadow-2xs hover:border-[#0F1115] transition-colors"
+                          className="text-xs font-bold text-[#0F1115] hover:text-[#9E593B] flex items-center gap-1 bg-white border border-[#D1D5DB] px-2.5 py-1 rounded-xl shadow-2xs hover:border-[#0F1115] transition-colors cursor-pointer"
                         >
                           <Edit3 size={11} />
                           <span>Edit Specs</span>
@@ -1583,28 +1704,40 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                          <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">HEM ADJUSTMENT</span>
-                          <span className="font-bold text-[#0F1115]">
-                            {selectedOrder.measurements?.hem || selectedOrder.pinnedAdjustment || 'Standard (No change)'}
+                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                          <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                            <Scissors size={11} className="text-[#9E593B]" />
+                            <span>HEM ADJUSTMENT</span>
+                          </div>
+                          <span className={`block truncate ${selectedOrder.measurements?.hem || selectedOrder.pinnedAdjustment ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                            {selectedOrder.measurements?.hem || selectedOrder.pinnedAdjustment || 'No measurements'}
                           </span>
                         </div>
-                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                          <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">WAIST / SEAT</span>
-                          <span className="font-bold text-[#0F1115]">
-                            {selectedOrder.measurements?.waist || 'Standard (No change)'}
+                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                          <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                            <Ruler size={11} className="text-purple-600" />
+                            <span>WAIST / SEAT</span>
+                          </div>
+                          <span className={`block truncate ${selectedOrder.measurements?.waist ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                            {selectedOrder.measurements?.waist || 'No measurements'}
                           </span>
                         </div>
-                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                          <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">SLEEVES / CUFFS</span>
-                          <span className="font-bold text-[#0F1115]">
-                            {selectedOrder.measurements?.sleeve || 'Standard'}
+                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                          <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                            <Layers size={11} className="text-blue-600" />
+                            <span>SLEEVES / CUFFS</span>
+                          </div>
+                          <span className={`block truncate ${selectedOrder.measurements?.sleeve ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                            {selectedOrder.measurements?.sleeve || 'No measurements'}
                           </span>
                         </div>
-                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                          <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">INSEAM LENGTH</span>
-                          <span className="font-bold text-[#0F1115]">
-                            {selectedOrder.measurements?.inseam || 'Original Inseam'}
+                        <div className="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
+                          <div className="flex items-center gap-1 text-[10px] text-[#9CA3AF] font-bold mb-0.5">
+                            <ArrowRight size={11} className="text-emerald-600 rotate-90" />
+                            <span>INSEAM LENGTH</span>
+                          </div>
+                          <span className={`block truncate ${selectedOrder.measurements?.inseam ? 'font-bold text-[#0F1115]' : 'font-medium text-[#9CA3AF]'}`}>
+                            {selectedOrder.measurements?.inseam || 'No measurements'}
                           </span>
                         </div>
                       </div>
@@ -1612,7 +1745,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       {selectedOrder.fitNotes && (
                         <div className="pt-2 border-t border-[#E8E1D5]/70">
                           <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">CUSTOMER FIT INSTRUCTIONS</span>
-                          <p className="text-[#374151] italic text-xs">"{selectedOrder.fitNotes}"</p>
+                          <p className="text-[#374151] italic text-xs bg-white/70 p-2 rounded-lg border border-[#E8E1D5]/60">"{selectedOrder.fitNotes}"</p>
                         </div>
                       )}
                     </div>
@@ -2162,10 +2295,53 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   </div>
                 </div>
 
+                {/* Question: Did the customer buy clothes/garments as well? */}
+                <div className="p-4 rounded-2xl bg-white border border-[#E8E1D5] space-y-3 shadow-2xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="text-xs font-bold text-[#0F1115] flex items-center gap-1.5">
+                        <ShoppingBag size={14} className="text-[#9E593B]" />
+                        <span>Did the customer purchase clothing in-store?</span>
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] mt-0.5">
+                        Record whether this visit resulted in an in-store garment or retail purchase
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Yes / No Toggle Buttons */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('YES')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'YES'
+                          ? 'bg-emerald-700 text-white border-emerald-800 shadow-xs ring-2 ring-emerald-500/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <CheckCircle size={15} />
+                      <span>Yes, purchased clothing</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRetailAnswer('NO')}
+                      className={`py-3 px-3.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                        retailAnswer === 'NO'
+                          ? 'bg-[#0F1115] text-white border-[#0F1115] shadow-xs ring-2 ring-[#0F1115]/20'
+                          : 'bg-[#FAF8F5] text-[#374151] border-[#D1D5DB] hover:bg-stone-100 hover:border-[#9CA3AF]'
+                      }`}
+                    >
+                      <X size={15} />
+                      <span>No, alteration only</span>
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   type="button"
                   onClick={handleCompletePickupAndSettlement}
-                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2"
+                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <CheckCircle2 size={16} />
                   <span>
@@ -2174,8 +2350,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 </button>
 
                 {pickupCompleted && (
-                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300">
-                    🎉 Handover complete! 80% payout scheduled for 15-day Stripe transfer.
+                  <div className="p-3 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold text-center border border-emerald-300 animate-fadeIn">
+                    🎉 Handover complete! {retailAnswer === 'YES' ? 'In-store clothing purchase recorded. ' : ''}80% payout scheduled for 15-day Stripe transfer.
                   </div>
                 )}
               </div>

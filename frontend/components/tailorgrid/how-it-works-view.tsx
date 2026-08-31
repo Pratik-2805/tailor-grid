@@ -42,21 +42,9 @@ interface HowItWorksViewProps {
 }
 
 export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWorksViewProps) {
-  // Quick estimation hero state
-  const [selectedGarment, setSelectedGarment] = useState('trousers')
-  const [postcode, setPostcode] = useState('W8 4EP')
-
-  const handleHeroSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (onQuickSearch) {
-      onQuickSearch(postcode.trim() || 'W8 4EP', selectedGarment)
-    }
-    go('booking')
-  }
-
   const handleSuggestionClick = (garmentId: string) => {
     if (onQuickSearch) {
-      onQuickSearch(postcode.trim() || 'W8 4EP', garmentId)
+      onQuickSearch('W8 4EP', garmentId)
     }
     go('booking')
   }
@@ -152,92 +140,35 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
         >
           <ArrowLeft size={14} className="transition-transform group-hover:-translate-x-1" />
           <span>Back to Overview</span>
-        </button>
-
-        {/* ========================================================================= */}
-        {/* HERO SECTION (Matches Uber Reference Screenshot 1) */}
+        </button>        {/* ========================================================================= */}
+        {/* HERO SECTION */}
         {/* ========================================================================= */}
         <section className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center pb-16 lg:pb-24 border-b border-[#EBE6DF]">
           
-          {/* Left Column: Heading, Description & Quick Input Form */}
+          {/* Left Column: Heading, Description & Key Value Points */}
           <div className="lg:col-span-6 xl:col-span-6 space-y-6">
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#EBE6DF]">
+              Simple & Seamless
+            </span>
+
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0F1115] leading-[1.1]">
               How Darzi works
             </h1>
 
             <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[540px]">
-              Understanding how Darzi connects you with certified master ateliers and alteration studios can enhance your experience. Scroll to learn how the service works, or request a fitting now by entering your service and location below.
+              Understanding how Darzi connects you with certified master ateliers and alteration studios can enhance your experience. Explore the step-by-step journey below to see how easy precision tailoring can be.
             </p>
 
-            {/* Quick Interactive Location / Service Box */}
-            <form
-              onSubmit={handleHeroSubmit}
-              className="mt-6 rounded-2xl bg-white border border-[#E5E0D8] p-5 shadow-sm space-y-3.5 max-w-[480px]"
-            >
-              {/* Garment Selector */}
-              <div className="relative">
-                <div className="flex items-center gap-3 rounded-xl bg-[#FAF8F5] border border-[#E8E2D8] px-3.5 py-3 focus-within:border-[#0F1115] focus-within:bg-white transition-all">
-                  <div className="size-6 rounded-full bg-[#0F1115] text-white grid place-items-center shrink-0">
-                    <Scissors size={12} />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
-                      Select Service
-                    </label>
-                    <select
-                      value={selectedGarment}
-                      onChange={(e) => setSelectedGarment(e.target.value)}
-                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-[#0F1115] focus:outline-none cursor-pointer"
-                    >
-                      {GARMENT_CATEGORIES.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name} (from ${cat.startingPrice})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Location Input */}
-              <div className="relative">
-                <div className="flex items-center gap-3 rounded-xl bg-[#FAF8F5] border border-[#E8E2D8] px-3.5 py-3 focus-within:border-[#0F1115] focus-within:bg-white transition-all">
-                  <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center shrink-0">
-                    <MapPin size={12} />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-[#7A7E85]">
-                      Postcode or Neighborhood
-                    </label>
-                    <input
-                      type="text"
-                      value={postcode}
-                      onChange={(e) => setPostcode(e.target.value)}
-                      placeholder="e.g. W8 4EP, SoHo, Beverly Hills"
-                      className="w-full bg-transparent text-xs sm:text-sm font-semibold text-[#0F1115] placeholder:text-[#9CA3AF] focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Submit CTA */}
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-[#0F1115] py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white transition-all hover:bg-[#9E593B] shadow-sm flex items-center justify-center gap-2 active:scale-[0.99]"
-              >
-                <span>See prices & studios</span>
-                <ArrowRight size={15} />
-              </button>
-            </form>
-
-            <div className="flex items-center gap-4 text-xs text-[#7A7E85]">
-              <span className="flex items-center gap-1.5 text-[#10B981] font-semibold">
-                <ShieldCheck size={14} /> 100% Fit Guarantee
+            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#7A7E85] pt-2">
+              <span className="flex items-center gap-1.5 text-[#10B981] font-semibold bg-[#ECFDF5] px-3 py-1.5 rounded-full border border-[#A7F3D0]">
+                <ShieldCheck size={15} /> 100% Fit Guarantee
               </span>
-              <span>·</span>
-              <span>48-Hour Turnaround</span>
-              <span>·</span>
-              <span>Fixed Transparent Rates</span>
+              <span className="flex items-center gap-1.5 font-medium bg-white px-3 py-1.5 rounded-full border border-[#EBE6DF]">
+                <Clock size={15} className="text-[#9E593B]" /> 48-Hour Turnaround
+              </span>
+              <span className="flex items-center gap-1.5 font-medium bg-white px-3 py-1.5 rounded-full border border-[#EBE6DF]">
+                <Scissors size={15} className="text-[#9E593B]" /> Fixed Transparent Rates
+              </span>
             </div>
           </div>
 
