@@ -57,12 +57,14 @@ interface BroadcastRequest {
   garmentName: string
   serviceName: string
   fittingType: 'PRE_PINNED' | 'NEED_STUDIO_FITTING'
-  garmentBrand: string
+  garmentBrand?: string
   fitNotes: string
   partnerPayout: number
   slaHours: number
   imageUrl: string
   otp: string
+  isRealCustomerOrder?: boolean
+  realOrder?: FittingBooking
 }
 
 const GARMENT_FALLBACK_IMAGES: Record<string, string> = {
@@ -322,25 +324,6 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
-  // Broadcast timer countdown
-  useEffect(() => {
-    if (!online || broadcasts.length === 0 || timerPaused) return
-    const interval = setInterval(() => {
-      setTimerSecs((prev) => {
-        if (prev <= 1) {
-          // Auto-skip to next broadcast
-          setBroadcastIdx((curr) => (curr + 1) % broadcasts.length)
-          return 15
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [online, broadcasts.length, timerPaused])
-
-  // Current active broadcast request
-  const currentBroadcast = broadcasts.length > 0 ? broadcasts[broadcastIdx % broadcasts.length] : null
-
   // ── 2. Drop-off Intake State ────────────────────────────────────────────────
   const [pinInput, setPinInput] = useState('')
   const [pinError, setPinError] = useState('')
@@ -405,8 +388,55 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     return () => clearInterval(interval)
   }, [user, online])
 
-  // Live incoming unaccepted requests from customers
+  // Live incoming unaccepted requests from real customers
   const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated')
+
+  // Real customer broadcast requests formatted as BroadcastRequest
+  const realBroadcastRequests: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
+    const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
+    return {
+      id: o.id,
+      customerName: o.customerName || 'Customer',
+      customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
+      distanceMiles: 0.8,
+      garmentName: o.garmentName || 'Garment Alteration',
+      serviceName: o.serviceName || 'Custom Fit & Alteration',
+      fittingType: (o.fittingType as any) || 'NEED_STUDIO_FITTING',
+      garmentBrand: o.garmentBrand,
+      fitNotes: o.fitNotes || 'Customer requested standard alteration pinning at counter.',
+      partnerPayout: payout,
+      slaHours: o.slaHours || 24,
+      imageUrl: o.intakePhotoUrl || '',
+      otp: o.otp || '0000',
+      isRealCustomerOrder: true,
+      realOrder: o,
+    }
+  })
+
+  // Combined queue: Real customer requests are prioritized first
+  const allBroadcasts: BroadcastRequest[] = [
+    ...realBroadcastRequests,
+    ...broadcasts.map((b) => ({ ...b, isRealCustomerOrder: false })),
+  ]
+
+  // Broadcast timer countdown
+  useEffect(() => {
+    if (!online || allBroadcasts.length === 0 || timerPaused) return
+    const interval = setInterval(() => {
+      setTimerSecs((prev) => {
+        if (prev <= 1) {
+          // Auto-skip to next broadcast
+          setBroadcastIdx((curr) => (curr + 1) % allBroadcasts.length)
+          return 15
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [online, allBroadcasts.length, timerPaused])
+
+  // Current active broadcast request
+  const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
     const assignedStudioId = user?.studioId || 'atelier-soho'
@@ -436,7 +466,13 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   }
 
   // ── HANDLERS: BROADCAST ────────────────────────────────────────────────────
-  const handleAcceptBroadcast = (bc: BroadcastRequest) => {
+  const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
+    if (bc.isRealCustomerOrder && bc.realOrder) {
+      await handleAcceptAllocatedOrder(bc.realOrder)
+      setTimerSecs(15)
+      return
+    }
+
     const newOrder: FittingBooking = {
       id: bc.id.replace('TG-BC-', 'TG-'),
       customerName: bc.customerName,
@@ -474,9 +510,14 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
     setTimeout(() => setBroadcastToast(null), 5000)
   }
 
-  const handleSkipBroadcast = () => {
-    if (broadcasts.length > 0) {
-      setBroadcastIdx((prev) => (prev + 1) % broadcasts.length)
+  const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
+    if (bc?.isRealCustomerOrder && bc.realOrder) {
+      handleDeclineAllocatedOrder(bc.realOrder.id)
+      setTimerSecs(15)
+      return
+    }
+    if (allBroadcasts.length > 0) {
+      setBroadcastIdx((prev) => (prev + 1) % allBroadcasts.length)
       setTimerSecs(15)
     }
   }
@@ -701,7 +742,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#111827] font-sans antialiased">
       {/* ── 1. TOP ACTION BAR ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E8E1D5] px-4 sm:px-6 py-3 sticky top-0 z-30 shadow-xs">
+      <div className="bg-white border-b border-[#E8E1D5] px-4 sm:px-6 py-2.5 sticky top-[68px] z-30 shadow-xs">
         <div className="mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-4">
           {/* Shop / Tailor Info */}
           <div className="flex items-center gap-3">
@@ -789,233 +830,198 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
         </div>
       )}
 
-      {/* ── 1.5. LIVE INCOMING CUSTOMER REQUESTS (REAL-TIME BROADCAST) ─────── */}
-      {online && liveAllocatedOrders.length > 0 && (
-        <section className="bg-[#18191B] text-white border-b border-[#333] px-4 sm:px-6 py-4 transition-all relative overflow-hidden shadow-lg animate-fadeIn">
-          <div className="absolute -top-10 -right-10 size-40 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
-          <div className="mx-auto max-w-7xl">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex size-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-3 bg-emerald-500" />
-                </span>
-                <span className="text-xs font-black uppercase tracking-wider text-emerald-400">
-                  Live Customer Alteration Request
-                </span>
-                <span className="text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                  {liveAllocatedOrders.length} Waiting for Studio Acceptance
-                </span>
-              </div>
-              <span className="text-[11px] text-white/60 font-mono hidden sm:inline">
-                Real-time Customer Broadcast &middot; Customer is waiting on finding screen
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              {liveAllocatedOrders.map((incoming) => {
-                const payout = incoming.partnerPayout || Math.round((incoming.price || 30) * 0.75)
-                return (
-                  <div
-                    key={incoming.id}
-                    className="bg-[#242832] border-2 border-emerald-500/60 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col md:flex-row items-center justify-between gap-4"
-                  >
-                    <div className="flex items-start gap-4 flex-1 min-w-0">
-                      <div className="size-14 sm:size-16 rounded-xl bg-white/10 text-[#E7C9BA] grid place-items-center shrink-0 border border-white/10">
-                        <Scissors size={24} className="text-emerald-400 animate-pulse" />
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-bold text-base text-white truncate">{incoming.garmentName}</h3>
-                          <span className="text-xs font-bold text-emerald-300 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-700/50">
-                            {incoming.serviceName}
-                          </span>
-                          <span className="text-[10px] font-mono text-white/60 bg-white/10 px-2 py-0.5 rounded">
-                            {incoming.id}
-                          </span>
-                        </div>
-
-                        {incoming.fitNotes && (
-                          <p className="text-xs text-white/80 italic bg-black/30 p-2 rounded-lg border border-white/10 mt-1">
-                            "{incoming.fitNotes}"
-                          </p>
-                        )}
-
-                        <div className="flex items-center gap-4 text-xs text-white/70 mt-2 flex-wrap">
-                          <span className="flex items-center gap-1 font-medium text-white">
-                            <User size={12} className="text-emerald-400" />
-                            <span>{incoming.customerName}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin size={12} className="text-emerald-400" />
-                            <span>{incoming.postcode || 'Local Area'}</span>
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock size={12} className="text-emerald-400" />
-                            <span>Slot: {incoming.date} ({incoming.timeSlot})</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-white/10 shrink-0">
-                      <div className="text-left md:text-right">
-                        <div className="text-[11px] text-white/60 font-semibold uppercase">Partner Payout</div>
-                        <div className="text-2xl font-black text-emerald-400 font-mono">${payout}.00</div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleDeclineAllocatedOrder(incoming.id)}
-                          className="px-3 py-2 rounded-xl border border-white/20 text-xs font-bold text-white/70 hover:bg-white/10 transition-colors"
-                        >
-                          Decline
-                        </button>
-                        <button
-                          onClick={() => handleAcceptAllocatedOrder(incoming)}
-                          className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs shadow-lg transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <CheckCircle2 size={15} />
-                          <span>Accept Request (${payout})</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── 2. UPCOMING JOBS (UPPER SECTION WITH 15-SECOND COUNTDOWN) ─────── */}
+      {/* ── 2. LIVE JOB BROADCAST CARD (UNIFIED REAL-TIME & UPCOMING JOBS) ── */}
       {online && currentBroadcast && (
         <section
-          className="bg-[#FAF4EB] border-b border-[#E8DFC9] px-4 sm:px-6 py-4 transition-all relative overflow-hidden"
+          className="bg-[#FAF8F5] px-4 sm:px-6 py-4 transition-all"
           onMouseEnter={() => setTimerPaused(true)}
           onMouseLeave={() => setTimerPaused(false)}
         >
-          {/* Animated 15s Timer Progress Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-[#E8DFC9]">
-            <div
-              className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
-              style={{ width: `${(timerSecs / 15) * 100}%` }}
-            />
-          </div>
-
           <div className="mx-auto max-w-7xl">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="relative flex size-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full size-2.5 bg-amber-500" />
-                </span>
-                <span className="text-xs font-bold uppercase tracking-wider text-[#9E593B]">Upcoming Jobs</span>
-                <span className="text-[11px] font-bold bg-white text-[#0F1115] border border-[#E8DFC9] px-2 py-0.5 rounded-full">
-                  Job {broadcastIdx + 1} of {broadcasts.length}
-                </span>
-              </div>
-
-              {/* 15s Countdown Timer Badge */}
-              <div className="flex items-center gap-2 text-xs">
+            {/* Main Broadcast Card Container */}
+            <div className="bg-white rounded-2xl border border-[#E8DFC9] shadow-xs relative overflow-hidden">
+              {/* Top Accent / Animated Timer Progress Bar */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-[#E8DFC9]">
                 <div
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold border transition-colors ${
-                    timerSecs <= 4
-                      ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
-                      : 'bg-white text-[#9E593B] border-[#E8DFC9]'
+                  className={`h-full transition-all duration-1000 ease-linear ${
+                    currentBroadcast.isRealCustomerOrder ? 'bg-emerald-600' : 'bg-[#D97706]'
                   }`}
-                >
-                  <Clock size={12} />
-                  <span>{timerSecs}s</span>
-                  <span className="text-[10px] font-sans text-[#6B7280]">{timerPaused ? '(Paused)' : 'Next job soon'}</span>
-                </div>
-
-                <button
-                  onClick={() => setTimerPaused(!timerPaused)}
-                  className="p-1 rounded-md text-[#6B7280] hover:text-[#0F1115] transition-colors"
-                  title={timerPaused ? 'Resume countdown' : 'Pause countdown'}
-                >
-                  {timerPaused ? <Play size={13} /> : <Pause size={13} />}
-                </button>
+                  style={{ width: `${(timerSecs / 15) * 100}%` }}
+                />
               </div>
-            </div>
 
-            {/* Upcoming Job Card */}
-            <div className="bg-white rounded-2xl border border-[#E8DFC9] p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-center justify-between gap-5">
-              {/* Garment Image & Details */}
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <div className="relative size-20 sm:size-24 rounded-xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0">
-                  <img
-                    src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                    alt={currentBroadcast.garmentName}
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute bottom-1 right-1 font-mono text-[9px] font-bold bg-black/75 text-white px-1.5 py-0.5 rounded">
-                    {currentBroadcast.id}
-                  </span>
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="font-bold text-base text-[#0F1115] truncate">{currentBroadcast.garmentName}</h3>
-                    <span className="text-xs font-bold text-[#9E593B] bg-[#FAF4EB] px-2 py-0.5 rounded-md border border-[#E8DFC9]">
-                      {currentBroadcast.serviceName}
-                    </span>
+              {/* Card Header Strip */}
+              <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[#F0EBE1]">
+                {/* Left: Broadcast Status + Queue Indicators */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    {currentBroadcast.isRealCustomerOrder ? (
+                      <span className="relative flex size-2.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full size-2.5 bg-emerald-500" />
+                      </span>
+                    ) : (
+                      <span className="size-2 rounded-full bg-amber-500 shrink-0" />
+                    )}
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
-                        currentBroadcast.fittingType === 'NEED_STUDIO_FITTING'
-                          ? 'bg-purple-50 text-purple-800 border-purple-200'
-                          : 'bg-blue-50 text-blue-800 border-blue-200'
+                      className={`text-[11px] font-extrabold uppercase tracking-wider ${
+                        currentBroadcast.isRealCustomerOrder ? 'text-emerald-700' : 'text-[#9E593B]'
                       }`}
                     >
-                      {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? 'In-Shop Fitting' : 'Pre-Pinned'}
+                      {currentBroadcast.isRealCustomerOrder ? 'LIVE CUSTOMER REQUEST' : 'LIVE JOB BROADCAST'}
                     </span>
+                    {currentBroadcast.isRealCustomerOrder && (
+                      <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Customer Waiting
+                      </span>
+                    )}
                   </div>
 
-                  <p className="text-xs text-[#4B5563] line-clamp-1 italic bg-[#FAF8F5] p-1.5 rounded-lg border border-[#E8E1D5]">
-                    "{currentBroadcast.fitNotes}"
-                  </p>
+                  <div className="h-3.5 w-px bg-[#E5DFD5]" />
 
-                  <div className="flex items-center gap-4 text-xs text-[#6B7280] mt-2">
-                    <span className="flex items-center gap-1 font-medium">
-                      <User size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.customerName}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.customerArea}</span>
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} className="text-[#9CA3AF]" />
-                      <span>{currentBroadcast.slaHours}h turnaround</span>
+                  {/* Segmented Queue Navigation Pills */}
+                  <div className="flex items-center gap-1.5">
+                    {allBroadcasts.map((b, idx) => (
+                      <button
+                        key={b.id}
+                        onClick={() => {
+                          setBroadcastIdx(idx)
+                          setTimerSecs(15)
+                        }}
+                        className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                          idx === broadcastIdx % allBroadcasts.length
+                            ? b.isRealCustomerOrder
+                              ? 'w-5 bg-emerald-600'
+                              : 'w-5 bg-[#9E593B]'
+                            : 'w-2 bg-[#E5DFD5] hover:bg-[#D1D5DB]'
+                        }`}
+                        title={`View ${b.garmentName}`}
+                      />
+                    ))}
+                    <span className="text-xs font-semibold text-[#52525B] ml-1.5">
+                      Job {(broadcastIdx % allBroadcasts.length) + 1} of {allBroadcasts.length}
                     </span>
                   </div>
+                </div>
+
+                {/* Right: Integrated Timer Badge */}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#E8DFC9] bg-white text-xs font-mono font-bold text-[#52525B]">
+                  <Clock
+                    size={12}
+                    className={currentBroadcast.isRealCustomerOrder ? 'text-emerald-600' : 'text-[#9E593B]'}
+                  />
+                  <span>{timerSecs}s</span>
+                  <span className="text-[11px] font-sans font-normal text-[#71717A]">
+                    {timerPaused ? '(Paused)' : 'Next broadcast'}
+                  </span>
                 </div>
               </div>
 
-              {/* Payout & Actions */}
-              <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#E8E1D5] shrink-0">
-                <div className="text-left md:text-right">
-                  <div className="text-xs text-[#6B7280] font-semibold">You Earn</div>
-                  <div className="text-2xl font-black text-emerald-700">${currentBroadcast.partnerPayout}</div>
+              {/* Card Body */}
+              <div className="p-4 sm:p-5 flex flex-col lg:flex-row items-center justify-between gap-5">
+                {/* Left: Garment Image & Core Details */}
+                <div className="flex items-start gap-4 flex-1 min-w-0 w-full">
+                  <div className="relative size-20 sm:size-22 rounded-xl overflow-hidden bg-stone-100 border border-[#E8E1D5] shrink-0 shadow-2xs">
+                    <img
+                      src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                      alt={currentBroadcast.garmentName}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute bottom-1 right-1 font-mono text-[9px] font-bold bg-black/80 backdrop-blur-xs text-white px-1.5 py-0.5 rounded">
+                      {currentBroadcast.id}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-w-0 space-y-2">
+                    {/* Row 1: Title + Brand */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-base text-[#0F1115] truncate">
+                        {currentBroadcast.garmentName}
+                      </h3>
+                      {currentBroadcast.garmentBrand && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#4B5563] bg-[#F4F4F5] border border-[#E4E4E7] px-2 py-0.5 rounded-md">
+                          <Tag size={10} className="text-[#71717A]" />
+                          <span>{currentBroadcast.garmentBrand}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Row 2: Service Tag & Fitting Tag */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] bg-[#FAF4EB] border border-[#E8DFC9] px-2.5 py-0.5 rounded-md">
+                        <Scissors size={11} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.serviceName}</span>
+                      </span>
+
+                      {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-md bg-[#FAF5FF] text-[#6B21A8] border border-[#E9D5FF]">
+                          <Ruler size={11} className="text-[#9333EA]" />
+                          <span>Fitting in Store</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-md bg-[#ECFDF5] text-[#065F46] border border-[#A7F3D0]">
+                          <CheckCircle2 size={11} className="text-[#059669]" />
+                          <span>Pre-Pinned</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Row 3: Fit Notes Quote */}
+                    <p className="text-xs text-[#52525B] line-clamp-1 italic bg-[#FAF8F5] px-3 py-1.5 rounded-lg border border-[#E8E1D5]">
+                      "{currentBroadcast.fitNotes}"
+                    </p>
+
+                    {/* Row 4: Meta Specs */}
+                    <div className="flex items-center gap-4 text-xs text-[#71717A] pt-0.5 flex-wrap">
+                      <span className="flex items-center gap-1 font-medium text-[#18181B]">
+                        <User size={12} className="text-[#9CA3AF]" />
+                        <span>{currentBroadcast.customerName}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} className="text-[#9CA3AF]" />
+                        <span>{currentBroadcast.customerArea}</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-semibold text-[#0F1115] bg-[#FAF4EB] border border-[#E8DFC9] px-2.5 py-0.5 rounded-md text-[11px]">
+                        <Clock size={11} className="text-[#9E593B]" />
+                        <span>{currentBroadcast.slaHours}h Turnaround</span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleSkipBroadcast}
-                    className="px-3.5 py-2 rounded-xl border border-[#D1D5DB] text-xs font-bold text-[#4B5563] hover:bg-[#FAF8F5] transition-colors"
-                  >
-                    Skip
-                  </button>
-                  <button
-                    onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                    className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
-                  >
-                    <Zap size={13} className="text-amber-300" />
-                    <span>Accept Job (${currentBroadcast.partnerPayout})</span>
-                  </button>
+                {/* Right: Payout & Actions */}
+                <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between w-full lg:w-auto gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-[#E8E1D5] shrink-0 pl-0 lg:pl-6 lg:border-l lg:border-[#E8E1D5]">
+                  <div className="text-left lg:text-right">
+                    <div className="text-[10px] uppercase tracking-wider text-[#71717A] font-extrabold">
+                      YOU EARN
+                    </div>
+                    <div className="text-3xl font-black text-[#047857] leading-tight">
+                      ${currentBroadcast.partnerPayout}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSkipBroadcast(currentBroadcast)}
+                      className="px-4 py-2 rounded-full border border-[#D1D5DB] bg-white text-xs font-bold text-[#374151] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                    >
+                      {currentBroadcast.isRealCustomerOrder ? 'Decline' : 'Skip'}
+                    </button>
+                    <button
+                      onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                      className={`px-5 py-2.5 rounded-full text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap active:scale-95 ${
+                        currentBroadcast.isRealCustomerOrder
+                          ? 'bg-emerald-600 hover:bg-emerald-500'
+                          : 'bg-[#0F1115] hover:bg-[#9E593B]'
+                      }`}
+                    >
+                      <Zap size={13} className="text-amber-300 fill-amber-300" />
+                      <span>
+                        Accept {currentBroadcast.isRealCustomerOrder ? 'Request' : 'Job'} ($
+                        {currentBroadcast.partnerPayout})
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
