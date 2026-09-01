@@ -26,7 +26,7 @@ export function StudioHeader({ user, onOpenAuth, onSignOut }: StudioHeaderProps)
   return (
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
-        
+
         {/* Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-5 shrink-0">
           <a
@@ -56,7 +56,7 @@ export function StudioHeader({ user, onOpenAuth, onSignOut }: StudioHeaderProps)
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-          
+
           {/* Link back to Main Customer Site (Port 3000) */}
           <a
             href={customerSiteUrl}

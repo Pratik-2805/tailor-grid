@@ -211,7 +211,6 @@ export async function signUpUser(data: {
     }
     return { token: 'mock_token_' + Date.now(), user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
-  return result
 }
 
 export async function loginUser(data: {
@@ -253,7 +252,6 @@ export async function loginUser(data: {
     }
     return { token: 'mock_token_' + Date.now(), user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
-  return result
 }
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -268,7 +266,7 @@ export async function getCurrentUser(): Promise<User | null> {
       const data = await res.json()
       if (data.user) return data.user
     }
-  } catch (err) {}
+  } catch (err) { }
 
   return null
 }
