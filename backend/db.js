@@ -4,63 +4,8 @@ const path = require('path');
 const DB_FILE = path.join(__dirname, 'data_store.json');
 
 const INITIAL_DATA = {
-  users: [
-    {
-      id: 'usr_demo',
-      name: 'Sarah Jenkins',
-      email: 'sarah.jenkins@example.com',
-      contact: 'sarah.jenkins@example.com',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      address: '18 Kensington Church St',
-      postcode: 'W8 4EP',
-      method: 'google',
-      createdAt: new Date().toISOString()
-    }
-  ],
-  orders: [
-    {
-      id: 'TG-849201',
-      customerName: 'Sarah Jenkins',
-      customerEmail: 'sarah.jenkins@example.com',
-      customerPhone: '+44 7700 900077',
-      postcode: 'W8 4EP',
-      garmentId: 'trousers',
-      garmentName: 'Trousers & Jeans',
-      serviceId: 'trouser-hem',
-      serviceName: 'Standard Hem Adjustment',
-      storeId: 'store-1',
-      storeName: 'Kensington Bespoke Atelier',
-      date: '2026-08-28',
-      timeSlot: '14:00 - 15:00',
-      garmentBrand: 'Reiss',
-      fitNotes: 'Slim taper down to 14 inch leg opening',
-      status: 'Work in Progress',
-      price: 22,
-      otp: '4829',
-      createdAt: new Date(Date.now() - 86400000).toISOString()
-    },
-    {
-      id: 'TG-739102',
-      customerName: 'Sarah Jenkins',
-      customerEmail: 'sarah.jenkins@example.com',
-      customerPhone: '+44 7700 900077',
-      postcode: 'W8 4EP',
-      garmentId: 'jackets',
-      garmentName: 'Suits & Blazers',
-      serviceId: 'jacket-sleeves',
-      serviceName: 'Sleeve Shortening (Unlined)',
-      storeId: 'store-1',
-      storeName: 'Kensington Bespoke Atelier',
-      date: '2026-08-20',
-      timeSlot: '11:00 - 12:00',
-      garmentBrand: 'Hugo Boss',
-      fitNotes: 'Show 0.5 inches of shirt cuff',
-      status: 'Collected',
-      price: 35,
-      otp: '9120',
-      createdAt: new Date(Date.now() - 600000000).toISOString()
-    }
-  ],
+  users: [],
+  orders: [],
   services: [
     {
       id: 'trousers',

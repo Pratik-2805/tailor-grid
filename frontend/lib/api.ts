@@ -252,6 +252,7 @@ export async function signUpUser(data: {
     }
     return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
+  return result
 }
 
 export async function loginUser(data: {
@@ -301,6 +302,7 @@ export async function loginUser(data: {
     }
     return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
+  return result
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User }> {
@@ -444,30 +446,8 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
 
     return await res.json()
   } catch (err: any) {
-    const closestStore = getClosestStoreForLocation(orderData.city || orderData.postcode || orderData.customerAddress)
-    const newOrder: FittingBooking = {
-      id: `TG-${Math.floor(100000 + Math.random() * 900000)}`,
-      customerName: orderData.customerName || 'Customer',
-      customerEmail: orderData.customerEmail || 'customer@example.com',
-      customerPhone: orderData.customerPhone || '+44 7700 900000',
-      postcode: orderData.postcode || closestStore.postcode,
-      garmentId: orderData.garmentId || 'trousers',
-      garmentName: orderData.garmentName || 'Trousers & Jeans',
-      serviceId: orderData.serviceId || 'trouser-hem',
-      serviceName: orderData.serviceName || 'Standard Hemming',
-      storeId: orderData.storeId || closestStore.id,
-      storeName: orderData.storeName || closestStore.name,
-      storeAddress: (orderData.storeAddress || closestStore.address) + (closestStore.area ? `, ${closestStore.area}` : ''),
-      date: orderData.date || new Date().toISOString().split('T')[0],
-      timeSlot: orderData.timeSlot || '14:00 - 15:00',
-      garmentBrand: orderData.garmentBrand || '',
-      fitNotes: orderData.fitNotes || '',
-      status: 'Allocated',
-      price: orderData.price || 25,
-      otp: Math.floor(1000 + Math.random() * 9000).toString(),
-      createdAt: new Date().toISOString(),
-    }
-    return { success: true, order: newOrder }
+    console.error('Create order error:', err)
+    throw err
   }
 }
 
@@ -489,7 +469,7 @@ export async function fetchStores(search?: string): Promise<StoreOption[]> {
     }
     return PARTNER_STORES
   } catch (err) {
-    console.warn('Using fallback partner stores:', err)
-    return PARTNER_STORES
+    console.warn('Failed to fetch stores:', err)
+    return []
   }
 }

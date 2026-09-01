@@ -172,21 +172,19 @@ export function FindingStudioModal({
         const orderData = await fetchOrderById(currentId)
         if (orderData && orderData.status === 'Accepted') {
           // Found studio match!
-          let matched = storesList.find(
+          let matched: StoreOption | null = storesList.find(
             (s) => s.id === orderData.storeId || s.name.toLowerCase() === orderData.storeName?.toLowerCase()
-          )
-          if (!matched) {
-            matched = getClosestStoreForLocation(city)
+          ) || getClosestStoreForLocation(city, storesList) || null
+
+          if (matched) {
+            setIsAccepted(true)
+            setMatchedStore(matched)
+            setCreatedOrder(orderData)
+
+            setTimeout(() => {
+              onMatched(matched, orderData)
+            }, 1800)
           }
-
-          setIsAccepted(true)
-          setMatchedStore(matched)
-          setCreatedOrder(orderData)
-
-          // Smooth delay to showcase celebratory animation before navigating
-          setTimeout(() => {
-            onMatched(matched!, orderData)
-          }, 1800)
         }
       } catch (pollErr) {
         // Continue polling
@@ -198,8 +196,9 @@ export function FindingStudioModal({
 
   // 6. Manual Simulator Trigger (for instant testing without 2nd screen)
   const handleSimulateStudioAccept = async () => {
-    const chosenStore = getClosestStoreForLocation(city) || storesList[0] || PARTNER_STORES[0]
-    const currentId = orderIdRef.current || (createdOrder && createdOrder.id) || `TG-DEMO`
+    const chosenStore = getClosestStoreForLocation(city, storesList) || storesList[0]
+    if (!chosenStore) return
+    const currentId = orderIdRef.current || (createdOrder && createdOrder.id) || `TG-DISPATCH`
 
     try {
       await updateOrder(currentId, {

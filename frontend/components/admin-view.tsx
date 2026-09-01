@@ -1,13 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle2, ChevronRight, DollarSign, Download, Filter, RefreshCw, Scissors, ShieldAlert, ShoppingBag, Store, TrendingUp, Users } from 'lucide-react'
-import { PARTNER_STORES, type Screen } from './data'
+import { type Screen, type StoreOption } from './data'
+import { fetchStores } from '@/lib/api'
 
 export function AdminView({ go }: { go: (s: Screen) => void }) {
   const [filterStatus, setFilterStatus] = useState('All Orders')
   const [reportExported, setReportExported] = useState(false)
   const [selectedStudioOverride, setSelectedStudioOverride] = useState<string | null>(null)
+  const [stores, setStores] = useState<StoreOption[]>([])
+
+  useEffect(() => {
+    fetchStores().then((st) => {
+      if (st) setStores(st)
+    }).catch(() => {})
+  }, [])
 
   const rows = [
     { id: 'TG-1048', customer: 'Camilla H.', store: 'Atelier SoHo', garment: 'Jeans Hemming', status: 'Work in Progress', price: '$28.00', payout: '$21.00', retail: 'Yes ($65)' },
@@ -179,7 +187,7 @@ export function AdminView({ go }: { go: (s: Screen) => void }) {
 
               <div className="my-5 space-y-2">
                 <label className="block text-xs font-semibold text-[#18191B]">Reallocate to Partner Studio:</label>
-                {PARTNER_STORES.map((st) => (
+                {stores.map((st) => (
                   <button
                     key={st.id}
                     onClick={() => setSelectedStudioOverride(null)}

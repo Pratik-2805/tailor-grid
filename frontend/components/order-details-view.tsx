@@ -167,24 +167,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         }
       }
 
-      // 3. Fallback mock order if not found
+      // 3. Complete loading
       if (isMounted) {
-        const defaultStore = getClosestStoreForLocation()
-        setOrder({
-          id: slugId || 'ORD-6154',
-          otp: slugId.replace(/[^0-9]/g, '') || '6154',
-          customerName: 'Gaurav Rai',
-          storeName: defaultStore.name,
-          storeAddress: defaultStore.address + (defaultStore.area ? `, ${defaultStore.area}` : ''),
-          garmentId: 'trousers',
-          garmentName: 'Trousers & Jeans',
-          serviceName: 'Shorten Hem (Plain)',
-          measurements: {
-            inseam: '30 in',
-            waist: '32 in',
-          },
-          notes: 'Shorten length with clean finish, slight shoe break',
-        })
         setIsLoading(false)
       }
     }
@@ -197,13 +181,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }, [slugId])
 
   const closestStore = getClosestStoreForLocation(order?.city || order?.storeAddress || order?.postcode)
-  const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '6154')
+  const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '0000')
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
-  const storeNameDisplay = (order?.storeName && !order.storeName.includes('Atelier SoHo') ? order.storeName : closestStore.name)
-  const storeAddressDisplay = (order?.storeAddress && !order.storeAddress.includes('480 Broadway') ? order.storeAddress : closestStore.address)
+  const storeNameDisplay = order?.storeName || closestStore?.name || 'Local Partner Atelier'
+  const storeAddressDisplay = order?.storeAddress || (closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio')
   const cleanStudioBadgeName = storeNameDisplay
-  const garmentDisplay = order?.garmentName || order?.garmentId || 'Trousers & Jeans'
-  const serviceDisplay = order?.serviceName || 'Shorten Hem (Plain)'
+  const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
+  const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
 
   const destinationCoords = closestStore?.coords || { lat: 19.3705, lng: 72.8228 }
   const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
@@ -211,7 +195,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
   // Calculate real accurate distance and walking/driving ETA
   useEffect(() => {
-    let distanceMiles = closestStore.distanceMiles || 0.3
+    let distanceMiles = closestStore?.distanceMiles || 0.3
     if (userCoords && destinationCoords) {
       const computed = calculateHaversineDistanceMiles(
         userCoords.lat,
@@ -272,25 +256,20 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         (pos) => {
           const { latitude, longitude } = pos.coords
           setUserCoords({ lat: latitude, lng: longitude })
-          const closestStore = getClosestStoreForLocation(`${latitude},${longitude}`) || PARTNER_STORES[0]
-
-          setOrder((prev: any) => ({
-            ...prev,
-            storeName: closestStore.name,
-            storeAddress: closestStore.address + (closestStore.area ? `, ${closestStore.area}` : ''),
-            city: closestStore.area || 'Current Spot',
-          }))
+          const store = getClosestStoreForLocation(`${latitude},${longitude}`)
+          if (store) {
+            setOrder((prev: any) => ({
+              ...prev,
+              storeName: store.name,
+              storeAddress: store.address + (store.area ? `, ${store.area}` : ''),
+              city: store.area || 'Current Spot',
+            }))
+          }
           setIsLocating(false)
         },
         (err) => {
           console.warn('Geolocation failed:', err)
           setIsLocating(false)
-          const closestStore = getClosestStoreForLocation('vasai')
-          setOrder((prev: any) => ({
-            ...prev,
-            storeName: closestStore.name,
-            storeAddress: closestStore.address + (closestStore.area ? `, ${closestStore.area}` : ''),
-          }))
         },
         { timeout: 10000, enableHighAccuracy: true }
       )
