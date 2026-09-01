@@ -1,0 +1,254 @@
+'use client'
+
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { getCurrentUser, getStudioUrl } from '@/lib/api'
+import type { Screen, StoreOption, User } from './data'
+
+interface AppContextType {
+  user: User | null
+  setUser: (u: User | null) => void
+  isAuthOpen: boolean
+  authRole: 'CUSTOMER' | 'STUDIO'
+  authType: 'signin' | 'signup'
+  openAuth: (role?: 'CUSTOMER' | 'STUDIO', type?: 'signin' | 'signup') => void
+  closeAuth: () => void
+  isProfileOpen: boolean
+  setIsProfileOpen: (open: boolean) => void
+  navigate: (screen: Screen | string) => void
+  handleAuthSuccess: (user: User) => void
+  handleSignOut: () => void
+  measurementDraft: {
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+    measurements?: Record<string, string>
+    brand?: string
+    notes?: string
+    fittingMode?: string
+  }
+  setMeasurementDraft: React.Dispatch<React.SetStateAction<{
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+    measurements?: Record<string, string>
+    brand?: string
+    notes?: string
+    fittingMode?: string
+  }>>
+  createdOrderId: string
+  setCreatedOrderId: (id: string) => void
+  prefilledPostcode: string
+  setPrefilledPostcode: (p: string) => void
+  prefilledGarmentId: string
+  setPrefilledGarmentId: (g: string) => void
+  prefilledServiceId: string | undefined
+  setPrefilledServiceId: (s: string | undefined) => void
+  prefilledStore: StoreOption | undefined
+  setPrefilledStore: (s: StoreOption | undefined) => void
+  confirmedMeasurements: Record<string, string> | undefined
+  setConfirmedMeasurements: (m: Record<string, string> | undefined) => void
+  garmentBrand: string | undefined
+  setGarmentBrand: (b: string | undefined) => void
+  garmentNotes: string | undefined
+  setGarmentNotes: (n: string | undefined) => void
+}
+
+const AppContext = createContext<AppContextType | null>(null)
+
+export function AppProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_user')
+      if (stored) {
+        try {
+          return JSON.parse(stored)
+        } catch {}
+      }
+    }
+    return null
+  })
+
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
+  const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [createdOrderId, setCreatedOrderId] = useState('ORD-2654')
+
+  const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
+  const [prefilledGarmentId, setPrefilledGarmentId] = useState('trousers')
+  const [prefilledServiceId, setPrefilledServiceId] = useState<string | undefined>()
+  const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
+  const [confirmedMeasurements, setConfirmedMeasurements] = useState<Record<string, string> | undefined>()
+  const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
+  const [garmentNotes, setGarmentNotes] = useState<string | undefined>()
+
+  const [measurementDraft, setMeasurementDraft] = useState<{
+    city: string
+    garmentId: string
+    serviceId: string
+    pickupOption: 'now' | 'schedule'
+    scheduleDate: Date
+    scheduleTime: string
+    images: string[]
+    measurements?: Record<string, string>
+    brand?: string
+    notes?: string
+    fittingMode?: string
+  }>({
+    city: 'Mumbai, IN',
+    garmentId: 'trousers',
+    serviceId: 'trouser-hem-plain',
+    pickupOption: 'now',
+    scheduleDate: new Date(),
+    scheduleTime: '03:30 PM',
+    images: [],
+  })
+
+  // Sync current user session on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const authParam = params.get('auth')
+      if (authParam === 'required' || authParam === 'signin') {
+        openAuth('CUSTOMER', 'signin')
+      }
+    }
+
+    getCurrentUser().then((u) => {
+      if (u) {
+        setUser(u)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(u))
+        }
+      }
+    })
+  }, [])
+
+  const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
+    setAuthRole(role)
+    setAuthType(type)
+    setIsAuthOpen(true)
+  }
+
+  const closeAuth = () => {
+    setIsAuthOpen(false)
+  }
+
+  const handleAuthSuccess = (loggedUser: User) => {
+    setUser(loggedUser)
+    setIsAuthOpen(false)
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_user_role', loggedUser.role || 'CUSTOMER')
+      localStorage.setItem('tg_user', JSON.stringify(loggedUser))
+    }
+
+    if (loggedUser.role === 'STUDIO') {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+      window.location.href = getStudioUrl('/', token)
+    }
+  }
+
+  const handleSignOut = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
+      localStorage.removeItem('tg_screen')
+    }
+    setUser(null)
+    setIsAuthOpen(false)
+    router.push('/')
+  }
+
+  const navigate = (screenOrPath: Screen | string) => {
+    if (screenOrPath === 'confirm-measurement' || screenOrPath === '/confirm-measurement') {
+      if (!user || !user.phone) {
+        openAuth('CUSTOMER', user ? 'signup' : 'signin')
+        return
+      }
+      router.push('/confirm-measurement')
+      return
+    }
+
+    if (screenOrPath === 'order' || screenOrPath.startsWith('/order')) {
+      if (!user || !user.phone) {
+        openAuth('CUSTOMER', user ? 'signup' : 'signin')
+        return
+      }
+      if (screenOrPath.startsWith('/order/')) {
+        router.push(screenOrPath)
+        return
+      }
+      const orderId = createdOrderId || 'ORD-2654'
+      router.push(`/order/${orderId}`)
+      return
+    }
+
+    if (screenOrPath === 'home' || screenOrPath === '/') {
+      router.push('/')
+      return
+    }
+
+    const target = screenOrPath.startsWith('/') ? screenOrPath : `/${screenOrPath}`
+    router.push(target)
+  }
+
+  return (
+    <AppContext.Provider
+      value={{
+        user,
+        setUser,
+        isAuthOpen,
+        authRole,
+        authType,
+        openAuth,
+        closeAuth,
+        isProfileOpen,
+        setIsProfileOpen,
+        navigate,
+        handleAuthSuccess,
+        handleSignOut,
+        measurementDraft,
+        setMeasurementDraft,
+        createdOrderId,
+        setCreatedOrderId,
+        prefilledPostcode,
+        setPrefilledPostcode,
+        prefilledGarmentId,
+        setPrefilledGarmentId,
+        prefilledServiceId,
+        setPrefilledServiceId,
+        prefilledStore,
+        setPrefilledStore,
+        confirmedMeasurements,
+        setConfirmedMeasurements,
+        garmentBrand,
+        setGarmentBrand,
+        garmentNotes,
+        setGarmentNotes,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  )
+}
+
+export function useApp() {
+  const context = useContext(AppContext)
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider')
+  }
+  return context
+}

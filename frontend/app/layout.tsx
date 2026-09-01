@@ -2,6 +2,8 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { AppProvider } from '@/components/app-provider'
+import { ClientLayout } from '@/components/client-layout'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -49,7 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} scroll-smooth`}>
       <body className="font-sans antialiased bg-[#FAF8F5] text-[#1D2024] selection:bg-[#18191B]/15 selection:text-[#18191B]">
-        {children}
+        <AppProvider>
+          <ClientLayout>{children}</ClientLayout>
+        </AppProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
