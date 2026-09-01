@@ -285,12 +285,12 @@ router.post('/verify-otp', async (req, res) => {
         // Strict role validation
         if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
           return res.status(403).json({
-            error: 'This mobile number is registered as a Customer account. Please sign in via the Customer portal or register a new Studio partner account.',
+            error: 'Access Denied! Login with an another account.',
           });
         }
         if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
           return res.status(403).json({
-            error: 'This mobile number is registered as a Studio Partner. Please sign in via the Studio Partner portal.',
+            error: 'Access Denied! Login with an another account.',
           });
         }
         user = existingUser;
@@ -458,12 +458,12 @@ router.post('/google', async (req, res) => {
     if (existingUser) {
       if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
         return res.status(403).json({
-          error: 'This Google account is registered as a Customer account. Please sign in via the Customer portal or register a new Studio Partner account.',
+          error: 'Access Denied! Login with an another account.',
         });
       }
       if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
         return res.status(403).json({
-          error: 'This Google account is registered as a Studio Partner. Please sign in via the Studio Partner portal.',
+          error: 'Access Denied! Login with an another account.',
         });
       }
     }
@@ -521,7 +521,7 @@ router.post('/signup', async (req, res) => {
       if (existingEmail) {
         if (existingEmail.role !== role) {
           return res.status(409).json({
-            error: `This email is already registered as a ${existingEmail.role === 'STUDIO' ? 'Studio Partner' : 'Customer'}. Please sign in to the corresponding portal.`,
+            error: 'Access Denied! Login with an another account.',
           });
         }
         return res.status(409).json({
@@ -540,7 +540,7 @@ router.post('/signup', async (req, res) => {
       if (existingPhone) {
         if (existingPhone.role !== role) {
           return res.status(409).json({
-            error: `This mobile number is already registered as a ${existingPhone.role === 'STUDIO' ? 'Studio Partner' : 'Customer'}. Please sign in to the corresponding portal.`,
+            error: 'Access Denied! Login with an another account.',
           });
         }
         return res.status(409).json({
@@ -604,13 +604,13 @@ router.post('/login', async (req, res) => {
     // Role verification
     if (role === 'STUDIO' && user.role !== 'STUDIO') {
       return res.status(403).json({
-        error: 'This account is registered as a Customer. Please sign in at the Customer portal or register as a Studio Partner.',
+        error: 'Access Denied! Login with an another account.',
       });
     }
 
     if (role === 'CUSTOMER' && user.role === 'STUDIO') {
       return res.status(403).json({
-        error: 'This account is registered as a Studio Partner. Please sign in at the Studio Partner portal.',
+        error: 'Access Denied! Login with an another account.',
       });
     }
 

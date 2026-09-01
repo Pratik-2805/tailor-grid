@@ -340,8 +340,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
         <div className="px-6 py-5 space-y-5">
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-xs text-red-700 font-medium">
-              {error}
+            <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug flex items-center gap-2.5 shadow-sm animate-in fade-in">
+              <span className="text-lg shrink-0">⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 

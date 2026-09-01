@@ -448,10 +448,11 @@ export function AuthModal({
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* Subtle Error Banner */}
+          {/* Error Banner */}
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-100 px-3.5 py-2.5 text-xs text-red-700 font-medium animate-in fade-in">
-              {error}
+            <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug flex items-center gap-2.5 shadow-sm animate-in fade-in">
+              <span className="text-lg shrink-0">⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
