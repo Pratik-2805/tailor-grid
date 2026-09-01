@@ -164,7 +164,7 @@ export function AboutView({ go }: AboutViewProps) {
                   How to use Darzi
                 </button>
                 <button
-                  onClick={() => go('booking')}
+                  onClick={() => go('home')}
                   className="text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
                 >
                   Our services
@@ -186,7 +186,7 @@ export function AboutView({ go }: AboutViewProps) {
 
               <div className="mt-6">
                 <button
-                  onClick={() => go('booking')}
+                  onClick={() => go('home')}
                   className="text-xs font-bold text-[#0F1115] underline hover:text-[#9E593B] transition-colors inline-flex items-center gap-1.5"
                 >
                   <span>Start tailoring your wardrobe</span>

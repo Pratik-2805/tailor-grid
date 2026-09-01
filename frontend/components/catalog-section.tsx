@@ -32,7 +32,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
             </p>
           </div>
           <button
-            onClick={() => go('booking')}
+            onClick={() => go('confirm-measurement')}
             className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
           >
             Custom order request <ArrowRight size={13} />
@@ -47,10 +47,10 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
               <button
                 key={c.id}
                 onClick={() => setActiveCategoryId(c.id)}
-                className={`rounded-full px-5 py-2.5 text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                className={`whitespace-nowrap rounded-full px-5 py-2 text-xs font-bold transition-all ${
                   active
-                    ? 'bg-[#0F1115] text-white shadow-sm'
-                    : 'bg-white text-[#4B5563] border border-[#E5E7EB] hover:border-[#D1D5DB]'
+                    ? 'bg-[#0F1115] text-white shadow-xs'
+                    : 'bg-white border border-[#E8E1D5] text-[#5A5D64] hover:border-[#9E593B] hover:text-[#0F1115]'
                 }`}
               >
                 {c.name}
@@ -59,59 +59,39 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
           })}
         </div>
 
-        {/* Active Category Info Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white border border-[#E5E7EB] mb-6 shadow-2xs">
-          <div>
-            <span className="text-xs font-bold text-[#0F1115] block">{cat.name} Alterations</span>
-            <p className="text-xs text-[#6B7280] mt-0.5">{cat.tagline}</p>
-          </div>
-          <div className="flex items-center gap-4 text-xs font-semibold text-[#0F1115]">
-            <span className="flex items-center gap-1.5 text-[#6B7280]">
-              <Clock size={13} className="text-[#9E593B]" /> Avg. {cat.avgTurnaround}
-            </span>
-            <span className="px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#EBE6DF] text-[#9E593B]">
-              Starting at ${cat.startingPrice}
-            </span>
-          </div>
-        </div>
-
-        {/* Service cards — clean list with price & direct book button */}
-        <div className="grid gap-3.5">
+        {/* Services List for Category */}
+        <div className="space-y-3">
           {cat.popularServices.map((svc) => (
             <div
               key={svc.id}
-              className="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl p-5 sm:px-6 border border-[#E5E7EB] transition-all duration-200 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:border-[#D1D5DB]"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white border border-[#E8E1D5] hover:border-[#9E593B] hover:shadow-xs transition-all"
             >
-              <div className="flex items-start gap-3.5">
-                <div className="size-9 rounded-xl bg-[#FAF8F5] grid place-items-center shrink-0 border border-[#EBE6DF] text-[#0F1115] mt-0.5">
-                  <Check size={16} className="text-[#9E593B]" />
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-serif text-lg font-bold text-[#18191B]">{svc.name}</h4>
+                  {svc.popular && (
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#FAF8F5] text-[#9E593B] border border-[#E8E1D5]">
+                      Most Popular
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-serif text-base font-bold text-[#0F1115] group-hover:text-[#9E593B] transition-colors">
-                      {svc.name}
-                    </h4>
-                    {svc.popular && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7F2] border border-[#F3D7C8] px-2 py-0.5 text-[10px] font-bold text-[#9E593B]">
-                        <Sparkles size={9} /> Popular
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-[#6B7280] mt-1 leading-relaxed max-w-[540px]">
-                    {svc.description}
-                  </p>
+                <p className="text-xs text-[#5A5D64] max-w-[500px]">{svc.description}</p>
+                <div className="flex items-center gap-4 text-[11px] text-[#7A7E85] pt-1">
+                  <span>⏱ {svc.turnaroundDays} business days</span>
+                  <span>•</span>
+                  <span>✨ 100% Free Fit Guarantee</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-6 pt-3 sm:pt-0 border-t sm:border-t-0 border-[#F3F4F6] shrink-0">
+              <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-[#F3EFEA]">
                 <div className="text-left sm:text-right">
-                  <div className="font-serif text-2xl font-bold text-[#0F1115]">${svc.customerPrice}</div>
-                  <span className="text-[11px] font-medium text-[#10B981]">{svc.turnaroundDays} days delivery</span>
+                  <span className="text-xs text-[#7A7E85] block uppercase font-medium">Standard</span>
+                  <span className="font-serif text-xl font-bold text-[#18191B]">${svc.customerPrice}</span>
                 </div>
                 <button
                   onClick={() => {
                     onSelectService?.(cat.id, svc.id)
-                    go('booking')
+                    go('confirm-measurement')
                   }}
                   className="rounded-full bg-[#0F1115] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-[#9E593B] active:scale-95 shadow-2xs"
                 >
@@ -126,7 +106,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
         <div className="mt-8 p-4 rounded-2xl bg-[#F3EFEA] border border-[#EBE6DF] text-center text-xs text-[#6B7280]">
           Looking for a custom consultation or complex bridal alteration?{' '}
           <button
-            onClick={() => go('booking')}
+            onClick={() => go('confirm-measurement')}
             className="text-[#0F1115] font-bold underline hover:text-[#9E593B] ml-1"
           >
             Book an Artisan Consultation →
@@ -137,4 +117,3 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
     </section>
   )
 }
-

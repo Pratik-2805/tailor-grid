@@ -69,7 +69,7 @@ const MVP_SERVICES = [
 export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps) {
   const handleSelect = (garmentId: string) => {
     onSelectGarment?.(garmentId)
-    go('booking')
+    go('confirm-measurement')
   }
 
   return (

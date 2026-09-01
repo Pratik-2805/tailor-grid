@@ -3,7 +3,6 @@ export type Screen =
   | 'how-it-works'
   | 'about'
   | 'for-partners'
-  | 'booking'
   | 'orders'
   | 'partner'
   | 'admin'
