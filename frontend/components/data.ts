@@ -35,6 +35,7 @@ export type User = {
   name: string
   contact: string
   email?: string
+  phone?: string
   avatar?: string
   address?: string
   postcode?: string
@@ -397,177 +398,18 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
   },
 ]
 
-// Verified Real-World Global Partner Tailor Shops
-export const PARTNER_STORES: StoreOption[] = [
-  // --- Vasai & Mumbai Region (Real Tailors) ---
-  {
-    id: 'a1-tailors-vasai',
-    name: 'New A-1 Tailor',
-    area: 'Manickpur, Vasai West',
-    address: 'Station Road, Manickpur, Vasai West, Vasai-Virar, Maharashtra 401202',
-    postcode: '401202',
-    distance: '0.3 mi away',
-    distanceMiles: 0.3,
-    rating: 4.98,
-    reviewCount: 384,
-    openingHours: 'Mon–Sat: 09:30 – 21:00',
-    dailyCapacity: 35,
-    machines: 8,
-    workers: 5,
-    leadTailor: 'Master Tailor Ramesh',
-    specialties: ['Trouser Hemming', 'Suit Alterations', 'Shirt Tailoring'],
-    retailSold: true,
-    coords: { lat: 19.3705, lng: 72.8228 },
-  },
-  {
-    id: 'mansi-tailoring-vasai',
-    name: 'Mansi Tailoring Studio',
-    area: 'Stella, Navghar, Vasai West',
-    address: 'Navghar Road, Stella, Vasai West, Maharashtra 401202',
-    postcode: '401202',
-    distance: '0.6 mi away',
-    distanceMiles: 0.6,
-    rating: 4.94,
-    reviewCount: 210,
-    openingHours: 'Mon–Sat: 10:00 – 20:00',
-    dailyCapacity: 30,
-    machines: 6,
-    workers: 4,
-    leadTailor: 'Mansi Master Tailor',
-    specialties: ['Blouse & Dress Restructuring', 'In-Studio Pinning', 'Custom Hemming'],
-    retailSold: false,
-    coords: { lat: 19.3664, lng: 72.8185 },
-  },
-  {
-    id: 'bandra-master-tailors',
-    name: 'Bandra Master Tailors',
-    area: 'Hill Road, Bandra West',
-    address: '24 Hill Road, Bandra West, Mumbai, Maharashtra 400050',
-    postcode: '400050',
-    distance: '0.9 mi away',
-    distanceMiles: 0.9,
-    rating: 4.96,
-    reviewCount: 512,
-    openingHours: 'Mon–Sat: 10:00 – 21:00',
-    dailyCapacity: 45,
-    machines: 12,
-    workers: 8,
-    leadTailor: 'Master Marco & Sunil',
-    specialties: ['Designer Alterations', 'Occasion & Suit Fitting', 'Denim Hemming'],
-    retailSold: true,
-    coords: { lat: 19.0544, lng: 72.8315 },
-  },
-
-  // --- New York Region (Real Tailors) ---
-  {
-    id: 'alteration-specialists-soho',
-    name: 'Alteration Specialists SoHo',
-    area: 'Broome St, SoHo',
-    address: '450 Broome Street, New York, NY 10013',
-    postcode: '10013',
-    distance: '0.4 mi away',
-    distanceMiles: 0.4,
-    rating: 4.97,
-    reviewCount: 420,
-    openingHours: 'Mon–Sat: 09:00 – 19:00',
-    dailyCapacity: 35,
-    machines: 8,
-    workers: 5,
-    leadTailor: 'Marco Rossi (Master Tailor)',
-    specialties: ['Denim Chainstitch', 'Suit Tailoring', 'Silk & Eveningwear'],
-    retailSold: true,
-    coords: { lat: 40.7226, lng: -74.0010 },
-  },
-  {
-    id: 'best-tailor-nyc',
-    name: 'Best Tailor NYC',
-    area: 'Lexington Ave, Upper East Side',
-    address: '1024 Lexington Avenue, New York, NY 10021',
-    postcode: '10021',
-    distance: '1.2 mi away',
-    distanceMiles: 1.2,
-    rating: 4.92,
-    reviewCount: 290,
-    openingHours: 'Mon–Sun: 10:00 – 19:00',
-    dailyCapacity: 30,
-    machines: 8,
-    workers: 5,
-    leadTailor: 'Arthur Pendelton',
-    specialties: ['24h Express Hemming', 'Trousers & Jeans', 'Zip Replacements'],
-    retailSold: false,
-    coords: { lat: 40.7716, lng: -73.9616 },
-  },
-
-  // --- London Region (Real Tailors) ---
-  {
-    id: 'kensington-tailors-uk',
-    name: 'Kensington Tailors London',
-    area: 'Kensington Church St, London',
-    address: '18 Kensington Church Street, London W8 4EP, UK',
-    postcode: 'W8 4EP',
-    distance: '0.3 mi away',
-    distanceMiles: 0.3,
-    rating: 4.98,
-    reviewCount: 390,
-    openingHours: 'Mon–Sat: 09:00 – 19:00',
-    dailyCapacity: 30,
-    machines: 8,
-    workers: 5,
-    leadTailor: 'Master Marco',
-    specialties: ['Precision Hemming', 'Bespoke Suit Alterations', 'Dresses & Skirts'],
-    retailSold: true,
-    coords: { lat: 51.5033, lng: -0.1925 },
-  },
-  {
-    id: 'gieves-hawkes-london',
-    name: 'Gieves & Hawkes Savile Row',
-    area: 'Savile Row, Mayfair, London',
-    address: '1 Savile Row, Mayfair, London W1S 3JR, UK',
-    postcode: 'W1S 3JR',
-    distance: '0.9 mi away',
-    distanceMiles: 0.9,
-    rating: 4.99,
-    reviewCount: 610,
-    openingHours: 'Mon–Sat: 09:30 – 18:30',
-    dailyCapacity: 45,
-    machines: 12,
-    workers: 8,
-    leadTailor: 'Sir Edward Sterling',
-    specialties: ['Savile Row Suiting', 'Evening Gowns', 'Coat Restructuring'],
-    retailSold: true,
-    coords: { lat: 51.5118, lng: -0.1408 },
-  },
-
-  // --- Los Angeles Region (Real Tailors) ---
-  {
-    id: 'beverly-hills-custom-tailors',
-    name: 'Beverly Hills Custom Tailors',
-    area: 'Brighton Way, Beverly Hills',
-    address: '9410 Brighton Way, Beverly Hills, CA 90210',
-    postcode: '90210',
-    distance: '0.8 mi away',
-    distanceMiles: 0.8,
-    rating: 4.98,
-    reviewCount: 450,
-    openingHours: 'Mon–Sat: 09:30 – 18:30',
-    dailyCapacity: 30,
-    machines: 8,
-    workers: 5,
-    leadTailor: 'Elena Vance (Master Seamstress)',
-    specialties: ['Dresses & Gowns', 'Blazer Structuring', 'Red Carpet Fits'],
-    retailSold: true,
-    coords: { lat: 34.0689, lng: -118.4014 },
-  },
-]
+export const PARTNER_STORES: StoreOption[] = []
 
 /** Automatically finds and assigns the closest partner tailor studio for the user's location */
-export function getClosestStoreForLocation(location?: string): StoreOption {
-  if (!location) return PARTNER_STORES[0]
+export function getClosestStoreForLocation(location?: string, customStores?: StoreOption[]): StoreOption | null {
+  const storePool = customStores && customStores.length > 0 ? customStores : PARTNER_STORES
+  if (!storePool || storePool.length === 0) return null
+  if (!location) return storePool[0] || null
   
   const query = location.toLowerCase().trim()
   
   // Filter stores matching city/area keywords
-  const matches = PARTNER_STORES.filter((st) => {
+  const matches = storePool.filter((st) => {
     const combined = `${st.name} ${st.area} ${st.address} ${st.postcode}`.toLowerCase()
     
     if ((query.includes('vasai') || query.includes('manickpur') || query.includes('virar')) && (combined.includes('vasai') || combined.includes('manickpur') || st.id.includes('vasai'))) return true
@@ -580,14 +422,12 @@ export function getClosestStoreForLocation(location?: string): StoreOption {
   })
 
   if (matches.length > 0) {
-    // Sort by distanceMiles ascending to automatically pick the closest tailor studio
     matches.sort((a, b) => a.distanceMiles - b.distanceMiles)
     return matches[0]
   }
 
-  // Fallback: Pick store with minimum distance
-  const sorted = [...PARTNER_STORES].sort((a, b) => a.distanceMiles - b.distanceMiles)
-  return sorted[0]
+  const sorted = [...storePool].sort((a, b) => a.distanceMiles - b.distanceMiles)
+  return sorted[0] || null
 }
 
 export const TESTIMONIALS = [

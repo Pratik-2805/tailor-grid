@@ -34,6 +34,7 @@ import {
   type OrderStatus,
   type Screen,
   type StoreOption,
+  type User as UserType,
 } from './data'
 import { createOrder, fetchStores } from '@/lib/api'
 
@@ -43,9 +44,30 @@ type BookingStep =
   | 'pass'
   | 'tracking'
 
+const DEFAULT_STUDIO: StoreOption = {
+  id: 'partner-atelier',
+  name: 'Local Certified Atelier',
+  area: 'Local Area',
+  address: 'Partner Atelier Studio',
+  postcode: 'Local Area',
+  distance: '0.4 mi away',
+  distanceMiles: 0.4,
+  rating: 4.95,
+  reviewCount: 150,
+  openingHours: 'Mon–Sat: 09:00 – 19:00',
+  dailyCapacity: 25,
+  machines: 6,
+  workers: 4,
+  leadTailor: 'Master Tailor',
+  specialties: ['Custom Alterations', 'Precision Hemming'],
+  retailSold: true,
+  coords: { lat: 51.5033, lng: -0.1925 },
+}
+
 interface CustomerFlowProps {
   go: (s: Screen) => void
   otp: string
+  user?: UserType | null
   initialPostcode?: string
   initialGarmentId?: string
   initialServiceId?: string
@@ -61,6 +83,7 @@ interface CustomerFlowProps {
 export function CustomerFlow({
   go,
   otp,
+  user,
   initialPostcode = 'W8 4EP',
   initialGarmentId = 'trousers',
   initialServiceId,
@@ -80,21 +103,21 @@ export function CustomerFlow({
   )
   const [timeSlot] = useState(initialTimeSlot || '11:30 AM')
   const [fittingDate] = useState(initialDate || 'Tomorrow')
-  const [brand] = useState(initialBrand || 'Levi\'s / Bespoke')
-  const [notes] = useState(initialNotes || 'Shorten length with original hem finish, slight shoe break')
-  const [customerName, setCustomerName] = useState('Camilla Harrington')
-  const [customerPhone, setCustomerPhone] = useState('+44 7700 900077')
-  const [customerEmail, setCustomerEmail] = useState('camilla.h@example.com')
+  const [brand] = useState(initialBrand || '')
+  const [notes] = useState(initialNotes || '')
+  const [customerName, setCustomerName] = useState(user?.name || '')
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || (user?.contact && !user.contact.includes('@') ? user.contact : ''))
+  const [customerEmail, setCustomerEmail] = useState(user?.email || (user?.contact && user.contact.includes('@') ? user.contact : ''))
 
   // All registered & partner studios list
-  const [allStores, setAllStores] = useState<StoreOption[]>(PARTNER_STORES)
+  const [allStores, setAllStores] = useState<StoreOption[]>([])
   const [loadingStores, setLoadingStores] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTag, setSelectedTag] = useState<'all' | 'hemming' | 'suiting' | 'dresses' | 'express' | 'top'>('all')
 
   // Selected studio
   const [allocatedStore, setAllocatedStore] = useState<StoreOption>(
-    initialStore || getClosestStoreForLocation(initialPostcode) || PARTNER_STORES[0]
+    initialStore || getClosestStoreForLocation(initialPostcode) || DEFAULT_STUDIO
   )
 
   // Fetch all registered studios from backend
@@ -107,11 +130,13 @@ export function CustomerFlow({
           if (initialStore) {
             const found = stores.find((s) => s.id === initialStore.id || s.name.toLowerCase() === initialStore.name.toLowerCase())
             if (found) setAllocatedStore(found)
+          } else if (!allocatedStore) {
+            setAllocatedStore(getClosestStoreForLocation(initialPostcode, stores) || stores[0])
           }
         }
       })
       .catch((err) => {
-        console.warn('Could not fetch dynamic stores, using defaults:', err)
+        console.warn('Could not fetch dynamic stores:', err)
       })
       .finally(() => {
         if (mounted) setLoadingStores(false)
@@ -120,7 +145,7 @@ export function CustomerFlow({
     return () => {
       mounted = false
     }
-  }, [initialStore])
+  }, [initialStore, initialPostcode])
 
   // Filtered stores based on search query and category tags
   const filteredStores = useMemo(() => {
@@ -822,13 +847,13 @@ export function CustomerFlow({
                   <div className="text-center">
                     <CheckCircle2 size={32} className="text-[#9E593B] mx-auto" />
                     <h4 className="font-serif text-xl font-bold text-[#18191B] mt-2">Thank you for rating!</h4>
-                    <p className="text-xs text-[#5A5D64] mt-1">Your 5-star review helps support {allocatedStore.name} and independent tailors.</p>
+                    <p className="text-xs text-[#5A5D64] mt-1">Your 5-star review helps support {allocatedStore?.name || 'the studio'} and independent tailors.</p>
                   </div>
                 ) : (
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B]">Step 14 · Rate Experience</span>
                     <h4 className="font-serif text-2xl font-semibold text-[#18191B] mt-1">How was your alteration fit?</h4>
-                    <p className="text-xs text-[#5A5D64] mt-1">Rate your experience with {allocatedStore.leadTailor} at {allocatedStore.name}.</p>
+                    <p className="text-xs text-[#5A5D64] mt-1">Rate your experience with {allocatedStore?.leadTailor || 'Master Tailor'} at {allocatedStore?.name || 'the partner studio'}.</p>
 
                     <div className="mt-4 flex gap-2">
                       {[1, 2, 3, 4, 5].map((star) => (

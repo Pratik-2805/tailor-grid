@@ -65,37 +65,22 @@ export async function signUpUser(data: {
   storeArea?: string
   machines?: string
 }): Promise<{ token: string; user: User }> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, role: 'STUDIO' }),
-    })
+  const res = await fetch(`${API_BASE}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...data, role: 'STUDIO' }),
+  })
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.error || 'Sign up failed')
-    }
-
-    const result = await res.json()
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
-    }
-    return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: data.name || data.storeName || 'Master Tailor',
-      contact: data.email || data.phone || 'partner@Darzi.com',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'partner')}`,
-      address: data.address || '18 Kensington Church St',
-      postcode: data.postcode || 'W8 4EP',
-      method: data.email ? 'email' : 'mobile',
-      role: 'STUDIO',
-      studioId: 'kensington-atelier',
-      studioName: data.storeName || 'Kensington Bespoke Atelier',
-    }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser }
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || 'Sign up failed')
   }
+
+  const result = await res.json()
+  if (result.token && typeof window !== 'undefined') {
+    localStorage.setItem('tg_token', result.token)
+  }
+  return result
 }
 
 export async function loginUser(data: {
@@ -103,37 +88,22 @@ export async function loginUser(data: {
   phone?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
 }): Promise<{ token: string; user: User }> {
-  try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, role: 'STUDIO' }),
-    })
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...data, role: 'STUDIO' }),
+  })
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.error || 'Login failed')
-    }
-
-    const result = await res.json()
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
-    }
-    return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: 'Master Tailor Marco',
-      contact: data.email || data.phone || 'partner@Darzi.com',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || 'partner')}`,
-      address: '18 Kensington Church St',
-      postcode: 'W8 4EP',
-      method: data.email ? 'email' : 'mobile',
-      role: 'STUDIO',
-      studioId: 'atelier-soho',
-      studioName: 'Atelier SoHo Tailors',
-    }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser }
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || 'Login failed')
   }
+
+  const result = await res.json()
+  if (result.token && typeof window !== 'undefined') {
+    localStorage.setItem('tg_token', result.token)
+  }
+  return result
 }
 
 export async function getCurrentUser(): Promise<User | null> {
