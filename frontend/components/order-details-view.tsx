@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { fetchOrderById, getCurrentUser } from '@/lib/api'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
-import CleanGoogleMap from './CleanGoogleMap'
+import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
 import { AuthModal } from './auth-modal'
@@ -66,6 +66,18 @@ interface OrderDetailsViewProps {
   onGoOrders?: () => void
 }
 
+function calculateHaversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8 // Earth radius in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
@@ -87,6 +99,21 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [pinCopied, setPinCopied] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [distanceBadge, setDistanceBadge] = useState<string>('0.3 mi • ~5 mins walk')
+
+  // Auto-detect location non-blocking if permission granted
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          setUserCoords({ lat: latitude, lng: longitude })
+        },
+        () => {},
+        { timeout: 6000, maximumAge: 60000 }
+      )
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -182,6 +209,27 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
   const cleanMapUrl = `https://maps.google.com/maps?q=${storeQuery}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`
 
+  // Calculate real accurate distance and walking/driving ETA
+  useEffect(() => {
+    let distanceMiles = closestStore.distanceMiles || 0.3
+    if (userCoords && destinationCoords) {
+      const computed = calculateHaversineDistanceMiles(
+        userCoords.lat,
+        userCoords.lng,
+        destinationCoords.lat,
+        destinationCoords.lng
+      )
+      if (!isNaN(computed) && computed > 0) {
+        distanceMiles = computed
+      }
+    }
+
+    // Calculate walking time at average speed of ~3.1 mph (19.3 mins per mile)
+    const walkMins = Math.max(1, Math.round(distanceMiles * 19.3))
+    const walkLabel = walkMins === 1 ? '1 min walk' : `${walkMins} mins walk`
+    setDistanceBadge(`${distanceMiles.toFixed(1)} mi • ~${walkLabel}`)
+  }, [userCoords, destinationCoords, closestStore])
+
   const handleCopyPin = () => {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(formattedOtp)
@@ -208,11 +256,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }
 
   const handleOpenAppMap = () => {
-    const query = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
-    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`
-    if (typeof window !== 'undefined') {
-      window.open(mapsUrl, '_blank', 'noopener,noreferrer')
-    }
+    openCarNavigation({
+      destName: storeNameDisplay,
+      destAddress: storeAddressDisplay,
+      destCoords: destinationCoords,
+      origin: order?.customerAddress || order?.address || order?.city,
+      userCoords,
+    })
   }
 
   const handleFetchCurrentLocation = () => {
@@ -515,7 +565,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </span>
                 </div>
                 <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200">
-                  0.8 mi &bull; ~5 mins walk
+                  {distanceBadge}
                 </span>
               </div>
 
@@ -523,13 +573,16 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               <div
                 onClick={handleOpenAppMap}
                 className="flex-1 min-h-[280px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
-                title="Click map to open in Google Maps"
+                title="Click map to start car navigation in your map app"
               >
                 <CleanGoogleMap
                   lat={destinationCoords.lat}
                   lng={destinationCoords.lng}
                   storeName={storeNameDisplay}
                   storeAddress={storeAddressDisplay}
+                  origin={order?.customerAddress || order?.address || order?.city}
+                  userCoords={userCoords}
+                  onMapClick={handleOpenAppMap}
                 />
 
                 {/* Floating Blue GPS Target Button */}
@@ -571,6 +624,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 type="button"
                 onClick={handleOpenAppMap}
                 className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                title="Open in Map app"
               >
                 <Navigation size={15} className="fill-white" />
                 <span>Open in App</span>

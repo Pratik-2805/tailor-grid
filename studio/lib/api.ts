@@ -2,6 +2,16 @@ import type { User, FittingBooking } from '../components/data'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
+export const CUSTOMER_SITE_URL =
+  process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
+  (process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT}` : 'http://localhost:3000')
+
+export function getCustomerSiteUrl(path: string = ''): string {
+  const base = CUSTOMER_SITE_URL.replace(/\/$/, '')
+  const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
+  return `${base}${cleanPath}`
+}
+
 export async function loginWithGoogle(params: {
   idToken?: string
   accessToken?: string

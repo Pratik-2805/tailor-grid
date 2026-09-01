@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { type Screen, type User } from './data'
+import { getStudioUrl } from '../lib/api'
 
 interface StudioSubNavProps {
   currentScreen: Screen
@@ -154,8 +155,7 @@ export function StudioSubNav({
               <button
                 onClick={() => {
                   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                  const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
-                  window.location.href = studioUrl
+                  window.location.href = getStudioUrl('/', token)
                 }}
                 className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap"
               >
@@ -166,8 +166,7 @@ export function StudioSubNav({
               <button
                 onClick={() => {
                   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                  const studioUrl = token ? `http://localhost:3001/?token=${encodeURIComponent(token)}` : 'http://localhost:3001'
-                  window.location.href = studioUrl
+                  window.location.href = getStudioUrl('/', token)
                 }}
                 className="flex items-center gap-1.5 rounded-full border border-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12.5px] font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap"
               >

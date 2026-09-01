@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react'
 import { type User } from './data'
+import { CUSTOMER_SITE_URL } from '@/lib/api'
 
 interface StudioHeaderProps {
   user?: User | null
@@ -20,7 +21,7 @@ interface StudioHeaderProps {
 
 export function StudioHeader({ user, onOpenAuth, onSignOut }: StudioHeaderProps) {
   const [open, setOpen] = useState(false)
-  const customerSiteUrl = process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL || 'http://localhost:3000'
+  const customerSiteUrl = CUSTOMER_SITE_URL
 
   return (
     <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">

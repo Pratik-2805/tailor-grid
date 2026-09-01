@@ -15,7 +15,7 @@ import {
   Zap,
   Check,
 } from 'lucide-react'
-import { createOrder, fetchOrderById, updateOrder, fetchStores } from '@/lib/api'
+import { createOrder, fetchOrderById, updateOrder, fetchStores, STUDIO_BASE_URL } from '@/lib/api'
 import { type StoreOption, PARTNER_STORES, getClosestStoreForLocation } from './data'
 
 interface FindingStudioModalProps {
@@ -391,11 +391,11 @@ export function FindingStudioModal({
               </button>
 
               <a
-                href="http://localhost:3001"
+                href={STUDIO_BASE_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="rounded-full bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold px-3 py-1.5 transition-all flex items-center gap-1"
-                title="Open Studio Workbench on Port 3001"
+                title="Open Studio Workbench"
               >
                 <span>Studio Dashboard</span>
                 <ExternalLink size={11} />

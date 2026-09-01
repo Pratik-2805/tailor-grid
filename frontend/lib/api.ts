@@ -2,6 +2,21 @@ import { type User, type FittingBooking, type StoreOption, PARTNER_STORES, getCl
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
+export const STUDIO_BASE_URL =
+  process.env.NEXT_PUBLIC_STUDIO_URL ||
+  (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
+
+export function getStudioUrl(path: string = '', token?: string | null): string {
+  const base = STUDIO_BASE_URL.replace(/\/$/, '')
+  const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
+  const url = `${base}${cleanPath}`
+  if (token) {
+    const separator = url.includes('?') ? '&' : '?'
+    return `${url}${separator}token=${encodeURIComponent(token)}`
+  }
+  return url
+}
+
 export async function loginWithGoogle(params: {
   idToken?: string
   accessToken?: string
