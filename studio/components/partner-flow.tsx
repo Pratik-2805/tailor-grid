@@ -568,49 +568,51 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   /* ═══════════════════════════════════════════════════════════════════════════ */
   /* RENDER                                                                     */
   /* ═══════════════════════════════════════════════════════════════════════════ */
+  /* LUXURY ATELIER WORKBENCH — SIGNATURE WARM CREAM & TERRACOTTA PALETTE        */
+  /* ═══════════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex h-[calc(100vh-68px)] overflow-hidden bg-[#F7F8FA]">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#FAF8F5] text-[#1E2229] font-sans antialiased">
 
       {/* ── MOBILE BACKDROP ── */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden animate-fadeIn"
+          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-xs md:hidden animate-fadeIn"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* SIDEBAR                                                                */}
+      {/* SIDEBAR — OBSIDIAN & BESPOKE TERRACOTTA ACCENTS                         */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <aside
         className={`
           fixed md:sticky top-0 md:top-0 left-0 z-50 md:z-30
-          h-full md:h-[calc(100vh-68px)]
+          h-full md:h-[calc(100vh-64px)]
           bg-[#0F1115] text-white
-          flex flex-col
+          flex flex-col border-r border-white/10
           sidebar-transition
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          ${sidebarCollapsed ? 'w-16' : 'w-[248px]'}
+          ${sidebarCollapsed ? 'w-16' : 'w-[240px]'}
         `}
       >
         {/* Sidebar Header */}
-        <div className={`flex items-center gap-3 px-4 h-16 border-b border-white/8 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 px-4 h-14 border-b border-white/10 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <>
-              <div className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#c47a56] grid place-items-center shrink-0 shadow-xs">
-                <Scissors size={16} className="text-white" />
+              <div className="size-7 rounded-lg bg-[#9E593B] text-white grid place-items-center shrink-0 shadow-xs">
+                <Scissors size={14} className="text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-sm text-white truncate leading-tight">{studioName}</div>
-                <div className="text-[10px] text-white/50 truncate flex items-center gap-1 mt-0.5">
+                <div className="font-semibold text-xs text-white truncate leading-tight">{studioName}</div>
+                <div className="text-[10px] text-stone-400 truncate flex items-center gap-1.5 mt-0.5">
                   <span className="size-1.5 rounded-full bg-emerald-400" />
-                  <span>Master Certified</span>
+                  <span>Workshop Node</span>
                 </div>
               </div>
               {/* Collapse button — desktop only */}
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="hidden md:grid size-7 place-items-center rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors cursor-pointer"
+                className="hidden md:grid size-6 place-items-center hover:bg-white/10 text-stone-400 hover:text-white rounded transition-colors cursor-pointer"
                 title="Collapse sidebar"
               >
                 <ChevronLeft size={14} />
@@ -618,7 +620,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               {/* Close button — mobile only */}
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="md:hidden grid size-7 place-items-center rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-colors cursor-pointer"
+                className="md:hidden grid size-6 place-items-center hover:bg-white/10 text-stone-400 hover:text-white rounded transition-colors cursor-pointer"
               >
                 <X size={14} />
               </button>
@@ -626,44 +628,44 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
           ) : (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#c47a56] grid place-items-center cursor-pointer hover:scale-105 transition-transform"
+              className="size-7 rounded-lg bg-[#9E593B] text-white grid place-items-center cursor-pointer hover:bg-[#8A4C32] transition-colors shadow-xs"
               title="Expand sidebar"
             >
-              <Scissors size={16} className="text-white" />
+              <Scissors size={14} />
             </button>
           )}
         </div>
 
         {/* Online Toggle */}
-        <div className={`px-3 py-3 border-b border-white/8 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+        <div className={`p-2.5 border-b border-white/10 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <button
               onClick={() => setOnline(!online)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
                 online
-                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                  : 'bg-white/5 text-white/50 hover:bg-white/10'
+                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40 hover:bg-emerald-900/40'
+                  : 'bg-stone-900 text-stone-400 border-stone-800 hover:bg-stone-800'
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
-                <span>{online ? 'BENCH ONLINE' : 'BENCH PAUSED'}</span>
+                <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
+                <span>{online ? 'Grid Active' : 'Workbench Paused'}</span>
               </div>
-              <span className="text-[10px] text-white/40">{online ? 'Active' : 'Muted'}</span>
+              <span className="text-[10px] text-stone-400">{online ? 'Online' : 'Off'}</span>
             </button>
           ) : (
             <button
               onClick={() => setOnline(!online)}
-              className="grid place-items-center cursor-pointer p-2 rounded-xl hover:bg-white/5"
+              className="grid place-items-center cursor-pointer p-2 rounded hover:bg-white/10"
               title={online ? 'Online — Click to pause' : 'Paused — Click to go online'}
             >
-              <span className={`size-3 rounded-full ${online ? 'bg-emerald-400 animate-pulseGlow' : 'bg-white/30'}`} />
+              <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-600'}`} />
             </button>
           )}
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto scrollbar-none">
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-none">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             const Icon = item.icon
@@ -677,21 +679,21 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-all cursor-pointer
-                  ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2.5'}
+                  w-full flex items-center gap-2.5 text-xs font-medium rounded-xl transition-all cursor-pointer
+                  ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'}
                   ${active
-                    ? 'bg-white/12 text-white shadow-xs font-bold border-l-2 border-[#E7C9BA]'
-                    : 'text-white/50 hover:text-white/90 hover:bg-white/6'
+                    ? 'bg-[#9E593B] text-white font-semibold shadow-xs'
+                    : 'text-stone-400 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
-                <Icon size={18} className={active ? 'text-[#E7C9BA]' : 'text-white/40'} />
+                <Icon size={15} className={active ? 'text-white' : 'text-stone-400'} />
                 {!sidebarCollapsed && (
                   <>
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className="flex-1 text-left truncate">{item.label}</span>
                     {badge !== null && badge > 0 && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none ${
-                        item.id === 'cockpit' ? 'bg-amber-500 text-white animate-bounce' : 'bg-white/15 text-white/80'
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full leading-none ${
+                        item.id === 'cockpit' ? 'bg-amber-400 text-stone-950' : 'bg-white/20 text-white'
                       }`}>
                         {badge}
                       </span>
@@ -704,15 +706,15 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
         </nav>
 
         {/* Sidebar Footer */}
-        <div className={`px-3 py-3 border-t border-white/8 space-y-1 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`p-2 border-t border-white/10 space-y-0.5 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           <button
             onClick={handleRefresh}
             title="Refresh Order Feed"
-            className={`flex items-center gap-2.5 rounded-xl text-xs font-medium text-white/50 hover:text-white hover:bg-white/6 transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3 py-2'}`}
+            className={`flex items-center gap-2 text-xs font-medium text-stone-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
+              ${sidebarCollapsed ? 'size-8 justify-center' : 'w-full px-3 py-2'}`}
           >
-            <RefreshCw size={15} className={refreshing ? 'animate-spin text-amber-400' : ''} />
-            {!sidebarCollapsed && <span>Sync Workbench</span>}
+            <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
+            {!sidebarCollapsed && <span>Sync Feed</span>}
           </button>
 
           <button
@@ -721,225 +723,165 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               else go('partner')
             }}
             title="Sign Out"
-            className={`flex items-center gap-2.5 rounded-xl text-xs font-medium text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3 py-2'}`}
+            className={`flex items-center gap-2 text-xs font-medium text-stone-400 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all cursor-pointer
+              ${sidebarCollapsed ? 'size-8 justify-center' : 'w-full px-3 py-2'}`}
           >
-            <LogOut size={15} />
+            <LogOut size={13} />
             {!sidebarCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MAIN CONTENT AREA                                                      */}
+      {/* MAIN CONTENT AREA — WARM CREAM ATELIER DESK                             */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#FAF8F5]">
 
-        {/* ── TOP BAR ── */}
-        <header className="h-14 bg-white border-b border-[#EAECF0] flex items-center px-4 lg:px-6 gap-3 shrink-0 z-20 shadow-2xs">
+        {/* ── TOP STATUS BAR ── */}
+        <header className="h-14 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E8E1D5] flex items-center px-4 lg:px-8 gap-4 shrink-0 z-20">
           {/* Mobile hamburger */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden size-8 grid place-items-center rounded-lg hover:bg-[#F0F2F5] text-[#6B7280] cursor-pointer"
+            className="md:hidden size-8 grid place-items-center rounded-lg hover:bg-[#F3EFEA] text-[#1E2229] cursor-pointer"
           >
-            <Menu size={18} />
+            <Menu size={16} />
           </button>
 
-          {/* KPI Chips */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs">
-              <DollarSign size={13} className="text-emerald-600 font-bold" />
-              <span className="font-bold text-emerald-800">${todayEarned}</span>
-              <span className="text-emerald-700/70 text-[11px] font-medium hidden lg:inline">Net Earned (80%)</span>
+          {/* Minimalist Summary Stats (Inline, non-boxy) */}
+          <div className="hidden sm:flex items-center gap-6 text-xs text-[#6B7280] font-medium">
+            <div className="flex items-center gap-2">
+              <span className="text-[#9E593B] font-semibold">Net Earned:</span>
+              <span className="font-bold text-[#1E2229]">${todayEarned}</span>
+              <span className="text-[10px] text-[#6B7280]">(80% Escrow)</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50/80 border border-amber-200 text-xs">
-              <Scissors size={13} className="text-amber-600" />
-              <span className="font-bold text-amber-800">{activeOnBench}</span>
-              <span className="text-amber-700/70 text-[11px] font-medium hidden lg:inline">On Bench</span>
+            <span className="h-3 w-px bg-[#E8E1D5]" />
+            <div className="flex items-center gap-2">
+              <span className="text-[#6B7280]">Bench:</span>
+              <span className="font-semibold text-[#1E2229]">{activeOnBench} active</span>
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-blue-50/80 border border-blue-200 text-xs">
-              <Package size={13} className="text-blue-600" />
-              <span className="font-bold text-blue-800">{pendingDropOffs}</span>
-              <span className="text-blue-700/70 text-[11px] font-medium hidden lg:inline">Pending Drop-Off</span>
+            <span className="h-3 w-px bg-[#E8E1D5]" />
+            <div className="flex items-center gap-2">
+              <span className="text-[#6B7280]">Drop-Offs:</span>
+              <span className="font-semibold text-[#1E2229]">{pendingDropOffs} scheduled</span>
             </div>
             {readyOnRack > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-50/80 border border-purple-200 text-xs">
-                <CheckCircle2 size={13} className="text-purple-600" />
-                <span className="font-bold text-purple-800">{readyOnRack}</span>
-                <span className="text-purple-700/70 text-[11px] font-medium hidden lg:inline">Ready on Rack</span>
-              </div>
+              <>
+                <span className="h-3 w-px bg-[#E8E1D5]" />
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-700 font-semibold">Ready on Rack:</span>
+                  <span className="font-bold text-[#1E2229]">{readyOnRack}</span>
+                </div>
+              </>
             )}
           </div>
 
           <div className="flex-1" />
 
-          {/* Online indicator — desktop */}
-          <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border ${
-            online ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-stone-100 text-stone-600 border-stone-200'
-          }`}>
+          {/* Online Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-xs font-semibold text-[#1E2229] border border-[#E8E1D5] shadow-2xs">
             <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
-            <span>{online ? 'Live Grid Active' : 'Standby'}</span>
+            <span>{online ? 'Grid Active' : 'Standby'}</span>
           </div>
 
           {/* Profile */}
-          <div className="flex items-center gap-2 pl-3 border-l border-[#EAECF0]">
-            <div className="size-8 rounded-full bg-[#0F1115] text-[#FAF8F5] border border-black/10 grid place-items-center text-xs font-bold">
+          <div className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5]">
+            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs">
               {tailorName.charAt(0)}
             </div>
             <div className="hidden lg:block text-left">
-              <div className="text-xs font-bold text-[#0F1115] leading-tight truncate max-w-[120px]">{tailorName}</div>
-              <div className="text-[10px] text-[#6B7280]">Master Atelier</div>
+              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px]">{tailorName}</div>
+              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor</div>
             </div>
           </div>
         </header>
 
         {/* ── TOAST ALERT ── */}
         {broadcastToast && (
-          <div className="bg-[#0F1115] text-white py-2.5 px-4 text-xs font-semibold flex items-center justify-center gap-2 z-10 shadow-lg border-b border-white/10 toast-enter">
+          <div className="bg-[#0F1115] text-white py-2.5 px-4 text-xs font-medium flex items-center justify-center gap-2 z-10 border-b border-[#9E593B] toast-enter">
             <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
             <span>{broadcastToast}</span>
           </div>
         )}
 
-        {/* ── SCROLLABLE CONTENT ── */}
+        {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
 
           {/* ── 1. RADAR / INCOMING BROADCAST HERO ── */}
           {online && currentBroadcast ? (
             <div
-              className="m-4 lg:m-6 mb-2"
+              className="m-4 lg:m-8 mb-2"
               onMouseEnter={() => setTimerPaused(true)}
               onMouseLeave={() => setTimerPaused(false)}
             >
-              <div className="rounded-2xl bg-[#0F1115] text-white p-4 sm:p-5 shadow-xl relative overflow-hidden border border-white/10">
-                <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-radial from-amber-500/15 to-transparent pointer-events-none" />
-
-                <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                  {/* Left: Info */}
-                  <div className="flex items-start gap-3.5 w-full lg:w-auto min-w-0">
-                    <div className="relative size-20 rounded-xl overflow-hidden bg-stone-900 border border-white/20 shrink-0 shadow-lg group">
+              <div className="bg-[#0F1115] text-white rounded-2xl p-5 shadow-sm border border-[#9E593B]/40 relative overflow-hidden">
+                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
+                  {/* Left: Garment Info */}
+                  <div className="flex items-start gap-4 min-w-0">
+                    <div className="relative size-16 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10">
                       <img
                         src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
                         alt={currentBroadcast.garmentName}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-linear-to-t from-black/70 via-transparent to-transparent" />
-                      <span className="absolute bottom-1 left-1 font-mono text-[9px] font-bold text-white bg-black/70 px-1 py-0.5 rounded backdrop-blur-xs">
-                        {currentBroadcast.id}
-                      </span>
                     </div>
 
                     <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/40">
-                          <Zap size={11} className="fill-amber-300" />
-                          INCOMING ALTERATION DISPATCH
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md">
+                          Incoming Dispatch
                         </span>
                         {currentBroadcast.garmentBrand && (
-                          <span className="text-[10px] font-semibold text-white/80 bg-white/10 px-2 py-0.5 rounded-md border border-white/10">
+                          <span className="text-[11px] text-stone-300 bg-white/10 px-2 py-0.5 rounded-md">
                             {currentBroadcast.garmentBrand}
                           </span>
                         )}
-                        <span className="text-[10px] text-white/50">{broadcastIdx + 1} of {allBroadcasts.length}</span>
+                        <span className="text-xs text-stone-400">{broadcastIdx + 1} of {allBroadcasts.length}</span>
                       </div>
 
-                      <h3 className="font-serif font-bold text-base sm:text-lg text-white truncate tracking-tight">{currentBroadcast.garmentName}</h3>
+                      <h3 className="text-base font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
 
-                      <div className="flex items-center gap-2 flex-wrap text-xs">
-                        <span className="inline-flex items-center gap-1 text-white font-bold bg-[#9E593B]/80 px-2.5 py-0.5 rounded-md">
-                          <Scissors size={11} /> {currentBroadcast.serviceName}
-                        </span>
-                        {currentBroadcast.fittingType === 'NEED_STUDIO_FITTING' ? (
-                          <span className="text-purple-300 bg-purple-950/60 border border-purple-800/40 px-2 py-0.5 rounded-md font-semibold text-[11px]">Counter Fitting</span>
-                        ) : (
-                          <span className="text-emerald-300 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-md font-semibold text-[11px]">Pre-Pinned Garment</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs text-white/60 pt-0.5">
-                        <span className="flex items-center gap-1 font-medium text-white/80"><User size={11} /> {currentBroadcast.customerName}</span>
-                        <span className="flex items-center gap-1"><MapPin size={11} className="text-amber-400" /> {currentBroadcast.customerArea}</span>
-                        <span className="flex items-center gap-1 font-semibold text-emerald-300"><Clock size={11} /> {currentBroadcast.slaHours}h Turnaround</span>
+                      <div className="flex items-center gap-3 text-xs text-stone-400 pt-0.5">
+                        <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
+                        <span>·</span>
+                        <span>{currentBroadcast.customerName}</span>
+                        <span>·</span>
+                        <span>{currentBroadcast.customerArea}</span>
+                        <span>·</span>
+                        <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h Turnaround</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right: Payout + Timer + Buttons */}
+                  {/* Right: Payout + Actions */}
                   <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end shrink-0 pt-3 lg:pt-0 border-t lg:border-0 border-white/10">
-                    <div className="flex items-center gap-3">
-                      {/* Timer ring */}
-                      <div className="relative size-12 grid place-items-center shrink-0">
-                        <svg className="size-12 -rotate-90">
-                          <circle cx="24" cy="24" r={timerRadius} className="stroke-white/15" strokeWidth="3" fill="transparent" />
-                          <circle cx="24" cy="24" r={timerRadius} className="stroke-amber-400 transition-all duration-1000 ease-linear" strokeWidth="3" strokeDasharray={timerCircumference} strokeDashoffset={timerStrokeDashoffset} strokeLinecap="round" fill="transparent" />
-                        </svg>
-                        <span className="absolute font-mono text-[11px] font-black text-amber-300">{timerSecs}s</span>
-                      </div>
-                      <div className="text-left lg:text-right">
-                        <span className="text-[9px] uppercase tracking-wider text-white/60 font-bold block">YOU EARN</span>
-                        <div className="text-2xl font-black text-emerald-400 leading-none">${currentBroadcast.partnerPayout}</div>
-                        <span className="text-[9px] text-white/50 mt-0.5 block">80% Net Guaranteed</span>
-                      </div>
+                    <div className="text-left lg:text-right pr-2">
+                      <span className="text-[10px] uppercase tracking-wider text-stone-400 font-medium block">Net Payout</span>
+                      <div className="text-2xl font-bold text-emerald-400">${currentBroadcast.partnerPayout}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleSkipBroadcast(currentBroadcast)}
-                        className="px-3.5 py-2.5 rounded-xl border border-white/25 bg-white/5 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer active:scale-95"
+                        className="px-3.5 py-2 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
                       >
                         Decline
                       </button>
                       <button
                         onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                        className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-lg active:scale-95 flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
                       >
-                        <Zap size={13} className="fill-black" />
-                        <span>Accept Alteration (${currentBroadcast.partnerPayout})</span>
+                        <Zap size={13} className="fill-white" />
+                        <span>Accept (${currentBroadcast.partnerPayout})</span>
                       </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          ) : online ? (
-            /* Sleek Telemetry Command Capsule */
-            <div className="mx-4 lg:mx-6 mt-4 mb-2">
-              <div className="rounded-2xl bg-gradient-to-r from-[#0F1115] to-[#1F242E] text-white p-3.5 sm:p-4 shadow-sm border border-black/10 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative size-4 flex items-center justify-center">
-                    <span className="animate-ping absolute h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative rounded-full size-2.5 bg-emerald-500" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs sm:text-sm text-white">Live Workshop Telemetry · Radar Active</span>
-                      <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-800/40 px-2 py-0.5 rounded-full">Online</span>
-                    </div>
-                    <span className="text-[11px] text-white/60 block mt-0.5">
-                      Scanning SoHo Grid · Customer requests &amp; drop-offs ping this workbench in real-time.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-xs">
-                  <div className="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl text-white/80 text-[11px]">
-                    <ShieldCheck size={13} className="text-emerald-400" />
-                    <span>Stripe Escrow: <strong>15-Day Guaranteed</strong></span>
-                  </div>
-                  <button
-                    onClick={handleRefresh}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-semibold cursor-pointer transition-colors"
-                  >
-                    <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-                    <span>Ping Feed</span>
-                  </button>
                 </div>
               </div>
             </div>
           ) : null}
 
           {/* ── 2. MAIN WORKBENCH VIEW TABS ── */}
-          <div className="p-4 lg:p-6 pt-2 space-y-6">
+          <div className="p-4 lg:p-8 pt-4 space-y-6 max-w-[1440px] mx-auto">
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* TAB 1: WORKSHOP COCKPIT                                        */}
@@ -947,163 +889,164 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             {activeTab === 'cockpit' && (
               <div className="space-y-6">
 
-                {/* 4 Summary Metric Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-                  <div className="bg-white rounded-2xl p-4 border border-[#EAECF0] shadow-2xs hover:border-[#D1D5DB] transition-all">
-                    <div className="flex items-center justify-between text-xs text-[#6B7280]">
-                      <span className="font-semibold uppercase tracking-wider text-[10px]">Today's Net Payout</span>
-                      <DollarSign size={15} className="text-emerald-600" />
-                    </div>
-                    <div className="text-2xl font-black text-emerald-700 mt-1">${todayEarned}</div>
-                    <div className="text-[11px] text-[#6B7280] mt-0.5 flex items-center gap-1">
-                      <span className="text-emerald-700 font-bold">80% Net</span> · Stripe Rolling Escrow
-                    </div>
+                {/* ── INTEGRATED METRICS RIBBON (Warm Linen Palette) ── */}
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E8E1D5]">
+                  <div className="p-3 sm:p-4 sm:first:pl-2">
+                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Today's Payout</span>
+                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">${todayEarned}</div>
+                    <span className="text-xs text-[#9E593B] font-semibold mt-0.5 block">80% Net · Rolling Escrow</span>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-4 border border-[#EAECF0] shadow-2xs hover:border-[#D1D5DB] transition-all">
-                    <div className="flex items-center justify-between text-xs text-[#6B7280]">
-                      <span className="font-semibold uppercase tracking-wider text-[10px]">On Sewing Bench</span>
-                      <Scissors size={15} className="text-amber-600" />
-                    </div>
-                    <div className="text-2xl font-black text-[#0F1115] mt-1">{activeOnBench} <span className="text-xs font-normal text-[#6B7280]">garments</span></div>
-                    <div className="text-[11px] text-[#6B7280] mt-0.5">
-                      {activeOnBench > 0 ? 'SLA Timers Active' : 'All machines ready'}
-                    </div>
+                  <div className="p-3 sm:p-4">
+                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">On Sewing Bench</span>
+                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{activeOnBench} <span className="text-sm font-normal text-[#6B7280]">garments</span></div>
+                    <span className="text-xs text-[#6B7280] font-medium mt-0.5 block">{activeOnBench > 0 ? 'SLA Timers Running' : 'All Workstations Ready'}</span>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-4 border border-[#EAECF0] shadow-2xs hover:border-[#D1D5DB] transition-all">
-                    <div className="flex items-center justify-between text-xs text-[#6B7280]">
-                      <span className="font-semibold uppercase tracking-wider text-[10px]">Drop-Off Queue</span>
-                      <Package size={15} className="text-blue-600" />
-                    </div>
-                    <div className="text-2xl font-black text-[#0F1115] mt-1">{pendingDropOffs} <span className="text-xs font-normal text-[#6B7280]">scheduled</span></div>
-                    <div className="text-[11px] text-blue-700 font-medium mt-0.5">
-                      Ready for 4-Digit Ingress
-                    </div>
+                  <div className="p-3 sm:p-4">
+                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Drop-Off Queue</span>
+                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{pendingDropOffs} <span className="text-sm font-normal text-[#6B7280]">scheduled</span></div>
+                    <span className="text-xs text-[#6B7280] font-medium mt-0.5 block">Awaiting PIN Ingress</span>
                   </div>
 
-                  <div className="bg-white rounded-2xl p-4 border border-[#EAECF0] shadow-2xs hover:border-[#D1D5DB] transition-all">
-                    <div className="flex items-center justify-between text-xs text-[#6B7280]">
-                      <span className="font-semibold uppercase tracking-wider text-[10px]">Ready on Rack</span>
-                      <CheckCircle2 size={15} className="text-purple-600" />
-                    </div>
-                    <div className="text-2xl font-black text-[#0F1115] mt-1">{readyOnRack} <span className="text-xs font-normal text-[#6B7280]">finished</span></div>
-                    <div className="text-[11px] text-purple-700 font-medium mt-0.5">
-                      {readyOnRack > 0 ? 'Awaiting Customer Pickup' : 'Rack clear'}
-                    </div>
+                  <div className="p-3 sm:p-4 sm:last:pr-2">
+                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Ready on Rack</span>
+                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{readyOnRack} <span className="text-sm font-normal text-[#6B7280]">finished</span></div>
+                    <span className="text-xs text-purple-700 font-semibold mt-0.5 block">{readyOnRack > 0 ? 'Pickup Alerts Sent' : 'Rack Clear'}</span>
                   </div>
                 </div>
 
-                {/* 2 Main Columns: Counter Terminal & Sewing Bench */}
+                {/* ── 2 Main Functional Areas: Customer Intake & Sewing Bench ── */}
                 <div className="grid lg:grid-cols-12 gap-6 items-start">
 
-                  {/* Left: Customer Drop-Off PIN Station */}
+                  {/* ── LEFT: IN-STORE COUNTER INGRESS TERMINAL ── */}
                   <div className="lg:col-span-7 space-y-4">
                     {!activeIntake ? (
-                      <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 sm:p-6 shadow-xs space-y-5">
+                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-6">
                         
                         {/* Header */}
-                        <div className="flex items-start justify-between pb-4 border-b border-[#F3F4F6]">
+                        <div className="flex items-start justify-between border-b border-[#E8E1D5] pb-4">
                           <div>
-                            <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-[#9E593B] mb-1">
-                              <Package size={13} />
-                              <span>IN-STORE CUSTOMER COUNTER</span>
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9E593B] mb-0.5">
+                              <Package size={13} className="text-[#9E593B]" />
+                              <span>Counter Ingress</span>
                             </div>
-                            <h2 className="font-serif text-xl font-bold text-[#0F1115] tracking-tight">
-                              Drop-Off Handshake &amp; PIN Intake
+                            <h2 className="text-lg sm:text-xl font-bold text-[#1E2229]">
+                              Drop-Off Verification &amp; Intake
                             </h2>
-                            <p className="text-xs text-[#6B7280] mt-0.5">
-                              When the customer walks in, enter their 4-digit drop-off PIN to open the ticket and begin inspection.
+                            <p className="text-xs text-[#6B7280] mt-1">
+                              Enter customer's 4-digit drop-off PIN to retrieve specs and place garment on sewing bench.
                             </p>
                           </div>
 
-                          <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full whitespace-nowrap">
+                          <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shrink-0">
                             Counter Ready
                           </span>
                         </div>
 
-                        {/* Tactile 4-Digit Display & Input Terminal */}
-                        <div className="p-4 sm:p-5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] space-y-4">
+                        {/* Interactive Unified 4-Digit PIN Terminal */}
+                        <div className="p-6 rounded-2xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#374151] uppercase tracking-wider">
-                              Enter 4-Digit Customer PIN
+                            <span className="text-xs font-semibold text-[#1E2229] uppercase tracking-wide">
+                              Customer 4-Digit Drop-Off PIN
                             </span>
                             <button
+                              type="button"
                               onClick={() => setShowKeypad(!showKeypad)}
-                              className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                              className="text-xs font-medium text-[#9E593B] hover:underline cursor-pointer"
                             >
-                              {showKeypad ? 'Hide Keypad' : 'Show Tactile Keypad'}
+                              {showKeypad ? 'Hide Keypad' : 'Tactile Keypad'}
                             </button>
                           </div>
 
-                          {/* 4 Digit Boxes Preview */}
-                          <div className="flex items-center justify-center gap-3">
-                            {[0, 1, 2, 3].map((idx) => {
-                              const digit = pinInput[idx] || ''
-                              const isCurrent = pinInput.length === idx
-                              return (
-                                <div
-                                  key={idx}
-                                  className={`size-14 sm:size-16 rounded-2xl bg-white border-2 flex items-center justify-center font-mono font-black text-2xl transition-all shadow-2xs ${
-                                    digit
-                                      ? 'border-[#0F1115] text-[#0F1115] bg-white scale-105'
-                                      : isCurrent
-                                      ? 'border-[#9E593B] text-[#9E593B] ring-2 ring-[#9E593B]/20 animate-pulse'
-                                      : 'border-[#E5E7EB] text-[#9CA3AF]'
-                                  }`}
-                                >
-                                  {digit || '—'}
-                                </div>
-                              )
-                            })}
-                          </div>
+                          {/* Seamless Single PIN Entry Experience */}
+                          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                            <div className="relative flex items-center justify-center gap-2.5 sm:gap-3">
+                              {/* Invisible input overlaying the slots */}
+                              <input
+                                type="text"
+                                maxLength={4}
+                                value={pinInput}
+                                autoFocus
+                                onChange={(e) => {
+                                  const val = e.target.value.replace(/[^0-9]/g, '')
+                                  setPinInput(val)
+                                  setPinError('')
+                                  if (val.length === 4) {
+                                    handleLookupPin(val)
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && pinInput) handleLookupPin(pinInput)
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full text-transparent"
+                                aria-label="Enter 4-digit PIN"
+                              />
 
-                          {/* Quick standard text input for fast typing */}
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              maxLength={6}
-                              value={pinInput}
-                              onChange={(e) => {
-                                setPinInput(e.target.value.replace(/[^0-9]/g, ''))
-                                setPinError('')
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && pinInput) handleLookupPin(pinInput)
-                              }}
-                              placeholder="Type PIN here or click below"
-                              className="flex-1 text-center font-mono font-bold text-sm tracking-widest bg-white border border-[#D1D5DB] rounded-xl py-2.5 focus:border-[#0F1115] focus:outline-none"
-                            />
+                              {[0, 1, 2, 3].map((idx) => {
+                                const digit = pinInput[idx] || ''
+                                const isFocused = pinInput.length === idx
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`size-14 sm:size-16 rounded-xl bg-white border flex items-center justify-center font-mono font-bold text-2xl sm:text-3xl transition-all shadow-2xs ${
+                                      digit
+                                        ? 'border-[#1E2229] text-[#1E2229] bg-white'
+                                        : isFocused
+                                        ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
+                                        : 'border-[#E8E1D5] text-[#D1D5DB]'
+                                    }`}
+                                  >
+                                    {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
+                                  </div>
+                                )
+                              })}
+                            </div>
+
                             <button
                               type="button"
                               onClick={() => handleLookupPin(pinInput)}
-                              className="px-6 py-2.5 bg-[#0F1115] hover:bg-[#9E593B] text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs active:scale-95 flex items-center gap-2"
+                              disabled={pinInput.length === 0}
+                              className={`w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
+                                pinInput.length === 4
+                                  ? 'bg-[#0F1115] hover:bg-[#9E593B] text-white active:scale-95'
+                                  : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+                              }`}
                             >
                               <ShieldCheck size={15} />
-                              <span>Verify PIN →</span>
+                              <span>Verify &amp; Intake →</span>
                             </button>
                           </div>
 
                           {pinError && (
-                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center gap-2">
-                              <AlertCircle size={14} className="shrink-0" />
-                              <span>{pinError}</span>
+                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle size={14} className="shrink-0" />
+                                <span>{pinError}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setPinInput('')}
+                                className="text-xs underline text-red-800 cursor-pointer"
+                              >
+                                Clear
+                              </button>
                             </div>
                           )}
 
-                          {/* Optional Tactile Keypad */}
+                          {/* Tactile Keypad (on demand) */}
                           {showKeypad && (
-                            <div className="pt-2 border-t border-[#E5E7EB]">
+                            <div className="pt-3 border-t border-[#E8E1D5]">
                               <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
                                 {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLEAR', '0', 'BACK'].map((key) => (
                                   <button
                                     key={key}
                                     type="button"
                                     onClick={() => handleKeypadPress(key)}
-                                    className={`py-3 rounded-xl font-mono text-sm font-bold transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                                    className={`py-3 rounded-xl font-mono text-sm font-bold transition-all cursor-pointer active:scale-95 ${
                                       key === 'CLEAR' || key === 'BACK'
-                                        ? 'bg-stone-200 text-stone-700 hover:bg-stone-300 text-xs'
-                                        : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#0F1115] border border-[#E5E7EB]'
+                                        ? 'bg-[#E8E1D5] text-[#1E2229] hover:bg-[#DDD6CB] text-xs'
+                                        : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#1E2229] border border-[#E8E1D5] shadow-2xs'
                                     }`}
                                   >
                                     {key}
@@ -1114,101 +1057,88 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           )}
                         </div>
 
-                        {/* Scheduled Drop-Offs Today OR Guided Workflow */}
-                        <div className="space-y-3 pt-1">
+                        {/* Scheduled Drop-Offs Today Section */}
+                        <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#0F1115] uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-[#1E2229] flex items-center gap-1.5">
                               <Clock size={13} className="text-[#9E593B]" />
-                              <span>Arriving Today · 1-Click Auto-Fill PIN</span>
+                              <span>Scheduled Customer Appointments</span>
                             </span>
-                            <span className="text-[11px] text-[#6B7280] font-semibold">
-                              {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length} scheduled
+                            <span className="text-xs text-[#6B7280] font-medium">
+                              {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length} in queue
                             </span>
                           </div>
 
                           {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length > 0 ? (
-                            <div className="grid sm:grid-cols-2 gap-2.5">
+                            <div className="grid sm:grid-cols-2 gap-3">
                               {orders
                                 .filter((o) => ['Accepted', 'Allocated'].includes(o.status))
-                                .slice(0, 6)
                                 .map((o) => (
-                                  <button
+                                  <div
                                     key={o.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setPinInput(o.otp)
-                                      handleLookupPin(o.otp)
-                                    }}
-                                    className="text-left p-3 rounded-2xl border border-[#EAECF0] bg-[#F9FAFB] hover:bg-white hover:border-[#0F1115] hover:shadow-xs transition-all cursor-pointer group flex items-center justify-between gap-2.5"
+                                    className="p-3.5 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] hover:bg-white hover:border-[#9E593B] transition-all flex items-center justify-between gap-3 shadow-2xs"
                                   >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <div className="size-10 rounded-xl overflow-hidden bg-stone-200 shrink-0">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <div className="size-11 rounded-lg overflow-hidden bg-stone-200 shrink-0 border border-[#E8E1D5]">
                                         <img src={getGarmentPhoto(o)} alt={o.garmentName} className="w-full h-full object-cover" />
                                       </div>
                                       <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                          <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.2 rounded">
                                             #{o.otp}
                                           </span>
-                                          <span className="font-bold text-xs text-[#0F1115] truncate">{o.customerName}</span>
+                                          <span className="font-semibold text-xs text-[#1E2229] truncate">{o.customerName}</span>
                                         </div>
-                                        <div className="text-[11px] text-[#6B7280] truncate mt-0.5">
-                                          {o.garmentName}
+                                        <div className="text-[11px] text-[#6B7280] truncate">
+                                          {o.garmentName} · {o.serviceName}
                                         </div>
                                       </div>
                                     </div>
 
-                                    <div className="text-right shrink-0">
-                                      <span className="text-xs font-bold text-emerald-700 block">
-                                        ${o.partnerPayout || Math.round((o.price || 35) * 0.75)}
-                                      </span>
-                                      <span className="text-[10px] text-[#9CA3AF] uppercase font-bold">Auto-Fill →</span>
-                                    </div>
-                                  </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPinInput(o.otp)
+                                        handleLookupPin(o.otp)
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95"
+                                    >
+                                      Intake #{o.otp} →
+                                    </button>
+                                  </div>
                                 ))}
                             </div>
                           ) : (
-                            /* Rich Empty State: Counter Guided Workflow */
-                            <div className="p-4 sm:p-5 rounded-2xl bg-[#F9FAFB] border border-dashed border-[#D1D5DB] space-y-3">
-                              <div className="flex items-center gap-2 text-xs font-bold text-[#0F1115]">
-                                <Sparkles size={14} className="text-[#9E593B]" />
-                                <span>Counter Ingress Workflow:</span>
+                            /* Elegant Ready-to-Test Ingress State */
+                            <div className="p-4 rounded-xl bg-[#F3EFEA]/60 border border-[#E8E1D5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                              <div className="space-y-0.5">
+                                <div className="font-semibold text-[#1E2229] flex items-center gap-1.5">
+                                  <Sparkles size={13} className="text-[#9E593B]" />
+                                  <span>Test Ingress with Active Orders:</span>
+                                </div>
+                                <p className="text-[#6B7280] text-[11px]">
+                                  Tap any active customer ticket to auto-fill their 4-digit PIN code.
+                                </p>
                               </div>
 
-                              <div className="grid sm:grid-cols-3 gap-2.5 text-xs">
-                                <div className="p-2.5 rounded-xl bg-white border border-[#EAECF0] space-y-1">
-                                  <span className="text-[10px] font-black text-amber-700 uppercase">1. Customer Arrives</span>
-                                  <p className="text-[11px] text-[#6B7280]">Customer brings garment to counter and shows 4-digit code.</p>
-                                </div>
-                                <div className="p-2.5 rounded-xl bg-white border border-[#EAECF0] space-y-1">
-                                  <span className="text-[10px] font-black text-blue-700 uppercase">2. Verify PIN</span>
-                                  <p className="text-[11px] text-[#6B7280]">Instant lookup unlocks garment ticket &amp; pre-pinned specs.</p>
-                                </div>
-                                <div className="p-2.5 rounded-xl bg-white border border-[#EAECF0] space-y-1">
-                                  <span className="text-[10px] font-black text-emerald-700 uppercase">3. Bench Start</span>
-                                  <p className="text-[11px] text-[#6B7280]">Assigns rack tag and starts the live 24/48h SLA timer.</p>
-                                </div>
-                              </div>
-
-                              {/* Quick Simulator Test PIN Pill */}
-                              {orders.length > 0 && (
-                                <div className="pt-2 flex items-center justify-between text-xs border-t border-[#E5E7EB]">
-                                  <span className="text-[#6B7280]">Try with an existing ticket:</span>
+                              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                {orders.slice(0, 2).map((sample) => (
                                   <button
+                                    key={sample.id}
                                     type="button"
                                     onClick={() => {
-                                      const sample = orders[0]
                                       if (sample?.otp) {
                                         setPinInput(sample.otp)
                                         handleLookupPin(sample.otp)
                                       }
                                     }}
-                                    className="font-mono text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg hover:bg-indigo-100 cursor-pointer"
+                                    className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-[#1E2229] hover:text-black hover:border-[#9E593B] font-mono text-xs font-semibold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5"
                                   >
-                                    Test Code #{orders[0].otp} →
+                                    <span>#{sample.otp} ({sample.customerName.split(' ')[0]})</span>
+                                    <ArrowRight size={11} className="text-[#9E593B]" />
                                   </button>
-                                </div>
-                              )}
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1216,11 +1146,11 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       </div>
                     ) : (
                       /* Active Garment Intake Inspection Docket */
-                      <div className="bg-white border-2 border-[#0F1115] rounded-3xl p-6 shadow-lg space-y-5 animate-scaleUp">
-                        {/* Header with Photo & Hang-Tag */}
-                        <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#EAECF0]">
+                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5 animate-scaleUp">
+                        {/* Header with Photo & Tag */}
+                        <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3.5 min-w-0">
-                            <div className="size-16 rounded-2xl overflow-hidden bg-stone-100 border border-[#EAECF0] shrink-0 shadow-xs">
+                            <div className="size-16 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
                               <img
                                 src={getGarmentPhoto(activeIntake)}
                                 alt={activeIntake.garmentName}
@@ -1229,24 +1159,24 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="font-mono text-xs font-bold bg-[#F9FAFB] border border-[#EAECF0] px-2 py-0.5 rounded-md">
-                                  {activeIntake.id}
+                                <span className="font-mono text-xs font-semibold bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded text-[#1E2229]">
+                                  #{activeIntake.id}
                                 </span>
-                                <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                                   ✓ PIN #{activeIntake.otp} Verified
                                 </span>
                               </div>
-                              <h3 className="font-serif text-lg font-bold text-[#0F1115]">{activeIntake.garmentName}</h3>
+                              <h3 className="text-base font-bold text-[#1E2229]">{activeIntake.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeIntake.customerName} · {activeIntake.serviceName}</p>
                             </div>
                           </div>
 
                           <div className="text-right">
-                            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-mono text-xs font-bold">
+                            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 font-mono text-xs font-semibold">
                               <Tag size={12} />
-                              <span>{hangTag}</span>
+                              <span>{hangTag || 'Tag Pending'}</span>
                             </div>
-                            <div className="text-xs font-black text-emerald-700 mt-1">
+                            <div className="text-xs font-bold text-emerald-800 mt-1">
                               ${activeIntake.partnerPayout || Math.round((activeIntake.price || 35) * 0.75)} Net Payout
                             </div>
                           </div>
@@ -1254,11 +1184,11 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
                         {/* Customer Fit Notes */}
                         {activeIntake.fitNotes && (
-                          <div className="p-3.5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] text-xs">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] block mb-1">
-                              CUSTOMER FIT INSTRUCTIONS
+                          <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-1">
+                              Customer Fit Instructions
                             </span>
-                            <p className="text-[#1F2937] italic">"{activeIntake.fitNotes}"</p>
+                            <p className="text-[#1E2229] italic">"{activeIntake.fitNotes}"</p>
                           </div>
                         )}
 
@@ -1266,59 +1196,59 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                         <div className="space-y-3 text-xs">
                           <div className="grid sm:grid-cols-2 gap-3">
                             <div>
-                              <label className="block font-bold text-[#0F1115] mb-1">Fabric Condition Notes</label>
+                              <label className="block font-semibold text-[#1E2229] mb-1">Fabric Condition Notes</label>
                               <input
                                 type="text"
                                 value={conditionNotes}
                                 onChange={(e) => setConditionNotes(e.target.value)}
-                                placeholder="e.g. Pristine wool, no tears"
-                                className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB] focus:border-[#0F1115] focus:outline-none bg-white"
+                                placeholder="e.g. Clean wool, pristine fabric"
+                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none bg-white transition-colors"
                               />
                             </div>
                             <div>
-                              <label className="block font-bold text-[#0F1115] mb-1">Garment Rack Hang-Tag</label>
+                              <label className="block font-semibold text-[#1E2229] mb-1">Garment Rack Hang-Tag</label>
                               <input
                                 type="text"
                                 value={hangTag}
                                 onChange={(e) => setHangTag(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB] font-mono font-semibold focus:border-[#0F1115] focus:outline-none bg-white"
+                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] font-mono font-semibold focus:border-[#9E593B] focus:outline-none bg-white transition-colors"
                               />
                             </div>
                           </div>
 
                           {/* Measurements */}
-                          <div className="p-3.5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] space-y-2">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] block">
-                              TAILOR SPECIFICATIONS &amp; MEASUREMENTS
+                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
+                              Tailor Specifications &amp; Measurements
                             </span>
-                            <div className="grid sm:grid-cols-2 gap-2">
+                            <div className="grid sm:grid-cols-2 gap-2 font-mono">
                               <input
                                 type="text"
                                 value={measHem}
                                 onChange={(e) => setMeasHem(e.target.value)}
-                                placeholder="Hem (e.g. Shorten 3.5 cm)"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#D1D5DB] font-medium"
+                                placeholder="Hem (e.g. -3.5 cm)"
+                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
                               />
                               <input
                                 type="text"
                                 value={measWaist}
                                 onChange={(e) => setMeasWaist(e.target.value)}
                                 placeholder="Waist / Seat"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#D1D5DB] font-medium"
+                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
                               />
                               <input
                                 type="text"
                                 value={measSleeve}
                                 onChange={(e) => setMeasSleeve(e.target.value)}
                                 placeholder="Sleeves / Cuffs"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#D1D5DB] font-medium"
+                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
                               />
                               <input
                                 type="text"
                                 value={measInseam}
                                 onChange={(e) => setMeasInseam(e.target.value)}
                                 placeholder="Finished Inseam"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#D1D5DB] font-medium"
+                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
                               />
                             </div>
                           </div>
@@ -1326,21 +1256,21 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           {/* Tailor & Machine */}
                           <div className="grid sm:grid-cols-2 gap-3">
                             <div>
-                              <label className="block font-bold text-[#0F1115] mb-1">Assigned Master Tailor</label>
+                              <label className="block font-semibold text-[#1E2229] mb-1">Assigned Master Tailor</label>
                               <input
                                 type="text"
                                 value={worker}
                                 onChange={(e) => setWorker(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB] bg-white"
+                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white text-xs"
                               />
                             </div>
                             <div>
-                              <label className="block font-bold text-[#0F1115] mb-1">Sewing Machine Bench</label>
+                              <label className="block font-semibold text-[#1E2229] mb-1">Sewing Machine Bench</label>
                               <input
                                 type="text"
                                 value={machine}
                                 onChange={(e) => setMachine(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB] bg-white"
+                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white text-xs"
                               />
                             </div>
                           </div>
@@ -1352,21 +1282,21 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                             <button
                               type="button"
                               onClick={() => setShowPriceAdjust(true)}
-                              className="text-xs font-bold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                              className="text-xs font-medium text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                             >
                               <Plus size={12} />
                               <span>Add surcharge for complex silk / extra fabric work</span>
                             </button>
                           ) : (
-                            <div className="p-3 rounded-2xl bg-amber-50/70 border border-amber-200 text-xs space-y-2">
-                              <span className="font-bold text-amber-900">Complex Fabric Surcharge</span>
+                            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
+                              <span className="font-bold text-amber-950">Complex Fabric Surcharge</span>
                               <div className="flex gap-2">
                                 <input
                                   type="number"
                                   placeholder="Amount ($)"
                                   value={priceAdjustAmount}
                                   onChange={(e) => setPriceAdjustAmount(e.target.value)}
-                                  className="w-24 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300"
+                                  className="w-24 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 font-bold"
                                 />
                                 <input
                                   type="text"
@@ -1378,7 +1308,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                                 <button
                                   type="button"
                                   onClick={() => setPriceAdjustApproved(true)}
-                                  className="px-3 py-1.5 rounded-lg bg-[#0F1115] text-white font-bold cursor-pointer"
+                                  className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold cursor-pointer transition-colors"
                                 >
                                   {priceAdjustApproved ? '✓ Added' : 'Apply'}
                                 </button>
@@ -1388,14 +1318,14 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                         </div>
 
                         {/* Confirmation Buttons */}
-                        <div className="pt-4 border-t border-[#EAECF0] flex items-center justify-between gap-3">
+                        <div className="pt-4 border-t border-[#E8E1D5] flex items-center justify-between gap-3">
                           <button
                             type="button"
                             onClick={() => {
                               setActiveIntake(null)
                               setPinInput('')
                             }}
-                            className="px-4 py-3 rounded-xl border border-[#D1D5DB] text-xs font-semibold text-[#4B5563] hover:bg-[#F9FAFB] cursor-pointer"
+                            className="px-4 py-2.5 rounded-xl border border-[#E8E1D5] text-xs font-medium text-[#6B7280] hover:bg-[#F3EFEA] cursor-pointer transition-colors"
                           >
                             Cancel
                           </button>
@@ -1403,15 +1333,15 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           <button
                             type="button"
                             onClick={handleConfirmIntakeAndStart}
-                            className="flex-1 bg-[#0F1115] hover:bg-[#9E593B] text-white py-3.5 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md active:scale-95"
+                            className="flex-1 bg-[#0F1115] hover:bg-[#9E593B] text-white py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95"
                           >
-                            <Scissors size={15} />
-                            <span>Confirm Drop-Off &amp; Place on Sewing Bench →</span>
+                            <Scissors size={14} />
+                            <span>Confirm Intake &amp; Start SLA Clock →</span>
                           </button>
                         </div>
 
                         {intakeSuccess && (
-                          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold text-center border border-emerald-200">
+                          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold text-center border border-emerald-200">
                             ✓ Intake complete! Garment placed on bench &amp; SLA clock started.
                           </div>
                         )}
@@ -1419,24 +1349,23 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     )}
                   </div>
 
-                  {/* Right: Live Sewing Bench Workspace */}
+                  {/* ── RIGHT: LIVE SEWING BENCH & WORKSTATIONS FLOOR ── */}
                   <div className="lg:col-span-5 space-y-4">
-                    <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 sm:p-6 shadow-xs space-y-4">
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-5">
                       
                       {/* Bench Header */}
-                      <div className="flex items-center justify-between pb-3.5 border-b border-[#F3F4F6]">
+                      <div className="flex items-center justify-between pb-3.5 border-b border-[#E8E1D5]">
                         <div>
-                          <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-amber-700 mb-0.5">
-                            <Scissors size={13} />
-                            <span>ACTIVE SEWING BENCH</span>
-                          </div>
-                          <h3 className="font-serif text-base font-bold text-[#0F1115]">
+                          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-0.5">
+                            Atelier Workstations
+                          </span>
+                          <h3 className="text-base font-bold text-[#1E2229]">
                             Garments in Progress ({activeOnBench})
                           </h3>
                         </div>
 
-                        <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                          Live SLA Clocks
+                        <span className="text-xs font-semibold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/20 px-2.5 py-0.5 rounded-full">
+                          Live SLA
                         </span>
                       </div>
 
@@ -1449,55 +1378,54 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                             return (
                               <div
                                 key={order.id}
-                                className="p-4 rounded-2xl border border-[#EAECF0] bg-[#F9FAFB] hover:border-[#0F1115] transition-all space-y-3"
+                                className="p-4 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] space-y-3 shadow-2xs"
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex items-start gap-3 min-w-0">
-                                    <div className="size-12 rounded-xl overflow-hidden bg-stone-200 border border-[#EAECF0] shrink-0">
+                                    <div className="size-12 rounded-lg overflow-hidden bg-stone-200 border border-[#E8E1D5] shrink-0">
                                       <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
                                     </div>
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="font-mono text-xs font-bold text-[#0F1115]">{order.id}</span>
+                                        <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
                                         {order.hangTagNo && (
-                                          <span className="text-[10px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">
+                                          <span className="text-[10px] font-mono font-semibold bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 px-1.5 py-0.2 rounded">
                                             {order.hangTagNo}
                                           </span>
                                         )}
                                       </div>
-                                      <h4 className="font-bold text-xs text-[#0F1115] truncate">{order.garmentName}</h4>
+                                      <h4 className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</h4>
                                       <p className="text-[11px] text-[#6B7280] truncate">{order.customerName} · {order.serviceName}</p>
                                     </div>
                                   </div>
 
                                   <div className="text-right shrink-0">
-                                    <span className="font-bold text-xs text-emerald-700 block">
+                                    <span className="font-bold text-xs text-emerald-800 block">
                                       ${order.partnerPayout || Math.round((order.price || 35) * 0.75)}
                                     </span>
-                                    <span className={`text-[10px] font-bold flex items-center justify-end gap-1 ${sla.urgent ? 'text-red-600' : 'text-[#6B7280]'}`}>
+                                    <span className={`text-[10px] font-medium flex items-center justify-end gap-1 ${sla.urgent ? 'text-red-600 font-bold' : 'text-[#6B7280]'}`}>
                                       <Clock size={10} />
                                       <span>{sla.text}</span>
                                     </span>
                                   </div>
                                 </div>
 
-                                {/* Tailor specs pill */}
                                 {order.pinnedAdjustment && (
-                                  <div className="text-[11px] text-[#374151] bg-white px-2.5 py-1 rounded-lg border border-[#EAECF0] truncate font-mono">
-                                    ⚙ {order.pinnedAdjustment}
+                                  <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono">
+                                    {order.pinnedAdjustment}
                                   </div>
                                 )}
 
                                 {/* SLA Countdown Progress */}
                                 <div className="space-y-1">
                                   <div className="flex justify-between text-[10px] text-[#6B7280] font-medium">
-                                    <span>SLA Progress</span>
+                                    <span>Turnaround SLA</span>
                                     <span>{Math.round(sla.percent)}% remaining</span>
                                   </div>
-                                  <div className="h-1.5 rounded-full bg-[#EAECF0] overflow-hidden">
+                                  <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
                                     <div
                                       className={`h-full rounded-full transition-all duration-500 ${
-                                        sla.urgent ? 'bg-red-500' : 'bg-emerald-600'
+                                        sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
                                       }`}
                                       style={{ width: `${sla.percent}%` }}
                                     />
@@ -1507,65 +1435,65 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                                 <button
                                   type="button"
                                   onClick={() => handleMarkAlterationDone(order.id)}
-                                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
+                                  className="w-full py-2 bg-[#0F1115] hover:bg-[#9E593B] text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
                                 >
-                                  <CheckCircle size={14} />
-                                  <span>✓ Mark Alteration Done (Send Customer Pickup PIN)</span>
+                                  <CheckCircle size={13} />
+                                  <span>Mark Alteration Done (Alert Customer) →</span>
                                 </button>
                               </div>
                             )
                           })}
 
                         {activeOnBench === 0 && (
-                          /* Rich Workshop Station Readiness List */
+                          /* Workstation Readiness Board */
                           <div className="space-y-3">
-                            <div className="p-3.5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] text-xs">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] block mb-1">
-                                ATELIER WORKSTATIONS READY
+                            <div className="p-4 rounded-xl bg-[#F3EFEA]/70 border border-[#E8E1D5] text-xs">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B] block mb-2">
+                                Atelier Workstations Ready
                               </span>
-                              <div className="space-y-2 mt-2">
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
                                   <div className="flex items-center gap-2">
                                     <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 1: Juki DDL-8700 Lockstitch</span>
+                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 1: Juki DDL-8700 Lockstitch</span>
                                   </div>
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Ready</span>
+                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Ready</span>
                                 </div>
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
+                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
                                   <div className="flex items-center gap-2">
                                     <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 2: Juki MO-6814S Overlock</span>
+                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 2: Juki MO-6814S Overlock</span>
                                   </div>
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Ready</span>
+                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Ready</span>
                                 </div>
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
+                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
                                   <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-blue-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 3: Union Special Denim</span>
+                                    <span className="size-2 rounded-full bg-stone-400" />
+                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 3: Union Special Denim</span>
                                   </div>
-                                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Standby</span>
+                                  <span className="text-[10px] font-medium text-[#6B7280] bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E8E1D5]">Standby</span>
                                 </div>
                               </div>
                             </div>
 
-                            <p className="text-center text-[11px] text-[#71717A] italic">
-                              Verify an arriving customer drop-off code on the left to allocate garments to these sewing stations.
+                            <p className="text-center text-[11px] text-[#6B7280]">
+                              Verify an incoming customer drop-off code to allocate garments to these workstations.
                             </p>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Ready on Rack for Customer Collection Shelf */}
+                    {/* Ready on Rack Shelf */}
                     {readyOnRack > 0 && (
-                      <div className="bg-white border border-emerald-200 rounded-3xl p-5 shadow-xs space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-900">
-                            <CheckCircle2 size={15} className="text-emerald-600" />
+                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs space-y-3">
+                        <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-2">
+                          <div className="flex items-center gap-2 text-xs font-bold text-[#1E2229]">
+                            <CheckCircle2 size={15} className="text-emerald-700" />
                             <span>Ready on Rack for Pickup ({readyOnRack})</span>
                           </div>
-                          <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                            Customer Alerted
+                          <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                            Alerted
                           </span>
                         </div>
 
@@ -1575,18 +1503,18 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                             .map((order) => (
                               <div
                                 key={order.id}
-                                className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-200 flex items-center justify-between gap-3 text-xs"
+                                className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-between gap-3 text-xs"
                               >
                                 <div>
-                                  <div className="font-bold text-[#0F1115]">{order.customerName} · {order.garmentName}</div>
-                                  <div className="text-[11px] text-emerald-800 font-mono mt-0.5">
-                                    Pickup PIN: <strong>#{order.otp}</strong> · {order.hangTagNo || 'Rack A'}
+                                  <div className="font-semibold text-[#1E2229]">{order.customerName} · {order.garmentName}</div>
+                                  <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
+                                    Pickup PIN: <strong className="text-[#1E2229]">#{order.otp}</strong> · {order.hangTagNo || 'Rack A'}
                                   </div>
                                 </div>
 
                                 <button
                                   onClick={() => handleOpenPickupModal(order)}
-                                  className="px-3 py-1.5 bg-[#0F1115] hover:bg-[#9E593B] text-white rounded-xl font-bold text-[11px] cursor-pointer shadow-xs whitespace-nowrap"
+                                  className="px-3 py-1.5 bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors shadow-xs whitespace-nowrap"
                                 >
                                   Verify Pickup →
                                 </button>
@@ -1608,21 +1536,21 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             {activeTab === 'pipeline' && (
               <div className="space-y-4">
                 {/* Search + Filters */}
-                <div className="bg-white border border-[#EAECF0] rounded-2xl p-3 sm:p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                   <div className="relative flex-1 min-w-[200px]">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9CA3AF]" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E593B]" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search by customer, garment, ID, or rack tag..."
-                      className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-[#E5E7EB] focus:border-[#0F1115] focus:outline-none"
+                      placeholder="Search customer, garment, ID, rack tag..."
+                      className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none transition-colors bg-[#FAF8F5]"
                     />
                   </div>
                   <div className="flex gap-1.5 flex-wrap text-xs">
                     {['ALL', 'Work in Progress', 'Accepted', 'Ready', 'Closed'].map((s) => {
                       const labelMap: Record<string, string> = {
-                        ALL: `All Orders (${orders.length})`,
+                        ALL: `All (${orders.length})`,
                         'Work in Progress': `On Bench (${activeOnBench})`,
                         Accepted: `Drop-Offs (${pendingDropOffs})`,
                         Ready: `Ready (${readyOnRack})`,
@@ -1632,9 +1560,9 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                         <button
                           key={s}
                           onClick={() => setStatusFilter(s)}
-                          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${statusFilter === s
-                            ? 'bg-[#0F1115] text-white font-bold'
-                            : 'bg-[#F9FAFB] border border-[#EAECF0] text-[#6B7280] hover:text-[#0F1115]'
+                          className={`px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${statusFilter === s
+                            ? 'bg-[#0F1115] text-white shadow-xs'
+                            : 'bg-white border border-[#E8E1D5] text-[#1E2229] hover:border-[#9E593B] hover:bg-[#F3EFEA]'
                           }`}
                         >
                           {labelMap[s] || s}
@@ -1649,64 +1577,63 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   <div className="lg:col-span-7 space-y-2.5">
                     {filteredOrders.map((order) => {
                       const isSelected = selectedOrder?.id === order.id
-                      const sla = getSlaCountdown(order)
                       const st = STATUS_CONFIG[order.status] || STATUS_CONFIG.Closed
                       return (
                         <div
                           key={order.id}
                           onClick={() => setSelectedOrder(order)}
-                          className={`bg-white border rounded-2xl p-4 cursor-pointer transition-all shadow-xs card-hover ${isSelected
-                            ? 'border-[#0F1115] ring-2 ring-[#0F1115]/10'
-                            : 'border-[#EAECF0] hover:border-[#D1D5DB]'
+                          className={`bg-white border rounded-2xl p-4 cursor-pointer transition-all ${isSelected
+                            ? 'border-[#9E593B] shadow-xs ring-2 ring-[#9E593B]/20'
+                            : 'border-[#E8E1D5] hover:border-[#9E593B]'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3 min-w-0">
-                              <div className="size-12 rounded-xl overflow-hidden bg-stone-100 border border-[#EAECF0] shrink-0">
+                              <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
                                 <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                  <span className="font-mono text-xs font-bold text-[#0F1115]">{order.id}</span>
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${st.bg} ${st.text}`}>
-                                    <span className={`size-1.5 rounded-full ${st.dot}`} /> {st.label}
+                                  <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
+                                    {order.status}
                                   </span>
                                   {order.hangTagNo && (
-                                    <span className="font-mono text-[10px] bg-[#FAF8F5] border border-[#EAECF0] px-2 py-0.5 rounded text-[#4B5563] font-bold">
+                                    <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
                                       {order.hangTagNo}
                                     </span>
                                   )}
                                 </div>
-                                <div className="font-bold text-sm text-[#0F1115] truncate">{order.garmentName}</div>
-                                <div className="text-xs text-[#6B7280]">{order.serviceName} · {order.customerName}</div>
+                                <div className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</div>
+                                <div className="text-[11px] text-[#6B7280]">{order.serviceName} · {order.customerName}</div>
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <div className="font-bold text-sm text-emerald-700">${order.partnerPayout || Math.round((order.price || 35) * 0.75)}</div>
-                              <div className="text-[10px] text-[#9CA3AF] uppercase font-bold">Net Payout</div>
+                              <div className="font-bold text-sm text-emerald-800">${order.partnerPayout || Math.round((order.price || 35) * 0.75)}</div>
+                              <div className="text-[10px] text-[#9E593B] font-semibold">Net Payout</div>
                             </div>
                           </div>
 
-                          <div className="mt-3 pt-2.5 border-t border-[#F3F4F6] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => handleOpenEditMeasurements(order)} className="text-xs font-semibold text-[#6B7280] hover:text-[#0F1115] flex items-center gap-1 cursor-pointer">
+                          <div className="mt-3 pt-2.5 border-t border-[#E8E1D5] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button onClick={() => handleOpenEditMeasurements(order)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer">
                               <Edit3 size={11} /> Edit Specs
                             </button>
                             <div className="flex items-center gap-2">
                               {order.status === 'Accepted' && (
-                                <button onClick={() => { setPinInput(order.otp); handleLookupPin(order.otp); setActiveTab('cockpit') }} className="text-xs font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl cursor-pointer">Customer Drop-Off →</button>
+                                <button onClick={() => { setPinInput(order.otp); handleLookupPin(order.otp); setActiveTab('cockpit') }} className="text-xs font-semibold text-[#1E2229] bg-[#F3EFEA] hover:bg-[#E8E1D5] px-3 py-1 rounded-xl cursor-pointer border border-[#E8E1D5]">Intake Drop-Off →</button>
                               )}
                               {order.status === 'Work in Progress' && (
-                                <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 px-3.5 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer">
-                                  <CheckCircle size={13} /> ✓ Mark Done
+                                <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
+                                  <CheckCircle size={12} /> Mark Done
                                 </button>
                               )}
                               {order.status === 'Ready' && (
-                                <button onClick={() => handleOpenPickupModal(order)} className="text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3.5 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
-                                  <Package size={13} /> Customer Pickup →
+                                <button onClick={() => handleOpenPickupModal(order)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
+                                  <Package size={12} /> Pickup →
                                 </button>
                               )}
                               {order.status === 'Closed' && (
-                                <span className="text-[11px] font-bold text-stone-500 bg-stone-100 px-2.5 py-1 rounded-lg">Completed &amp; Paid ✓</span>
+                                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Completed ✓</span>
                               )}
                             </div>
                           </div>
@@ -1714,51 +1641,51 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                       )
                     })}
                     {filteredOrders.length === 0 && (
-                      <div className="p-8 text-center bg-white rounded-3xl border border-[#EAECF0] text-xs text-[#9CA3AF]">No orders found matching your search.</div>
+                      <div className="p-8 text-center bg-white rounded-2xl border border-[#E8E1D5] text-xs text-[#6B7280]">No orders found matching your search.</div>
                     )}
                   </div>
 
                   {/* Order Detail */}
-                  <div className="lg:col-span-5 bg-white border border-[#EAECF0] rounded-3xl p-5 sm:p-6 shadow-xs sticky top-4 space-y-4">
+                  <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4">
                     {selectedOrder ? (
                       <>
-                        <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#EAECF0]">
+                        <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
-                            <div className="size-16 rounded-2xl overflow-hidden bg-stone-100 border border-[#EAECF0] shrink-0">
+                            <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
                               <img src={getGarmentPhoto(selectedOrder)} alt={selectedOrder.garmentName} className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="font-mono text-xs font-bold text-[#0F1115] bg-[#F9FAFB] border border-[#EAECF0] px-2 py-0.5 rounded-lg">{selectedOrder.id}</span>
-                                <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-lg">
-                                  {selectedOrder.status === 'Ready' ? `Pickup PIN #${selectedOrder.otp}` : `Drop-off PIN #${selectedOrder.otp}`}
+                                <span className="font-mono text-xs font-bold text-[#1E2229] bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded">#{selectedOrder.id}</span>
+                                <span className="text-xs font-semibold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/20 px-2 py-0.5 rounded">
+                                  PIN #{selectedOrder.otp}
                                 </span>
                               </div>
-                              <h3 className="font-bold text-base text-[#0F1115] truncate">{selectedOrder.garmentName}</h3>
-                              <p className="text-xs text-[#6B7280] font-medium">{selectedOrder.serviceName}</p>
+                              <h3 className="font-bold text-sm text-[#1E2229] truncate">{selectedOrder.garmentName}</h3>
+                              <p className="text-xs text-[#6B7280]">{selectedOrder.serviceName}</p>
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="text-xl font-black text-emerald-700">${selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8)}</div>
-                            <div className="text-[10px] text-[#9CA3AF] font-bold uppercase">Net (80%)</div>
+                            <div className="text-xl font-bold text-emerald-800">${selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8)}</div>
+                            <div className="text-[10px] text-[#9E593B] font-semibold">Net (80%)</div>
                           </div>
                         </div>
 
-                        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between">
+                        <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <ShieldCheck size={16} className="text-emerald-700 shrink-0" />
+                            <ShieldCheck size={15} className="text-[#9E593B] shrink-0" />
                             <div>
-                              <div className="font-bold text-emerald-900">Paid ${(selectedOrder.price || 35)} Online</div>
-                              <div className="text-[11px] text-emerald-700">80% releases 15 days post-pickup</div>
+                              <div className="font-semibold text-[#1E2229]">Paid ${(selectedOrder.price || 35)} Online</div>
+                              <div className="text-[11px] text-[#6B7280]">80% releases 15 days post-handover</div>
                             </div>
                           </div>
-                          <span className="text-[10px] font-bold bg-white text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">Stripe Escrow</span>
+                          <span className="text-[10px] font-semibold bg-white text-[#1E2229] border border-[#E8E1D5] px-2.5 py-0.5 rounded-full shrink-0">Stripe Escrow</span>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] space-y-2.5">
+                        <div className="p-3.5 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#374151] flex items-center gap-1.5"><Ruler size={13} /> Garment Measurements</span>
-                            <button onClick={() => handleOpenEditMeasurements(selectedOrder)} className="text-xs font-semibold text-[#6B7280] hover:text-[#0F1115] flex items-center gap-1 cursor-pointer bg-white border border-[#D1D5DB] px-2.5 py-1 rounded-xl">
+                            <span className="text-xs font-bold text-[#1E2229] flex items-center gap-1.5"><Ruler size={13} className="text-[#9E593B]" /> Measurements</span>
+                            <button onClick={() => handleOpenEditMeasurements(selectedOrder)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-0.5 rounded-lg">
                               <Edit3 size={11} /> Edit
                             </button>
                           </div>
@@ -1769,23 +1696,23 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                               { label: 'Sleeves', val: selectedOrder.measurements?.sleeve || 'Standard' },
                               { label: 'Inseam', val: selectedOrder.measurements?.inseam || 'Original' },
                             ].map(m => (
-                              <div key={m.label} className="bg-white p-2.5 rounded-xl border border-[#EAECF0]">
-                                <span className="text-[10px] text-[#9CA3AF] font-bold block mb-0.5">{m.label.toUpperCase()}</span>
-                                <span className="font-bold text-[#0F1115]">{m.val}</span>
+                              <div key={m.label} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
+                                <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{m.label}</span>
+                                <span className="font-semibold text-[#1E2229]">{m.val}</span>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl bg-white border border-[#EAECF0] space-y-2 text-xs divide-y divide-[#F3F4F6]">
-                          <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-bold text-[#0F1115]">{selectedOrder.customerName}</span></div>
-                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Phone:</span><a href={`tel:${selectedOrder.customerPhone}`} className="font-bold text-[#0F1115] hover:underline">{selectedOrder.customerPhone || 'N/A'}</a></div>
-                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#0F1115]">{selectedOrder.hangTagNo || 'N/A'}</span></div>
-                          <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-bold text-[#0F1115]">{selectedOrder.slaHours || 48}h Guaranteed</span></div>
+                        <div className="p-3.5 rounded-xl bg-white border border-[#E8E1D5] space-y-2 text-xs divide-y divide-[#E8E1D5]">
+                          <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-semibold text-[#1E2229]">{selectedOrder.customerName}</span></div>
+                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Phone:</span><a href={`tel:${selectedOrder.customerPhone}`} className="font-semibold text-[#9E593B] hover:underline">{selectedOrder.customerPhone || 'N/A'}</a></div>
+                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#1E2229]">{selectedOrder.hangTagNo || 'N/A'}</span></div>
+                          <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{selectedOrder.slaHours || 48}h Guaranteed</span></div>
                         </div>
                       </>
                     ) : (
-                      <div className="p-8 text-center text-[#9CA3AF] text-xs">Select an order to view details</div>
+                      <div className="p-8 text-center text-[#6B7280] text-xs">Select an order to inspect docket</div>
                     )}
                   </div>
                 </div>
@@ -1799,54 +1726,54 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               <div className="max-w-4xl mx-auto space-y-6">
                 <div className="grid sm:grid-cols-2 gap-6">
                   {/* Daily Capacity */}
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="font-bold text-base text-[#0F1115]">Daily Intake Limit</h3>
-                        <p className="text-xs text-[#6B7280]">Max garments your atelier accepts daily</p>
+                        <h3 className="font-bold text-base text-[#1E2229]">Daily Intake Limit</h3>
+                        <p className="text-xs text-[#6B7280]">Max garments workshop accepts daily</p>
                       </div>
-                      <span className="text-xs font-bold bg-[#F9FAFB] border border-[#EAECF0] px-3 py-1 rounded-xl text-[#0F1115]">
+                      <span className="text-xs font-bold bg-[#FAF8F5] border border-[#E8E1D5] px-3 py-1 rounded-full text-[#1E2229]">
                         {capacityLimit} / day
                       </span>
                     </div>
 
-                    <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EAECF0] space-y-2">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-[#6B7280]">Today's Bookings:</span>
-                        <span className="text-[#0F1115]">{orders.length} of {capacityLimit} slots</span>
+                    <div className="p-4 bg-[#F3EFEA]/80 rounded-2xl border border-[#E8E1D5] space-y-2">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-[#6B7280]">Active Bookings:</span>
+                        <span className="text-[#1E2229]">{orders.length} of {capacityLimit} slots</span>
                       </div>
-                      <div className="h-2.5 rounded-full bg-[#EAECF0] overflow-hidden">
-                        <div className="h-full bg-emerald-600 rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }} />
+                      <div className="h-2 rounded-full bg-[#E8E1D5] overflow-hidden">
+                        <div className="h-full bg-[#9E593B] rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }} />
                       </div>
                       <div className="text-[11px] text-[#6B7280] text-right">{Math.max(0, capacityLimit - orders.length)} slots remaining today</div>
                     </div>
 
-                    <input type="range" min={10} max={50} value={capacityLimit} onChange={(e) => setCapacityLimit(parseInt(e.target.value))} className="w-full accent-[#0F1115] cursor-pointer" />
-                    <div className="flex justify-between text-xs text-[#9CA3AF]">
+                    <input type="range" min={10} max={50} value={capacityLimit} onChange={(e) => setCapacityLimit(parseInt(e.target.value))} className="w-full accent-[#9E593B] cursor-pointer" />
+                    <div className="flex justify-between text-xs text-[#6B7280]">
                       <span>10 (Boutique)</span><span>25 (Standard)</span><span>50 (High Volume)</span>
                     </div>
                   </div>
 
                   {/* Operating Hours */}
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
-                    <h3 className="font-bold text-base text-[#0F1115]">Workshop Operating Hours</h3>
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
+                    <h3 className="font-bold text-base text-[#1E2229]">Workshop Operating Hours</h3>
                     <div className="space-y-2 text-xs">
                       {[
                         { day: 'Monday – Friday:', time: '09:00 AM – 07:00 PM' },
                         { day: 'Saturday:', time: '10:00 AM – 06:00 PM' },
                         { day: 'Sunday:', time: 'Closed for Rest' },
                       ].map((h) => (
-                        <div key={h.day} className="flex justify-between p-2.5 rounded-xl bg-[#F9FAFB] border border-[#EAECF0]">
+                        <div key={h.day} className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
                           <span className="text-[#6B7280]">{h.day}</span>
-                          <span className={`font-bold ${h.time.includes('Closed') ? 'text-[#9CA3AF]' : 'text-[#0F1115]'}`}>{h.time}</span>
+                          <span className={`font-semibold ${h.time.includes('Closed') ? 'text-[#6B7280]' : 'text-[#1E2229]'}`}>{h.time}</span>
                         </div>
                       ))}
                     </div>
                     <div className="pt-2">
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs">
-                        <span className="font-bold text-emerald-900">Counter Dispatch Status</span>
-                        <span className="font-bold text-emerald-700 flex items-center gap-1.5">
-                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Receiving New Orders
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+                        <span className="font-semibold text-emerald-900">Counter Dispatch Status</span>
+                        <span className="font-bold text-emerald-800 flex items-center gap-1.5">
+                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Receiving Orders
                         </span>
                       </div>
                     </div>
@@ -1854,21 +1781,21 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                 </div>
 
                 {/* Machines */}
-                <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-3">
-                  <h3 className="font-bold text-base text-[#0F1115]">Workshop Machines</h3>
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-3">
+                  <h3 className="font-bold text-base text-[#1E2229]">Workshop Machines</h3>
                   <div className="grid sm:grid-cols-2 gap-3 text-xs">
                     {[
-                      { name: 'Juki DDL-8700 Industrial Lockstitch', type: 'Primary Bench', status: 'Ready / Active' },
-                      { name: 'Juki MO-6814S 4-Thread Overlock', type: 'Finishing Bench', status: 'Ready / Active' },
+                      { name: 'Juki DDL-8700 Lockstitch', type: 'Primary Bench', status: 'Ready / Active' },
+                      { name: 'Juki MO-6814S Overlock', type: 'Finishing Bench', status: 'Ready / Active' },
                       { name: 'Union Special Denim Chainstitch', type: 'Denim Hemming', status: 'Ready / Active' },
                       { name: 'Reece 101 Eyelet Buttonholer', type: 'Suits & Tailoring', status: 'Standby' },
                     ].map((m, i) => (
-                      <div key={i} className="flex justify-between items-center p-3 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0]">
+                      <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
                         <div>
-                          <div className="font-bold text-[#0F1115]">{m.name}</div>
+                          <div className="font-bold text-[#1E2229]">{m.name}</div>
                           <div className="text-[11px] text-[#6B7280]">{m.type}</div>
                         </div>
-                        <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-[10px]">{m.status}</span>
+                        <span className="text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px]">{m.status}</span>
                       </div>
                     ))}
                   </div>
@@ -1882,58 +1809,58 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             {activeTab === 'payouts' && (
               <div className="max-w-4xl mx-auto space-y-6">
                 <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 shadow-xs">
-                    <span className="text-[10px] font-bold uppercase text-[#9CA3AF] tracking-wider block">Pending 15-Day Escrow</span>
-                    <div className="text-2xl font-black text-amber-600 mt-1">${todayEarned}</div>
-                    <div className="text-xs text-[#6B7280] mt-1">Releases 15 days post-handover</div>
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Pending 15-Day Escrow</span>
+                    <div className="text-2xl font-bold text-[#1E2229] mt-1">${todayEarned}</div>
+                    <div className="text-xs text-[#9E593B] font-medium mt-1">Releases 15 days post-handover</div>
                   </div>
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 shadow-xs">
-                    <span className="text-[10px] font-bold uppercase text-[#9CA3AF] tracking-wider block">Total Disbursed to Bank</span>
-                    <div className="text-2xl font-black text-emerald-700 mt-1">${totalClosedDisbursed}</div>
-                    <div className="text-xs text-[#6B7280] mt-1">Paid via Stripe Connect</div>
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Disbursed to Bank</span>
+                    <div className="text-2xl font-bold text-emerald-800 mt-1">${totalClosedDisbursed}</div>
+                    <div className="text-xs text-[#6B7280] mt-1">Stripe Connect Direct Deposit</div>
                   </div>
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 shadow-xs">
-                    <span className="text-[10px] font-bold uppercase text-[#9CA3AF] tracking-wider block">Studio Revenue Share</span>
-                    <div className="text-2xl font-black text-[#0F1115] mt-1">80% Net</div>
-                    <div className="text-xs text-[#6B7280] mt-1">20% Darzi platform fee</div>
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Studio Revenue Share</span>
+                    <div className="text-2xl font-bold text-[#1E2229] mt-1">80% Net</div>
+                    <div className="text-xs text-[#6B7280] mt-1">20% Platform Fee</div>
                   </div>
                 </div>
 
                 {/* Stripe Connect */}
-                <div className="bg-white border border-[#EAECF0] rounded-3xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="size-11 rounded-2xl bg-indigo-50 border border-indigo-200 grid place-items-center text-indigo-700 shrink-0">
-                      <CreditCard size={20} />
+                    <div className="size-10 rounded-xl bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 grid place-items-center shrink-0">
+                      <CreditCard size={18} />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-[#0F1115]">Stripe Connect · Verified Payouts</span>
-                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md">✓ Active</span>
+                        <span className="font-bold text-sm text-[#1E2229]">Stripe Connect · Verified Payouts</span>
+                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">✓ Active</span>
                       </div>
                       <p className="text-xs text-[#6B7280] mt-0.5">Customer payments held in 15-day rolling escrow · Automatic direct deposits</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-[#9CA3AF]">Payout Schedule: </span>
-                    <span className="text-xs font-bold text-[#0F1115]">15 Days Post-Pickup</span>
+                    <span className="text-xs text-[#6B7280]">Schedule: </span>
+                    <span className="text-xs font-bold text-[#1E2229]">15 Days Post-Pickup</span>
                   </div>
                 </div>
 
                 {/* Ledger */}
-                <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
-                  <h2 className="font-bold text-base text-[#0F1115]">15-Day Rolling Payout Ledger</h2>
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
+                  <h2 className="font-bold text-base text-[#1E2229]">15-Day Rolling Payout Ledger</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left">
-                      <thead className="bg-[#FAF8F5] border-b border-[#EAECF0] text-[#6B7280]">
+                      <thead className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#6B7280]">
                         <tr>
-                          <th className="p-3.5 font-semibold">Order / Customer</th>
-                          <th className="p-3.5 font-semibold">Customer Paid</th>
-                          <th className="p-3.5 font-semibold">Platform Fee (20%)</th>
-                          <th className="p-3.5 font-semibold">Studio Net (80%)</th>
-                          <th className="p-3.5 font-semibold text-right">Payout Status</th>
+                          <th className="p-3.5 font-bold">Order / Customer</th>
+                          <th className="p-3.5 font-bold">Paid</th>
+                          <th className="p-3.5 font-bold">Fee (20%)</th>
+                          <th className="p-3.5 font-bold">Studio Net (80%)</th>
+                          <th className="p-3.5 font-bold text-right">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-[#EAECF0]">
+                      <tbody className="divide-y divide-[#E8E1D5]">
                         {orders
                           .filter((o) => ['Closed', 'Collected', 'Ready', 'Work in Progress'].includes(o.status))
                           .map((o) => {
@@ -1943,12 +1870,12 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                             const isSettled = o.status === 'Closed' || o.status === 'Collected'
                             return (
                               <tr key={o.id}>
-                                <td className="p-3.5 font-medium text-[#0F1115]">{o.id} · {o.customerName}</td>
-                                <td className="p-3.5 text-[#4B5563]">${price}.00</td>
+                                <td className="p-3.5 font-semibold text-[#1E2229]">#{o.id} · {o.customerName}</td>
+                                <td className="p-3.5 text-[#1E2229]">${price}.00</td>
                                 <td className="p-3.5 text-[#6B7280]">-${fee}</td>
-                                <td className="p-3.5 font-bold text-emerald-700">${net}</td>
+                                <td className="p-3.5 font-bold text-emerald-800">${net}</td>
                                 <td className="p-3.5 text-right">
-                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${isSettled ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isSettled ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                                     {isSettled ? 'Deposited' : '15-Day Escrow'}
                                   </span>
                                 </td>
@@ -1957,7 +1884,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           })}
                         {orders.filter((o) => ['Closed', 'Collected', 'Ready', 'Work in Progress'].includes(o.status)).length === 0 && (
                           <tr>
-                            <td colSpan={5} className="p-6 text-center text-xs text-[#71717A]">No settlements yet. Working orders will appear here.</td>
+                            <td colSpan={5} className="p-6 text-center text-xs text-[#6B7280]">No settlements yet. Working orders will appear here.</td>
                           </tr>
                         )}
                       </tbody>
@@ -1971,7 +1898,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
         </main>
 
         {/* ── MOBILE BOTTOM TAB BAR ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#EAECF0] flex items-center justify-around h-14 shadow-lg">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#E8E1D5] flex items-center justify-around h-14">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             const Icon = item.icon
@@ -1980,14 +1907,14 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors cursor-pointer relative ${
-                  active ? 'text-[#9E593B]' : 'text-[#9CA3AF]'
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative ${
+                  active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
                 }`}
               >
-                <Icon size={20} />
-                <span className="text-[10px] font-semibold">{item.shortLabel}</span>
+                <Icon size={18} />
+                <span className="text-[9px]">{item.shortLabel}</span>
                 {badge && (
-                  <span className="absolute -top-0.5 right-0.5 size-4 rounded-full bg-amber-500 text-white text-[9px] font-bold grid place-items-center">{badge}</span>
+                  <span className="absolute -top-0.5 right-0.5 size-4 bg-amber-400 text-stone-950 text-[9px] font-bold rounded-full grid place-items-center">{badge}</span>
                 )}
               </button>
             )
@@ -1996,55 +1923,55 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MODALS                                                                 */}
+      {/* MODALS — CLEAN MINIMALIST DIALOGS                                      */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
 
       {/* Edit Measurements */}
       {isEditMeasOpen && editTargetOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-[#EAECF0] space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-[#EAECF0] pb-3">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white max-w-lg w-full p-6 rounded-2xl shadow-xl border border-[#E8E1D5] space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-3">
               <div>
-                <h3 className="font-serif font-bold text-base text-[#0F1115]">Edit Garment Specifications</h3>
+                <h3 className="font-bold text-base text-[#1E2229]">Edit Garment Specifications</h3>
                 <p className="text-xs text-[#6B7280]">{editTargetOrder.garmentName} · {editTargetOrder.customerName}</p>
               </div>
-              <button onClick={() => setIsEditMeasOpen(false)} className="p-1 rounded-lg hover:bg-stone-100 cursor-pointer">
+              <button onClick={() => setIsEditMeasOpen(false)} className="p-1 text-[#6B7280] hover:text-[#1E2229] rounded-lg hover:bg-[#FAF8F5] cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
               {[
-                { label: 'Hem Adjustment', val: measHem, set: setMeasHem, ph: 'e.g. Shorten 3.5 cm (1.4 in)' },
+                { label: 'Hem Adjustment', val: measHem, set: setMeasHem, ph: 'e.g. -3.5 cm' },
                 { label: 'Waist / Seat', val: measWaist, set: setMeasWaist, ph: 'e.g. Suppress 1.5 in' },
-                { label: 'Sleeves / Cuffs', val: measSleeve, set: setMeasSleeve, ph: 'e.g. Shorten 1.0 in from cuff' },
-                { label: 'Finished Inseam', val: measInseam, set: setMeasInseam, ph: 'e.g. 30.5 in finished' },
+                { label: 'Sleeves / Cuffs', val: measSleeve, set: setMeasSleeve, ph: 'e.g. -1.0 in from cuff' },
+                { label: 'Finished Inseam', val: measInseam, set: setMeasInseam, ph: 'e.g. 30.5 in' },
               ].map((f) => (
                 <div key={f.label}>
-                  <label className="block font-bold text-[#0F1115] mb-1">{f.label}</label>
+                  <label className="block font-semibold text-[#1E2229] mb-1">{f.label}</label>
                   <input
                     type="text"
                     value={f.val}
                     onChange={(e) => f.set(e.target.value)}
                     placeholder={f.ph}
-                    className="w-full px-3 py-2 rounded-xl border border-[#D1D5DB]"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white focus:border-[#9E593B] focus:outline-none"
                   />
                 </div>
               ))}
             </div>
 
-            <div className="pt-3 border-t border-[#EAECF0] flex justify-end gap-2">
+            <div className="pt-3 border-t border-[#E8E1D5] flex justify-end gap-2">
               <button
                 onClick={() => setIsEditMeasOpen(false)}
-                className="px-4 py-2 rounded-xl border border-[#D1D5DB] text-xs font-semibold text-[#4B5563]"
+                className="px-4 py-2 rounded-xl border border-[#E8E1D5] text-xs font-semibold text-[#6B7280] hover:bg-[#FAF8F5]"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveMeasurements}
-                className="px-5 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold transition-colors"
+                className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold shadow-xs transition-colors"
               >
-                Save Changes
+                Save Specs
               </button>
             </div>
           </div>
@@ -2053,18 +1980,18 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
 
       {/* Pickup Verification Modal */}
       {pickupModalOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-[#EAECF0] space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-[#EAECF0] pb-3">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white max-w-md w-full p-6 rounded-2xl shadow-xl border border-[#E8E1D5] space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 block">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B] block">
                   Customer Handover
                 </span>
-                <h3 className="font-serif font-bold text-base text-[#0F1115]">
+                <h3 className="font-bold text-base text-[#1E2229]">
                   Verify Pickup PIN
                 </h3>
               </div>
-              <button onClick={() => setPickupModalOrder(null)} className="p-1 rounded-lg hover:bg-stone-100 cursor-pointer">
+              <button onClick={() => setPickupModalOrder(null)} className="p-1 text-[#6B7280] hover:text-[#1E2229] rounded-lg hover:bg-[#FAF8F5] cursor-pointer">
                 <X size={16} />
               </button>
             </div>
@@ -2081,45 +2008,45 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     maxLength={6}
                     value={pickupOtpInput}
                     onChange={(e) => setPickupOtpInput(e.target.value)}
-                    placeholder="Enter pickup code (e.g. 1839)"
-                    className="w-full text-center font-mono font-black text-2xl tracking-[0.25em] py-3.5 rounded-2xl border-2 border-[#D1D5DB] focus:border-[#0F1115] focus:outline-none"
+                    placeholder="Enter code (e.g. 1839)"
+                    className="w-full text-center font-mono font-bold text-2xl tracking-[0.25em] py-3.5 rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none"
                   />
                   {pickupOtpError && (
-                    <p className="text-xs text-red-600 font-semibold">{pickupOtpError}</p>
+                    <p className="text-xs text-red-600 font-medium">{pickupOtpError}</p>
                   )}
-                  <p className="text-[11px] text-[#71717A] text-center">
-                    (Customer Pickup PIN: <strong className="text-[#0F1115]">#{pickupModalOrder.otp}</strong>)
+                  <p className="text-xs text-[#6B7280] text-center">
+                    (Customer Pickup PIN: <strong className="text-[#1E2229]">#{pickupModalOrder.otp}</strong>)
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleVerifyPickupOtp}
-                  className="w-full py-3.5 bg-[#0F1115] hover:bg-[#9E593B] text-white rounded-2xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs"
+                  className="w-full py-3 bg-[#0F1115] hover:bg-[#9E593B] text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95"
                 >
                   Verify Customer Code →
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
                   <span>✓ Identity Verified! Ready for garment handover.</span>
                 </div>
 
                 {/* Retail In-Store Sales Prompt */}
-                <div className="p-4 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] space-y-3 text-xs">
-                  <label className="font-bold text-[#0F1115] block">
+                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 text-xs">
+                  <label className="font-semibold text-[#1E2229] block">
                     Did the customer purchase retail accessories during pickup?
                   </label>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('YES')}
-                      className={`flex-1 py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
+                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${
                         retailAnswer === 'YES'
                           ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                          : 'bg-white text-[#4B5563] border-[#D1D5DB]'
+                          : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                       }`}
                     >
                       Yes (+Add Sale)
@@ -2127,10 +2054,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('NO')}
-                      className={`flex-1 py-2 rounded-xl font-bold border transition-colors cursor-pointer ${
+                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${
                         retailAnswer === 'NO'
                           ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                          : 'bg-white text-[#4B5563] border-[#D1D5DB]'
+                          : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                       }`}
                     >
                       No (Handover Only)
@@ -2140,20 +2067,20 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   {retailAnswer === 'YES' && (
                     <div className="pt-2 space-y-2">
                       <div>
-                        <span className="text-[10px] font-bold text-[#6B7280] block mb-0.5">RETAIL SALE AMOUNT ($)</span>
+                        <span className="text-[10px] font-bold text-[#9E593B] block mb-0.5">RETAIL SALE AMOUNT ($)</span>
                         <input
                           type="number"
                           value={retailValueInput}
                           onChange={(e) => setRetailValueInput(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg border border-[#D1D5DB] bg-white font-bold"
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E8E1D5] bg-white font-semibold"
                         />
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-[#6B7280] block mb-0.5">CATEGORY</span>
+                        <span className="text-[10px] font-bold text-[#9E593B] block mb-0.5">CATEGORY</span>
                         <select
                           value={retailCategoryInput}
                           onChange={(e) => setRetailCategoryInput(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-lg border border-[#D1D5DB] bg-white text-xs"
+                          className="w-full px-3 py-1.5 rounded-xl border border-[#E8E1D5] bg-white text-xs font-medium"
                         >
                           <option>Accessories &amp; Ties</option>
                           <option>Custom Garment Bag &amp; Hanger</option>
@@ -2169,10 +2096,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   type="button"
                   onClick={handleCompletePickupAndSettlement}
                   disabled={retailAnswer === null}
-                  className={`w-full py-3.5 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all shadow-md ${
+                  className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${
                     retailAnswer === null
-                      ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                      : 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer active:scale-95'
+                      ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
+                      : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
                   }`}
                 >
                   {pickupCompleted ? '✓ Order Settled!' : 'Complete Handover & Lock Earnings →'}

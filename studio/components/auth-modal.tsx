@@ -389,7 +389,57 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             </div>
           )}
 
-          {/* STUDIO SIGN IN OPTIONS */}
+          {/* ── STUDIO SIGN UP OPTIONS ── */}
+          {mode === 'studio-signup-options' && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Network</p>
+                <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Register Your Atelier</h2>
+                <p className="text-[13px] text-[#6B7280] mt-1.5">Join Darzi as a certified partner atelier to receive pre-pinned alteration jobs.</p>
+              </div>
+
+              <div className="space-y-2.5">
+                <GoogleButton label="Sign up with Google (Partner)" loading={loading} onClick={triggerGoogle} bordered />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('')
+                    setNotice('')
+                    setMode('studio-register')
+                    setRegisterStep(1)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all shadow-xs cursor-pointer active:scale-98"
+                >
+                  <Store size={15} />
+                  <span>Register with 3-Step Form</span>
+                </button>
+                <AuthButton
+                  icon={<Phone size={15} className="text-[#9E593B]" />}
+                  label="Sign in / Register with Mobile"
+                  onClick={() => setMode('studio-mobile')}
+                />
+              </div>
+
+              <Divider />
+
+              <div className="text-center">
+                <span className="text-xs text-[#6B7280]">Already have a registered studio? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError('')
+                    setNotice('')
+                    setMode('studio-options')
+                  }}
+                  className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
+                >
+                  Sign in →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STUDIO SIGN IN OPTIONS ── */}
           {mode === 'studio-options' && (
             <div className="space-y-5">
               <div>
@@ -403,17 +453,20 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                 <AuthButton icon={<Phone size={15} className="text-[#9E593B]" />} label="Sign in with Mobile Number" onClick={() => setMode('studio-mobile')} />
                 <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign in with Email" onClick={() => setMode('studio-login')} />
                 <button
-                  onClick={() => setMode('studio-register')}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors"
+                  onClick={() => {
+                    setMode('studio-register')
+                    setRegisterStep(1)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
                 >
                   <Store size={15} />
-                  Register New Atelier Studio
+                  <span>Register New Atelier Studio</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* STUDIO MOBILE SIGN IN */}
+          {/* ── STUDIO MOBILE SIGN IN ── */}
           {mode === 'studio-mobile' && (
             <div className="space-y-4">
               <div>
@@ -446,7 +499,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             </div>
           )}
 
-          {/* STUDIO EMAIL LOGIN */}
+          {/* ── STUDIO EMAIL LOGIN ── */}
           {mode === 'studio-login' && (
             <form onSubmit={handleStudioLogin} className="space-y-4">
               <div>
@@ -460,7 +513,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             </form>
           )}
 
-          {/* STUDIO 3-STEP REGISTER */}
+          {/* ── STUDIO 3-STEP REGISTER ── */}
           {mode === 'studio-register' && (
             <div className="space-y-5">
               <div>
@@ -470,10 +523,12 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-bold text-[#374151]">Step {registerStep} of 3</p>
-                  <span className="text-[11px] font-bold text-[#6B7280]">{Math.round((registerStep / 3) * 100)}%</span>
+                  <p className="text-[11px] font-bold text-[#374151]">
+                    {registerStep === 1 ? '1. Studio Location' : registerStep === 2 ? '2. Lead Tailor Details' : '3. Capacity & Machines'}
+                  </p>
+                  <span className="text-[11px] font-bold text-[#9E593B]">Step {registerStep} of 3 ({Math.round((registerStep / 3) * 100)}%)</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-[#E5DFD5] overflow-hidden">
+                <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
                   <div className="h-full rounded-full bg-[#9E593B] transition-all duration-300" style={{ width: `${(registerStep / 3) * 100}%` }} />
                 </div>
               </div>
@@ -494,9 +549,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                       setError('')
                       setRegisterStep(2)
                     }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
                   >
-                    Next <ArrowRight size={14} />
+                    <span>Next: Lead Tailor Details</span>
+                    <ArrowRight size={14} />
                   </button>
                 </div>
               )}
@@ -514,9 +570,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                       setError('')
                       setRegisterStep(3)
                     }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
                   >
-                    Next <ArrowRight size={14} />
+                    <span>Next: Capacity & Equipment</span>
+                    <ArrowRight size={14} />
                   </button>
                 </div>
               )}
@@ -529,7 +586,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                       <select
                         value={sMachines}
                         onChange={(e) => setSMachines(e.target.value)}
-                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none"
+                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
                       >
                         <option value="2-3">2–3 machines</option>
                         <option value="4-6">4–6 machines</option>
@@ -541,7 +598,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                       <select
                         value={sCapacity}
                         onChange={(e) => setSCapacity(e.target.value)}
-                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none"
+                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
                       >
                         <option value="15">15 / day</option>
                         <option value="25">25 / day</option>
@@ -560,9 +617,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                             key={s}
                             type="button"
                             onClick={() => toggleSpecialty(s)}
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all ${
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all cursor-pointer ${
                               on
-                                ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                                ? 'bg-[#9E593B] text-white border-[#9E593B]'
                                 : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
                             }`}
                           >
@@ -577,10 +634,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors disabled:opacity-60 cursor-pointer shadow-xs"
                   >
                     <Sparkles size={15} />
-                    {loading ? 'Activating studio…' : 'Open Studio Dashboard'}
+                    <span>{loading ? 'Activating studio…' : 'Open Studio Dashboard'}</span>
                   </button>
                 </form>
               )}
