@@ -31,7 +31,7 @@ function generateToken(user) {
   );
 }
 
-// Unified user resolution & account linking helper directly in PostgreSQL
+// Unified user resolution & creation helper directly in PostgreSQL
 async function findOrLinkUser({
   email,
   phone,
@@ -126,17 +126,17 @@ async function findOrLinkUser({
       phone: updatedPhone,
       name:
         user.name &&
-        user.name !== 'Darzi Member' &&
-        user.name !== 'Google User' &&
-        user.name !== 'Mobile Member'
+          user.name !== 'Darzi Member' &&
+          user.name !== 'Google User' &&
+          user.name !== 'Mobile Member'
           ? user.name
           : name || user.name,
       avatar:
         avatar && !avatar.includes('dicebear')
           ? avatar
           : user.avatar && !user.avatar.includes('dicebear')
-          ? user.avatar
-          : avatar ||
+            ? user.avatar
+            : avatar ||
             user.avatar ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
               normEmail || normPhone || 'user'
@@ -144,7 +144,6 @@ async function findOrLinkUser({
       address: user.address || address || '18 Kensington Church St',
       postcode: user.postcode || postcode || 'W8 4EP',
       contact: user.email || user.phone || normEmail || normPhone || user.contact,
-      role: role || user.role,
       studioId: actualStudioId || user.studioId || null,
       studioName: studioName || user.studioName || null,
     };
@@ -172,7 +171,7 @@ async function findOrLinkUser({
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name:
         name ||
-        (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
+        (normEmail ? 'Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
       email: normEmail,
       phone: normPhone,
       contact: contactStr,
@@ -254,7 +253,7 @@ router.post('/verify-otp', async (req, res) => {
 
     let user;
     if (userId) {
-      // Check if another user already has this phone
+      // Linking phone to existing user account
       const phoneConflict = await prisma.user.findFirst({
         where: { phone: cleanPhone, NOT: { id: userId } },
       });
@@ -274,16 +273,42 @@ router.post('/verify-otp', async (req, res) => {
           },
         });
       }
-    }
-
-    if (!user) {
-      user = await findOrLinkUser({
-        phone: cleanPhone,
-        email,
-        name,
-        method: 'mobile',
-        role,
+    } else {
+      // Check existing user by phone
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
+        },
       });
+
+      if (existingUser) {
+        // Strict role validation
+        if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
+          return res.status(403).json({
+            error: 'This mobile number is registered as a Customer account. Please sign in via the Customer portal or register a new Studio partner account.',
+          });
+        }
+        if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
+          return res.status(403).json({
+            error: 'This mobile number is registered as a Studio Partner. Please sign in via the Studio Partner portal.',
+          });
+        }
+        user = existingUser;
+      } else {
+        // User does not exist
+        if (role === 'STUDIO') {
+          return res.status(404).json({
+            error: 'No Studio partner account found with this mobile number. Please register your studio first.',
+          });
+        }
+        user = await findOrLinkUser({
+          phone: cleanPhone,
+          email,
+          name,
+          method: 'mobile',
+          role: 'CUSTOMER',
+        });
+      }
     }
 
     const token = generateToken(user);
@@ -296,7 +321,7 @@ router.post('/verify-otp', async (req, res) => {
     });
   } catch (err) {
     console.error('Verify OTP Error:', err);
-    return res.status(500).json({ error: 'Failed to verify code.' });
+    return res.status(500).json({ error: err.message || 'Failed to verify code.' });
   }
 });
 
@@ -309,7 +334,7 @@ router.post('/link-phone', async (req, res) => {
       try {
         const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { phone, otp, id } = req.body;
@@ -423,8 +448,28 @@ router.post('/google', async (req, res) => {
         .json({ error: 'Failed to retrieve email or identity from Google authentication.' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
+
+    if (existingUser) {
+      if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
+        return res.status(403).json({
+          error: 'This Google account is registered as a Customer account. Please sign in via the Customer portal or register a new Studio Partner account.',
+        });
+      }
+      if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
+        return res.status(403).json({
+          error: 'This Google account is registered as a Studio Partner. Please sign in via the Studio Partner portal.',
+        });
+      }
+    }
+
     const user = await findOrLinkUser({
-      email,
+      email: cleanEmail,
       name,
       avatar,
       method: 'google',
@@ -470,12 +515,36 @@ router.post('/signup', async (req, res) => {
     const cleanEmail = email ? email.trim().toLowerCase() : null;
     const cleanPhone = phone ? phone.trim() : null;
 
+    // Check existing email conflict
+    if (cleanEmail) {
+      const existingEmail = await prisma.user.findUnique({ where: { email: cleanEmail } });
+      if (existingEmail) {
+        if (existingEmail.role !== role) {
+          return res.status(409).json({
+            error: `This email is already registered as a ${existingEmail.role === 'STUDIO' ? 'Studio Partner' : 'Customer'}. Please sign in to the corresponding portal.`,
+          });
+        }
+        return res.status(409).json({
+          error: 'An account with this email address is already registered. Please sign in instead.',
+        });
+      }
+    }
+
     // Check existing phone conflict
     if (cleanPhone) {
-      const existingPhone = await prisma.user.findUnique({ where: { phone: cleanPhone } });
-      if (existingPhone && cleanEmail && existingPhone.email && existingPhone.email !== cleanEmail) {
+      const existingPhone = await prisma.user.findFirst({
+        where: {
+          OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
+        },
+      });
+      if (existingPhone) {
+        if (existingPhone.role !== role) {
+          return res.status(409).json({
+            error: `This mobile number is already registered as a ${existingPhone.role === 'STUDIO' ? 'Studio Partner' : 'Customer'}. Please sign in to the corresponding portal.`,
+          });
+        }
         return res.status(409).json({
-          error: 'This mobile number is already registered with another email account.',
+          error: 'An account with this mobile number is already registered. Please sign in instead.',
         });
       }
     }
@@ -509,7 +578,7 @@ router.post('/signup', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, phone, identifier, role } = req.body;
+    const { email, phone, identifier, role = 'CUSTOMER' } = req.body;
     const searchVal = identifier || email || phone;
     if (!searchVal) {
       return res.status(400).json({ error: 'Please enter your email or mobile number.' });
@@ -527,22 +596,22 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      if (role === 'STUDIO') {
-        user = await findOrLinkUser({
-          email: cleanVal.includes('@') ? cleanVal : 'partner@darzi.com',
-          phone: !cleanVal.includes('@') ? cleanVal : null,
-          name: 'Master Tailor',
-          role: 'STUDIO',
-          studioId: 'atelier-soho',
-          studioName: 'Atelier SoHo Tailors',
-        });
-      } else {
-        user = await findOrLinkUser({
-          email: cleanVal.includes('@') ? cleanVal : null,
-          phone: !cleanVal.includes('@') ? cleanVal : null,
-          role: role || 'CUSTOMER',
-        });
-      }
+      return res.status(404).json({
+        error: 'No account found with this email or mobile number. Please register first.',
+      });
+    }
+
+    // Role verification
+    if (role === 'STUDIO' && user.role !== 'STUDIO') {
+      return res.status(403).json({
+        error: 'This account is registered as a Customer. Please sign in at the Customer portal or register as a Studio Partner.',
+      });
+    }
+
+    if (role === 'CUSTOMER' && user.role === 'STUDIO') {
+      return res.status(403).json({
+        error: 'This account is registered as a Studio Partner. Please sign in at the Studio Partner portal.',
+      });
     }
 
     const token = generateToken(user);
@@ -568,7 +637,7 @@ router.post('/update-profile', async (req, res) => {
       try {
         const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const { id, name, email, phone, address, postcode } = req.body;

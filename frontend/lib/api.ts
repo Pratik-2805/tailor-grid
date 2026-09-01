@@ -70,25 +70,6 @@ export async function verifyOtp(params: {
     }
     return data
   } catch (err: any) {
-    if (params.otp === '4829' || params.otp === '1234' || params.otp === '0000' || params.otp.length === 4) {
-      const fallbackUser: User = {
-        name: params.name || 'Darzi Member',
-        phone: params.phone,
-        contact: params.phone,
-        email: params.email,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(params.phone)}`,
-        address: '18 Kensington Church St',
-        postcode: 'W8 4EP',
-        method: 'mobile',
-        role: params.role || 'CUSTOMER',
-      }
-      const token = 'mock_token_' + Date.now()
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tg_token', token)
-        localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
-      }
-      return { token, user: fallbackUser, hasPhone: true }
-    }
     throw err
   }
 }
@@ -124,29 +105,7 @@ export async function linkPhone(params: {
     }
     return data
   } catch (err: any) {
-    console.warn('Backend link-phone fallback:', err.message)
-    let currentUser: User = {
-      name: 'Darzi Member',
-      contact: params.phone,
-      phone: params.phone,
-      method: 'mobile',
-      role: 'CUSTOMER',
-    }
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      if (stored) {
-        try {
-          currentUser = { ...JSON.parse(stored), phone: params.phone }
-        } catch { }
-      }
-      localStorage.setItem('tg_user', JSON.stringify(currentUser))
-    }
-    return {
-      success: true,
-      user: currentUser,
-      token: token || 'mock_token_' + Date.now(),
-      hasPhone: true,
-    }
+    throw err
   }
 }
 
@@ -177,25 +136,6 @@ export async function loginWithGoogle(params: {
     }
     return data
   } catch (err: any) {
-    if (params.profile) {
-      const fallbackUser: User = {
-        name: params.profile.name || 'Google User',
-        contact: params.profile.contact || params.profile.email || 'google.user@example.com',
-        email: params.profile.email || params.profile.contact,
-        phone: params.profile.phone,
-        avatar: params.profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=google',
-        address: params.profile.address || '18 Kensington Church St',
-        postcode: params.profile.postcode || 'W8 4EP',
-        method: 'google',
-        role: params.role || 'CUSTOMER',
-      }
-      const token = 'mock_token_' + Date.now()
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('tg_token', token)
-        localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
-      }
-      return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
-    }
     throw err
   }
 }
@@ -231,26 +171,8 @@ export async function signUpUser(data: {
       }
     }
     return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: data.name || (data.role === 'STUDIO' ? data.storeName || 'Partner Atelier' : 'Darzi User'),
-      contact: data.email || data.phone || 'user@example.com',
-      email: data.email,
-      phone: data.phone,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'user')}`,
-      address: data.address || '18 Kensington Church St',
-      postcode: data.postcode || 'W8 4EP',
-      method: data.email ? 'email' : 'mobile',
-      role: data.role || 'CUSTOMER',
-      studioId: data.role === 'STUDIO' ? 'kensington-atelier' : undefined,
-      studioName: data.storeName || (data.role === 'STUDIO' ? 'Kensington Bespoke Atelier' : undefined),
-    }
-    const token = 'mock_token_' + Date.now()
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', token)
-      localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
-    }
-    return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
+  } catch (err: any) {
+    throw err
   }
 }
 
@@ -280,26 +202,8 @@ export async function loginUser(data: {
       }
     }
     return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: data.role === 'STUDIO' ? 'Master Tailor Marco' : 'Darzi Member',
-      contact: data.email || data.phone || data.identifier || 'partner@darzi.com',
-      email: data.email || (data.identifier?.includes('@') ? data.identifier : undefined),
-      phone: data.phone || (!data.identifier?.includes('@') ? data.identifier : undefined),
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.email || data.phone || 'partner')}`,
-      address: '18 Kensington Church St',
-      postcode: 'W8 4EP',
-      method: data.email ? 'email' : 'mobile',
-      role: data.role || 'CUSTOMER',
-      studioId: data.role === 'STUDIO' ? 'atelier-soho' : undefined,
-      studioName: data.role === 'STUDIO' ? 'Atelier SoHo Tailors' : undefined,
-    }
-    const token = 'mock_token_' + Date.now()
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', token)
-      localStorage.setItem('tg_user', JSON.stringify(fallbackUser))
-    }
-    return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
+  } catch (err: any) {
+    throw err
   }
 }
 

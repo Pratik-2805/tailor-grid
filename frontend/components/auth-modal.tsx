@@ -209,15 +209,7 @@ export function AuthModal({
       tokenClient.requestAccessToken()
     } catch (err: any) {
       setLoading(false)
-      const demo: UserType = {
-        name: role === 'STUDIO' ? 'Marco Rossi (Demo)' : 'Google Member',
-        contact: role === 'STUDIO' ? 'marco@ateliersoho.com' : 'demo@gmail.com',
-        email: role === 'STUDIO' ? 'marco@ateliersoho.com' : 'demo@gmail.com',
-        method: 'google',
-        role,
-        ...(role === 'STUDIO' && { studioId: 'atelier-soho', studioName: 'Atelier SoHo Tailors' }),
-      }
-      finalizeAuth(demo, role)
+      setError(err.message || 'Google sign-in initialization failed.')
     }
   }
 
@@ -239,7 +231,7 @@ export function AuthModal({
       setCDemoCode(code)
     } catch (err: any) {
       setLoading(false)
-      setCOtpSent(true)
+      setError(err.message || 'Failed to send verification code.')
     }
   }
 
@@ -265,7 +257,7 @@ export function AuthModal({
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Invalid code. Use 4829.')
+      setError(err.message || 'Invalid code.')
     }
   }
 
@@ -296,7 +288,7 @@ export function AuthModal({
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Sign in failed.')
+      setError(err.message || 'Sign up failed.')
     }
   }
 
@@ -317,7 +309,7 @@ export function AuthModal({
       setLinkDemoCode(code)
     } catch (err: any) {
       setLoading(false)
-      setLinkOtpSent(true)
+      setError(err.message || 'Failed to send verification code.')
     }
   }
 
@@ -341,7 +333,7 @@ export function AuthModal({
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to verify code. Use 4829.')
+      setError(err.message || 'Failed to verify code.')
     }
   }
 
@@ -356,17 +348,7 @@ export function AuthModal({
       if (result?.user) finalizeAuth(result.user, 'STUDIO')
     } catch (err: any) {
       setLoading(false)
-      const demo: UserType = {
-        name: sTailorName || 'Marco Rossi (Master Tailor)',
-        contact: sLoginEmail,
-        email: sLoginEmail,
-        phone: '+44 7700 900123',
-        method: 'email',
-        role: 'STUDIO',
-        studioId: 'atelier-soho',
-        studioName: 'Atelier SoHo Tailors',
-      }
-      onSuccess(demo)
+      setError(err.message || 'Login failed. Please check your credentials.')
     }
   }
 
@@ -391,17 +373,7 @@ export function AuthModal({
       if (result?.user) onSuccess(result.user)
     } catch (err: any) {
       setLoading(false)
-      const demo: UserType = {
-        name: sTailorName || 'Master Tailor',
-        contact: sEmail || sPhone,
-        email: sEmail,
-        phone: sPhone,
-        method: 'email',
-        role: 'STUDIO',
-        studioId: 'new-studio',
-        studioName: sName || 'New Atelier Studio',
-      }
-      onSuccess(demo)
+      setError(err.message || 'Registration failed. Please check your details.')
     }
   }
 

@@ -59,24 +59,7 @@ export async function verifyOtp(params: {
     }
     return data
   } catch (err: any) {
-    const fallbackUser: User = {
-      name: params.name || 'Master Tailor Marco',
-      phone: params.phone,
-      contact: params.phone,
-      email: params.email,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(params.phone)}`,
-      address: '18 Kensington Church St',
-      postcode: 'W8 4EP',
-      method: 'mobile',
-      role: 'STUDIO',
-      studioId: 'atelier-soho',
-      studioName: 'Atelier SoHo Tailors',
-    }
-    const token = 'mock_token_' + Date.now()
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', token)
-    }
-    return { token, user: fallbackUser, hasPhone: true }
+    throw err
   }
 }
 
@@ -107,19 +90,7 @@ export async function linkPhone(params: {
     }
     return data
   } catch (err: any) {
-    let currentUser: User = {
-      name: 'Studio Partner',
-      contact: params.phone,
-      phone: params.phone,
-      method: 'mobile',
-      role: 'STUDIO',
-    }
-    return {
-      success: true,
-      user: currentUser,
-      token: token || 'mock_token_' + Date.now(),
-      hasPhone: true,
-    }
+    throw err
   }
 }
 
@@ -147,22 +118,6 @@ export async function loginWithGoogle(params: {
     }
     return data
   } catch (err: any) {
-    if (params.profile) {
-      const fallbackUser: User = {
-        name: params.profile.name || 'Studio Partner',
-        contact: params.profile.contact || 'partner@darzi.com',
-        email: params.profile.email,
-        phone: params.profile.phone,
-        avatar: params.profile.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=studio',
-        address: params.profile.address || '18 Kensington Church St',
-        postcode: params.profile.postcode || 'W8 4EP',
-        method: 'google',
-        role: 'STUDIO',
-        studioId: 'atelier-soho',
-        studioName: 'Atelier SoHo Tailors',
-      }
-      return { token: 'mock_token_' + Date.now(), user: fallbackUser, needsPhone: !fallbackUser.phone }
-    }
     throw err
   }
 }
@@ -195,21 +150,8 @@ export async function signUpUser(data: {
       localStorage.setItem('tg_token', result.token)
     }
     return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: data.name || data.storeName || 'Master Tailor',
-      contact: data.email || data.phone || 'partner@darzi.com',
-      email: data.email,
-      phone: data.phone,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(data.name || 'partner')}`,
-      address: data.address || '18 Kensington Church St',
-      postcode: data.postcode || 'W8 4EP',
-      method: data.email ? 'email' : 'mobile',
-      role: 'STUDIO',
-      studioId: 'kensington-atelier',
-      studioName: data.storeName || 'Kensington Bespoke Atelier',
-    }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser, needsPhone: !fallbackUser.phone }
+  } catch (err: any) {
+    throw err
   }
 }
 
@@ -236,21 +178,8 @@ export async function loginUser(data: {
       localStorage.setItem('tg_token', result.token)
     }
     return result
-  } catch (err) {
-    const fallbackUser: User = {
-      name: 'Master Tailor Marco',
-      contact: data.email || data.phone || data.identifier || 'partner@darzi.com',
-      email: data.email,
-      phone: data.phone,
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      address: '18 Kensington Church St',
-      postcode: 'W8 4EP',
-      method: 'email',
-      role: 'STUDIO',
-      studioId: 'atelier-soho',
-      studioName: 'Atelier SoHo Tailors',
-    }
-    return { token: 'mock_token_' + Date.now(), user: fallbackUser, needsPhone: !fallbackUser.phone }
+  } catch (err: any) {
+    throw err
   }
 }
 
