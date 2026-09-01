@@ -2,7 +2,6 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { prisma } = require('../lib/prisma');
-const { readDb, writeDb } = require('../db');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
@@ -32,7 +31,7 @@ function generateToken(user) {
   );
 }
 
-// Unified user resolution & account linking helper
+// Unified user resolution & account linking helper directly in PostgreSQL
 async function findOrLinkUser({
   email,
   phone,
@@ -53,39 +52,21 @@ async function findOrLinkUser({
 
   let user = null;
 
-  // 1. Try Prisma lookup
-  try {
-    if (normEmail) {
-      user = await prisma.user.findUnique({
-        where: { email: normEmail },
-      });
-    }
-    if (!user && normPhone) {
-      user = await prisma.user.findFirst({
-        where: {
-          OR: [{ phone: normPhone }, { contact: normPhone }],
-        },
-      });
-    }
-  } catch (prismaErr) {
-    console.warn('Prisma user lookup notice:', prismaErr.message);
+  // 1. Prisma user lookup
+  if (normEmail) {
+    user = await prisma.user.findUnique({
+      where: { email: normEmail },
+    });
   }
-
-  // 2. Fallback to local JSON store if not found in Prisma
-  const db = readDb();
-  if (!db.users) db.users = [];
-
-  if (!user) {
-    user = db.users.find((u) => {
-      if (normEmail && u.email && u.email.toLowerCase() === normEmail) return true;
-      if (normEmail && u.contact && u.contact.toLowerCase() === normEmail) return true;
-      if (normPhone && u.phone === normPhone) return true;
-      if (normPhone && u.contact === normPhone) return true;
-      return false;
+  if (!user && normPhone) {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [{ phone: normPhone }, { contact: normPhone }],
+      },
     });
   }
 
-  // 3. If Studio role and creating a store
+  // 2. If Studio role and creating a store in PostgreSQL
   let actualStudioId = studioId;
   if (role === 'STUDIO' && (studioName || name)) {
     const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
@@ -94,46 +75,39 @@ async function findOrLinkUser({
       actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
     }
 
-    const newStoreData = {
-      id: actualStudioId,
-      name: actualStoreName,
-      area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
-      address: address || '18 Kensington Church St',
-      postcode: postcode || 'W8 4EP',
-      distance: '0.4 mi away',
-      distanceMiles: 0.4,
-      rating: 5.0,
-      reviewCount: 1,
-      openingHours: 'Mon–Sat: 09:00 – 19:00',
-      dailyCapacity: 25,
-      machines: machines ? parseInt(machines) || 6 : 6,
-      workers: 4,
-      leadTailor: name || 'Master Tailor',
-      specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
-      retailSold: true,
-      lat: 51.5033,
-      lng: -0.1925,
-    };
-
     try {
-      await prisma.partnerStore.create({ data: newStoreData });
+      const existingStore = await prisma.partnerStore.findUnique({ where: { id: actualStudioId } });
+      if (!existingStore) {
+        await prisma.partnerStore.create({
+          data: {
+            id: actualStudioId,
+            name: actualStoreName,
+            area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
+            address: address || '18 Kensington Church St',
+            postcode: postcode || 'W8 4EP',
+            distance: '0.4 mi away',
+            distanceMiles: 0.4,
+            rating: 5.0,
+            reviewCount: 1,
+            openingHours: 'Mon–Sat: 09:00 – 19:00',
+            dailyCapacity: 25,
+            machines: machines ? parseInt(machines) || 6 : 6,
+            workers: 4,
+            leadTailor: name || 'Master Tailor',
+            specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+            retailSold: true,
+            lat: 40.7259,
+            lng: -74.0003,
+          },
+        });
+      }
     } catch (storeErr) {
-      // Ignore if exists
-    }
-
-    if (!db.stores) db.stores = [];
-    const existingIdx = db.stores.findIndex((s) => s.id === actualStudioId || s.name.toLowerCase() === actualStoreName.toLowerCase());
-    const storeEntry = { ...newStoreData, coords: { lat: newStoreData.lat, lng: newStoreData.lng } };
-    if (existingIdx >= 0) {
-      db.stores[existingIdx] = storeEntry;
-    } else {
-      db.stores.unshift(storeEntry);
+      console.warn('Store creation notice:', storeErr.message);
     }
   }
 
-  // 4. Update existing user or create new user
+  // 3. Update existing user or create new user in PostgreSQL
   if (user) {
-    // Merge details
     const updatedFields = {
       email: user.email || normEmail,
       phone: normPhone || user.phone,
@@ -151,24 +125,11 @@ async function findOrLinkUser({
       studioName: studioName || user.studioName || null,
     };
 
-    try {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: updatedFields,
-      });
-    } catch (prismaUpdateErr) {
-      // Update in local DB
-      const localIdx = db.users.findIndex((u) => u.id === user.id);
-      user = { ...user, ...updatedFields };
-      if (localIdx >= 0) {
-        db.users[localIdx] = user;
-      } else {
-        db.users.push(user);
-      }
-      writeDb(db);
-    }
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: updatedFields,
+    });
   } else {
-    // Create new unified user
     const newUserData = {
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name: name || (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
@@ -182,29 +143,12 @@ async function findOrLinkUser({
       role: role || 'CUSTOMER',
       studioId: actualStudioId || null,
       studioName: studioName || null,
-      createdAt: new Date().toISOString(),
     };
 
-    try {
-      user = await prisma.user.create({
-        data: newUserData,
-      });
-    } catch (prismaCreateErr) {
-      console.warn('Prisma create user fallback:', prismaCreateErr.message);
-      user = newUserData;
-      db.users.push(user);
-      writeDb(db);
-    }
+    user = await prisma.user.create({
+      data: newUserData,
+    });
   }
-
-  // Ensure user is present in local store
-  const uIdx = db.users.findIndex((u) => u.id === user.id);
-  if (uIdx >= 0) {
-    db.users[uIdx] = { ...db.users[uIdx], ...user };
-  } else {
-    db.users.push(user);
-  }
-  writeDb(db);
 
   return user;
 }
@@ -221,7 +165,7 @@ router.post('/send-otp', async (req, res) => {
     const code = Math.floor(1000 + Math.random() * 9000).toString();
     otpStore.set(cleanPhone, {
       code,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
     console.log(`[AUTH-OTP] Sent OTP code for ${cleanPhone}: ${code}`);
@@ -264,18 +208,15 @@ router.post('/verify-otp', async (req, res) => {
 
     let user;
     if (userId) {
-      const db = readDb();
-      user = db.users?.find((u) => u.id === userId);
+      user = await prisma.user.findUnique({ where: { id: userId } });
       if (user) {
-        user.phone = cleanPhone;
-        if (email && !user.email) user.email = email.toLowerCase();
-        writeDb(db);
-        try {
-          await prisma.user.update({
-            where: { id: userId },
-            data: { phone: cleanPhone, email: user.email },
-          });
-        } catch (e) {}
+        user = await prisma.user.update({
+          where: { id: userId },
+          data: {
+            phone: cleanPhone,
+            ...(email && !user.email ? { email: email.toLowerCase() } : {}),
+          },
+        });
       }
     }
 
@@ -340,21 +281,10 @@ router.post('/link-phone', async (req, res) => {
       otpStore.delete(cleanPhone);
     }
 
-    const db = readDb();
-    let user = db.users?.find((u) => u.id === targetUserId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    user.phone = cleanPhone;
-    writeDb(db);
-
-    try {
-      await prisma.user.update({
-        where: { id: targetUserId },
-        data: { phone: cleanPhone },
-      });
-    } catch (e) {}
+    const user = await prisma.user.update({
+      where: { id: targetUserId },
+      data: { phone: cleanPhone },
+    });
 
     const token = generateToken(user);
     return res.json({
@@ -498,41 +428,24 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanVal = searchVal.trim().toLowerCase();
-    const db = readDb();
-    if (!db.users) db.users = [];
 
-    let user = db.users.find(
-      (u) =>
-        (u.email && u.email.toLowerCase() === cleanVal) ||
-        (u.phone && u.phone.toLowerCase() === cleanVal) ||
-        (u.contact && u.contact.toLowerCase() === cleanVal)
-    );
-
-    if (!user) {
-      try {
-        if (cleanVal.includes('@')) {
-          user = await prisma.user.findUnique({ where: { email: cleanVal } });
-        } else {
-          user = await prisma.user.findFirst({ where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] } });
-        }
-      } catch (e) {}
+    let user = null;
+    if (cleanVal.includes('@')) {
+      user = await prisma.user.findUnique({ where: { email: cleanVal } });
+    } else {
+      user = await prisma.user.findFirst({ where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] } });
     }
 
     if (!user) {
       if (role === 'STUDIO') {
-        user = {
-          id: 'usr_demo_partner',
-          name: 'Marco Rossi (Master Tailor)',
+        user = await findOrLinkUser({
           email: cleanVal.includes('@') ? cleanVal : 'partner@darzi.com',
           phone: !cleanVal.includes('@') ? cleanVal : '+44 7700 900123',
-          contact: cleanVal,
+          name: 'Master Tailor Marco',
           role: 'STUDIO',
           studioId: 'atelier-soho',
           studioName: 'Atelier SoHo Tailors',
-          method: 'email',
-        };
-        db.users.push(user);
-        writeDb(db);
+        });
       } else {
         user = await findOrLinkUser({
           email: cleanVal.includes('@') ? cleanVal : null,
@@ -574,32 +487,17 @@ router.post('/update-profile', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: missing user identity.' });
     }
 
-    const db = readDb();
-    let user = db.users?.find((u) => u.id === targetId);
-    if (!user) {
-      return res.status(404).json({ error: 'User profile not found.' });
-    }
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email.toLowerCase();
+    if (phone) updateData.phone = phone;
+    if (address) updateData.address = address;
+    if (postcode) updateData.postcode = postcode;
 
-    if (name) user.name = name;
-    if (email) user.email = email.toLowerCase();
-    if (phone) user.phone = phone;
-    if (address) user.address = address;
-    if (postcode) user.postcode = postcode;
-
-    writeDb(db);
-
-    try {
-      await prisma.user.update({
-        where: { id: targetId },
-        data: {
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          postcode: user.postcode,
-        },
-      });
-    } catch (e) {}
+    const user = await prisma.user.update({
+      where: { id: targetId },
+      data: updateData,
+    });
 
     const token = generateToken(user);
     return res.json({
@@ -626,29 +524,15 @@ router.get('/me', async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    let user;
-    try {
-      if (decoded.id) {
-        user = await prisma.user.findUnique({
-          where: { id: decoded.id },
-        });
-      } else if (decoded.email) {
-        user = await prisma.user.findUnique({
-          where: { email: decoded.email.toLowerCase() },
-        });
-      }
-    } catch (prismaErr) {
-      console.warn('Prisma auth/me fallback:', prismaErr.message);
-    }
-
-    if (!user) {
-      const db = readDb();
-      user = db.users.find(
-        (u) =>
-          u.id === decoded.id ||
-          (decoded.email && u.email?.toLowerCase() === decoded.email?.toLowerCase()) ||
-          (decoded.phone && u.phone === decoded.phone)
-      );
+    let user = null;
+    if (decoded.id) {
+      user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
+    } else if (decoded.email) {
+      user = await prisma.user.findUnique({
+        where: { email: decoded.email.toLowerCase() },
+      });
     }
 
     if (!user) {

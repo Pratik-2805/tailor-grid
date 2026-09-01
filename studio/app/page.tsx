@@ -75,7 +75,7 @@ export default function StudioPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
-      
+
       {/* Studio Header (Port 3001) */}
       <StudioHeader
         user={user}
@@ -87,7 +87,7 @@ export default function StudioPage() {
         {user ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
-            go={() => {}}
+            go={() => { }}
             otp={otp}
             user={user}
             onSignOut={handleSignOut}
@@ -96,7 +96,7 @@ export default function StudioPage() {
           /* Studio Portal Sign-In / Landing View */
           <div className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-[1040px]">
-              
+
               {/* Hero Banner */}
               <div className="rounded-3xl bg-[#0F1115] text-white p-8 sm:p-14 shadow-2xl relative overflow-hidden">
                 <div className="relative z-10 max-w-[620px]">

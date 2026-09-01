@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
@@ -328,50 +329,7 @@ const SEED_USER = {
   method: 'google',
 };
 
-const SEED_ORDERS = [
-  {
-    id: 'TG-849201',
-    userId: 'usr_demo_sarah',
-    customerName: 'Sarah Jenkins',
-    customerEmail: 'sarah.jenkins@example.com',
-    customerPhone: '+44 7700 900077',
-    postcode: 'W8 4EP',
-    garmentId: 'trousers',
-    garmentName: 'Trousers & Jeans',
-    serviceId: 'trouser-hem-plain',
-    serviceName: 'Shorten Hem (Plain)',
-    storeId: 'kensington-atelier',
-    storeName: 'Kensington Bespoke Atelier',
-    date: '2026-08-28',
-    timeSlot: '14:00 - 15:00',
-    garmentBrand: 'Reiss',
-    fitNotes: 'Slim taper down to 14 inch leg opening',
-    status: 'Work in Progress',
-    price: 22,
-    otp: '4829',
-  },
-  {
-    id: 'TG-739102',
-    userId: 'usr_demo_sarah',
-    customerName: 'Sarah Jenkins',
-    customerEmail: 'sarah.jenkins@example.com',
-    customerPhone: '+44 7700 900077',
-    postcode: 'W8 4EP',
-    garmentId: 'jackets',
-    garmentName: 'Suits & Blazers',
-    serviceId: 'jacket-sleeves',
-    serviceName: 'Shorten Blazer Sleeves (from Cuff)',
-    storeId: 'kensington-atelier',
-    storeName: 'Kensington Bespoke Atelier',
-    date: '2026-08-20',
-    timeSlot: '11:00 - 12:00',
-    garmentBrand: 'Hugo Boss',
-    fitNotes: 'Show 0.5 inches of shirt cuff',
-    status: 'Collected',
-    price: 35,
-    otp: '9120',
-  },
-];
+const SEED_ORDERS = [];
 
 async function main() {
   console.log('🌱 Starting Prisma Database Seed for Darzi...');
