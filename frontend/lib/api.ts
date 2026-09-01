@@ -137,7 +137,7 @@ export async function linkPhone(params: {
       if (stored) {
         try {
           currentUser = { ...JSON.parse(stored), phone: params.phone }
-        } catch {}
+        } catch { }
       }
       localStorage.setItem('tg_user', JSON.stringify(currentUser))
     }
@@ -252,7 +252,6 @@ export async function signUpUser(data: {
     }
     return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
-  return result
 }
 
 export async function loginUser(data: {
@@ -302,7 +301,6 @@ export async function loginUser(data: {
     }
     return { token, user: fallbackUser, needsPhone: !fallbackUser.phone }
   }
-  return result
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User }> {
@@ -324,7 +322,7 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
       }
       return data
     }
-  } catch (e) {}
+  } catch (e) { }
 
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('tg_user')
@@ -362,7 +360,7 @@ export async function getCurrentUser(): Promise<User | null> {
     if (stored) {
       try {
         return JSON.parse(stored)
-      } catch {}
+      } catch { }
     }
   }
 
