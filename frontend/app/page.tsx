@@ -12,6 +12,7 @@ import { makeOtp, type Screen, type StoreOption, type User } from '@/components/
 import { Footer } from '@/components/footer'
 import { ForPartnersView } from '@/components/for-partners-view'
 import { Header } from '@/components/header'
+import { ProfileModal } from '@/components/profile-modal'
 import { StudioSubNav } from '@/components/studio-sub-nav'
 import { HomeView } from '@/components/home-view'
 import { HowItWorksView } from '@/components/how-it-works-view'
@@ -26,6 +27,7 @@ export default function Page() {
   const [createdOrderId, setCreatedOrderId] = useState<string>('ORD-2654')
   const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
   const [otp] = useState(() => makeOtp())
@@ -307,6 +309,7 @@ export default function Page() {
         go={handleNavigate}
         user={user}
         onOpenAuth={() => handleOpenAuth('CUSTOMER')}
+        onOpenProfile={() => setIsProfileOpen(true)}
         onSignOut={handleSignOut}
       />
 
@@ -442,6 +445,16 @@ export default function Page() {
         onSuccess={handleAuthSuccess}
         onSignOut={handleSignOut}
       />
+
+      {/* Account Profile Modal */}
+      {user && (
+        <ProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          user={user}
+          onUpdateUser={(updated) => setUser(updated)}
+        />
+      )}
     </div>
   )
 }

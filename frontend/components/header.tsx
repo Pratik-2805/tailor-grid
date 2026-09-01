@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut, Phone } from 'lucide-react'
+import { ChevronDown, LogOut, MapPin, Menu, Package, Phone, Scissors, ShieldCheck, User as UserIcon, X } from 'lucide-react'
 import { type Screen, type User } from './data'
 
 interface HeaderProps {
@@ -10,15 +10,34 @@ interface HeaderProps {
   go: (s: Screen) => void
   user?: User | null
   onOpenAuth?: () => void
+  onOpenProfile?: () => void
   onSignOut?: () => void
 }
 
-export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
+export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isPinned, setIsPinned] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const isDropdownOpen = isPinned || isHovered
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsPinned(false)
+        setIsHovered(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const nav = (s: Screen) => {
     go(s)
     setOpen(false)
+    setIsPinned(false)
+    setIsHovered(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -97,69 +116,113 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           </button>
 
           {user ? (
-            <div className="relative group">
-              <div className="flex items-center gap-2 border border-[#E5E7EB] rounded-full pl-2 pr-3 py-1 bg-white whitespace-nowrap shrink-0 hover:border-[#9E593B] shadow-sm transition-all cursor-pointer">
+            <div
+              ref={dropdownRef}
+              className="relative"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
+              <button
+                type="button"
+                onClick={() => setIsPinned((prev) => !prev)}
+                className={`flex items-center gap-2 border rounded-full pl-1.5 pr-2.5 py-1 bg-white whitespace-nowrap shrink-0 shadow-sm transition-all cursor-pointer ${
+                  isDropdownOpen ? 'border-[#9E593B] ring-2 ring-[#9E593B]/10' : 'border-[#E8E1D5] hover:border-[#9E593B]'
+                }`}
+                aria-expanded={isDropdownOpen}
+              >
                 <UserAvatar src={user.avatar} name={user.name} />
-                <div className="flex flex-col text-left">
-                  <span className="text-[12px] font-bold text-[#1E2229] max-w-[90px] truncate block leading-tight">
-                    {user.name.split(' ')[0] || user.name}
-                  </span>
-                  {user.phone ? (
-                    <span className="text-[9px] text-[#059669] font-semibold leading-none flex items-center gap-0.5">
-                      <span className="size-1 rounded-full bg-[#059669]"></span>
-                      Phone linked
-                    </span>
-                  ) : (
-                    <span className="text-[9px] text-[#D97706] font-medium leading-none">
-                      Link mobile
-                    </span>
-                  )}
-                </div>
-              </div>
+                <span className="text-[13px] font-semibold text-[#18191B] max-w-[110px] truncate block">
+                  {user.name.split(' ')[0] || user.name}
+                </span>
+                <ChevronDown size={12} className={`text-[#7A7E85] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-[#9E593B]' : ''}`} />
+              </button>
 
-              {/* Connected Account Hover/Click Dropdown */}
-              <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-[#E5E7EB] shadow-xl p-4 hidden group-hover:block hover:block z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="pb-3 border-b border-[#F3F4F6]">
-                  <p className="text-xs font-bold text-[#0F1115]">{user.name}</p>
-                  {user.email && (
-                    <p className="text-[11px] text-[#6B7280] truncate mt-0.5">{user.email}</p>
-                  )}
-                  {user.phone && (
-                    <p className="text-[11px] text-[#059669] font-medium mt-0.5 flex items-center gap-1">
-                      <Phone size={10} /> {user.phone}
-                    </p>
-                  )}
-                </div>
+              {/* Connected Account Dropdown (Hoverable and Click-to-Pin) */}
+              {isDropdownOpen && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-[#E8E1D5] shadow-xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  onMouseEnter={() => setIsHovered(true)}
+                  onMouseLeave={() => setIsHovered(false)}
+                >
+                  <div className="pb-3 border-b border-[#F3EFEA] flex items-center gap-3">
+                    <UserAvatar src={user.avatar} name={user.name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-[#18191B] truncate">{user.name}</p>
+                      {user.email && (
+                        <p className="text-[11px] text-[#7A7E85] truncate">{user.email}</p>
+                      )}
+                      {user.phone && (
+                        <p className="text-[10.5px] text-[#065F46] font-medium truncate flex items-center gap-1 mt-0.5">
+                          <Phone size={10} /> {user.phone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="py-2.5 space-y-1.5 text-xs">
-                  <button
-                    onClick={() => nav('orders')}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#FAF8F5] text-[#374151] font-medium transition-colors text-left"
-                  >
-                    <span>My Tailoring Orders</span>
-                    <span className="text-[#9CA3AF]">→</span>
-                  </button>
-                  <button
-                    onClick={() => nav('booking')}
-                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#FAF8F5] text-[#374151] font-medium transition-colors text-left"
-                  >
-                    <span>Book New Alteration</span>
-                    <span className="text-[#9CA3AF]">→</span>
-                  </button>
-                </div>
-
-                {onSignOut && (
-                  <div className="pt-2 border-t border-[#F3F4F6]">
+                  <div className="py-2 space-y-1 text-xs font-medium text-[#18191B]">
                     <button
-                      onClick={onSignOut}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                      onClick={() => {
+                        setIsPinned(false)
+                        setIsHovered(false)
+                        onOpenProfile?.()
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
                     >
-                      <LogOut size={13} />
-                      <span>Sign Out</span>
+                      <span className="flex items-center gap-2">
+                        <UserIcon size={14} className="text-[#9E593B]" />
+                        <span>My Profile</span>
+                      </span>
+                      <span className="text-[#9CA3AF]">→</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsPinned(false)
+                        setIsHovered(false)
+                        nav('orders')
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Package size={14} className="text-[#9E593B]" />
+                        <span>My Tailoring Orders</span>
+                      </span>
+                      <span className="text-[#9CA3AF]">→</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setIsPinned(false)
+                        setIsHovered(false)
+                        nav('booking')
+                      }}
+                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Scissors size={14} className="text-[#9E593B]" />
+                        <span>Book New Alteration</span>
+                      </span>
+                      <span className="text-[#9CA3AF]">→</span>
                     </button>
                   </div>
-                )}
-              </div>
+
+                  {onSignOut && (
+                    <div className="pt-2 border-t border-[#F3EFEA]">
+                      <button
+                        onClick={() => {
+                          setIsPinned(false)
+                          setIsHovered(false)
+                          onSignOut()
+                        }}
+                        className="w-full flex items-center gap-2 p-1.5 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut size={13} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <button
@@ -179,27 +242,30 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           </button>
         </div>
 
-        {/* Mobile menu trigger */}
-        <button
-          className="md:hidden p-2 rounded-lg text-[#0F1115] hover:bg-[#F3EFEA] transition-colors"
-          onClick={() => setOpen(!open)}
-          aria-label="Menu"
-        >
-          {open ? <X size={22} /> : <Menu size={22} />}
-        </button>
+        {/* Mobile Hamburger Toggle */}
+        <div className="flex md:hidden items-center gap-2">
+          {user && (
+            <button
+              onClick={() => onOpenProfile?.()}
+              className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden"
+              aria-label="Profile"
+            >
+              <UserAvatar src={user.avatar} name={user.name} />
+            </button>
+          )}
+          <button
+            onClick={() => setOpen(!open)}
+            className="size-9 rounded-full bg-white border border-[#E8E1D5] grid place-items-center text-[#18191B]"
+            aria-label="Toggle menu"
+          >
+            {open ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Menu Dropdown */}
+      {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-5 py-5 flex flex-col gap-3 shadow-lg">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E8E1D5]">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#1E2229]">
-              <ShieldCheck size={14} className="text-[#9E593B]" />
-              <span>Audited Craft Standards</span>
-            </div>
-            <span className="text-[11px] px-2 py-0.5 rounded bg-[#ECFDF5] text-[#065F46] font-medium">Certified</span>
-          </div>
-
+        <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
           {[
             { label: 'Book a Fitting', screen: 'booking' as Screen },
             { label: 'How it Works', screen: 'how-it-works' as Screen },
@@ -223,6 +289,19 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
               <span className="text-[#9CA3AF]">→</span>
             </button>
           ))}
+
+          {user && (
+            <button
+              onClick={() => {
+                setOpen(false)
+                onOpenProfile?.()
+              }}
+              className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
+            >
+              <span>My Profile</span>
+              <span className="text-[#9CA3AF]">→</span>
+            </button>
+          )}
 
           <div className="pt-3 border-t border-[#E8E1D5] flex flex-col gap-2">
             <button
@@ -265,4 +344,3 @@ function UserAvatar({ src, name }: { src?: string | null; name?: string }) {
     </div>
   )
 }
-
