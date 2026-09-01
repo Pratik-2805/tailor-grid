@@ -358,7 +358,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
 
   const handleBookNow = () => {
-    if (!user) {
+    if (!user || !user.phone) {
       onOpenAuth?.()
       return
     }
@@ -376,7 +376,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   }
 
   const handleConfirmSchedule = () => {
-    if (!user) {
+    if (!user || !user.phone) {
       setIsScheduleModalOpen(false)
       setShowTimePicker(false)
       onOpenAuth?.()

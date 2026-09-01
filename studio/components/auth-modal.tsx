@@ -338,19 +338,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
   if (!isOpen) return null
 
-  const isStrictLocked = mode === 'link-phone-step' && Boolean(pendingUser)
-
   const isSubPage =
-    !isStrictLocked &&
     mode !== 'studio-options' &&
-    mode !== 'studio-signup-options' &&
-    mode !== 'link-phone-step'
+    mode !== 'studio-signup-options'
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={(e) => {
-        if (!isStrictLocked && e.target === e.currentTarget) {
+        if (e.target === e.currentTarget) {
           onClose()
         }
       }}
@@ -362,12 +358,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
               <button onClick={goBack} className="size-7 rounded-lg bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
                 <ArrowLeft size={14} className="text-[#374151]" />
               </button>
-            ) : isStrictLocked ? (
-              <div className="flex items-center gap-2 text-amber-800">
-                <span className="text-[11px] font-extrabold tracking-wider uppercase text-amber-900">
-                  Phone Verification Mandatory
-                </span>
-              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Scissors size={20} className="text-[#9E593B]" />
@@ -375,11 +365,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
               </div>
             )}
           </div>
-          {!isStrictLocked && (
-            <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
-              <X size={14} className="text-[#374151]" />
-            </button>
-          )}
+          <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
+            <X size={14} className="text-[#374151]" />
+          </button>
         </div>
 
         <div className="px-6 py-5 space-y-5">
@@ -451,27 +439,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                 >
                   <Store size={15} />
                   Register New Atelier Studio
-                </button>
-              </div>
-
-              <Divider />
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    onSuccess({
-                      name: 'Atelier SoHo (Demo)',
-                      contact: 'demo@ateliersoho.com',
-                      email: 'demo@ateliersoho.com',
-                      phone: '+44 7700 900123',
-                      method: 'guest',
-                      role: 'STUDIO',
-                      studioId: 'atelier-soho',
-                      studioName: 'Atelier SoHo Tailors',
-                    })
-                  }}
-                  className="text-[12px] text-[#9CA3AF] hover:text-[#374151] underline underline-offset-4 transition-colors"
-                >
-                  Explore demo studio dashboard
                 </button>
               </div>
             </div>

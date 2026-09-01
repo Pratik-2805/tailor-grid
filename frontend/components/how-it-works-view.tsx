@@ -254,7 +254,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
             </div>
 
             <button
-              onClick={() => go('booking')}
+              onClick={() => go('home')}
               className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
             >
               <span>View full catalog</span>

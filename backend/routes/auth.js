@@ -47,58 +47,28 @@ async function findOrLinkUser({
   machines,
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
-  let normPhone = phone ? phone.trim() : null;
+  const normPhone = phone ? phone.trim() : null;
   const contactStr = normEmail || normPhone || 'member@darzi.com';
 
   let user = null;
 
-  // 1. Check local JSON store first to resolve duplicates and get any verified phone
-  const db = readDb();
-  if (!db.users) db.users = [];
-
-  const matchingLocalUsers = db.users.filter((u) => {
-    if (normEmail && u.email && u.email.toLowerCase() === normEmail) return true;
-    if (normEmail && u.contact && u.contact.toLowerCase() === normEmail) return true;
-    if (normPhone && u.phone === normPhone) return true;
-    if (normPhone && u.contact === normPhone) return true;
-    return false;
-  });
-
-  let existingPhoneFromDb = null;
-  if (matchingLocalUsers.length > 0) {
-    const userWithPhone = matchingLocalUsers.find((u) => u.phone && u.phone.trim().length > 5);
-    if (userWithPhone) {
-      existingPhoneFromDb = userWithPhone.phone.trim();
-      if (!normPhone) normPhone = existingPhoneFromDb;
-    }
+  // 1. Try lookup by email first if provided
+  if (normEmail) {
+    user = await prisma.user.findUnique({
+      where: { email: normEmail },
+    });
   }
 
-  // 2. Try Prisma lookup
-  try {
-    if (normEmail) {
-      user = await prisma.user.findUnique({
-        where: { email: normEmail },
-      });
-    }
-    if (!user && normPhone) {
-      user = await prisma.user.findFirst({
-        where: {
-          OR: [{ phone: normPhone }, { contact: normPhone }],
-        },
-      });
-    }
-  } catch (prismaErr) {
-    console.warn('Prisma user lookup notice:', prismaErr.message);
+  // 2. If not found by email, try lookup by phone if provided
+  if (!user && normPhone) {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [{ phone: normPhone }, { contact: normPhone }],
+      },
+    });
   }
 
-  // 3. If user found from Prisma, ensure any existing phone from DB is retained
-  if (!user && matchingLocalUsers.length > 0) {
-    user = matchingLocalUsers.find((u) => u.phone) || matchingLocalUsers[matchingLocalUsers.length - 1];
-  }
-
-  const finalPhone = normPhone || user?.phone || existingPhoneFromDb || null;
-
-  // 4. If Studio role and creating a store
+  // 3. If Studio role and creating a store
   let actualStudioId = studioId;
   if (role === 'STUDIO' && (studioName || name)) {
     const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
@@ -138,67 +108,91 @@ async function findOrLinkUser({
     }
   }
 
-  // 5. Update existing user or create new user
+  // 4. Update existing user or create new user
   if (user) {
+    // If user has no phone and a new unique phone was passed, check phone conflict first
+    let updatedPhone = user.phone;
+    if (!user.phone && normPhone) {
+      const phoneConflict = await prisma.user.findFirst({
+        where: { phone: normPhone, NOT: { id: user.id } },
+      });
+      if (!phoneConflict) {
+        updatedPhone = normPhone;
+      }
+    }
+
     const updatedFields = {
       email: user.email || normEmail,
-      phone: finalPhone,
-      name: (user.name && user.name !== 'Darzi Member' && user.name !== 'Google User' && user.name !== 'Mobile Member') ? user.name : (name || user.name),
-      avatar: (avatar && !avatar.includes('dicebear'))
-        ? avatar
-        : (user.avatar && !user.avatar.includes('dicebear'))
+      phone: updatedPhone,
+      name:
+        user.name &&
+        user.name !== 'Darzi Member' &&
+        user.name !== 'Google User' &&
+        user.name !== 'Mobile Member'
+          ? user.name
+          : name || user.name,
+      avatar:
+        avatar && !avatar.includes('dicebear')
+          ? avatar
+          : user.avatar && !user.avatar.includes('dicebear')
           ? user.avatar
-          : (avatar || user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(normEmail || normPhone || 'user')}`),
+          : avatar ||
+            user.avatar ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+              normEmail || normPhone || 'user'
+            )}`,
       address: user.address || address || '18 Kensington Church St',
       postcode: user.postcode || postcode || 'W8 4EP',
-      contact: normEmail || normPhone || user.contact,
+      contact: user.email || user.phone || normEmail || normPhone || user.contact,
       role: role || user.role,
       studioId: actualStudioId || user.studioId || null,
       studioName: studioName || user.studioName || null,
     };
 
-    try {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: updatedFields,
-      });
-    } catch (prismaUpdateErr) {
-      user = { ...user, ...updatedFields };
-    }
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: updatedFields,
+    });
   } else {
+    // Check if phone or email is already taken
+    if (normPhone) {
+      const phoneTaken = await prisma.user.findUnique({ where: { phone: normPhone } });
+      if (phoneTaken) {
+        return phoneTaken;
+      }
+    }
+    if (normEmail) {
+      const emailTaken = await prisma.user.findUnique({ where: { email: normEmail } });
+      if (emailTaken) {
+        return emailTaken;
+      }
+    }
+
     const newUserData = {
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      name: name || (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
+      name:
+        name ||
+        (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
       email: normEmail,
-      phone: finalPhone,
+      phone: normPhone,
       contact: contactStr,
-      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
+      avatar:
+        avatar ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
       address: address || '18 Kensington Church St',
       postcode: postcode || 'W8 4EP',
-      method: method || (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
+      method:
+        method ||
+        (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
       role: role || 'CUSTOMER',
       studioId: actualStudioId || null,
       studioName: studioName || null,
     };
 
-    try {
-      user = await prisma.user.create({
-        data: newUserData,
-      });
-    } catch (prismaCreateErr) {
-      console.warn('Prisma create user fallback:', prismaCreateErr.message);
-      user = newUserData;
-    }
+    user = await prisma.user.create({
+      data: newUserData,
+    });
   }
-
-  // Deduplicate and consolidate local database record for this user
-  db.users = db.users.filter((u) => {
-    if (u.id === user.id) return false;
-    if (normEmail && u.email && u.email.toLowerCase() === normEmail) return false;
-    return true;
-  });
-  db.users.push(user);
-  writeDb(db);
 
   return user;
 }
@@ -208,7 +202,7 @@ router.post('/send-otp', async (req, res) => {
   try {
     const { phone } = req.body;
     if (!phone || phone.trim().length < 6) {
-      return res.status(400).json({ error: 'Please provide a valid phone number.' });
+      return res.status(400).json({ error: 'Please provide a valid mobile number.' });
     }
 
     const cleanPhone = phone.trim();
@@ -236,7 +230,7 @@ router.post('/verify-otp', async (req, res) => {
   try {
     const { phone, otp, name, email, role = 'CUSTOMER', userId } = req.body;
     if (!phone || !otp) {
-      return res.status(400).json({ error: 'Phone number and verification code are required.' });
+      return res.status(400).json({ error: 'Mobile number and verification code are required.' });
     }
 
     const cleanPhone = phone.trim();
@@ -251,13 +245,25 @@ router.post('/verify-otp', async (req, res) => {
       cleanOtp === '9999';
 
     if (!isValidOtp) {
-      return res.status(400).json({ error: 'Invalid or expired verification code. Use 4829 or click Resend.' });
+      return res
+        .status(400)
+        .json({ error: 'Invalid or expired verification code. Use 4829 or click Resend.' });
     }
 
     otpStore.delete(cleanPhone);
 
     let user;
     if (userId) {
+      // Check if another user already has this phone
+      const phoneConflict = await prisma.user.findFirst({
+        where: { phone: cleanPhone, NOT: { id: userId } },
+      });
+      if (phoneConflict) {
+        return res.status(409).json({
+          error: 'This mobile number is already registered to another account.',
+        });
+      }
+
       user = await prisma.user.findUnique({ where: { id: userId } });
       if (user) {
         user = await prisma.user.update({
@@ -283,7 +289,7 @@ router.post('/verify-otp', async (req, res) => {
     const token = generateToken(user);
     return res.json({
       success: true,
-      message: 'Phone verified and authenticated successfully',
+      message: 'Mobile number verified and authenticated successfully',
       token,
       user,
       hasPhone: true,
@@ -303,7 +309,7 @@ router.post('/link-phone', async (req, res) => {
       try {
         const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const { phone, otp, id } = req.body;
@@ -312,10 +318,25 @@ router.post('/link-phone', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized: User ID required.' });
     }
     if (!phone) {
-      return res.status(400).json({ error: 'Phone number is required.' });
+      return res.status(400).json({ error: 'Mobile number is required.' });
     }
 
     const cleanPhone = phone.trim();
+
+    // Check unique constraint: Is this phone already linked to ANOTHER user?
+    const existingWithPhone = await prisma.user.findFirst({
+      where: {
+        phone: cleanPhone,
+        NOT: { id: targetUserId },
+      },
+    });
+
+    if (existingWithPhone) {
+      return res.status(409).json({
+        error: 'This mobile number is already linked to another account. Please use a different number.',
+      });
+    }
+
     if (otp) {
       const cleanOtp = otp.trim();
       const stored = otpStore.get(cleanPhone);
@@ -326,7 +347,7 @@ router.post('/link-phone', async (req, res) => {
         cleanOtp === '0000' ||
         cleanOtp === '9999';
       if (!isValid) {
-        return res.status(400).json({ error: 'Invalid OTP code. Use 4829 for testing.' });
+        return res.status(400).json({ error: 'Invalid verification code. Use 4829 for testing.' });
       }
       otpStore.delete(cleanPhone);
     }
@@ -346,7 +367,7 @@ router.post('/link-phone', async (req, res) => {
     });
   } catch (err) {
     console.error('Link Phone Error:', err);
-    return res.status(500).json({ error: 'Failed to link phone number.' });
+    return res.status(500).json({ error: 'Failed to link mobile number.' });
   }
 });
 
@@ -397,7 +418,9 @@ router.post('/google', async (req, res) => {
     }
 
     if (!email) {
-      return res.status(400).json({ error: 'Failed to retrieve email or identity from Google authentication.' });
+      return res
+        .status(400)
+        .json({ error: 'Failed to retrieve email or identity from Google authentication.' });
     }
 
     const user = await findOrLinkUser({
@@ -416,6 +439,7 @@ router.post('/google', async (req, res) => {
       token,
       user,
       needsPhone: !user.phone,
+      hasPhone: Boolean(user.phone),
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -440,13 +464,26 @@ router.post('/signup', async (req, res) => {
 
     const contactStr = email || phone;
     if (!contactStr) {
-      return res.status(400).json({ error: 'Email or phone number is required.' });
+      return res.status(400).json({ error: 'Email or mobile number is required.' });
+    }
+
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
+    const cleanPhone = phone ? phone.trim() : null;
+
+    // Check existing phone conflict
+    if (cleanPhone) {
+      const existingPhone = await prisma.user.findUnique({ where: { phone: cleanPhone } });
+      if (existingPhone && cleanEmail && existingPhone.email && existingPhone.email !== cleanEmail) {
+        return res.status(409).json({
+          error: 'This mobile number is already registered with another email account.',
+        });
+      }
     }
 
     const user = await findOrLinkUser({
       name,
-      email,
-      phone,
+      email: cleanEmail,
+      phone: cleanPhone,
       address,
       postcode,
       role,
@@ -461,6 +498,7 @@ router.post('/signup', async (req, res) => {
       token,
       user,
       needsPhone: !user.phone,
+      hasPhone: Boolean(user.phone),
     });
   } catch (err) {
     console.error('Signup Error:', err);
@@ -483,15 +521,17 @@ router.post('/login', async (req, res) => {
     if (cleanVal.includes('@')) {
       user = await prisma.user.findUnique({ where: { email: cleanVal } });
     } else {
-      user = await prisma.user.findFirst({ where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] } });
+      user = await prisma.user.findFirst({
+        where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] },
+      });
     }
 
     if (!user) {
       if (role === 'STUDIO') {
         user = await findOrLinkUser({
           email: cleanVal.includes('@') ? cleanVal : 'partner@darzi.com',
-          phone: !cleanVal.includes('@') ? cleanVal : '+44 7700 900123',
-          name: 'Master Tailor Marco',
+          phone: !cleanVal.includes('@') ? cleanVal : null,
+          name: 'Master Tailor',
           role: 'STUDIO',
           studioId: 'atelier-soho',
           studioName: 'Atelier SoHo Tailors',
@@ -511,6 +551,7 @@ router.post('/login', async (req, res) => {
       token,
       user,
       needsPhone: !user.phone,
+      hasPhone: Boolean(user.phone),
     });
   } catch (err) {
     console.error('Login Error:', err);
@@ -527,7 +568,7 @@ router.post('/update-profile', async (req, res) => {
       try {
         const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const { id, name, email, phone, address, postcode } = req.body;
@@ -539,8 +580,28 @@ router.post('/update-profile', async (req, res) => {
 
     const updateData = {};
     if (name) updateData.name = name;
-    if (email) updateData.email = email.toLowerCase();
-    if (phone) updateData.phone = phone;
+    if (email) {
+      const cleanEmail = email.toLowerCase().trim();
+      const emailConflict = await prisma.user.findFirst({
+        where: { email: cleanEmail, NOT: { id: targetId } },
+      });
+      if (emailConflict) {
+        return res.status(409).json({ error: 'This email is already in use by another account.' });
+      }
+      updateData.email = cleanEmail;
+    }
+    if (phone) {
+      const cleanPhone = phone.trim();
+      const phoneConflict = await prisma.user.findFirst({
+        where: { phone: cleanPhone, NOT: { id: targetId } },
+      });
+      if (phoneConflict) {
+        return res
+          .status(409)
+          .json({ error: 'This mobile number is already in use by another account.' });
+      }
+      updateData.phone = cleanPhone;
+    }
     if (address) updateData.address = address;
     if (postcode) updateData.postcode = postcode;
 

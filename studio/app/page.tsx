@@ -62,15 +62,18 @@ export default function StudioPage() {
     setIsAuthOpen(false)
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_user_role', 'STUDIO')
+      localStorage.setItem('tg_user', JSON.stringify(loggedUser))
     }
   }
 
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
     }
     setUser(null)
+    setIsAuthOpen(false)
   }
 
   return (
@@ -186,19 +189,10 @@ export default function StudioPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => {
-                      handleAuthSuccess({
-                        name: 'Marco Rossi (Master Tailor)',
-                        contact: 'marco@ateliersoho.com',
-                        method: 'guest',
-                        role: 'STUDIO',
-                        studioId: 'atelier-soho',
-                        studioName: 'Atelier SoHo Tailors',
-                      })
-                    }}
+                    onClick={() => handleOpenAuth('signin')}
                     className="rounded-full bg-[#0F1115] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#9E593B] transition-colors whitespace-nowrap"
                   >
-                    Launch Demo Studio
+                    Sign In to Studio
                   </button>
                   <a
                     href={customerSiteUrl}

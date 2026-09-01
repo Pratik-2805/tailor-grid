@@ -24,7 +24,17 @@ export default function Page() {
   const router = useRouter()
   const [screen, setScreen] = useState<Screen>('home')
   const [createdOrderId, setCreatedOrderId] = useState<string>('ORD-2654')
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const s = localStorage.getItem('tg_user')
+      if (s) {
+        try {
+          return JSON.parse(s)
+        } catch { }
+      }
+    }
+    return null
+  })
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
@@ -149,10 +159,6 @@ export default function Page() {
     getCurrentUser().then((u) => {
       if (u) {
         setUser(u)
-        if (!u.phone) {
-          setIsAuthOpen(true)
-          setAuthRole(u.role === 'STUDIO' ? 'STUDIO' : 'CUSTOMER')
-        }
       }
     })
   }, [])
@@ -168,16 +174,16 @@ export default function Page() {
 
   const handleNavigate = (nextScreen: Screen) => {
     if (nextScreen === 'confirm-measurement') {
-      if (!user) {
-        handleOpenAuth('CUSTOMER', 'signin')
+      if (!user || !user.phone) {
+        handleOpenAuth('CUSTOMER', user ? 'signup' : 'signin')
         return
       }
       router.push('/confirm-measurement')
       return
     }
     if (nextScreen === 'order') {
-      if (!user) {
-        handleOpenAuth('CUSTOMER', 'signin')
+      if (!user || !user.phone) {
+        handleOpenAuth('CUSTOMER', user ? 'signup' : 'signin')
         return
       }
       router.push(`/order/${createdOrderId || 'ORD-2654'}`)
@@ -257,17 +263,12 @@ export default function Page() {
 
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser)
-
-    if (!loggedUser.phone) {
-      setIsAuthOpen(true)
-      return
-    }
-
     setIsAuthOpen(false)
 
     // Persist role alongside token so getCurrentUser can enforce it on reload
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_user_role', loggedUser.role || 'CUSTOMER')
+      localStorage.setItem('tg_user', JSON.stringify(loggedUser))
     }
 
     // Role-based post-auth redirect
@@ -285,10 +286,12 @@ export default function Page() {
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
       localStorage.removeItem('tg_screen')
     }
     setUser(null)
+    setIsAuthOpen(false)
     if (screen === 'partner' || screen === 'for-partners') {
       handleNavigate('for-partners')
     } else {
@@ -400,18 +403,14 @@ export default function Page() {
       {/* Universal Footer (hidden on dedicated partner app workspace) */}
       {screen !== 'partner' && <Footer go={handleNavigate} />}
 
-      {/* Role-Aware Authentication Modal with Mandatory Phone Lock */}
+      {/* Role-Aware Authentication Modal with Closeable Phone Linking */}
       <AuthModal
         isOpen={isAuthOpen}
         targetRole={authRole}
         authType={authType}
         currentUser={user}
-        mandatoryPhoneRequired={Boolean(user && !user.phone)}
-        onClose={() => {
-          if (!user || user.phone) {
-            setIsAuthOpen(false)
-          }
-        }}
+        mandatoryPhoneRequired={false}
+        onClose={() => setIsAuthOpen(false)}
         onSuccess={handleAuthSuccess}
         onSignOut={handleSignOut}
       />

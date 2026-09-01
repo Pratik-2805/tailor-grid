@@ -121,8 +121,6 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, targetRole, authType, currentUser, mandatoryPhoneRequired])
 
-  const isStrictLocked = mode === 'link-phone-step' && Boolean(pendingUser || isMissingPhone)
-
   const finalizeAuth = (user: UserType, role: 'CUSTOMER' | 'STUDIO') => {
     if (!user.phone) {
       setPendingUser(user)
@@ -259,7 +257,7 @@ export function AuthModal({
         otp: cOtp.trim(),
         name: cName || undefined,
         email: cEmail || undefined,
-        role: 'CUSTOMER',
+        role: targetRole || 'CUSTOMER',
       })
       setLoading(false)
       if (res?.user) {
@@ -411,7 +409,6 @@ export function AuthModal({
     setSSpecialties((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
 
   const goBack = () => {
-    if (isStrictLocked) return
     if (mode === 'studio-register' && registerStep > 1) {
       setRegisterStep((p) => (p - 1) as 1 | 2 | 3)
     } else if (mode === 'studio-register') {
@@ -420,7 +417,7 @@ export function AuthModal({
     } else if (mode === 'studio-login') {
       setMode('studio-options')
     } else if (mode === 'link-phone-step') {
-      setMode('customer-options')
+      setMode(targetRole === 'STUDIO' ? 'studio-options' : 'customer-options')
       setPendingUser(null)
     } else {
       setMode(targetRole === 'STUDIO' ? 'studio-options' : 'customer-options')
@@ -433,11 +430,9 @@ export function AuthModal({
   if (!isOpen) return null
 
   const isSubPage =
-    !isStrictLocked &&
     mode !== 'customer-options' &&
     mode !== 'studio-options' &&
-    mode !== 'studio-signup-options' &&
-    mode !== 'link-phone-step'
+    mode !== 'studio-signup-options'
 
   const activeUser = pendingUser || currentUser
   const userInitial = (activeUser?.name || 'U')[0].toUpperCase()
@@ -446,7 +441,7 @@ export function AuthModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
       onClick={(e) => {
-        if (!isStrictLocked && e.target === e.currentTarget) {
+        if (e.target === e.currentTarget) {
           onClose()
         }
       }}
@@ -471,15 +466,13 @@ export function AuthModal({
             )}
           </div>
 
-          {!isStrictLocked && (
-            <button
-              onClick={onClose}
-              className="size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors"
-              aria-label="Close"
-            >
-              <X size={14} />
-            </button>
-          )}
+          <button
+            onClick={onClose}
+            className="size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
@@ -687,25 +680,6 @@ export function AuthModal({
                   <span>Continue with Email</span>
                 </button>
               </div>
-
-              <Divider />
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    onSuccess({
-                      name: 'Guest Customer',
-                      contact: '+44 7700 900000',
-                      phone: '+44 7700 900000',
-                      email: 'guest@darzi.com',
-                      method: 'guest',
-                      role: 'CUSTOMER',
-                    })
-                  }}
-                  className="text-xs text-[#9CA3AF] hover:text-[#18191B] underline underline-offset-4 transition-colors"
-                >
-                  Continue with guest pass
-                </button>
-              </div>
             </div>
           )}
 
@@ -816,6 +790,18 @@ export function AuthModal({
                 <GoogleButton label="Sign in with Google" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
                 <button
                   type="button"
+                  onClick={() => {
+                    setError('')
+                    setNotice('')
+                    setMode('customer-mobile')
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
+                >
+                  <Phone size={14} className="text-[#9E593B]" />
+                  <span>Sign in with Mobile</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setMode('studio-login')}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
                 >
@@ -828,27 +814,6 @@ export function AuthModal({
                 >
                   <Store size={14} />
                   <span>Register New Studio</span>
-                </button>
-              </div>
-
-              <Divider />
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    onSuccess({
-                      name: 'Atelier SoHo (Demo)',
-                      contact: 'demo@ateliersoho.com',
-                      email: 'demo@ateliersoho.com',
-                      phone: '+44 7700 900123',
-                      method: 'guest',
-                      role: 'STUDIO',
-                      studioId: 'atelier-soho',
-                      studioName: 'Atelier SoHo Tailors',
-                    })
-                  }}
-                  className="text-xs text-[#9CA3AF] hover:text-[#18191B] underline underline-offset-4 transition-colors"
-                >
-                  Explore demo studio dashboard
                 </button>
               </div>
             </div>
