@@ -19,7 +19,7 @@ export type User = {
   avatar?: string
   address?: string
   postcode?: string
-  method: 'google' | 'apple' | 'email' | 'mobile' | 'guest'
+  method: 'google' | 'apple' | 'email' | 'mobile'
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
   studioId?: string
   studioName?: string

@@ -14,11 +14,11 @@ model User {
   name       String
   email      String?  @unique
   contact    String?
-  phone      String?
+  phone      String?  @unique
   avatar     String?
   address    String?
   postcode   String?
-  method     String   @default("email") // google, email, mobile, apple, guest
+  method     String   @default("email") // google, email, mobile, apple
   role       String   @default("CUSTOMER") // CUSTOMER, STUDIO, ADMIN
   studioId   String?
   studioName String?

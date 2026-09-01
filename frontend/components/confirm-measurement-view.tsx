@@ -410,6 +410,10 @@ export function ConfirmMeasurementView({
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleProceed = () => {
+    if (!currentUser || !currentUser.phone) {
+      setIsAuthOpen(true)
+      return
+    }
     setIsProcessing(true)
   }
 
@@ -811,6 +815,19 @@ export function ConfirmMeasurementView({
         active={isProcessing}
         durationSeconds={3}
         onComplete={handleLoaderComplete}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        targetRole="CUSTOMER"
+        authType="signin"
+        currentUser={currentUser}
+        mandatoryPhoneRequired={Boolean(currentUser && !currentUser.phone)}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={(u) => {
+          setCurrentUser(u)
+          setIsAuthOpen(false)
+        }}
       />
     </div>
   )
