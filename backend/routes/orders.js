@@ -56,21 +56,33 @@ router.get('/studio/stats', async (req, res) => {
 // GET /api/orders
 router.get('/', async (req, res) => {
   try {
-    const { email, storeId, status } = req.query;
+    const { email, phone, userId, contact, storeId, status } = req.query;
+    const searchContact = (contact || email || phone || '').toLowerCase().trim();
 
     const where = {};
-    if (email) {
-      where.customerEmail = {
-        equals: email.toLowerCase(),
-        mode: 'insensitive',
-      };
-    }
-    if (storeId) {
-      // When a studio queries, show both their assigned orders AND unassigned/allocated broadcast orders
+    if (searchContact) {
       where.OR = [
+        { customerEmail: { equals: searchContact, mode: 'insensitive' } },
+        { customerPhone: searchContact },
+      ];
+      if (userId) {
+        where.OR.push({ userId: userId });
+      }
+    } else if (userId) {
+      where.userId = userId;
+    }
+
+    if (storeId) {
+      const storeClause = [
         { storeId: storeId },
         { status: 'Allocated' },
       ];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: storeClause }];
+        delete where.OR;
+      } else {
+        where.OR = storeClause;
+      }
     }
     if (status) {
       where.status = status;
@@ -94,11 +106,16 @@ router.get('/', async (req, res) => {
     // Fallback to local store
     const db = readDb();
     let localOrders = db.orders || [];
-    if (email) {
-      localOrders = localOrders.filter(
-        (o) => o.customerEmail?.toLowerCase() === email.toLowerCase()
-      );
+    if (searchContact) {
+      localOrders = localOrders.filter((o) => {
+        const cEmail = o.customerEmail?.toLowerCase() || '';
+        const cPhone = o.customerPhone?.toLowerCase() || '';
+        return cEmail === searchContact || cPhone === searchContact || (userId && o.userId === userId);
+      });
+    } else if (userId) {
+      localOrders = localOrders.filter((o) => o.userId === userId);
     }
+
     if (storeId) {
       localOrders = localOrders.filter((o) => !o.storeId || o.storeId === storeId || o.status === 'Allocated');
     }
@@ -141,6 +158,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const {
+      userId,
       customerName,
       customerEmail,
       customerPhone,
@@ -176,11 +194,36 @@ router.post('/', async (req, res) => {
       measurementsStr = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
     }
 
+    const db = readDb();
+    if (!db.users) db.users = [];
+    if (!db.orders) db.orders = [];
+
+    // Find and link user
+    let matchedUser = null;
+    if (userId) {
+      matchedUser = db.users.find((u) => u.id === userId);
+    }
+    if (!matchedUser && customerEmail) {
+      matchedUser = db.users.find((u) => u.email && u.email.toLowerCase() === customerEmail.toLowerCase());
+    }
+    if (!matchedUser && customerPhone) {
+      matchedUser = db.users.find((u) => u.phone && u.phone === customerPhone);
+    }
+
+    if (matchedUser) {
+      if (customerPhone && !matchedUser.phone) matchedUser.phone = customerPhone;
+      if (customerEmail && !matchedUser.email) matchedUser.email = customerEmail.toLowerCase();
+      if (customerName && (!matchedUser.name || matchedUser.name === 'Darzi Member' || matchedUser.name === 'Mobile Member')) {
+        matchedUser.name = customerName;
+      }
+    }
+
     const orderData = {
       id: orderId,
-      customerName: customerName || 'Valued Customer',
-      customerEmail: customerEmail || 'customer@example.com',
-      customerPhone: customerPhone || '+44 7700 900000',
+      userId: matchedUser ? matchedUser.id : (userId || null),
+      customerName: customerName || (matchedUser ? matchedUser.name : 'Valued Customer'),
+      customerEmail: customerEmail || (matchedUser ? matchedUser.email : 'customer@example.com'),
+      customerPhone: customerPhone || (matchedUser ? matchedUser.phone : '+44 7700 900000'),
       postcode: postcode || 'W8 4EP',
       garmentId: garmentId || 'trousers',
       garmentName: garmentName || 'Trousers & Jeans',
@@ -203,52 +246,57 @@ router.post('/', async (req, res) => {
       status: status || 'Allocated',
       price: parsedPrice,
       otp,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
+    // Save to local file store
+    const existingIdx = db.orders.findIndex((o) => o.id === orderId);
+    if (existingIdx >= 0) {
+      db.orders[existingIdx] = orderData;
+    } else {
+      db.orders.unshift(orderData);
+    }
+    writeDb(db);
+
     try {
-      const created = await prisma.order.create({
-        data: orderData,
-      });
-
-      const db = readDb();
-      if (!db.orders) db.orders = [];
-      const existingIdx = db.orders.findIndex((o) => o.id === orderId);
-      if (existingIdx >= 0) {
-        db.orders[existingIdx] = created;
-      } else {
-        db.orders.unshift(created);
-      }
-      writeDb(db);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Order created successfully',
-        order: created,
+      await prisma.order.create({
+        data: {
+          id: orderData.id,
+          customerName: orderData.customerName,
+          customerEmail: orderData.customerEmail,
+          customerPhone: orderData.customerPhone,
+          postcode: orderData.postcode,
+          garmentId: orderData.garmentId,
+          garmentName: orderData.garmentName,
+          serviceId: orderData.serviceId,
+          serviceName: orderData.serviceName,
+          storeId: orderData.storeId,
+          storeName: orderData.storeName,
+          date: orderData.date,
+          timeSlot: orderData.timeSlot,
+          garmentBrand: orderData.garmentBrand,
+          fitNotes: orderData.fitNotes,
+          pinnedAdjustment: orderData.pinnedAdjustment,
+          sewingNotes: orderData.sewingNotes,
+          slaHours: orderData.slaHours,
+          partnerPayout: orderData.partnerPayout,
+          retailSold: orderData.retailSold,
+          intakePhotoUrl: orderData.intakePhotoUrl,
+          status: orderData.status,
+          price: orderData.price,
+          otp: orderData.otp,
+        },
       });
     } catch (prismaErr) {
-      console.warn('Prisma create order fallback:', prismaErr.message);
-      const newOrder = {
-        ...orderData,
-        measurements: measurements || undefined,
-        fittingType: fittingType || undefined,
-        createdAt: new Date().toISOString(),
-      };
-      const db = readDb();
-      if (!db.orders) db.orders = [];
-      const existingIdx = db.orders.findIndex((o) => o.id === orderId);
-      if (existingIdx >= 0) {
-        db.orders[existingIdx] = newOrder;
-      } else {
-        db.orders.unshift(newOrder);
-      }
-      writeDb(db);
-
-      return res.status(201).json({
-        success: true,
-        message: 'Order created successfully',
-        order: newOrder,
-      });
+      console.warn('Prisma create order notice:', prismaErr.message);
     }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Order created and saved successfully',
+      order: orderData,
+    });
   } catch (err) {
     console.error('Create order error:', err);
     return res.status(500).json({ error: 'Failed to create order' });

@@ -15,6 +15,7 @@ export type User = {
   name: string
   contact: string
   email?: string
+  phone?: string
   avatar?: string
   address?: string
   postcode?: string

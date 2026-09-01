@@ -36,7 +36,7 @@ import {
   type StoreOption,
   type User as UserType,
 } from './data'
-import { createOrder, fetchStores } from '@/lib/api'
+import { createOrder, fetchStores, getCurrentUser, updateUserProfile } from '@/lib/api'
 
 type BookingStep =
   | 'studio'
@@ -108,6 +108,19 @@ export function CustomerFlow({
   const [customerName, setCustomerName] = useState(user?.name || '')
   const [customerPhone, setCustomerPhone] = useState(user?.phone || (user?.contact && !user.contact.includes('@') ? user.contact : ''))
   const [customerEmail, setCustomerEmail] = useState(user?.email || (user?.contact && user.contact.includes('@') ? user.contact : ''))
+
+  // Auto-populate from logged-in user profile
+  useEffect(() => {
+    getCurrentUser().then((u) => {
+      if (u) {
+        if (u.name && u.name !== 'Darzi Member' && u.name !== 'Google User' && u.name !== 'Mobile Member') {
+          setCustomerName(u.name)
+        }
+        if (u.email) setCustomerEmail(u.email)
+        if (u.phone) setCustomerPhone(u.phone)
+      }
+    })
+  }, [])
 
   // All registered & partner studios list
   const [allStores, setAllStores] = useState<StoreOption[]>([])
@@ -194,7 +207,9 @@ export function CustomerFlow({
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const u = await getCurrentUser()
       await createOrder({
+        userId: u?.id,
         customerName,
         customerEmail,
         customerPhone,
@@ -212,6 +227,9 @@ export function CustomerFlow({
         price: selectedService.customerPrice,
         otp
       })
+      if (u && (!u.phone || u.phone !== customerPhone || u.email !== customerEmail)) {
+        await updateUserProfile({ phone: customerPhone, name: customerName, email: customerEmail })
+      }
     } catch (err) {
       console.warn('Backend order recording notice:', err)
     }

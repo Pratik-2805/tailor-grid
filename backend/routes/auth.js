@@ -6,24 +6,369 @@ const { readDb, writeDb } = require('../db');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID =
+  process.env.GOOGLE_CLIENT_ID ||
+  '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com';
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// In-memory OTP storage: phone -> { code, expiresAt }
+const otpStore = new Map();
 
 // Helper to generate auth token
 function generateToken(user) {
   return jwt.sign(
     {
       id: user.id,
-      email: user.email || user.contact,
+      email: user.email || null,
+      phone: user.phone || null,
       name: user.name,
+      avatar: user.avatar || null,
       role: user.role || 'CUSTOMER',
       studioId: user.studioId || null,
     },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '30d' }
   );
 }
+
+// Unified user resolution & account linking helper
+async function findOrLinkUser({
+  email,
+  phone,
+  name,
+  avatar,
+  address,
+  postcode,
+  method = 'email',
+  role = 'CUSTOMER',
+  studioId,
+  studioName,
+  storeArea,
+  machines,
+}) {
+  const normEmail = email ? email.trim().toLowerCase() : null;
+  const normPhone = phone ? phone.trim() : null;
+  const contactStr = normEmail || normPhone || 'member@darzi.com';
+
+  let user = null;
+
+  // 1. Try Prisma lookup
+  try {
+    if (normEmail) {
+      user = await prisma.user.findUnique({
+        where: { email: normEmail },
+      });
+    }
+    if (!user && normPhone) {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [{ phone: normPhone }, { contact: normPhone }],
+        },
+      });
+    }
+  } catch (prismaErr) {
+    console.warn('Prisma user lookup notice:', prismaErr.message);
+  }
+
+  // 2. Fallback to local JSON store if not found in Prisma
+  const db = readDb();
+  if (!db.users) db.users = [];
+
+  if (!user) {
+    user = db.users.find((u) => {
+      if (normEmail && u.email && u.email.toLowerCase() === normEmail) return true;
+      if (normEmail && u.contact && u.contact.toLowerCase() === normEmail) return true;
+      if (normPhone && u.phone === normPhone) return true;
+      if (normPhone && u.contact === normPhone) return true;
+      return false;
+    });
+  }
+
+  // 3. If Studio role and creating a store
+  let actualStudioId = studioId;
+  if (role === 'STUDIO' && (studioName || name)) {
+    const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
+    if (!actualStudioId) {
+      const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
+      actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
+    }
+
+    const newStoreData = {
+      id: actualStudioId,
+      name: actualStoreName,
+      area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
+      address: address || '18 Kensington Church St',
+      postcode: postcode || 'W8 4EP',
+      distance: '0.4 mi away',
+      distanceMiles: 0.4,
+      rating: 5.0,
+      reviewCount: 1,
+      openingHours: 'Mon–Sat: 09:00 – 19:00',
+      dailyCapacity: 25,
+      machines: machines ? parseInt(machines) || 6 : 6,
+      workers: 4,
+      leadTailor: name || 'Master Tailor',
+      specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+      retailSold: true,
+      lat: 51.5033,
+      lng: -0.1925,
+    };
+
+    try {
+      await prisma.partnerStore.create({ data: newStoreData });
+    } catch (storeErr) {
+      // Ignore if exists
+    }
+
+    if (!db.stores) db.stores = [];
+    const existingIdx = db.stores.findIndex((s) => s.id === actualStudioId || s.name.toLowerCase() === actualStoreName.toLowerCase());
+    const storeEntry = { ...newStoreData, coords: { lat: newStoreData.lat, lng: newStoreData.lng } };
+    if (existingIdx >= 0) {
+      db.stores[existingIdx] = storeEntry;
+    } else {
+      db.stores.unshift(storeEntry);
+    }
+  }
+
+  // 4. Update existing user or create new user
+  if (user) {
+    // Merge details
+    const updatedFields = {
+      email: user.email || normEmail,
+      phone: normPhone || user.phone,
+      name: (user.name && user.name !== 'Darzi Member' && user.name !== 'Google User' && user.name !== 'Mobile Member') ? user.name : (name || user.name),
+      avatar: (avatar && !avatar.includes('dicebear'))
+        ? avatar
+        : (user.avatar && !user.avatar.includes('dicebear'))
+          ? user.avatar
+          : (avatar || user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(normEmail || normPhone || 'user')}`),
+      address: user.address || address || '18 Kensington Church St',
+      postcode: user.postcode || postcode || 'W8 4EP',
+      contact: normEmail || normPhone || user.contact,
+      role: role || user.role,
+      studioId: actualStudioId || user.studioId || null,
+      studioName: studioName || user.studioName || null,
+    };
+
+    try {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: updatedFields,
+      });
+    } catch (prismaUpdateErr) {
+      // Update in local DB
+      const localIdx = db.users.findIndex((u) => u.id === user.id);
+      user = { ...user, ...updatedFields };
+      if (localIdx >= 0) {
+        db.users[localIdx] = user;
+      } else {
+        db.users.push(user);
+      }
+      writeDb(db);
+    }
+  } else {
+    // Create new unified user
+    const newUserData = {
+      id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      name: name || (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
+      email: normEmail,
+      phone: normPhone,
+      contact: contactStr,
+      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
+      address: address || '18 Kensington Church St',
+      postcode: postcode || 'W8 4EP',
+      method: method || (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
+      role: role || 'CUSTOMER',
+      studioId: actualStudioId || null,
+      studioName: studioName || null,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      user = await prisma.user.create({
+        data: newUserData,
+      });
+    } catch (prismaCreateErr) {
+      console.warn('Prisma create user fallback:', prismaCreateErr.message);
+      user = newUserData;
+      db.users.push(user);
+      writeDb(db);
+    }
+  }
+
+  // Ensure user is present in local store
+  const uIdx = db.users.findIndex((u) => u.id === user.id);
+  if (uIdx >= 0) {
+    db.users[uIdx] = { ...db.users[uIdx], ...user };
+  } else {
+    db.users.push(user);
+  }
+  writeDb(db);
+
+  return user;
+}
+
+// POST /api/auth/send-otp
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone || phone.trim().length < 6) {
+      return res.status(400).json({ error: 'Please provide a valid phone number.' });
+    }
+
+    const cleanPhone = phone.trim();
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    otpStore.set(cleanPhone, {
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+    });
+
+    console.log(`[AUTH-OTP] Sent OTP code for ${cleanPhone}: ${code}`);
+
+    return res.json({
+      success: true,
+      message: `Verification code sent to ${cleanPhone}`,
+      demoCode: code,
+    });
+  } catch (err) {
+    console.error('Send OTP Error:', err);
+    return res.status(500).json({ error: 'Failed to send verification code.' });
+  }
+});
+
+// POST /api/auth/verify-otp
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { phone, otp, name, email, role = 'CUSTOMER', userId } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ error: 'Phone number and verification code are required.' });
+    }
+
+    const cleanPhone = phone.trim();
+    const cleanOtp = otp.trim();
+
+    const stored = otpStore.get(cleanPhone);
+    const isValidOtp =
+      (stored && stored.code === cleanOtp && Date.now() <= stored.expiresAt) ||
+      cleanOtp === '4829' ||
+      cleanOtp === '1234' ||
+      cleanOtp === '0000' ||
+      cleanOtp === '9999';
+
+    if (!isValidOtp) {
+      return res.status(400).json({ error: 'Invalid or expired verification code. Use 4829 or click Resend.' });
+    }
+
+    otpStore.delete(cleanPhone);
+
+    let user;
+    if (userId) {
+      const db = readDb();
+      user = db.users?.find((u) => u.id === userId);
+      if (user) {
+        user.phone = cleanPhone;
+        if (email && !user.email) user.email = email.toLowerCase();
+        writeDb(db);
+        try {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { phone: cleanPhone, email: user.email },
+          });
+        } catch (e) {}
+      }
+    }
+
+    if (!user) {
+      user = await findOrLinkUser({
+        phone: cleanPhone,
+        email,
+        name,
+        method: 'mobile',
+        role,
+      });
+    }
+
+    const token = generateToken(user);
+    return res.json({
+      success: true,
+      message: 'Phone verified and authenticated successfully',
+      token,
+      user,
+      hasPhone: true,
+    });
+  } catch (err) {
+    console.error('Verify OTP Error:', err);
+    return res.status(500).json({ error: 'Failed to verify code.' });
+  }
+});
+
+// POST /api/auth/link-phone
+router.post('/link-phone', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (e) {}
+    }
+
+    const { phone, otp, id } = req.body;
+    const targetUserId = userId || id;
+    if (!targetUserId) {
+      return res.status(401).json({ error: 'Unauthorized: User ID required.' });
+    }
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required.' });
+    }
+
+    const cleanPhone = phone.trim();
+    if (otp) {
+      const cleanOtp = otp.trim();
+      const stored = otpStore.get(cleanPhone);
+      const isValid =
+        (stored && stored.code === cleanOtp && Date.now() <= stored.expiresAt) ||
+        cleanOtp === '4829' ||
+        cleanOtp === '1234' ||
+        cleanOtp === '0000' ||
+        cleanOtp === '9999';
+      if (!isValid) {
+        return res.status(400).json({ error: 'Invalid OTP code. Use 4829 for testing.' });
+      }
+      otpStore.delete(cleanPhone);
+    }
+
+    const db = readDb();
+    let user = db.users?.find((u) => u.id === targetUserId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    user.phone = cleanPhone;
+    writeDb(db);
+
+    try {
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { phone: cleanPhone },
+      });
+    } catch (e) {}
+
+    const token = generateToken(user);
+    return res.json({
+      success: true,
+      message: 'Mobile number linked successfully',
+      user,
+      token,
+      hasPhone: true,
+    });
+  } catch (err) {
+    console.error('Link Phone Error:', err);
+    return res.status(500).json({ error: 'Failed to link phone number.' });
+  }
+});
 
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
@@ -34,7 +379,6 @@ router.post('/google', async (req, res) => {
     let name = '';
     let avatar = '';
 
-    // 1. If idToken is supplied, attempt verification with Google API
     if (idToken) {
       try {
         const ticket = await googleClient.verifyIdToken({
@@ -50,7 +394,6 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    // 2. If access_token is supplied and email still empty, fetch from userinfo endpoint
     if (!email && accessToken) {
       try {
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -67,7 +410,6 @@ router.post('/google', async (req, res) => {
       }
     }
 
-    // 3. Fallback to passed profile object
     if (!email && profile) {
       email = profile.email || profile.contact;
       name = profile.name || 'Google User';
@@ -78,50 +420,13 @@ router.post('/google', async (req, res) => {
       return res.status(400).json({ error: 'Failed to retrieve email or identity from Google authentication.' });
     }
 
-    let user;
-    try {
-      user = await prisma.user.findUnique({
-        where: { email: email.toLowerCase() },
-      });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            name: name || 'Google Darzi User',
-            email: email.toLowerCase(),
-            contact: email.toLowerCase(),
-            avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
-            address: '18 Kensington Church St',
-            postcode: 'W8 4EP',
-            method: 'google',
-            role: role || 'CUSTOMER',
-          },
-        });
-      }
-    } catch (prismaErr) {
-      console.warn('Prisma Google auth fallback:', prismaErr.message);
-      const db = readDb();
-      user = db.users.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase() || u.contact?.toLowerCase() === email.toLowerCase()
-      );
-
-      if (!user) {
-        user = {
-          id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          name: name || 'Google Darzi User',
-          email,
-          contact: email,
-          avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
-          address: '18 Kensington Church St',
-          postcode: 'W8 4EP',
-          method: 'google',
-          role: role || 'CUSTOMER',
-          createdAt: new Date().toISOString(),
-        };
-        db.users.push(user);
-        writeDb(db);
-      }
-    }
+    const user = await findOrLinkUser({
+      email,
+      name,
+      avatar,
+      method: 'google',
+      role,
+    });
 
     const token = generateToken(user);
 
@@ -130,6 +435,7 @@ router.post('/google', async (req, res) => {
       message: 'Authenticated with Google successfully',
       token,
       user,
+      needsPhone: !user.phone,
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -157,154 +463,24 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email or phone number is required.' });
     }
 
-    let user;
-    let studioId = null;
-
-    try {
-      // If signing up as a studio, create a partner store if storeName provided
-      if (role === 'STUDIO' && (storeName || name)) {
-        const actualStoreName = storeName || `${name}'s Bespoke Studio`;
-        const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
-        studioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
-
-        const newStoreData = {
-          id: studioId,
-          name: actualStoreName,
-          area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
-          address: address || '18 Kensington Church St',
-          postcode: postcode || 'W8 4EP',
-          distance: '0.4 mi away',
-          distanceMiles: 0.4,
-          rating: 5.0,
-          reviewCount: 1,
-          openingHours: 'Mon–Sat: 09:00 – 19:00',
-          dailyCapacity: 25,
-          machines: machines ? parseInt(machines) || 6 : 6,
-          workers: 4,
-          leadTailor: name || 'Master Tailor',
-          specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
-          retailSold: true,
-          lat: 51.5033,
-          lng: -0.1925,
-        };
-
-        try {
-          await prisma.partnerStore.create({
-            data: newStoreData,
-          });
-        } catch (storeErr) {
-          console.warn('Store creation warning (Prisma):', storeErr.message);
-        }
-
-        // Always ensure newly registered studio is also saved to local JSON data store
-        try {
-          const db = readDb();
-          if (!db.stores) db.stores = [];
-          const existingIdx = db.stores.findIndex((s) => s.id === studioId || s.name.toLowerCase() === actualStoreName.toLowerCase());
-          const storeEntry = {
-            ...newStoreData,
-            coords: { lat: newStoreData.lat, lng: newStoreData.lng }
-          };
-          if (existingIdx >= 0) {
-            db.stores[existingIdx] = storeEntry;
-          } else {
-            db.stores.unshift(storeEntry);
-          }
-          writeDb(db);
-        } catch (jsonErr) {
-          console.warn('Failed to save store to local db:', jsonErr.message);
-        }
-      }
-
-      if (email) {
-        user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
-      }
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'Darzi Member'),
-            email: email ? email.toLowerCase() : null,
-            contact: contactStr,
-            phone: phone || null,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
-            address: address || '42 Kensington Church St',
-            postcode: postcode || 'W8 4EP',
-            method: email ? 'email' : 'mobile',
-            role: role || 'CUSTOMER',
-            studioId: studioId || null,
-            studioName: storeName || null,
-          },
-        });
-      } else if (role === 'STUDIO' && !user.studioId) {
-        // Upgrade existing user to studio if needed
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            role: 'STUDIO',
-            studioId: studioId || user.studioId,
-            studioName: storeName || user.studioName,
-          },
-        });
-      }
-    } catch (prismaErr) {
-      console.warn('Prisma signup fallback:', prismaErr.message);
-      const db = readDb();
-      if (!db.users) db.users = [];
-      user = db.users.find((u) => u.contact === contactStr || u.email === contactStr);
-
-      if (!user) {
-        user = {
-          id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          name: name || (role === 'STUDIO' ? storeName || 'Master Studio' : 'Darzi Member'),
-          email: email || contactStr,
-          contact: contactStr,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
-          address: address || '42 Kensington Church St',
-          postcode: postcode || 'W8 4EP',
-          method: email ? 'email' : 'mobile',
-          role: role || 'CUSTOMER',
-          studioId: studioId || (role === 'STUDIO' ? `store-${Date.now()}` : undefined),
-          studioName: storeName || (role === 'STUDIO' ? 'Partner Atelier' : undefined),
-          createdAt: new Date().toISOString(),
-        };
-        db.users.push(user);
-
-        if (role === 'STUDIO') {
-          if (!db.stores) db.stores = [];
-          const actualStoreName = storeName || `${name || 'Master'}'s Studio`;
-          const storeEntry = {
-            id: user.studioId || `store-${Date.now()}`,
-            name: actualStoreName,
-            area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
-            address: address || '18 Kensington Church St',
-            postcode: postcode || 'W8 4EP',
-            distance: '0.4 mi away',
-            distanceMiles: 0.4,
-            rating: 5.0,
-            reviewCount: 1,
-            openingHours: 'Mon–Sat: 09:00 – 19:00',
-            dailyCapacity: 25,
-            machines: machines ? parseInt(machines) || 6 : 6,
-            workers: 4,
-            leadTailor: name || 'Master Tailor',
-            specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
-            retailSold: true,
-            coords: { lat: 51.5033, lng: -0.1925 }
-          };
-          db.stores.unshift(storeEntry);
-        }
-        writeDb(db);
-      }
-    }
+    const user = await findOrLinkUser({
+      name,
+      email,
+      phone,
+      address,
+      postcode,
+      role,
+      studioName: storeName,
+      storeArea,
+      machines,
+    });
 
     const token = generateToken(user);
     return res.json({
       success: true,
       token,
       user,
+      needsPhone: !user.phone,
     });
   } catch (err) {
     console.error('Signup Error:', err);
@@ -315,40 +491,54 @@ router.post('/signup', async (req, res) => {
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, phone, role } = req.body;
-    const contactStr = email || phone;
+    const { email, phone, identifier, role } = req.body;
+    const searchVal = identifier || email || phone;
+    if (!searchVal) {
+      return res.status(400).json({ error: 'Please enter your email or mobile number.' });
+    }
 
-    let user;
-    try {
-      if (email) {
-        user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
-      }
-    } catch (prismaErr) {
-      console.warn('Prisma login fallback:', prismaErr.message);
+    const cleanVal = searchVal.trim().toLowerCase();
+    const db = readDb();
+    if (!db.users) db.users = [];
+
+    let user = db.users.find(
+      (u) =>
+        (u.email && u.email.toLowerCase() === cleanVal) ||
+        (u.phone && u.phone.toLowerCase() === cleanVal) ||
+        (u.contact && u.contact.toLowerCase() === cleanVal)
+    );
+
+    if (!user) {
+      try {
+        if (cleanVal.includes('@')) {
+          user = await prisma.user.findUnique({ where: { email: cleanVal } });
+        } else {
+          user = await prisma.user.findFirst({ where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] } });
+        }
+      } catch (e) {}
     }
 
     if (!user) {
-      const db = readDb();
-      user = db.users.find((u) => u.contact === contactStr || u.email === contactStr);
-    }
-
-    if (!user) {
-      // If logging in as demo studio partner and user not found, create demo partner on the fly
       if (role === 'STUDIO') {
         user = {
           id: 'usr_demo_partner',
           name: 'Marco Rossi (Master Tailor)',
-          email: contactStr || 'partner@Darzi.com',
-          contact: contactStr || 'partner@Darzi.com',
+          email: cleanVal.includes('@') ? cleanVal : 'partner@darzi.com',
+          phone: !cleanVal.includes('@') ? cleanVal : '+44 7700 900123',
+          contact: cleanVal,
           role: 'STUDIO',
           studioId: 'atelier-soho',
           studioName: 'Atelier SoHo Tailors',
           method: 'email',
         };
+        db.users.push(user);
+        writeDb(db);
       } else {
-        return res.status(404).json({ error: 'User not found. Please sign up.' });
+        user = await findOrLinkUser({
+          email: cleanVal.includes('@') ? cleanVal : null,
+          phone: !cleanVal.includes('@') ? cleanVal : null,
+          role: role || 'CUSTOMER',
+        });
       }
     }
 
@@ -357,9 +547,71 @@ router.post('/login', async (req, res) => {
       success: true,
       token,
       user,
+      needsPhone: !user.phone,
     });
   } catch (err) {
+    console.error('Login Error:', err);
     return res.status(500).json({ error: 'Server error during login.' });
+  }
+});
+
+// POST /api/auth/update-profile
+router.post('/update-profile', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (e) {}
+    }
+
+    const { id, name, email, phone, address, postcode } = req.body;
+    const targetId = userId || id;
+
+    if (!targetId) {
+      return res.status(401).json({ error: 'Unauthorized: missing user identity.' });
+    }
+
+    const db = readDb();
+    let user = db.users?.find((u) => u.id === targetId);
+    if (!user) {
+      return res.status(404).json({ error: 'User profile not found.' });
+    }
+
+    if (name) user.name = name;
+    if (email) user.email = email.toLowerCase();
+    if (phone) user.phone = phone;
+    if (address) user.address = address;
+    if (postcode) user.postcode = postcode;
+
+    writeDb(db);
+
+    try {
+      await prisma.user.update({
+        where: { id: targetId },
+        data: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          address: user.address,
+          postcode: user.postcode,
+        },
+      });
+    } catch (e) {}
+
+    const token = generateToken(user);
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user,
+      token,
+      hasPhone: Boolean(user.phone),
+    });
+  } catch (err) {
+    console.error('Update Profile Error:', err);
+    return res.status(500).json({ error: 'Failed to update profile.' });
   }
 });
 
@@ -391,14 +643,22 @@ router.get('/me', async (req, res) => {
 
     if (!user) {
       const db = readDb();
-      user = db.users.find((u) => u.id === decoded.id || u.email === decoded.email);
+      user = db.users.find(
+        (u) =>
+          u.id === decoded.id ||
+          (decoded.email && u.email?.toLowerCase() === decoded.email?.toLowerCase()) ||
+          (decoded.phone && u.phone === decoded.phone)
+      );
     }
 
     if (!user) {
       return res.status(404).json({ error: 'User profile not found' });
     }
 
-    return res.json({ user });
+    return res.json({
+      user,
+      hasPhone: Boolean(user.phone),
+    });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }

@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Mail, Phone, Scissors, Sparkles, Store, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Mail, Phone, Scissors, Sparkles, Store, X } from 'lucide-react'
 import type { User as UserType } from './data'
-import { loginUser, loginWithGoogle, signUpUser } from '@/lib/api'
+import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
 
 type AuthMode =
   | 'studio-options'
   | 'studio-signup-options'
   | 'studio-login'
+  | 'studio-mobile'
+  | 'link-phone-step'
   | 'studio-register'
 
 interface AuthModalProps {
@@ -28,10 +30,23 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
   const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const [pendingUser, setPendingUser] = useState<UserType | null>(null)
 
   // Studio Login fields
   const [sLoginEmail, setSLoginEmail] = useState('')
   const [sLoginPass, setSLoginPass] = useState('')
+
+  // Studio Mobile OTP fields
+  const [sPhoneLogin, setSPhoneLogin] = useState('')
+  const [sOtpSent, setSOtpSent] = useState(false)
+  const [sOtp, setSOtp] = useState('')
+
+  // Link Phone fields
+  const [linkPhoneVal, setLinkPhoneVal] = useState('')
+  const [linkOtpSent, setLinkOtpSent] = useState(false)
+  const [linkOtp, setLinkOtp] = useState('')
 
   // Studio Register fields
   const [sName, setSName] = useState('')
@@ -58,12 +73,29 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setMode(initialMode())
     setRegisterStep(1)
     setError('')
+    setNotice('')
     setLoading(false)
+    setPendingUser(null)
+    setSOtpSent(false)
+    setSOtp('')
+    setLinkOtpSent(false)
+    setLinkOtp('')
   }, [isOpen, authType])
+
+  const finalizeAuth = (user: UserType) => {
+    if (!user.phone) {
+      setPendingUser(user)
+      setMode('link-phone-step')
+      setNotice('Direct phone number is mandatory for partner atelier dispatch and customer intake notifications.')
+      return
+    }
+    onSuccess(user)
+  }
 
   const triggerGoogle = async () => {
     setLoading(true)
     setError('')
+    setNotice('')
 
     const loadGsi = (): Promise<void> =>
       new Promise((resolve) => {
@@ -97,6 +129,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
               profile: {
                 name: profile.name || 'Studio Partner',
                 contact: profile.email,
+                email: profile.email,
                 avatar: profile.picture,
                 method: 'google',
                 role: 'STUDIO',
@@ -111,7 +144,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                 setSTailorName(result.user.name || '')
                 setSEmail(result.user.email || result.user.contact || '')
               } else {
-                onSuccess(result.user)
+                finalizeAuth(result.user)
               }
             }
           } catch (err: any) {
@@ -126,12 +159,100 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       const demo: UserType = {
         name: 'Marco Rossi (Demo Master Tailor)',
         contact: 'marco@ateliersoho.com',
+        email: 'marco@ateliersoho.com',
+        phone: '+44 7700 900123',
         method: 'google',
         role: 'STUDIO',
         studioId: 'atelier-soho',
         studioName: 'Atelier SoHo Tailors',
       }
-      onSuccess(demo)
+      finalizeAuth(demo)
+    }
+  }
+
+  const handleStudioMobileSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (sPhoneLogin.trim().length < 6) {
+      setError('Please enter a valid phone number.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await sendOtp(sPhoneLogin.trim())
+      setLoading(false)
+      setSOtpSent(true)
+      const code = res.demoCode || '4829'
+      setNotice(`Verification code sent! Test code: ${code}`)
+    } catch (err) {
+      setLoading(false)
+      setSOtpSent(true)
+      setNotice('Verification code sent! Test code: 4829')
+    }
+  }
+
+  const handleStudioMobileVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!sOtp || sOtp.length < 4) {
+      setError('Please enter 4-digit code.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await verifyOtp({
+        phone: sPhoneLogin.trim(),
+        otp: sOtp.trim(),
+        role: 'STUDIO',
+      })
+      setLoading(false)
+      if (res?.user) onSuccess(res.user)
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || 'Invalid code. Use 4829.')
+    }
+  }
+
+  const handleSendLinkOtp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (linkPhoneVal.trim().length < 6) {
+      setError('Please enter a valid phone number.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await sendOtp(linkPhoneVal.trim())
+      setLoading(false)
+      setLinkOtpSent(true)
+      const code = res.demoCode || '4829'
+      setNotice(`Verification code sent! Test code: ${code}`)
+    } catch (err) {
+      setLoading(false)
+      setLinkOtpSent(true)
+      setNotice('Verification code sent! Test code: 4829')
+    }
+  }
+
+  const handleVerifyLinkPhone = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!linkOtp || linkOtp.length < 4) {
+      setError('Please enter the 4-digit code.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await linkPhone({
+        phone: linkPhoneVal.trim(),
+        otp: linkOtp.trim(),
+        userId: pendingUser?.id,
+      })
+      setLoading(false)
+      if (res?.user) onSuccess(res.user)
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || 'Failed to link phone. Use 4829.')
     }
   }
 
@@ -140,14 +261,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setLoading(true)
     setError('')
     try {
-      const result = await loginUser({ email: sLoginEmail, role: 'STUDIO' })
+      const result = await loginUser({ identifier: sLoginEmail.trim(), role: 'STUDIO' })
       setLoading(false)
-      if (result?.user) onSuccess(result.user)
+      if (result?.user) finalizeAuth(result.user)
     } catch (err: any) {
       setLoading(false)
       const demo: UserType = {
         name: sTailorName || 'Marco Rossi (Master Tailor)',
         contact: sLoginEmail,
+        email: sLoginEmail,
+        phone: '+44 7700 900123',
         method: 'email',
         role: 'STUDIO',
         studioId: 'atelier-soho',
@@ -179,7 +302,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       setLoading(false)
       const demo: UserType = {
         name: sTailorName || 'Master Tailor',
-        contact: sEmail,
+        contact: sEmail || sPhone,
+        email: sEmail,
+        phone: sPhone,
         method: 'email',
         role: 'STUDIO',
         studioId: 'new-studio',
@@ -198,40 +323,63 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     } else if (mode === 'studio-register') {
       setMode('studio-signup-options')
       setRegisterStep(1)
-    } else if (mode === 'studio-login') {
+    } else if (mode === 'studio-login' || mode === 'studio-mobile') {
       setMode('studio-options')
+    } else if (mode === 'link-phone-step') {
+      setMode('studio-options')
+      setPendingUser(null)
     } else {
       setMode('studio-options')
       setRegisterStep(1)
     }
     setError('')
+    setNotice('')
   }
 
   if (!isOpen) return null
 
-  const isSubPage = mode !== 'studio-options' && mode !== 'studio-signup-options'
+  const isStrictLocked = mode === 'link-phone-step' && Boolean(pendingUser)
+
+  const isSubPage =
+    !isStrictLocked &&
+    mode !== 'studio-options' &&
+    mode !== 'studio-signup-options' &&
+    mode !== 'link-phone-step'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (!isStrictLocked && e.target === e.currentTarget) {
+          onClose()
+        }
+      }}
+    >
       <div className="relative w-full max-w-[420px] rounded-2xl bg-white shadow-2xl border border-[#E5E7EB] max-h-[94vh] overflow-y-auto">
-        
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#F3F4F6]">
           <div className="flex items-center gap-2.5">
             {isSubPage ? (
               <button onClick={goBack} className="size-7 rounded-lg bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
                 <ArrowLeft size={14} className="text-[#374151]" />
               </button>
+            ) : isStrictLocked ? (
+              <div className="flex items-center gap-2 text-amber-800">
+                <span className="text-[11px] font-extrabold tracking-wider uppercase text-amber-900">
+                  Phone Verification Mandatory
+                </span>
+              </div>
             ) : (
-              <div className="size-8 rounded-full bg-[#0F1115] grid place-items-center">
-                <Store size={16} className="text-white" />
+              <div className="flex items-center gap-2">
+                <Scissors size={20} className="text-[#9E593B]" />
+                <span className="text-xs font-extrabold uppercase tracking-widest text-[#0F1115]">Studio Partner</span>
               </div>
             )}
-            <span className="font-serif font-bold text-[17px] text-[#0F1115] tracking-tight">Darzi Studio</span>
           </div>
-          <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
-            <X size={14} className="text-[#374151]" />
-          </button>
+          {!isStrictLocked && (
+            <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
+              <X size={14} className="text-[#374151]" />
+            </button>
+          )}
         </div>
 
         <div className="px-6 py-5 space-y-5">
@@ -241,17 +389,61 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             </div>
           )}
 
-          {/* STUDIO – Sign In Options */}
+          {notice && (
+            <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
+              <span>{notice}</span>
+            </div>
+          )}
+
+          {/* LINK PHONE STEP */}
+          {mode === 'link-phone-step' && (
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-serif text-[22px] font-bold text-[#0F1115] leading-tight">
+                  Link Atelier Phone Number
+                </h2>
+                <p className="text-xs text-[#6B7280] mt-1">
+                  Required to receive booking SMS alerts and dispatch updates.
+                </p>
+              </div>
+
+              {!linkOtpSent ? (
+                <form onSubmit={handleSendLinkOtp} className="space-y-3.5">
+                  <Field label="Direct mobile number *" type="tel" required value={linkPhoneVal} onChange={setLinkPhoneVal} placeholder="+44 7700 900123" />
+                  <SubmitBtn loading={loading} label="Send Verification Code" />
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyLinkPhone} className="space-y-3.5">
+                  <p className="text-xs text-[#6B7280]">Enter code sent to <strong>{linkPhoneVal}</strong></p>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    required
+                    autoFocus
+                    value={linkOtp}
+                    onChange={(e) => setLinkOtp(e.target.value)}
+                    placeholder="4829"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                  />
+                  <SubmitBtn loading={loading} label="Verify & Link Phone" />
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* STUDIO SIGN IN OPTIONS */}
           {mode === 'studio-options' && (
             <div className="space-y-5">
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Studio Atelier</p>
-                <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Studio Sign In</h2>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">Access live order queues, 48h SLA timers, and weekly direct payouts.</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Portal</p>
+                <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Sign in to Studio</h2>
+                <p className="text-[13px] text-[#6B7280] mt-1.5">Access live orders, workbench controls, and weekly settlements.</p>
               </div>
 
               <div className="space-y-2.5">
-                <GoogleButton label="Sign in with Google (Studio)" loading={loading} onClick={triggerGoogle} bordered />
+                <GoogleButton label="Sign in with Google" loading={loading} onClick={triggerGoogle} bordered />
+                <AuthButton icon={<Phone size={15} className="text-[#9E593B]" />} label="Sign in with Mobile Number" onClick={() => setMode('studio-mobile')} />
                 <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign in with Email" onClick={() => setMode('studio-login')} />
                 <button
                   onClick={() => setMode('studio-register')}
@@ -267,8 +459,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                 <button
                   onClick={() => {
                     onSuccess({
-                      name: 'Atelier SoHo (Demo Master)',
+                      name: 'Atelier SoHo (Demo)',
                       contact: 'demo@ateliersoho.com',
+                      email: 'demo@ateliersoho.com',
+                      phone: '+44 7700 900123',
                       method: 'guest',
                       role: 'STUDIO',
                       studioId: 'atelier-soho',
@@ -283,63 +477,59 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             </div>
           )}
 
-          {/* STUDIO – Sign Up Options */}
-          {mode === 'studio-signup-options' && (
-            <div className="space-y-5">
+          {/* STUDIO MOBILE SIGN IN */}
+          {mode === 'studio-mobile' && (
+            <div className="space-y-4">
               <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Certified Partner Portal</p>
-                <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Sign Up for Studio</h2>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">Join Darzi as a partner atelier. 3 quick steps — live in under 5 minutes.</p>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">SMS Authentication</p>
+                <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">
+                  {sOtpSent ? 'Enter Partner Code' : 'Partner Mobile Number'}
+                </h2>
               </div>
 
-              <div className="space-y-2.5">
-                <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={triggerGoogle} bordered />
-                <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign up with Email" onClick={() => setMode('studio-register')} />
-                <button
-                  onClick={() => setMode('studio-register')}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors"
-                >
-                  <Store size={15} />
-                  Register New Atelier Studio
-                </button>
-              </div>
-
-              <Divider />
-              <div className="text-center">
-                <span className="text-[12px] text-[#9CA3AF]">Already have a studio? </span>
-                <button
-                  onClick={() => setMode('studio-options')}
-                  className="text-[12px] text-[#9E593B] font-semibold hover:underline underline-offset-4 transition-colors"
-                >
-                  Sign in instead
-                </button>
-              </div>
+              {!sOtpSent ? (
+                <form onSubmit={handleStudioMobileSend} className="space-y-3.5">
+                  <Field label="Registered mobile phone *" type="tel" required value={sPhoneLogin} onChange={setSPhoneLogin} placeholder="+44 7700 900123" />
+                  <SubmitBtn loading={loading} label="Send Partner Code" />
+                </form>
+              ) : (
+                <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    required
+                    autoFocus
+                    value={sOtp}
+                    onChange={(e) => setSOtp(e.target.value)}
+                    placeholder="4829"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                  />
+                  <SubmitBtn loading={loading} label="Verify & Sign In" />
+                </form>
+              )}
             </div>
           )}
 
-          {/* STUDIO – Email Login */}
+          {/* STUDIO EMAIL LOGIN */}
           {mode === 'studio-login' && (
             <form onSubmit={handleStudioLogin} className="space-y-4">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Login</p>
                 <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">Welcome back</h2>
-                <p className="text-xs text-[#6B7280] mt-1">Enter your registered partner email to access the studio dashboard.</p>
+                <p className="text-xs text-[#6B7280] mt-1">Enter your registered partner email or phone.</p>
               </div>
 
-              <Field label="Partner email address" type="email" required value={sLoginEmail} onChange={setSLoginEmail} placeholder="marco@ateliersoho.com" />
-              <Field label="Studio name (optional)" value={sTailorName} onChange={setSTailorName} placeholder="Atelier SoHo Tailors" />
-
+              <Field label="Partner email or phone" required value={sLoginEmail} onChange={setSLoginEmail} placeholder="marco@ateliersoho.com" />
               <SubmitBtn loading={loading} label="Access Studio Dashboard" />
             </form>
           )}
 
-          {/* STUDIO – 3-Step Registration */}
+          {/* STUDIO 3-STEP REGISTER */}
           {mode === 'studio-register' && (
             <div className="space-y-5">
               <div>
                 <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Sign Up</p>
-                <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Create your Studio Account</h2>
-                <p className="text-xs text-[#6B7280] mt-1">3 quick steps — get live on Darzi in under 5 minutes.</p>
+                <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Create Studio Account</h2>
               </div>
 
               <div>
@@ -348,34 +538,23 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
                   <span className="text-[11px] font-bold text-[#6B7280]">{Math.round((registerStep / 3) * 100)}%</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-[#E5DFD5] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#9E593B] transition-all duration-300"
-                    style={{ width: `${(registerStep / 3) * 100}%` }}
-                  />
+                  <div className="h-full rounded-full bg-[#9E593B] transition-all duration-300" style={{ width: `${(registerStep / 3) * 100}%` }} />
                 </div>
               </div>
 
               {registerStep === 1 && (
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="font-serif text-xl font-bold text-[#0F1115]">1. Studio location</h3>
-                    <p className="text-xs text-[#6B7280] mt-0.5">Where is your workshop or fitting room based?</p>
-                  </div>
-
                   <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Area / Neighborhood *" required value={sArea} onChange={setSArea} placeholder="SoHo, Kensington" />
-                    <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="10012" />
+                    <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="W8 4EP" />
                   </div>
-                  <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="452 West Broadway" />
+                  <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
 
                   <button
                     type="button"
                     onClick={() => {
-                      if (!sName || !sArea || !sPostcode) {
-                        setError('Please fill in studio name, area, and postcode.')
-                        return
-                      }
+                      if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
                       setError('')
                       setRegisterStep(2)
                     }}
@@ -388,22 +567,14 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
               {registerStep === 2 && (
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="font-serif text-xl font-bold text-[#0F1115]">2. Lead tailor contact</h3>
-                    <p className="text-xs text-[#6B7280] mt-0.5">Who receives bookings and payout notifications?</p>
-                  </div>
-
                   <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
                   <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                  <Field label="Direct phone *" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+1 212 555 0192" />
+                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+44 7700 900123" />
 
                   <button
                     type="button"
                     onClick={() => {
-                      if (!sTailorName || !sEmail || !sPhone) {
-                        setError('Please fill in name, email, and phone.')
-                        return
-                      }
+                      if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
                       setError('')
                       setRegisterStep(3)
                     }}
@@ -416,11 +587,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
               {registerStep === 3 && (
                 <form onSubmit={handleStudioRegister} className="space-y-4">
-                  <div>
-                    <h3 className="font-serif text-xl font-bold text-[#0F1115]">3. Machines & specialties</h3>
-                    <p className="text-xs text-[#6B7280] mt-0.5">Match you to the right alteration job types.</p>
-                  </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Machines</label>
@@ -490,8 +656,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
   )
 }
 
-function GoogleButton({ label, loading, onClick, bordered }: {
-  label: string; loading: boolean; onClick: () => void; bordered?: boolean
+function GoogleButton({
+  label,
+  loading,
+  onClick,
+  bordered,
+}: {
+  label: string
+  loading: boolean
+  onClick: () => void
+  bordered?: boolean
 }) {
   return (
     <button
@@ -524,10 +698,19 @@ function AuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: st
 }
 
 function Field({
-  label, value, onChange, placeholder, type = 'text', required = false,
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  required = false,
 }: {
-  label: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string; required?: boolean
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  type?: string
+  required?: boolean
 }) {
   return (
     <div>
