@@ -98,7 +98,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 ].map((serviceName) => (
                   <li key={serviceName}>
                     <button
-                      onClick={() => nav('booking')}
+                      onClick={() => nav('home')}
                       className="hover:text-white transition-colors text-left block"
                     >
                       {serviceName}

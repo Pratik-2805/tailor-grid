@@ -97,13 +97,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                 <LogIn size={15} />
                 <span>Sign In / Register</span>
               </button>
-
-              <button
-                onClick={() => go('booking')}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-[#DDD6CB] bg-[#FAF8F5] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-[#18191B] hover:bg-[#EAE4DC] transition-colors"
-              >
-                <span>Book a Fitting</span>
-              </button>
             </div>
 
             <div className="mt-8 pt-6 border-t border-[#F0EBE3] flex items-center justify-center gap-2 text-xs text-[#7A7E85]">
@@ -148,20 +141,12 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               Customer Wardrobe Hub
             </span>
             <h1 className="mt-2 font-serif text-3xl sm:text-5xl font-normal text-[#18191B]">
-              Fittings &amp; Fit Passport.
+              My Orders &amp; Fittings.
             </h1>
             <p className="mt-2 text-xs sm:text-sm text-[#5A5D64]">
-              Welcome back, <strong className="text-[#18191B]">{user.name}</strong>. Manage your active studio fittings, download passes, and review saved measurements.
+              Welcome back, <strong className="text-[#18191B]">{user.name}</strong>. Manage your active orders, track alteration progress, and download passes.
             </p>
           </div>
-
-          <button
-            onClick={() => go('booking')}
-            className="inline-flex items-center gap-2 rounded-full bg-[#18191B] px-6 py-3 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] self-start sm:self-auto transition-colors"
-          >
-            <span>Book New Fitting</span>
-            <ArrowRight size={13} />
-          </button>
         </div>
 
         {/* Tab Switcher */}
@@ -174,7 +159,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                 : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
             }`}
           >
-            Active &amp; Past Fittings ({displayOrders.length})
+            Active &amp; Past Orders ({displayOrders.length})
           </button>
           <button
             onClick={() => setActiveTab('fit-profile')}
@@ -194,24 +179,17 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
           <div className="mt-8 space-y-4">
             {isLoading ? (
               <div className="p-12 text-center text-[#7A7E85] text-sm">
-                Loading your fittings...
+                Loading your orders...
               </div>
             ) : displayOrders.length === 0 ? (
               <div className="rounded-2xl border border-[#DDD6CB] bg-white p-12 text-center">
                 <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-[#FAF8F5] text-[#9E593B] border border-[#DDD6CB]">
                   <Package size={22} />
                 </div>
-                <h3 className="font-serif text-xl font-bold text-[#18191B]">No active fittings yet</h3>
+                <h3 className="font-serif text-xl font-bold text-[#18191B]">No active orders yet</h3>
                 <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] max-w-[360px] mx-auto">
-                  You don&apos;t have any booked fittings yet under <span className="font-mono text-[#9E593B]">{user.email || user.contact}</span>.
+                  You don&apos;t have any orders yet under <span className="font-mono text-[#9E593B]">{user.email || user.contact}</span>.
                 </p>
-                <button
-                  onClick={() => go('booking')}
-                  className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#18191B] px-6 py-2.5 text-xs font-semibold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"
-                >
-                  <span>Book Your First Fitting</span>
-                  <ArrowRight size={13} />
-                </button>
               </div>
             ) : (
               displayOrders.map((o) => (

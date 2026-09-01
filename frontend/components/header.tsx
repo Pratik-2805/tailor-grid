@@ -72,13 +72,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
         </div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
-          <button
-            onClick={() => nav('booking')}
-            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'booking' ? 'text-[#0F1115] font-semibold' : ''}`}
-          >
-            Book a Tailor
-          </button>
+        <nav className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
           <button
             onClick={() => nav('how-it-works')}
             className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
@@ -118,15 +112,17 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
           {user ? (
             <div
               ref={dropdownRef}
-              className="relative"
+              className="relative shrink-0"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
               <button
                 type="button"
                 onClick={() => setIsPinned((prev) => !prev)}
-                className={`flex items-center gap-2 border rounded-full pl-1.5 pr-2.5 py-1 bg-white whitespace-nowrap shrink-0 shadow-sm transition-all cursor-pointer ${
-                  isDropdownOpen ? 'border-[#9E593B] ring-2 ring-[#9E593B]/10' : 'border-[#E8E1D5] hover:border-[#9E593B]'
+                className={`h-[34px] px-2.5 flex items-center gap-2 bg-white whitespace-nowrap cursor-pointer relative z-50 border border-[#E8E1D5] shadow-sm transition-colors outline-none focus:outline-none focus:ring-0 focus-visible:outline-none select-none ${
+                  isDropdownOpen
+                    ? 'rounded-t-2xl rounded-b-none border-b-transparent'
+                    : 'rounded-full hover:border-[#D5CDC2]'
                 }`}
                 aria-expanded={isDropdownOpen}
               >
@@ -134,45 +130,53 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
                 <span className="text-[13px] font-semibold text-[#18191B] max-w-[110px] truncate block">
                   {user.name.split(' ')[0] || user.name}
                 </span>
-                <ChevronDown size={12} className={`text-[#7A7E85] transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-[#9E593B]' : ''}`} />
+
+                {/* Left Concave Shoulder Curve & Seamless Bottom Bridge */}
+                {isDropdownOpen && (
+                  <>
+                    <div className="absolute inset-x-0 -bottom-[2px] h-[3px] bg-white z-50 pointer-events-none" />
+                    <InvertedCorner side="left" className="absolute -left-[16px] -bottom-[1px] z-50" />
+                  </>
+                )}
               </button>
 
-              {/* Connected Account Dropdown (Hoverable and Click-to-Pin) */}
+              {/* Seamless Connected Dropdown Card (Flush right alignment) */}
               {isDropdownOpen && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-[#E8E1D5] shadow-xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute right-0 top-full -mt-[1px] w-72 rounded-2xl rounded-tr-none bg-white border border-[#E8E1D5] shadow-2xl p-3.5 z-40 animate-in fade-in duration-150"
                   onMouseEnter={() => setIsHovered(true)}
                   onMouseLeave={() => setIsHovered(false)}
                 >
-                  <div className="pb-3 border-b border-[#F3EFEA] flex items-center gap-3">
+                  {/* Account Summary Header */}
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]/70 flex items-center gap-3 mb-2">
                     <UserAvatar src={user.avatar} name={user.name} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#18191B] truncate">{user.name}</p>
+                      <p className="text-[13px] font-bold text-[#18191B] truncate">{user.name}</p>
                       {user.email && (
-                        <p className="text-[11px] text-[#7A7E85] truncate">{user.email}</p>
+                        <p className="text-[11.5px] text-[#5A5D64] truncate leading-tight mt-0.5">{user.email}</p>
                       )}
                       {user.phone && (
-                        <p className="text-[10.5px] text-[#065F46] font-medium truncate flex items-center gap-1 mt-0.5">
-                          <Phone size={10} /> {user.phone}
+                        <p className="text-[11px] text-[#065F46] font-semibold truncate flex items-center gap-1 mt-1">
+                          <Phone size={10} className="text-[#059669]" /> {user.phone}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <div className="py-2 space-y-1 text-xs font-medium text-[#18191B]">
+                  {/* Navigation Links */}
+                  <div className="space-y-1">
                     <button
                       onClick={() => {
                         setIsPinned(false)
                         setIsHovered(false)
                         onOpenProfile?.()
                       }}
-                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-[#FAF8F5] text-[13px] font-semibold text-[#18191B] transition-colors text-left group"
                     >
-                      <span className="flex items-center gap-2">
-                        <UserIcon size={14} className="text-[#9E593B]" />
-                        <span>My Profile</span>
+                      <span className="size-6 rounded-lg bg-[#FAF8F5] group-hover:bg-white border border-[#E8E1D5]/80 grid place-items-center text-[#9E593B] shrink-0 transition-colors">
+                        <UserIcon size={13} />
                       </span>
-                      <span className="text-[#9CA3AF]">→</span>
+                      <span>My Profile</span>
                     </button>
 
                     <button
@@ -181,42 +185,28 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
                         setIsHovered(false)
                         nav('orders')
                       }}
-                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-[#FAF8F5] text-[13px] font-semibold text-[#18191B] transition-colors text-left group"
                     >
-                      <span className="flex items-center gap-2">
-                        <Package size={14} className="text-[#9E593B]" />
-                        <span>My Tailoring Orders</span>
+                      <span className="size-6 rounded-lg bg-[#FAF8F5] group-hover:bg-white border border-[#E8E1D5]/80 grid place-items-center text-[#9E593B] shrink-0 transition-colors">
+                        <Package size={13} />
                       </span>
-                      <span className="text-[#9CA3AF]">→</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setIsPinned(false)
-                        setIsHovered(false)
-                        nav('booking')
-                      }}
-                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-[#FAF8F5] transition-colors text-left"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Scissors size={14} className="text-[#9E593B]" />
-                        <span>Book New Alteration</span>
-                      </span>
-                      <span className="text-[#9CA3AF]">→</span>
+                      <span>My Orders</span>
                     </button>
                   </div>
 
                   {onSignOut && (
-                    <div className="pt-2 border-t border-[#F3EFEA]">
+                    <div className="pt-2 mt-1.5 border-t border-[#F3EFEA]">
                       <button
                         onClick={() => {
                           setIsPinned(false)
                           setIsHovered(false)
                           onSignOut()
                         }}
-                        className="w-full flex items-center gap-2 p-1.5 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors text-left group"
                       >
-                        <LogOut size={13} />
+                        <span className="size-6 rounded-lg bg-red-50 group-hover:bg-red-100/80 grid place-items-center text-red-600 shrink-0 transition-colors">
+                          <LogOut size={12} />
+                        </span>
                         <span>Sign Out</span>
                       </button>
                     </div>
@@ -233,13 +223,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
               <span>Sign In / Up</span>
             </button>
           )}
-
-          <button
-            onClick={() => nav('booking')}
-            className="rounded-full bg-[#0F1115] px-4 lg:px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm hover:bg-[#9E593B] transition-all active:scale-95 whitespace-nowrap shrink-0"
-          >
-            Book Now
-          </button>
         </div>
 
         {/* Mobile Hamburger Toggle */}
@@ -267,7 +250,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
       {open && (
         <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
           {[
-            { label: 'Book a Fitting', screen: 'booking' as Screen },
             { label: 'How it Works', screen: 'how-it-works' as Screen },
             { label: 'Track My Orders', screen: 'orders' as Screen },
             { label: 'About Us', screen: 'about' as Screen },
@@ -302,15 +284,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
               <span className="text-[#9CA3AF]">→</span>
             </button>
           )}
-
-          <div className="pt-3 border-t border-[#E8E1D5] flex flex-col gap-2">
-            <button
-              onClick={() => nav('booking')}
-              className="w-full rounded-full bg-[#0F1115] py-3 text-center text-[13.5px] font-semibold text-white shadow-sm"
-            >
-              Book Fitting Pass
-            </button>
-          </div>
         </div>
       )}
     </header>
@@ -342,5 +315,35 @@ function UserAvatar({ src, name }: { src?: string | null; name?: string }) {
         className="size-full object-cover"
       />
     </div>
+  )
+}
+
+function InvertedCorner({ side, className = '' }: { side: 'left' | 'right'; className?: string }) {
+  if (side === 'left') {
+    return (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        className={`pointer-events-none ${className}`}
+      >
+        <path d="M16 0 C16 8.837 8.837 16 0 16 H16.5 V0 Z" fill="white" />
+        <path d="M16 0 C16 8.837 8.837 16 0 16" stroke="#E8E1D5" strokeWidth="1" fill="none" />
+      </svg>
+    )
+  }
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      className={`pointer-events-none ${className}`}
+      style={{ transform: 'translateY(1px)' }}
+    >
+      <path d="M0 0 C0 8.837 7.163 16 16 16 H0 V0 Z" fill="white" />
+      <path d="M0 0 C0 8.837 7.163 16 16 16" stroke="#E8E1D5" strokeWidth="1" fill="none" />
+    </svg>
   )
 }

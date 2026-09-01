@@ -7,7 +7,6 @@ import { AboutView } from '@/components/about-view'
 import { AdminView } from '@/components/admin-view'
 import { AuthModal } from '@/components/auth-modal'
 import { ConfirmMeasurementView } from '@/components/confirm-measurement-view'
-import { CustomerFlow } from '@/components/customer-flow'
 import { makeOtp, type Screen, type StoreOption, type User } from '@/components/data'
 import { Footer } from '@/components/footer'
 import { ForPartnersView } from '@/components/for-partners-view'
@@ -62,7 +61,6 @@ export default function Page() {
       'how-it-works',
       'about',
       'for-partners',
-      'booking',
       'orders',
       'partner',
       'admin',
@@ -368,34 +366,6 @@ export default function Page() {
             go={handleNavigate}
             onOpenAuth={handleOpenAuth}
             onPartnerRegistered={handleAuthSuccess}
-          />
-        )}
-
-        {screen === 'booking' && (
-          <CustomerFlow
-            go={handleNavigate}
-            otp={otp}
-            initialPostcode={prefilledPostcode}
-            initialGarmentId={prefilledGarmentId}
-            initialServiceId={prefilledServiceId}
-            initialStore={prefilledStore}
-            initialMeasurements={confirmedMeasurements}
-            initialBrand={garmentBrand}
-            initialNotes={garmentNotes}
-            initialDate={
-              measurementDraft.pickupOption === 'schedule'
-                ? measurementDraft.scheduleDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                })
-                : 'Today (Immediate slot)'
-            }
-            initialTimeSlot={
-              measurementDraft.pickupOption === 'schedule'
-                ? measurementDraft.scheduleTime
-                : '11:30 AM – 01:00 PM'
-            }
           />
         )}
 
