@@ -48,12 +48,33 @@ async function findOrLinkUser({
   machines,
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
-  const normPhone = phone ? phone.trim() : null;
+  let normPhone = phone ? phone.trim() : null;
   const contactStr = normEmail || normPhone || 'member@darzi.com';
 
   let user = null;
 
-  // 1. Try Prisma lookup
+  // 1. Check local JSON store first to resolve duplicates and get any verified phone
+  const db = readDb();
+  if (!db.users) db.users = [];
+
+  const matchingLocalUsers = db.users.filter((u) => {
+    if (normEmail && u.email && u.email.toLowerCase() === normEmail) return true;
+    if (normEmail && u.contact && u.contact.toLowerCase() === normEmail) return true;
+    if (normPhone && u.phone === normPhone) return true;
+    if (normPhone && u.contact === normPhone) return true;
+    return false;
+  });
+
+  let existingPhoneFromDb = null;
+  if (matchingLocalUsers.length > 0) {
+    const userWithPhone = matchingLocalUsers.find((u) => u.phone && u.phone.trim().length > 5);
+    if (userWithPhone) {
+      existingPhoneFromDb = userWithPhone.phone.trim();
+      if (!normPhone) normPhone = existingPhoneFromDb;
+    }
+  }
+
+  // 2. Try Prisma lookup
   try {
     if (normEmail) {
       user = await prisma.user.findUnique({
@@ -71,21 +92,14 @@ async function findOrLinkUser({
     console.warn('Prisma user lookup notice:', prismaErr.message);
   }
 
-  // 2. Fallback to local JSON store if not found in Prisma
-  const db = readDb();
-  if (!db.users) db.users = [];
-
-  if (!user) {
-    user = db.users.find((u) => {
-      if (normEmail && u.email && u.email.toLowerCase() === normEmail) return true;
-      if (normEmail && u.contact && u.contact.toLowerCase() === normEmail) return true;
-      if (normPhone && u.phone === normPhone) return true;
-      if (normPhone && u.contact === normPhone) return true;
-      return false;
-    });
+  // 3. If user found from Prisma, ensure any existing phone from DB is retained
+  if (!user && matchingLocalUsers.length > 0) {
+    user = matchingLocalUsers.find((u) => u.phone) || matchingLocalUsers[matchingLocalUsers.length - 1];
   }
 
-  // 3. If Studio role and creating a store
+  const finalPhone = normPhone || user?.phone || existingPhoneFromDb || null;
+
+  // 4. If Studio role and creating a store
   let actualStudioId = studioId;
   if (role === 'STUDIO' && (studioName || name)) {
     const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
@@ -131,12 +145,11 @@ async function findOrLinkUser({
     }
   }
 
-  // 4. Update existing user or create new user
+  // 5. Update existing user or create new user
   if (user) {
-    // Merge details
     const updatedFields = {
       email: user.email || normEmail,
-      phone: normPhone || user.phone,
+      phone: finalPhone,
       name: (user.name && user.name !== 'Darzi Member' && user.name !== 'Google User' && user.name !== 'Mobile Member') ? user.name : (name || user.name),
       avatar: (avatar && !avatar.includes('dicebear'))
         ? avatar
@@ -157,15 +170,7 @@ async function findOrLinkUser({
         data: updatedFields,
       });
     } catch (prismaUpdateErr) {
-      // Update in local DB
-      const localIdx = db.users.findIndex((u) => u.id === user.id);
       user = { ...user, ...updatedFields };
-      if (localIdx >= 0) {
-        db.users[localIdx] = user;
-      } else {
-        db.users.push(user);
-      }
-      writeDb(db);
     }
   } else {
     // Create new unified user
@@ -173,7 +178,7 @@ async function findOrLinkUser({
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name: name || (normEmail ? 'Google Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
       email: normEmail,
-      phone: normPhone,
+      phone: finalPhone,
       contact: contactStr,
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
       address: address || '18 Kensington Church St',
@@ -192,18 +197,16 @@ async function findOrLinkUser({
     } catch (prismaCreateErr) {
       console.warn('Prisma create user fallback:', prismaCreateErr.message);
       user = newUserData;
-      db.users.push(user);
-      writeDb(db);
     }
   }
 
-  // Ensure user is present in local store
-  const uIdx = db.users.findIndex((u) => u.id === user.id);
-  if (uIdx >= 0) {
-    db.users[uIdx] = { ...db.users[uIdx], ...user };
-  } else {
-    db.users.push(user);
-  }
+  // Deduplicate and consolidate local database record for this user
+  db.users = db.users.filter((u) => {
+    if (u.id === user.id) return false;
+    if (normEmail && u.email && u.email.toLowerCase() === normEmail) return false;
+    return true;
+  });
+  db.users.push(user);
   writeDb(db);
 
   return user;

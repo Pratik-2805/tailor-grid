@@ -279,7 +279,7 @@ export function ConfirmMeasurementView({
       if (token && stored) {
         try {
           return JSON.parse(stored)
-        } catch {}
+        } catch { }
       }
     }
     return null

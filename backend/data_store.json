@@ -1,71 +1,6 @@
 {
   "users": [
     {
-      "id": "usr_1787725682152_705",
-      "name": "Google Test User",
-      "email": "google.test@example.com",
-      "contact": "google.test@example.com",
-      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=google.test%40example.com",
-      "address": "18 Kensington Church St",
-      "postcode": "W8 4EP",
-      "method": "google",
-      "createdAt": "2026-08-26T06:28:02.152Z"
-    },
-    {
-      "id": "usr_1787727990483_7",
-      "name": "Sitarahub Development Team",
-      "email": "developer.sitarahub@gmail.com",
-      "contact": "developer.sitarahub@gmail.com",
-      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocIo4RpVf5R7w19daYinNyzqUBgPzVIvyF17Vcbewk0tV9JmfqQ=s96-c",
-      "address": "18 Kensington Church St",
-      "postcode": "W8 4EP",
-      "method": "google",
-      "createdAt": "2026-08-26T07:06:30.483Z"
-    },
-    {
-      "id": "usr_1787737781074_197",
-      "name": "Soham Sawalakhe",
-      "email": "robotg339@gmail.com",
-      "contact": "robotg339@gmail.com",
-      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocKyx7L740B4xCKE0Loo33hdHh0-zpSaQZ5gyZk4RDaT1LjilA=s96-c",
-      "address": "18 Kensington Church St",
-      "postcode": "W8 4EP",
-      "method": "google",
-      "createdAt": "2026-08-26T09:49:41.074Z"
-    },
-    {
-      "id": "usr_1788243194262_467",
-      "name": "Arthur Pendelton",
-      "email": "arthur.p@example.com",
-      "contact": "arthur.p@example.com",
-      "phone": "+44 7700 900888",
-      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=arthur.p%40example.com",
-      "address": "18 Kensington Church St",
-      "postcode": "W8 4EP",
-      "method": "mobile",
-      "role": "CUSTOMER",
-      "studioId": null,
-      "studioName": null,
-      "createdAt": "2026-09-01T06:13:14.262Z",
-      "updatedAt": "2026-09-01T06:13:14.288Z"
-    },
-    {
-      "id": "usr_1788243429066_44",
-      "name": "Eleanor Vance",
-      "email": "eleanor.vance@example.com",
-      "contact": "eleanor.vance@example.com",
-      "phone": "+44 7700 900555",
-      "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=eleanor.vance%40example.com",
-      "address": "77 Sloane Street",
-      "postcode": "SW1X 9SH",
-      "method": "mobile",
-      "role": "CUSTOMER",
-      "studioId": null,
-      "studioName": null,
-      "createdAt": "2026-09-01T06:17:09.066Z",
-      "updatedAt": "2026-09-01T06:17:09.071Z"
-    },
-    {
       "id": "cmtbltecw00006sva0qa4cr4l",
       "name": "Sitarahub Development Team",
       "email": "developer.sitarahub@gmail.com",
@@ -80,22 +15,6 @@
       "studioName": "serth",
       "createdAt": "2026-08-27T14:14:29.360Z",
       "updatedAt": "2026-09-01T06:43:44.046Z"
-    },
-    {
-      "id": "usr_1788244611969_86",
-      "name": "Clara Oswald",
-      "email": "clara.oswald@gmail.com",
-      "contact": "clara.oswald@gmail.com",
-      "phone": null,
-      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocClaraOswaldRealPhoto=s96-c",
-      "address": "18 Kensington Church St",
-      "postcode": "W8 4EP",
-      "method": "google",
-      "role": "CUSTOMER",
-      "studioId": null,
-      "studioName": null,
-      "createdAt": "2026-09-01T06:36:51.969Z",
-      "updatedAt": "2026-09-01T06:36:51.975Z"
     }
   ],
   "orders": [],
