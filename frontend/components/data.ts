@@ -404,13 +404,13 @@ export function getClosestStoreForLocation(location?: string, customStores?: Sto
   const storePool = customStores && customStores.length > 0 ? customStores : PARTNER_STORES
   if (!storePool || storePool.length === 0) return null
   if (!location) return storePool[0] || null
-  
+
   const query = location.toLowerCase().trim()
-  
+
   // Filter stores matching city/area keywords
   const matches = storePool.filter((st) => {
     const combined = `${st.name} ${st.area} ${st.address} ${st.postcode}`.toLowerCase()
-    
+
     if ((query.includes('vasai') || query.includes('manickpur') || query.includes('virar')) && (combined.includes('vasai') || combined.includes('manickpur') || st.id.includes('vasai'))) return true
     if ((query.includes('mumbai') || query.includes('in-mh') || query.includes('mh')) && (combined.includes('mumbai') || combined.includes('vasai') || combined.includes('bandra') || combined.includes('colaba'))) return true
     if ((query.includes('london') || query.includes('uk')) && (combined.includes('london') || combined.includes('kensington') || combined.includes('mayfair') || combined.includes('savile'))) return true
