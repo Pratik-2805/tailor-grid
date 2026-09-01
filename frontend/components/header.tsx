@@ -119,11 +119,10 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
               <button
                 type="button"
                 onClick={() => setIsPinned((prev) => !prev)}
-                className={`h-[34px] px-2.5 flex items-center gap-2 bg-white whitespace-nowrap cursor-pointer relative z-50 border border-[#E8E1D5] shadow-sm transition-colors outline-none focus:outline-none focus:ring-0 focus-visible:outline-none select-none ${
-                  isDropdownOpen
+                className={`h-[34px] px-2.5 flex items-center gap-2 bg-white whitespace-nowrap cursor-pointer relative z-50 border border-[#E8E1D5] shadow-sm transition-colors outline-none focus:outline-none focus:ring-0 focus-visible:outline-none select-none ${isDropdownOpen
                     ? 'rounded-t-2xl rounded-b-none border-b-transparent'
                     : 'rounded-full hover:border-[#D5CDC2]'
-                }`}
+                  }`}
                 aria-expanded={isDropdownOpen}
               >
                 <UserAvatar src={user.avatar} name={user.name} />

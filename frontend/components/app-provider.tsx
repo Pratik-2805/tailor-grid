@@ -67,18 +67,7 @@ const AppContext = createContext<AppContextType | null>(null)
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      if (stored) {
-        try {
-          return JSON.parse(stored)
-        } catch {}
-      }
-    }
-    return null
-  })
-
+  const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
@@ -118,6 +107,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Sync current user session on mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_user')
+      if (stored) {
+        try {
+          setUser(JSON.parse(stored))
+        } catch {}
+      }
+
       const params = new URLSearchParams(window.location.search)
       const authParam = params.get('auth')
       if (authParam === 'required' || authParam === 'signin') {
