@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut } from 'lucide-react'
+import Image from 'next/image'
+import { Menu, Scissors, X, MapPin, Package, ShieldCheck, User as UserIcon, LogOut, Phone } from 'lucide-react'
 import { type Screen, type User } from './data'
 
 interface HeaderProps {
@@ -32,9 +33,12 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Darzi home"
           >
-            <img
+            <Image
               src="/bg_logo.png"
               alt="Darzi"
+              width={140}
+              height={48}
+              priority
               className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
             />
             <div className="hidden sm:flex flex-col justify-center">
@@ -93,24 +97,69 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
           </button>
 
           {user ? (
-            <div className="flex items-center gap-1.5 border border-[#E5E7EB] rounded-full px-2.5 py-1 bg-[#FAF8F5] whitespace-nowrap shrink-0 hover:border-[#DDD6CB] transition-colors">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.name} className="size-5 rounded-full object-cover shrink-0" />
-              ) : (
-                <UserIcon size={12} className="text-[#9E593B] shrink-0" />
-              )}
-              <span className="text-[12px] font-semibold text-[#1E2229] max-w-[85px] sm:max-w-[100px] truncate block">
-                {user.name.split(' ')[0] || user.name}
-              </span>
-              {onSignOut && (
-                <button
-                  onClick={onSignOut}
-                  title="Sign out"
-                  className="p-0.5 hover:text-red-600 text-gray-400 transition-colors shrink-0"
-                >
-                  <LogOut size={12} />
-                </button>
-              )}
+            <div className="relative group">
+              <div className="flex items-center gap-2 border border-[#E5E7EB] rounded-full pl-2 pr-3 py-1 bg-white whitespace-nowrap shrink-0 hover:border-[#9E593B] shadow-sm transition-all cursor-pointer">
+                <UserAvatar src={user.avatar} name={user.name} />
+                <div className="flex flex-col text-left">
+                  <span className="text-[12px] font-bold text-[#1E2229] max-w-[90px] truncate block leading-tight">
+                    {user.name.split(' ')[0] || user.name}
+                  </span>
+                  {user.phone ? (
+                    <span className="text-[9px] text-[#059669] font-semibold leading-none flex items-center gap-0.5">
+                      <span className="size-1 rounded-full bg-[#059669]"></span>
+                      Phone linked
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-[#D97706] font-medium leading-none">
+                      Link mobile
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Connected Account Hover/Click Dropdown */}
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-[#E5E7EB] shadow-xl p-4 hidden group-hover:block hover:block z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="pb-3 border-b border-[#F3F4F6]">
+                  <p className="text-xs font-bold text-[#0F1115]">{user.name}</p>
+                  {user.email && (
+                    <p className="text-[11px] text-[#6B7280] truncate mt-0.5">{user.email}</p>
+                  )}
+                  {user.phone && (
+                    <p className="text-[11px] text-[#059669] font-medium mt-0.5 flex items-center gap-1">
+                      <Phone size={10} /> {user.phone}
+                    </p>
+                  )}
+                </div>
+
+                <div className="py-2.5 space-y-1.5 text-xs">
+                  <button
+                    onClick={() => nav('orders')}
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#FAF8F5] text-[#374151] font-medium transition-colors text-left"
+                  >
+                    <span>My Tailoring Orders</span>
+                    <span className="text-[#9CA3AF]">→</span>
+                  </button>
+                  <button
+                    onClick={() => nav('booking')}
+                    className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-[#FAF8F5] text-[#374151] font-medium transition-colors text-left"
+                  >
+                    <span>Book New Alteration</span>
+                    <span className="text-[#9CA3AF]">→</span>
+                  </button>
+                </div>
+
+                {onSignOut && (
+                  <div className="pt-2 border-t border-[#F3F4F6]">
+                    <button
+                      onClick={onSignOut}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={13} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <button
@@ -186,6 +235,34 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
         </div>
       )}
     </header>
+  )
+}
+
+function UserAvatar({ src, name }: { src?: string | null; name?: string }) {
+  const [failed, setFailed] = useState(false)
+  const initial = (name || 'U')[0].toUpperCase()
+
+  if (!src || failed) {
+    return (
+      <div className="size-6 rounded-full bg-[#0F1115] text-white text-[10px] font-bold grid place-items-center shrink-0">
+        {initial}
+      </div>
+    )
+  }
+
+  return (
+    <div className="size-6 rounded-full overflow-hidden shrink-0 border border-[#E8E1D5] relative">
+      <Image
+        src={src}
+        alt={name || 'User'}
+        width={24}
+        height={24}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setFailed(true)}
+        className="size-full object-cover"
+      />
+    </div>
   )
 }
 

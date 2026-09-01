@@ -27,7 +27,21 @@ model User {
 
   orders Order[]
 
+  @@index([email])
+  @@index([phone])
   @@map("users")
+}
+
+model OtpVerification {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("otp_verifications")
 }
 
 model GarmentCategory {
@@ -58,6 +72,7 @@ model AlterationService {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
+  @@index([categoryId])
   @@map("alteration_services")
 }
 
@@ -85,6 +100,8 @@ model PartnerStore {
 
   orders Order[]
 
+  @@index([area])
+  @@index([postcode])
   @@map("partner_stores")
 }
 
@@ -131,5 +148,10 @@ model Order {
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
+  @@index([userId])
+  @@index([customerEmail])
+  @@index([customerPhone])
+  @@index([storeId])
+  @@index([status])
   @@map("orders")
 }

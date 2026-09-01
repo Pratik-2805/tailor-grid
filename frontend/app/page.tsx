@@ -147,7 +147,13 @@ export default function Page() {
     }
 
     getCurrentUser().then((u) => {
-      if (u) setUser(u)
+      if (u) {
+        setUser(u)
+        if (!u.phone) {
+          setIsAuthOpen(true)
+          setAuthRole(u.role === 'STUDIO' ? 'STUDIO' : 'CUSTOMER')
+        }
+      }
     })
   }, [])
 
@@ -251,6 +257,12 @@ export default function Page() {
 
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser)
+
+    if (!loggedUser.phone) {
+      setIsAuthOpen(true)
+      return
+    }
+
     setIsAuthOpen(false)
 
     // Persist role alongside token so getCurrentUser can enforce it on reload
@@ -260,12 +272,10 @@ export default function Page() {
 
     // Role-based post-auth redirect
     if (loggedUser.role === 'STUDIO') {
-      // Studio partners are redirected to dedicated Studio domain
       const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
       window.location.href = getStudioUrl('/', token)
       return
     } else {
-      // Customer users stay on main portal
       if (screen === 'partner' || screen === 'for-partners') {
         handleNavigate('home')
       }
@@ -417,13 +427,20 @@ export default function Page() {
       {/* Universal Footer (hidden on dedicated partner app workspace) */}
       {screen !== 'partner' && <Footer go={handleNavigate} />}
 
-      {/* Role-Aware Authentication Modal (Customer or Studio Partner) */}
+      {/* Role-Aware Authentication Modal with Mandatory Phone Lock */}
       <AuthModal
         isOpen={isAuthOpen}
         targetRole={authRole}
         authType={authType}
-        onClose={() => setIsAuthOpen(false)}
+        currentUser={user}
+        mandatoryPhoneRequired={Boolean(user && !user.phone)}
+        onClose={() => {
+          if (!user || user.phone) {
+            setIsAuthOpen(false)
+          }
+        }}
         onSuccess={handleAuthSuccess}
+        onSignOut={handleSignOut}
       />
     </div>
   )
