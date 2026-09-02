@@ -107,8 +107,12 @@ export function AuthModal({
       setMode('link-phone-step')
       setPendingUser(currentUser || null)
     } else {
-      setMode(initialMode())
+      const modeToSet = initialMode()
+      setMode(modeToSet)
       setPendingUser(null)
+      if (isOpen && (modeToSet === 'studio-signup-options' || modeToSet === 'studio-options' || modeToSet === 'customer-options')) {
+        triggerGoogle(targetRole)
+      }
     }
     setRegisterStep(1)
     setError('')
