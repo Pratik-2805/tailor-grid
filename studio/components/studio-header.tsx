@@ -17,9 +17,10 @@ interface StudioHeaderProps {
   user?: User | null
   onOpenAuth?: (authType?: 'signin' | 'signup') => void
   onSignOut?: () => void
+  onOpenProfile?: () => void
 }
 
-export function StudioHeader({ user, onOpenAuth, onSignOut }: StudioHeaderProps) {
+export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: StudioHeaderProps) {
   const [open, setOpen] = useState(false)
   const customerSiteUrl = CUSTOMER_SITE_URL
 
@@ -68,18 +69,25 @@ export function StudioHeader({ user, onOpenAuth, onSignOut }: StudioHeaderProps)
 
           {user ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">
-              <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center text-xs font-semibold shrink-0">
-                <Store size={12} />
-              </div>
-              <div className="text-left hidden sm:block">
-                <span className="text-xs font-semibold text-[#1E2229] block leading-tight max-w-[130px] truncate">
-                  {user.studioName || user.name.split(' ')[0]}
-                </span>
-                <span className="flex items-center gap-1 text-[9px] text-emerald-700 font-bold uppercase tracking-wider block">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Online
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title="Edit Studio Profile"
+                className="flex items-center gap-2 text-left cursor-pointer group"
+              >
+                <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center text-xs font-semibold shrink-0 group-hover:bg-[#8A4C32] transition-colors">
+                  <Store size={12} />
+                </div>
+                <div className="hidden sm:block">
+                  <span className="text-xs font-semibold text-[#1E2229] group-hover:text-[#9E593B] transition-colors block leading-tight max-w-[130px] truncate">
+                    {user.studioName || user.name.split(' ')[0]}
+                  </span>
+                  <span className="flex items-center gap-1 text-[9px] text-emerald-700 font-bold uppercase tracking-wider block">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Online
+                  </span>
+                </div>
+              </button>
               {onSignOut && (
                 <button
                   onClick={onSignOut}

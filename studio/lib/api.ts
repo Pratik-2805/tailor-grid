@@ -183,9 +183,50 @@ export async function loginUser(data: {
   }
 }
 
+export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User }> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  try {
+    const res = await fetch(`${API_BASE}/auth/update-profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(updates),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      if (data.user && typeof window !== 'undefined') {
+        localStorage.setItem('tg_user', JSON.stringify(data.user))
+      }
+      return data
+    }
+  } catch (e) { }
+
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('tg_user')
+    const current = stored ? JSON.parse(stored) : {}
+    const updated = { ...current, ...updates }
+    localStorage.setItem('tg_user', JSON.stringify(updated))
+    return { success: true, user: updated }
+  }
+  return { success: true, user: updates as User }
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-  if (!token) return null
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_user')
+      if (stored) {
+        try {
+          return JSON.parse(stored)
+        } catch (e) { }
+      }
+    }
+    return null
+  }
 
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
@@ -196,6 +237,15 @@ export async function getCurrentUser(): Promise<User | null> {
       if (data.user) return data.user
     }
   } catch (err) { }
+
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('tg_user')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch (e) { }
+    }
+  }
 
   return null
 }

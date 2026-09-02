@@ -106,6 +106,7 @@ interface PartnerFlowProps {
   otp?: string
   user?: UserType | null
   onSignOut?: () => void
+  onOpenProfile?: () => void
 }
 
 function getSlaCountdown(job: FittingBooking): { text: string; urgent: boolean; percent: number } {
@@ -130,7 +131,7 @@ const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: s
   { id: 'payouts', label: 'Payouts & Escrow', icon: CreditCard, shortLabel: 'Payouts' },
 ]
 
-export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
+export function PartnerFlow({ go, user, onSignOut, onOpenProfile }: PartnerFlowProps) {
   const rawStudioName = user?.studioName || ''
   const studioName = rawStudioName.length > 2 ? rawStudioName : 'Atelier SoHo'
   const tailorName = user?.name || 'Master Tailor'
@@ -784,15 +785,20 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
           </div>
 
           {/* Profile */}
-          <div className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5]">
-            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs">
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            title="Edit Studio & Tailor Profile"
+            className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5] hover:opacity-80 transition-opacity cursor-pointer group text-left"
+          >
+            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
               {tailorName.charAt(0)}
             </div>
             <div className="hidden lg:block text-left">
-              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px]">{tailorName}</div>
-              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor</div>
+              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor ✎</div>
             </div>
-          </div>
+          </button>
         </header>
 
         {/* ── TOAST ALERT ── */}

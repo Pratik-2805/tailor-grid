@@ -19,11 +19,13 @@ import { makeOtp, type Screen, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow } from '@/components/partner-flow'
 import { AuthModal } from '@/components/auth-modal'
+import { StudioProfileModal } from '@/components/studio-profile-modal'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
 export default function StudioPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signin')
   const [otp] = useState(() => makeOtp())
   const [loadingUser, setLoadingUser] = useState(true)
@@ -66,6 +68,13 @@ export default function StudioPage() {
     }
   }
 
+  const handleUpdateUser = (updated: User) => {
+    setUser(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_user', JSON.stringify(updated))
+    }
+  }
+
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tg_token')
@@ -74,6 +83,7 @@ export default function StudioPage() {
     }
     setUser(null)
     setIsAuthOpen(false)
+    setIsProfileOpen(false)
   }
 
   return (
@@ -84,6 +94,7 @@ export default function StudioPage() {
         user={user}
         onOpenAuth={handleOpenAuth}
         onSignOut={handleSignOut}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       <main className="flex-1">
@@ -94,6 +105,7 @@ export default function StudioPage() {
             otp={otp}
             user={user}
             onSignOut={handleSignOut}
+            onOpenProfile={() => setIsProfileOpen(true)}
           />
         ) : (
           /* Studio Portal Sign-In / Landing View */
@@ -216,6 +228,17 @@ export default function StudioPage() {
         onClose={() => setIsAuthOpen(false)}
         onSuccess={handleAuthSuccess}
       />
+
+      {/* Studio Partner Profile & Settings Card Modal */}
+      {user && (
+        <StudioProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          user={user}
+          onUpdateUser={handleUpdateUser}
+          onSignOut={handleSignOut}
+        />
+      )}
     </div>
   )
 }
