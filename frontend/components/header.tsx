@@ -168,7 +168,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
                       onClick={() => {
                         setIsPinned(false)
                         setIsHovered(false)
-                        onOpenProfile?.()
+                        nav('profile')
                       }}
                       className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-[#FAF8F5] text-[13px] font-semibold text-[#18191B] transition-colors text-left group"
                     >
