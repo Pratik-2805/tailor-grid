@@ -44,7 +44,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   const currentScreen = getScreenFromPath()
   const isStudioScreen = currentScreen === 'for-partners' || currentScreen === 'partner'
-  const hideFooter = currentScreen === 'partner'
+  const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
+  const hideFooter = currentScreen === 'partner' || isBookScreen
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
