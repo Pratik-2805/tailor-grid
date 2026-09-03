@@ -164,6 +164,7 @@ async function findOrLinkUser({
     }
 
     const updatedFields = {
+      role: user.role || role,
       email: user.email || normEmail,
       phone: updatedPhone,
       name:
@@ -201,10 +202,16 @@ async function findOrLinkUser({
         where: { OR: [{ phone: normPhone }, { contact: normPhone }] },
       });
       if (phoneTaken) {
-        if (phoneTaken.role !== role) {
+        if (phoneTaken.role && phoneTaken.role !== role) {
           const roleErr = new Error('Unauthorized user, access denied.');
           roleErr.statusCode = 403;
           throw roleErr;
+        }
+        if (!phoneTaken.role) {
+          return await prisma.user.update({
+            where: { id: phoneTaken.id },
+            data: { role },
+          });
         }
         return phoneTaken;
       }
@@ -214,10 +221,16 @@ async function findOrLinkUser({
         where: { OR: [{ email: normEmail }, { contact: normEmail }] },
       });
       if (emailTaken) {
-        if (emailTaken.role !== role) {
+        if (emailTaken.role && emailTaken.role !== role) {
           const roleErr = new Error('Unauthorized user, access denied.');
           roleErr.statusCode = 403;
           throw roleErr;
+        }
+        if (!emailTaken.role) {
+          return await prisma.user.update({
+            where: { id: emailTaken.id },
+            data: { role },
+          });
         }
         return emailTaken;
       }
@@ -239,7 +252,7 @@ async function findOrLinkUser({
       method:
         method ||
         (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
-      role: role || 'CUSTOMER',
+      role,
       studioId: actualStudioId || null,
       studioName: studioName || null,
     };
@@ -837,6 +850,13 @@ router.get('/me', async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    if (!user.role) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'CUSTOMER' },
+      });
     }
 
     return res.json({

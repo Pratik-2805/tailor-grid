@@ -74,7 +74,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
-          {user && (user.role === 'CUSTOMER' || !user.role) ? (
+          {user && user.role === 'CUSTOMER' ? (
             <>
               <button
                 onClick={() => nav('book')}
@@ -280,7 +280,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
       {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-          {user && (user.role === 'CUSTOMER' || !user.role) ? (
+          {user && user.role === 'CUSTOMER' ? (
             <>
               {[
                 { label: 'Book Alterations', screen: 'book' as Screen },
