@@ -122,6 +122,18 @@ export async function loginWithGoogle(params: {
   }
 }
 
+export async function checkEmailExists(email: string, role: string = 'STUDIO'): Promise<{ exists: boolean; error?: string; user?: User }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`)
+    if (res.ok) {
+      return await res.json()
+    }
+    return { exists: false }
+  } catch {
+    return { exists: false }
+  }
+}
+
 export async function signUpUser(data: {
   name: string
   email?: string
@@ -134,9 +146,13 @@ export async function signUpUser(data: {
   machines?: string
 }): Promise<{ token: string; user: User; needsPhone?: boolean }> {
   try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify({ ...data, role: 'STUDIO' }),
     })
 
@@ -219,12 +235,9 @@ export async function getCurrentUser(): Promise<User | null> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
   if (!token) {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      if (stored) {
-        try {
-          return JSON.parse(stored)
-        } catch (e) { }
-      }
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
     }
     return null
   }
@@ -241,23 +254,18 @@ export async function getCurrentUser(): Promise<User | null> {
         }
         return data.user
       }
-    } else if (res.status === 401 || res.status === 404) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('tg_token')
-      }
     }
-  } catch (err) { }
 
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('tg_user')
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch (e) { }
+    // User not found in DB or token invalid -> clear stale local session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
     }
+    return null
+  } catch (err) {
+    return null
   }
-
-  return null
 }
 
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {

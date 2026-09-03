@@ -105,7 +105,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     images: [],
   })
 
-  // Sync current user session on mount
+  // Sync current user session on mount directly from DB
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('tg_user')

@@ -32,7 +32,7 @@ import { signUpUser, getStudioUrl } from '@/lib/api'
 
 interface ForPartnersViewProps {
   go: (s: Screen) => void
-  onOpenAuth?: (role: 'CUSTOMER' | 'STUDIO') => void
+  onOpenAuth?: (role: 'CUSTOMER' | 'STUDIO', authType?: 'signin' | 'signup') => void
   onPartnerRegistered?: (user: any) => void
 }
 
@@ -63,8 +63,16 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
         machines,
         role: 'STUDIO',
       })
-      if (res && res.user && onPartnerRegistered) {
-        onPartnerRegistered(res.user)
+      if (res && res.user) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(res.user))
+          localStorage.setItem('tg_user_role', 'STUDIO')
+          window.location.href = '/partner/onboarding'
+          return
+        }
+        if (onPartnerRegistered) {
+          onPartnerRegistered(res.user)
+        }
       }
       toast.success('Partner application submitted successfully!', { position: 'top-center' })
     } catch (err) {
@@ -118,12 +126,12 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-4">
-                <a
-                  href="#apply-form"
-                  className="rounded-full bg-white text-[#0F1115] px-8 py-4 text-xs font-extrabold uppercase tracking-wider transition-all hover:bg-[#FAF8F5] active:scale-95 shadow-md"
+                <button
+                  onClick={() => onOpenAuth?.('STUDIO', 'signup')}
+                  className="rounded-full bg-white text-[#0F1115] px-8 py-4 text-xs font-extrabold uppercase tracking-wider transition-all hover:bg-[#FAF8F5] active:scale-95 shadow-md cursor-pointer"
                 >
                   Get started
-                </a>
+                </button>
 
                 <button
                   onClick={() => {
@@ -594,12 +602,12 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           <span className="size-2 rounded-full bg-[#10B981]" />
           <span className="text-xs font-bold text-white">Sign up to partner your studio</span>
         </div>
-        <a
-          href="#apply-form"
-          className="rounded-full bg-white text-[#0F1115] px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors"
+        <button
+          onClick={() => onOpenAuth?.('STUDIO', 'signup')}
+          className="rounded-full bg-white text-[#0F1115] px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors cursor-pointer"
         >
           Sign up to partner
-        </a>
+        </button>
       </div>
 
     </div>

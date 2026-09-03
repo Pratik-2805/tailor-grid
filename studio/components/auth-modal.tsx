@@ -81,6 +81,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setSOtp('')
     setLinkOtpSent(false)
     setLinkOtp('')
+    if (isOpen) {
+      triggerGoogle()
+    }
   }, [isOpen, authType])
 
   const finalizeAuth = (user: UserType) => {

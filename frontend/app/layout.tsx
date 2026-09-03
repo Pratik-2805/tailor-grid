@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
 import { AppProvider } from '@/components/app-provider'
 import { ClientLayout } from '@/components/client-layout'

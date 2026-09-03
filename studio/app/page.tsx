@@ -46,29 +46,7 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u && u.role === 'STUDIO') {
-          setUser(u)
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('tg_user_role', 'STUDIO')
-            localStorage.setItem('tg_user', JSON.stringify(u))
-          }
-          toast.success(`Welcome back, ${u.name || 'Master Tailor'}!`, {
-            position: 'top-center',
-            autoClose: 3000,
-          })
-        } else if (u && u.role !== 'STUDIO') {
-          // If token belongs to a customer, clear studio session
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('tg_token')
-            localStorage.removeItem('tg_user')
-            localStorage.removeItem('tg_user_role')
-          }
-          setUser(null)
-          toast.error('Unauthorized user, access denied.', {
-            position: 'top-center',
-            autoClose: 4000,
-          })
-        }
+        if (u) setUser(u)
       })
       .finally(() => {
         setLoadingUser(false)
