@@ -288,8 +288,19 @@ export async function getCurrentUser(): Promise<User | null> {
     }
     return null
   } catch (err) {
-    return null
+    // API offline
   }
+
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('tg_user')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch { }
+    }
+  }
+
+  return null
 }
 
 export async function fetchOrders(query?: string): Promise<FittingBooking[]> {

@@ -31,6 +31,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const getScreenFromPath = (): Screen => {
     if (!pathname || pathname === '/') return 'home'
     const clean = pathname.replace(/^\//, '').split('/')[0]
+    if (clean === 'book') return 'book'
     if (clean === 'about') return 'about'
     if (clean === 'how-it-works') return 'how-it-works'
     if (clean === 'for-partners') return 'for-partners'

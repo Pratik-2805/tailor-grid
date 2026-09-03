@@ -108,6 +108,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Sync current user session on mount directly from DB
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_user')
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          setUser(parsed)
+          if ((parsed.role === 'CUSTOMER' || !parsed.role) && window.location.pathname === '/') {
+            router.replace('/book')
+          }
+        } catch { }
+      }
+
       const params = new URLSearchParams(window.location.search)
       const authParam = params.get('auth')
       if (authParam === 'required' || authParam === 'signin') {
@@ -116,11 +127,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     getCurrentUser().then((u) => {
-      setUser(u)
-      if (!u && typeof window !== 'undefined') {
-        localStorage.removeItem('tg_user')
-        localStorage.removeItem('tg_token')
-        localStorage.removeItem('tg_user_role')
+      if (u) {
+        setUser(u)
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(u))
+          if ((u.role === 'CUSTOMER' || !u.role) && window.location.pathname === '/') {
+            router.replace('/book')
+          }
+        }
+      } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
+        setUser(null)
       }
     })
   }, [])
@@ -199,7 +215,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
+      if (user && (user.role === 'CUSTOMER' || !user.role)) {
+        router.push('/book')
+        return
+      }
       router.push('/')
+      return
+    }
+
+    if (screenOrPath === 'book' || screenOrPath === '/book') {
+      router.push('/book')
       return
     }
 
