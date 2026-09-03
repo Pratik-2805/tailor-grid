@@ -907,6 +907,8 @@ router.get('/me', async (req, res) => {
       } catch (syncErr) {
         console.warn('Sync partner store in /me notice:', syncErr.message);
       }
+    }
+
     if (!user.role) {
       user = await prisma.user.update({
         where: { id: user.id },
