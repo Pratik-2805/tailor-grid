@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Check, Mail, MapPin, Phone, ShieldCheck, User as UserIcon, X } from 'lucide-react'
+import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { updateUserProfile } from '@/lib/api'
 
@@ -42,12 +43,15 @@ export function ProfileModal({ isOpen, onClose, user, onUpdateUser }: ProfileMod
       } else {
         onUpdateUser({ ...user, name, address, postcode })
       }
+      toast.success('Profile updated successfully!', { position: 'top-center' })
       setTimeout(() => {
         setSuccess(false)
       }, 2500)
     } catch (err: any) {
       setSaving(false)
-      setError(err.message || 'Failed to update profile.')
+      const msg = err.message || 'Failed to update profile.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 

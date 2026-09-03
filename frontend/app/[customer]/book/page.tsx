@@ -445,7 +445,7 @@ export default function BookPage() {
     setPrefilledGarmentId(selectedGarmentId)
     setPrefilledServiceId(selectedServiceId)
     setConfirmedMeasurements(finalMeasurements)
-    setPrefilledStore(selectedStore?.name || `Darzi Master Atelier — ${selectedCity.split(',')[0]}`)
+    setPrefilledStore(selectedStore || getClosestStoreForLocation(selectedCity) || undefined)
     setPrefilledPostcode(
       selectedStore?.postcode ||
       (selectedCity.includes('Los Angeles')

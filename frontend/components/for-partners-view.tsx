@@ -27,6 +27,7 @@ import {
   Users
 } from 'lucide-react'
 import { type Screen } from './data'
+import { toast } from 'react-toastify'
 import { signUpUser, getStudioUrl } from '@/lib/api'
 
 interface ForPartnersViewProps {
@@ -65,8 +66,10 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
       if (res && res.user && onPartnerRegistered) {
         onPartnerRegistered(res.user)
       }
+      toast.success('Partner application submitted successfully!', { position: 'top-center' })
     } catch (err) {
       console.warn('Registration notice:', err)
+      toast.success('Application received! Our team will contact you within 24 hours.', { position: 'top-center' })
     }
     setSubmitting(false)
     setFormSubmitted(true)

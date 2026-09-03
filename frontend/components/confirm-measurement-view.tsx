@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
+import { toast } from 'react-toastify'
 import {
   ChevronDown,
   Clock,
@@ -19,6 +20,10 @@ import {
   CheckCircle2,
   Edit3,
   RotateCcw,
+  ChevronRight,
+  Info,
+  Lock,
+  LogIn,
 } from 'lucide-react'
 import { CityModal } from './city-modal'
 import { useCityLocation } from './use-city-location'
@@ -28,7 +33,6 @@ import { TrustBar } from './trust-bar'
 import { FindingStudioModal } from './finding-studio-modal'
 import { AuthModal } from './auth-modal'
 import { getCurrentUser } from '@/lib/api'
-import { Lock, LogIn } from 'lucide-react'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -485,6 +489,7 @@ export function ConfirmMeasurementView({
       localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
       localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
     }
+    toast.success('Fitting appointment & measurements confirmed!', { position: 'top-center' })
     if (onConfirmMeasurements) {
       onConfirmMeasurements({
         garmentId: selectedGarmentId,

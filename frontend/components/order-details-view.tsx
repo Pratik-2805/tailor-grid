@@ -19,6 +19,7 @@ import {
   Lock,
   LogIn,
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { fetchOrderById, getCurrentUser } from '@/lib/api'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
@@ -218,6 +219,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(formattedOtp)
       setPinCopied(true)
+      toast.success(`4-Digit PIN (${formattedOtp}) copied to clipboard!`, { position: 'top-center', autoClose: 2000 })
       setTimeout(() => setPinCopied(false), 2000)
     }
   }
@@ -234,6 +236,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       } else {
         navigator.clipboard.writeText(shareUrl)
         setCopiedToast(true)
+        toast.info('Studio location link copied to clipboard!', { position: 'top-center', autoClose: 2500 })
         setTimeout(() => setCopiedToast(false), 2500)
       }
     }
