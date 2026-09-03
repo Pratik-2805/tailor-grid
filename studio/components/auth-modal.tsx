@@ -83,6 +83,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
   }, [isOpen, authType])
 
   const finalizeAuth = (user: UserType) => {
+    if (user.role && user.role !== 'STUDIO') {
+      setError('Unauthorized user, access denied.')
+      return
+    }
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
@@ -139,6 +143,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             })
             setLoading(false)
             if (result?.user) {
+              if (result.user.role && result.user.role !== 'STUDIO') {
+                setError('Unauthorized user, access denied.')
+                return
+              }
               if (!result.user.studioName) {
                 setMode('studio-register')
                 setSTailorName(result.user.name || '')
@@ -149,7 +157,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             }
           } catch (err: any) {
             setLoading(false)
-            setError(err.message || 'Google sign-in failed.')
+            setError(err.message || 'Unauthorized user, access denied.')
           }
         },
       })
@@ -195,10 +203,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
         role: 'STUDIO',
       })
       setLoading(false)
-      if (res?.user) onSuccess(res.user)
+      if (res?.user) finalizeAuth(res.user)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Verification failed.')
+      setError(err.message || 'Unauthorized user, access denied.')
     }
   }
 
@@ -237,10 +245,10 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
         userId: pendingUser?.id,
       })
       setLoading(false)
-      if (res?.user) onSuccess(res.user)
+      if (res?.user) finalizeAuth(res.user)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to link phone.')
+      setError(err.message || 'Unauthorized user, access denied.')
     }
   }
 
@@ -254,7 +262,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       if (result?.user) finalizeAuth(result.user)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Login failed. Please check your credentials.')
+      setError(err.message || 'Unauthorized user, access denied.')
     }
   }
 

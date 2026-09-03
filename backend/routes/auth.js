@@ -312,20 +312,20 @@ router.post('/verify-otp', async (req, res) => {
         // Strict role validation
         if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
           return res.status(403).json({
-            error: 'Access Denied! Login with an another account.',
+            error: 'Unauthorized user, access denied.',
           });
         }
         if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
           return res.status(403).json({
-            error: 'Access Denied! Login with an another account.',
+            error: 'Unauthorized user, access denied.',
           });
         }
         user = existingUser;
       } else {
         // User does not exist
         if (role === 'STUDIO') {
-          return res.status(404).json({
-            error: 'No Studio partner account found with this mobile number. Please register your studio first.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         user = await findOrLinkUser({
@@ -485,12 +485,12 @@ router.post('/google', async (req, res) => {
     if (existingUser) {
       if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
         return res.status(403).json({
-          error: 'Access Denied! Login with an another account.',
+          error: 'Unauthorized user, access denied.',
         });
       }
       if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
         return res.status(403).json({
-          error: 'Access Denied! Login with an another account.',
+          error: 'Unauthorized user, access denied.',
         });
       }
     }
@@ -547,8 +547,8 @@ router.post('/signup', async (req, res) => {
       const existingEmail = await prisma.user.findUnique({ where: { email: cleanEmail } });
       if (existingEmail) {
         if (existingEmail.role !== role) {
-          return res.status(409).json({
-            error: 'Access Denied! Login with an another account.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         // If Customer role, prevent duplicate registration
@@ -571,8 +571,8 @@ router.post('/signup', async (req, res) => {
       });
       if (existingPhone) {
         if (existingPhone.role !== role) {
-          return res.status(409).json({
-            error: 'Access Denied! Login with an another account.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         if (existingPhone.email && cleanEmail && existingPhone.email !== cleanEmail) {
@@ -630,6 +630,11 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
+      if (role === 'STUDIO') {
+        return res.status(403).json({
+          error: 'Unauthorized user, access denied.',
+        });
+      }
       return res.status(404).json({
         error: 'No account found with this email or mobile number. Please register first.',
       });
@@ -638,13 +643,13 @@ router.post('/login', async (req, res) => {
     // Role verification
     if (role === 'STUDIO' && user.role !== 'STUDIO') {
       return res.status(403).json({
-        error: 'Access Denied! Login with an another account.',
+        error: 'Unauthorized user, access denied.',
       });
     }
 
     if (role === 'CUSTOMER' && user.role === 'STUDIO') {
       return res.status(403).json({
-        error: 'Access Denied! Login with an another account.',
+        error: 'Unauthorized user, access denied.',
       });
     }
 

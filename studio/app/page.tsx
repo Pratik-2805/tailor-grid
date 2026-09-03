@@ -38,7 +38,6 @@ export default function StudioPage() {
       const token = params.get('token')
       if (token) {
         localStorage.setItem('tg_token', token)
-        localStorage.setItem('tg_user_role', 'STUDIO')
         // Clean URL query params
         window.history.replaceState({}, '', window.location.pathname)
       }
@@ -46,7 +45,21 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u) setUser(u)
+        if (u && u.role === 'STUDIO') {
+          setUser(u)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tg_user_role', 'STUDIO')
+            localStorage.setItem('tg_user', JSON.stringify(u))
+          }
+        } else if (u && u.role !== 'STUDIO') {
+          // If token belongs to a customer, clear studio session
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tg_token')
+            localStorage.removeItem('tg_user')
+            localStorage.removeItem('tg_user_role')
+          }
+          setUser(null)
+        }
       })
       .finally(() => {
         setLoadingUser(false)
@@ -59,6 +72,9 @@ export default function StudioPage() {
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
+    if (loggedUser.role !== 'STUDIO') {
+      return
+    }
     setUser(loggedUser)
     setIsAuthOpen(false)
     if (typeof window !== 'undefined') {

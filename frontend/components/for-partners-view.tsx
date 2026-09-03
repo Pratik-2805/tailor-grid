@@ -124,10 +124,11 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
 
                 <button
                   onClick={() => {
-                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    const role = typeof window !== 'undefined' ? localStorage.getItem('tg_user_role') : null
+                    const token = typeof window !== 'undefined' && role === 'STUDIO' ? localStorage.getItem('tg_token') : null
                     window.location.href = getStudioUrl('/', token)
                   }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <span>Studio Log in ↗</span>
                   <ChevronRight size={14} />
