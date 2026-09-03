@@ -17,13 +17,14 @@ import {
 } from 'lucide-react'
 import { makeOtp, type Screen, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
-import { PartnerFlow } from '@/components/partner-flow'
+import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { AuthModal } from '@/components/auth-modal'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
 export default function StudioPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [partnerTab, setPartnerTab] = useState<StudioTab>('cockpit')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signin')
   const [otp] = useState(() => makeOtp())
   const [loadingUser, setLoadingUser] = useState(true)
@@ -66,6 +67,13 @@ export default function StudioPage() {
     }
   }
 
+  const handleUpdateUser = (updated: User) => {
+    setUser(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_user', JSON.stringify(updated))
+    }
+  }
+
   const handleSignOut = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tg_token')
@@ -74,6 +82,7 @@ export default function StudioPage() {
     }
     setUser(null)
     setIsAuthOpen(false)
+    setPartnerTab('cockpit')
   }
 
   return (
@@ -84,6 +93,7 @@ export default function StudioPage() {
         user={user}
         onOpenAuth={handleOpenAuth}
         onSignOut={handleSignOut}
+        onOpenProfile={() => setPartnerTab('profile')}
       />
 
       <main className="flex-1">
@@ -94,6 +104,10 @@ export default function StudioPage() {
             otp={otp}
             user={user}
             onSignOut={handleSignOut}
+            onOpenProfile={() => setPartnerTab('profile')}
+            onUpdateUser={handleUpdateUser}
+            activeTab={partnerTab}
+            onTabChange={setPartnerTab}
           />
         ) : (
           /* Studio Portal Sign-In / Landing View */
