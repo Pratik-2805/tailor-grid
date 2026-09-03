@@ -8,6 +8,7 @@ export type Screen =
   | 'admin'
   | 'confirm-measurement'
   | 'order'
+  | 'profile'
 
 export type GarmentCategory = {
   id: string

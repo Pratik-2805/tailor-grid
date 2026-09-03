@@ -38,12 +38,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     if (clean === 'order') return 'order'
     if (clean === 'admin') return 'admin'
     if (clean === 'partner') return 'partner'
+    if (clean === 'profile') return 'profile'
     return 'home'
   }
 
   const currentScreen = getScreenFromPath()
   const isStudioScreen = currentScreen === 'for-partners' || currentScreen === 'partner'
-  const hideFooter = currentScreen === 'partner'
+  const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
+  const hideFooter = currentScreen === 'partner' || isBookScreen
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">

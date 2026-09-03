@@ -54,6 +54,7 @@ type Props = {
   userCoords?: { lat: number; lng: number } | null
   className?: string
   onMapClick?: () => void
+  showZoomControls?: boolean
 }
 
 let isGoogleMapsOptionsConfigured = false
@@ -67,8 +68,10 @@ export default function CleanGoogleMap({
   userCoords,
   className = '',
   onMapClick,
+  showZoomControls = true,
 }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [isReady, setIsReady] = useState(false)
 
@@ -85,6 +88,29 @@ export default function CleanGoogleMap({
       })
     }
   }
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom() || 15
+      mapInstanceRef.current.setZoom(currentZoom + 1)
+    }
+  }
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom() || 15
+      mapInstanceRef.current.setZoom(Math.max(currentZoom - 1, 1))
+    }
+  }
+
+  // Pan to new coords when lat/lng change
+  useEffect(() => {
+    if (mapInstanceRef.current && isReady) {
+      mapInstanceRef.current.panTo({ lat, lng })
+    }
+  }, [lat, lng, isReady])
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
@@ -137,6 +163,8 @@ export default function CleanGoogleMap({
             },
           ],
         })
+
+        mapInstanceRef.current = map
 
         // Click anywhere on map -> launch car navigation directly
         map.addListener('click', () => {
@@ -206,7 +234,6 @@ export default function CleanGoogleMap({
             icon: {
               url: '/landscape_logo.JPEG',
               scaledSize: new google.maps.Size(84, 34),
-              anchor: new google.maps.Point(42, 17),
             },
           })
 
@@ -242,15 +269,37 @@ export default function CleanGoogleMap({
     return (
       <div
         onClick={handleTriggerNavigation}
-        className={`w-full h-full relative overflow-hidden rounded-2xl cursor-pointer ${className}`}
+        className={`w-full h-full relative overflow-hidden rounded-[28px] cursor-pointer ${className}`}
         title="Click to start car navigation in your map app"
       >
         <iframe
           title="Clean Map Embed"
           src={`https://maps.google.com/maps?q=${query}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`}
-          className="w-full h-full border-0 absolute inset-0 rounded-2xl contrast-[105%] brightness-[99%] saturate-[80%]"
+          className="w-full h-full border-0 absolute inset-0 rounded-[28px] contrast-[105%] brightness-[99%] saturate-[80%]"
           loading="lazy"
         />
+
+        {/* Uber-style Zoom Controls Floating Pill */}
+        {showZoomControls && (
+          <div className="absolute bottom-6 right-6 z-20 flex flex-col bg-white rounded-xl shadow-lg border border-gray-200/80 overflow-hidden divide-y divide-gray-200">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="size-10 flex items-center justify-center text-black hover:bg-neutral-100 font-bold text-lg active:scale-95 transition-all cursor-pointer"
+              title="Zoom in"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="size-10 flex items-center justify-center text-black hover:bg-neutral-100 font-bold text-lg active:scale-95 transition-all cursor-pointer"
+              title="Zoom out"
+            >
+              −
+            </button>
+          </div>
+        )}
       </div>
     )
   }
@@ -261,10 +310,32 @@ export default function CleanGoogleMap({
       className={`w-full h-full relative cursor-pointer ${className}`}
       title="Click map to start car navigation in your map app"
     >
-      <div ref={mapRef} className="w-full h-full rounded-2xl" />
+      <div ref={mapRef} className="w-full h-full rounded-[28px]" />
+
+      {/* Uber-style Zoom Controls Floating Pill */}
+      {showZoomControls && isReady && (
+        <div className="absolute bottom-6 right-6 z-20 flex flex-col bg-white rounded-xl shadow-lg border border-gray-200/80 overflow-hidden divide-y divide-gray-200">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="size-10 flex items-center justify-center text-black hover:bg-neutral-100 font-bold text-lg active:scale-95 transition-all cursor-pointer"
+            title="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="size-10 flex items-center justify-center text-black hover:bg-neutral-100 font-bold text-lg active:scale-95 transition-all cursor-pointer"
+            title="Zoom out"
+          >
+            −
+          </button>
+        </div>
+      )}
 
       {!isReady && (
-        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-2xl flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[28px] flex items-center justify-center pointer-events-none">
           <div className="size-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
       )}

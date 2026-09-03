@@ -414,7 +414,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
 
             {/* 1. Location Header */}
             <div className="relative mb-3.5 flex items-center gap-1.5 text-[15px] font-medium text-black">
-              <MapPin size={17} className="text-black fill-black shrink-0" />
+              <MapPin size={18} className="text-[#0F1115] shrink-0" />
               <span className="font-bold">{selectedCity}</span>
               <button
                 type="button"
