@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-toastify'
 import {
   ChevronDown,
   MapPin,
@@ -20,7 +22,9 @@ import {
 import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
+import { SewingLoader } from '@/components/sewing-loader'
 import { useApp } from '@/components/app-provider'
+import { createOrder } from '@/lib/api'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
@@ -284,6 +288,7 @@ function MeasurementOptionDropdown({
 }
 
 export default function BookPage() {
+  const router = useRouter()
   const {
     user,
     navigate,
@@ -294,6 +299,7 @@ export default function BookPage() {
     setPrefilledStore,
     setMeasurementDraft,
     setConfirmedMeasurements,
+    setCreatedOrderId,
   } = useApp()
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
@@ -319,6 +325,10 @@ export default function BookPage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
+
+  // Full-screen sewing tools animation loader state
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [bookingPending, setBookingPending] = useState<any>(null)
 
   // Nearby partner stores for selected city / location
   const nearbyStores = useMemo(() => {
@@ -420,6 +430,11 @@ export default function BookPage() {
 
   // Complete Booking flow execution
   const executeBooking = (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
+    if (!user || !user.phone) {
+      openAuth('CUSTOMER', user ? 'signup' : 'signin')
+      return
+    }
+
     const finalMeasurements: Record<string, string> = {}
     activeMeasurementFields.forEach((field) => {
       const isTailor = isTailorMeasuredMap[field.key] !== false
@@ -441,27 +456,91 @@ export default function BookPage() {
       measurements: finalMeasurements,
     }
 
-    setMeasurementDraft(bookingDraft)
-    setPrefilledGarmentId(selectedGarmentId)
-    setPrefilledServiceId(selectedServiceId)
-    setConfirmedMeasurements(finalMeasurements)
-    setPrefilledStore(selectedStore || getClosestStoreForLocation(selectedCity) || undefined)
-    setPrefilledPostcode(
-      selectedStore?.postcode ||
-      (selectedCity.includes('Los Angeles')
-        ? '90210'
-        : selectedCity.includes('London')
-          ? 'W8 4EP'
-          : selectedCity.includes('Vasai')
-            ? '401202'
-            : '10012')
-    )
+    setBookingPending(bookingDraft)
+    setIsProcessing(true)
+  }
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_measurement_draft', JSON.stringify(bookingDraft))
+  const handleLoaderComplete = () => {
+    setIsProcessing(false)
+    const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
+    const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+    const otp = String(Math.floor(1000 + Math.random() * 9000))
+
+    const schedDate = bookingPending?.scheduleDate || scheduleDateObj || new Date()
+    const schedTime = bookingPending?.scheduleTime || selectedTime || '03:30 PM'
+
+    const formattedDateDisplay = schedDate.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+
+    const measurementsData = bookingPending?.measurements || customMeasurements
+
+    const orderData = {
+      id: newOrderId,
+      otp,
+      customerName: user?.name || 'Customer',
+      customerEmail: user?.email || '',
+      customerPhone: user?.phone || '',
+      storeId: closestStore?.id || 'studio-dispatch',
+      storeName: closestStore?.name || 'Local Partner Atelier',
+      storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
+      garmentId: selectedGarmentId,
+      garmentName: currentCategory.name,
+      serviceId: selectedServiceId,
+      serviceName: currentService.name,
+      measurements: measurementsData,
+      brand: 'Levi\'s / Bespoke',
+      notes: 'Requested from Atelier Booking Portal',
+      images: uploadedImages,
+      city: selectedCity,
+      date: formattedDateDisplay,
+      timeSlot: schedTime,
+      price: currentService.customerPrice || currentCategory.startingPrice || 25,
+      status: 'Allocated',
     }
 
-    navigate('confirm-measurement')
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
+      localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
+      localStorage.setItem('tg_measurement_draft', JSON.stringify(bookingPending || orderData))
+    }
+
+    // Persist to backend PostgreSQL database asynchronously
+    createOrder({
+      id: newOrderId,
+      userId: user?.id,
+      customerName: user?.name,
+      customerEmail: user?.email,
+      customerPhone: user?.phone,
+      postcode: closestStore?.postcode || 'W8 4EP',
+      garmentId: selectedGarmentId,
+      garmentName: currentCategory.name,
+      serviceId: selectedServiceId,
+      serviceName: currentService.name,
+      storeId: closestStore?.id,
+      storeName: closestStore?.name,
+      price: currentService.customerPrice || currentCategory.startingPrice || 25,
+      date: formattedDateDisplay,
+      timeSlot: schedTime,
+      measurements: measurementsData,
+      imageUrl: uploadedImages[0] || null,
+      status: 'Allocated',
+    }).catch((err) => {
+      console.warn('Backend order sync notice:', err)
+    })
+
+    setPrefilledGarmentId(selectedGarmentId)
+    setPrefilledServiceId(selectedServiceId)
+    setConfirmedMeasurements(measurementsData)
+    if (closestStore) {
+      setPrefilledStore(closestStore)
+    }
+    setCreatedOrderId(newOrderId)
+
+    toast.success('Fitting appointment & measurements confirmed!', { position: 'top-center' })
+    router.push(`/order/${newOrderId}`)
   }
 
   const handleBookNow = () => {
@@ -947,6 +1026,13 @@ export default function BookPage() {
           </div>
         </div>
       )}
+
+      {/* Full-Screen Sewing Tools Animation Loader */}
+      <SewingLoader
+        active={isProcessing}
+        durationSeconds={3}
+        onComplete={handleLoaderComplete}
+      />
     </div>
   )
 }

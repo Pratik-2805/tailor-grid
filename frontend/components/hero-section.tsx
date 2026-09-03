@@ -372,7 +372,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
       images: uploadedImages,
     })
     onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarmentId)
-    go('confirm-measurement')
+    go('book')
   }
 
   const handleConfirmSchedule = () => {
@@ -395,7 +395,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
       images: uploadedImages,
     })
     onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarmentId)
-    go('confirm-measurement')
+    go('book')
   }
 
   const formattedDateDisplay = scheduleDateObj.toLocaleDateString('en-US', {

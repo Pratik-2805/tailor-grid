@@ -116,7 +116,7 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => go('confirm-measurement')}
+                onClick={() => go('book')}
                 className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
               >
                 <span>Book Fitting Pass</span>

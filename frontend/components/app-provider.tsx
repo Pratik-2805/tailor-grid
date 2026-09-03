@@ -191,12 +191,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const navigate = (screenOrPath: Screen | string) => {
-    if (screenOrPath === 'confirm-measurement' || screenOrPath === '/confirm-measurement') {
-      if (!user || !user.phone) {
-        openAuth('CUSTOMER', user ? 'signup' : 'signin')
-        return
-      }
-      router.push('/confirm-measurement')
+    if (screenOrPath === 'book' || screenOrPath === '/book') {
+      router.push('/book')
       return
     }
 
