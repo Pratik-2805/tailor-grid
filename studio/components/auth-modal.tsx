@@ -80,6 +80,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setSOtp('')
     setLinkOtpSent(false)
     setLinkOtp('')
+    if (isOpen) {
+      triggerGoogle()
+    }
   }, [isOpen, authType])
 
   const finalizeAuth = (user: UserType) => {
@@ -139,12 +142,11 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             })
             setLoading(false)
             if (result?.user) {
-              if (!result.user.studioName) {
-                setMode('studio-register')
-                setSTailorName(result.user.name || '')
-                setSEmail(result.user.email || result.user.contact || '')
-              } else {
-                finalizeAuth(result.user)
+              onClose()
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('tg_user', JSON.stringify(result.user))
+                localStorage.setItem('tg_user_role', 'STUDIO')
+                window.location.href = '/onboarding'
               }
             }
           } catch (err: any) {

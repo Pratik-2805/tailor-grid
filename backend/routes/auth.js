@@ -396,6 +396,29 @@ router.post('/link-phone', async (req, res) => {
   }
 });
 
+// GET /api/auth/check-email
+router.get('/check-email', async (req, res) => {
+  try {
+    const { email, role = 'STUDIO' } = req.query;
+    if (!email) return res.json({ exists: false });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
+
+    if (existingUser && existingUser.studioName) {
+      return res.json({
+        exists: true,
+        user: existingUser,
+        error: 'An account with this email address is already registered. Please sign in instead.',
+      });
+    }
+
+    return res.json({ exists: false });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
   try {
@@ -495,6 +518,15 @@ router.post('/google', async (req, res) => {
 // POST /api/auth/signup
 router.post('/signup', async (req, res) => {
   try {
+    const authHeader = req.headers.authorization;
+    let currentUserId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        currentUserId = decoded.id;
+      } catch (e) { }
+    }
+
     const {
       name,
       email,
@@ -524,9 +556,12 @@ router.post('/signup', async (req, res) => {
             error: 'Access Denied! Login with an another account.',
           });
         }
-        return res.status(409).json({
-          error: 'An account with this email address is already registered. Please sign in instead.',
-        });
+        // Only return error if it's already a fully registered studio store belonging to a DIFFERENT user
+        if (existingEmail.studioName && currentUserId && existingEmail.id !== currentUserId) {
+          return res.status(409).json({
+            error: 'An account with this email address is already registered. Please sign in instead.',
+          });
+        }
       }
     }
 

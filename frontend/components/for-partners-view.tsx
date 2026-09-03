@@ -62,8 +62,16 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
         machines,
         role: 'STUDIO',
       })
-      if (res && res.user && onPartnerRegistered) {
-        onPartnerRegistered(res.user)
+      if (res && res.user) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(res.user))
+          localStorage.setItem('tg_user_role', 'STUDIO')
+          window.location.href = '/partner/onboarding'
+          return
+        }
+        if (onPartnerRegistered) {
+          onPartnerRegistered(res.user)
+        }
       }
     } catch (err) {
       console.warn('Registration notice:', err)

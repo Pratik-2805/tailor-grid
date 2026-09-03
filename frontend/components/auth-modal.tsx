@@ -196,10 +196,13 @@ export function AuthModal({
                 return
               }
 
-              if (role === 'STUDIO' && !result.user.studioName) {
-                setMode('studio-register')
-                setSTailorName(result.user.name || '')
-                setSEmail(result.user.email || result.user.contact || '')
+              if (role === 'STUDIO') {
+                onClose()
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('tg_user', JSON.stringify(result.user))
+                  localStorage.setItem('tg_user_role', 'STUDIO')
+                  window.location.href = '/partner/onboarding'
+                }
               } else {
                 finalizeAuth(result.user, role)
               }
@@ -786,7 +789,12 @@ export function AuthModal({
                   <span>Sign in with Email</span>
                 </button>
                 <button
-                  onClick={() => setMode('studio-register')}
+                  onClick={() => {
+                    onClose()
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/partner/onboarding'
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
                 >
                   <Store size={14} />
@@ -810,11 +818,16 @@ export function AuthModal({
               <div className="space-y-2.5 pt-1">
                 <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
                 <button
-                  onClick={() => setMode('studio-register')}
+                  onClick={() => {
+                    onClose()
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/partner/onboarding'
+                    }
+                  }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
                 >
                   <Store size={14} />
-                  <span>Register with 3-Step Form</span>
+                  <span>Register Atelier Shop</span>
                 </button>
               </div>
 
