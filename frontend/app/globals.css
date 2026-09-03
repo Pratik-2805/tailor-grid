@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import 'react-toastify/dist/ReactToastify.css';
+
 
 @theme {
   --font-serif: var(--font-sans), 'Inter', -apple-system, BlinkMacSystemFont, 'Uber Move', 'Segoe UI', Roboto, sans-serif;

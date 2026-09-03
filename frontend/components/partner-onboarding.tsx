@@ -53,14 +53,17 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [alreadyRegistered, setAlreadyRegistered] = useState(false)
+  const [alreadyRegisteredUser, setAlreadyRegisteredUser] = useState<User | null>(null)
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
 
   useEffect(() => {
     if (user?.email) {
       checkEmailExists(user.email, 'STUDIO').then((res) => {
         if (res.exists) {
-          setError(res.error || 'An account with this email address is already registered. Please sign in instead.')
           setAlreadyRegistered(true)
+          if (res.user) {
+            setAlreadyRegisteredUser(res.user)
+          }
         }
       })
     }
@@ -181,7 +184,25 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
       {/* Main Container */}
       <main className="flex-1 flex flex-col items-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-[560px]">
-          {error && (
+          {alreadyRegistered && (
+            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-xs text-left">
+              <div className="flex items-start gap-3">
+                <div className="size-8 rounded-full bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0 font-bold text-sm">
+                  ✓
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-[#0F1115] text-sm">
+                    Studio Account Active
+                  </h3>
+                  <p className="text-xs text-[#5A5D64] mt-0.5 leading-relaxed">
+                    An atelier account for <strong className="text-[#0F1115]">{alreadyRegisteredUser?.email || user?.email}</strong> is registered. You can enter your Studio Workbench directly.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && !alreadyRegistered && (
             <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-800 flex items-center gap-2">
               <span className="font-bold">Error:</span> {error}
             </div>
@@ -238,11 +259,14 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
               <button
                 onClick={() => {
                   if (alreadyRegistered) {
-                    if (typeof window !== 'undefined') {
+                    const activeUser = alreadyRegisteredUser || user
+                    if (activeUser && typeof window !== 'undefined') {
+                      localStorage.setItem('tg_user', JSON.stringify(activeUser))
+                      localStorage.setItem('tg_user_role', 'STUDIO')
                       const token = localStorage.getItem('tg_token')
                       window.location.href = getStudioUrl('/', token)
+                      return
                     }
-                    return
                   }
                   if (!locationCity.trim()) {
                     setError('Please specify your city or workshop location.')

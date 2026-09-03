@@ -85,8 +85,8 @@ async function findOrLinkUser({
   // 3. If Studio role and creating a store
   let actualStudioId = studioId || user?.studioId;
   let resolvedStore = null;
-  if (role === 'STUDIO' && (studioName || name)) {
-    const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
+  if (role === 'STUDIO' && (studioName || studioId || user?.studioId)) {
+    const actualStoreName = studioName || user?.studioName || `${name || 'Master'}'s Studio`;
 
     try {
       let existingStore = null;

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google'
+import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
 
 const playfair = Playfair_Display({
