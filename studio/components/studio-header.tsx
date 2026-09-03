@@ -75,8 +75,12 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
                 title="Edit Studio Profile"
                 className="flex items-center gap-2 text-left cursor-pointer group"
               >
-                <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center text-xs font-semibold shrink-0 group-hover:bg-[#8A4C32] transition-colors">
-                  <Store size={12} />
+                <div className="size-6 rounded-full bg-[#9E593B] text-white grid place-items-center text-xs font-semibold shrink-0 group-hover:bg-[#8A4C32] transition-colors overflow-hidden">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="size-full object-cover" />
+                  ) : (
+                    <Store size={12} />
+                  )}
                 </div>
                 <div className="hidden sm:block">
                   <span className="text-xs font-semibold text-[#1E2229] group-hover:text-[#9E593B] transition-colors block leading-tight max-w-[130px] truncate">

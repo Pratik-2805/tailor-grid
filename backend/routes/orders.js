@@ -88,6 +88,10 @@ router.get('/', async (req, res) => {
 
     return res.json({ orders });
   } catch (err) {
+    if (err.code === 'ECONNREFUSED') {
+      console.warn('⚠️ [Database Notice] PostgreSQL is temporarily unreachable. Waiting for reconnect...');
+      return res.status(503).json({ orders: [], error: 'Database temporarily unreachable' });
+    }
     console.error('Fetch orders error:', err);
     return res.status(500).json({ error: 'Failed to fetch orders from database' });
   }

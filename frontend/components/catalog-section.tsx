@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowRight, Check, Clock, Sparkles } from 'lucide-react'
-import { GARMENT_CATEGORIES, type Screen } from './data'
+import { GARMENT_CATEGORIES, type GarmentCategory, type Screen } from './data'
+import { fetchServices } from '@/lib/api'
 
 interface CatalogSectionProps {
   go: (s: Screen) => void
@@ -10,9 +11,19 @@ interface CatalogSectionProps {
 }
 
 export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
-  const [activeCategoryId, setActiveCategoryId] = useState(GARMENT_CATEGORIES[0].id)
+  const [categories, setCategories] = useState<GarmentCategory[]>(GARMENT_CATEGORIES)
+  const [activeCategoryId, setActiveCategoryId] = useState(GARMENT_CATEGORIES[0]?.id || 'trousers')
 
-  const cat = GARMENT_CATEGORIES.find((c) => c.id === activeCategoryId) || GARMENT_CATEGORIES[0]
+  useEffect(() => {
+    fetchServices().then((svcs) => {
+      if (svcs && svcs.length > 0) {
+        setCategories(svcs)
+        setActiveCategoryId((prev) => (svcs.some((c) => c.id === prev) ? prev : svcs[0].id))
+      }
+    })
+  }, [])
+
+  const cat = categories.find((c) => c.id === activeCategoryId) || categories[0]
 
   return (
     <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
@@ -41,7 +52,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
 
         {/* Category Pills (Uber style quick horizontal scroller) */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-8">
-          {GARMENT_CATEGORIES.map((c) => {
+          {categories.map((c) => {
             const active = c.id === activeCategoryId
             return (
               <button

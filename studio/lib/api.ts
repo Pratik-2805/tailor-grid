@@ -183,35 +183,36 @@ export async function loginUser(data: {
   }
 }
 
-export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User }> {
+export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string }> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-  try {
-    const res = await fetch(`${API_BASE}/auth/update-profile`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(updates),
-    })
+  const res = await fetch(`${API_BASE}/auth/update-profile`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(updates),
+  })
 
-    if (res.ok) {
-      const data = await res.json()
-      if (data.user && typeof window !== 'undefined') {
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || `Server error (${res.status})`)
+  }
+
+  const data = await res.json()
+  if (typeof window !== 'undefined') {
+    try {
+      if (data.token) {
+        localStorage.setItem('tg_token', data.token)
+      }
+      if (data.user) {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
       }
-      return data
+    } catch (storageErr) {
+      console.warn('LocalStorage quota notice:', storageErr)
     }
-  } catch (e) { }
-
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('tg_user')
-    const current = stored ? JSON.parse(stored) : {}
-    const updated = { ...current, ...updates }
-    localStorage.setItem('tg_user', JSON.stringify(updated))
-    return { success: true, user: updated }
   }
-  return { success: true, user: updates as User }
+  return data
 }
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -234,7 +235,16 @@ export async function getCurrentUser(): Promise<User | null> {
     })
     if (res.ok) {
       const data = await res.json()
-      if (data.user) return data.user
+      if (data.user) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('tg_user', JSON.stringify(data.user))
+        }
+        return data.user
+      }
+    } else if (res.status === 401 || res.status === 404) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tg_token')
+      }
     }
   } catch (err) { }
 
@@ -250,7 +260,7 @@ export async function getCurrentUser(): Promise<User | null> {
   return null
 }
 
-export async function fetchStudioOrders(storeId?: string): Promise<FittingBooking[]> {
+export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
     const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
     const res = await fetch(url)
@@ -262,7 +272,7 @@ export async function fetchStudioOrders(storeId?: string): Promise<FittingBookin
   }
 }
 
-export async function fetchStudioStats(storeId?: string): Promise<any> {
+export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
     const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
     const res = await fetch(url)
