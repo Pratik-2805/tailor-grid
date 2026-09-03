@@ -112,7 +112,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (stored) {
         try {
           setUser(JSON.parse(stored))
-        } catch {}
+        } catch { }
       }
 
       const params = new URLSearchParams(window.location.search)

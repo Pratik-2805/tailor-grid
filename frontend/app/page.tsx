@@ -46,8 +46,8 @@ export default function HomePage() {
       params.city.includes('Los Angeles')
         ? '90210'
         : params.city.includes('London')
-        ? 'W8 4EP'
-        : '10012'
+          ? 'W8 4EP'
+          : '10012'
     )
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_measurement_draft', JSON.stringify(params))
