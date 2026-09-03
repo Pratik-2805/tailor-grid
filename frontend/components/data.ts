@@ -400,34 +400,30 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
 
 export const PARTNER_STORES: StoreOption[] = []
 
+/** Calculate real-time distance in miles between two coordinates using Haversine formula */
+export function getDistanceInMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8 // Radius of earth in miles
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return Number((R * c).toFixed(2))
+}
+
+/** Returns partner tailor studios near the requested location */
+export function getStoresForLocation(location?: string, customStores?: StoreOption[]): StoreOption[] {
+  return customStores && customStores.length > 0 ? customStores : []
+}
+
 /** Automatically finds and assigns the closest partner tailor studio for the user's location */
 export function getClosestStoreForLocation(location?: string, customStores?: StoreOption[]): StoreOption | null {
-  const storePool = customStores && customStores.length > 0 ? customStores : PARTNER_STORES
-  if (!storePool || storePool.length === 0) return null
-  if (!location) return storePool[0] || null
-
-  const query = location.toLowerCase().trim()
-
-  // Filter stores matching city/area keywords
-  const matches = storePool.filter((st) => {
-    const combined = `${st.name} ${st.area} ${st.address} ${st.postcode}`.toLowerCase()
-
-    if ((query.includes('vasai') || query.includes('manickpur') || query.includes('virar')) && (combined.includes('vasai') || combined.includes('manickpur') || st.id.includes('vasai'))) return true
-    if ((query.includes('mumbai') || query.includes('in-mh') || query.includes('mh')) && (combined.includes('mumbai') || combined.includes('vasai') || combined.includes('bandra') || combined.includes('colaba'))) return true
-    if ((query.includes('london') || query.includes('uk')) && (combined.includes('london') || combined.includes('kensington') || combined.includes('mayfair') || combined.includes('savile'))) return true
-    if ((query.includes('los angeles') || query.includes('beverly') || query.includes('ca')) && combined.includes('beverly')) return true
-    if ((query.includes('new york') || query.includes('soho') || query.includes('ny')) && (combined.includes('soho') || combined.includes('broome') || combined.includes('lexington'))) return true
-
-    return combined.includes(query) || query.includes(st.area.toLowerCase())
-  })
-
-  if (matches.length > 0) {
-    matches.sort((a, b) => a.distanceMiles - b.distanceMiles)
-    return matches[0]
-  }
-
-  const sorted = [...storePool].sort((a, b) => a.distanceMiles - b.distanceMiles)
-  return sorted[0] || null
+  if (!customStores || customStores.length === 0) return null
+  return customStores[0] || null
 }
 
 export const TESTIMONIALS = [

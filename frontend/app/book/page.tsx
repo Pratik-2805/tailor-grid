@@ -21,7 +21,7 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { useApp } from '@/components/app-provider'
-import { GARMENT_CATEGORIES, type StoreOption } from '@/components/data'
+import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -269,9 +269,8 @@ function MeasurementOptionDropdown({
                   onChange(opt)
                   setIsOpen(false)
                 }}
-                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
-                  isSelected ? 'bg-black text-white font-bold' : 'hover:bg-neutral-100 text-neutral-800 font-semibold'
-                }`}
+                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${isSelected ? 'bg-black text-white font-bold' : 'hover:bg-neutral-100 text-neutral-800 font-semibold'
+                  }`}
               >
                 <span className="truncate">{opt}</span>
                 {isSelected && <Check size={13} className="shrink-0 ml-1.5" />}
@@ -320,6 +319,21 @@ export default function BookPage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
+
+  // Nearby partner stores for selected city / location
+  const nearbyStores = useMemo(() => {
+    return getStoresForLocation(selectedCity)
+  }, [selectedCity])
+
+  const [selectedStore, setSelectedStore] = useState<StoreOption | null>(() => {
+    return getClosestStoreForLocation(selectedCity)
+  })
+
+  // Update selectedStore when city changes
+  useEffect(() => {
+    const closest = getClosestStoreForLocation(selectedCity)
+    setSelectedStore(closest)
+  }, [selectedCity])
 
   // Derive active category & service
   const currentCategory = useMemo(() => {
@@ -431,14 +445,16 @@ export default function BookPage() {
     setPrefilledGarmentId(selectedGarmentId)
     setPrefilledServiceId(selectedServiceId)
     setConfirmedMeasurements(finalMeasurements)
+    setPrefilledStore(selectedStore?.name || `Darzi Master Atelier — ${selectedCity.split(',')[0]}`)
     setPrefilledPostcode(
-      selectedCity.includes('Los Angeles')
+      selectedStore?.postcode ||
+      (selectedCity.includes('Los Angeles')
         ? '90210'
         : selectedCity.includes('London')
           ? 'W8 4EP'
           : selectedCity.includes('Vasai')
             ? '401202'
-            : '10012'
+            : '10012')
     )
 
     if (typeof window !== 'undefined') {
@@ -465,9 +481,9 @@ export default function BookPage() {
 
           {/* LEFT COLUMN: Single Unified Booking & Measurement Card */}
           <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0">
-            
+
             <div className="bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6">
-              
+
               {/* City Pill Header */}
               <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
                 <MapPin size={16} className="text-black shrink-0" />
@@ -511,9 +527,8 @@ export default function BookPage() {
                   </div>
                   <ChevronDown
                     size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${
-                      isCategoryDropdownOpen ? 'rotate-180' : ''
-                    }`}
+                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''
+                      }`}
                   />
                 </button>
 
@@ -527,9 +542,8 @@ export default function BookPage() {
                           key={cat.id}
                           type="button"
                           onClick={() => handleSelectCategory(cat.id)}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${
-                            isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                          }`}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <div className="size-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
@@ -573,9 +587,8 @@ export default function BookPage() {
                   </div>
                   <ChevronDown
                     size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${
-                      isServiceDropdownOpen ? 'rotate-180' : ''
-                    }`}
+                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180' : ''
+                      }`}
                   />
                 </button>
 
@@ -592,9 +605,8 @@ export default function BookPage() {
                             setSelectedServiceId(srv.id)
                             setIsServiceDropdownOpen(false)
                           }}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${
-                            isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                          }`}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                            }`}
                         >
                           <div>
                             <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
@@ -712,11 +724,10 @@ export default function BookPage() {
 
                 {/* Smooth Animated Dropdown Body */}
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isMeasurementOpen
-                      ? 'max-h-[500px] opacity-100 pt-2.5'
-                      : 'max-h-0 opacity-0 pt-0 pointer-events-none'
-                  }`}
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isMeasurementOpen
+                    ? 'max-h-[500px] opacity-100 pt-2.5'
+                    : 'max-h-0 opacity-0 pt-0 pointer-events-none'
+                    }`}
                 >
                   <div className="space-y-2">
                     {activeMeasurementFields.map((field) => {
@@ -794,13 +805,22 @@ export default function BookPage() {
           <div className="flex-1 w-full min-h-[520px] lg:min-h-[calc(100vh-110px)] lg:sticky lg:top-20 h-[600px] lg:h-[calc(100vh-110px)]">
             <div className="w-full h-full rounded-[28px] overflow-hidden border border-gray-200/90 shadow-sm relative bg-[#FAF8F5]">
               <CleanGoogleMap
-                lat={mapCoordinates.lat}
-                lng={mapCoordinates.lng}
-                storeName={`Darzi Master Atelier — ${selectedCity.split(',')[0]}`}
-                storeAddress={`Central Workshop, ${selectedCity}`}
+                lat={selectedStore?.coords?.lat || mapCoordinates.lat}
+                lng={selectedStore?.coords?.lng || mapCoordinates.lng}
+                storeName={selectedStore?.name || `Darzi Master Atelier — ${selectedCity.split(',')[0]}`}
+                storeAddress={selectedStore?.address || `Central Workshop, ${selectedCity}`}
                 origin={selectedCity}
                 className="w-full h-full"
-                showZoomControls={true}
+                showZoomControls={false}
+                disableNavigation={true}
+                stores={nearbyStores}
+                selectedStoreId={selectedStore?.id}
+                onSelectStore={(st) => setSelectedStore(st)}
+                onStoresFound={(foundStores) => {
+                  if (foundStores.length > 0 && (!selectedStore || !foundStores.some((s) => s.id === selectedStore.id))) {
+                    setSelectedStore(foundStores[0])
+                  }
+                }}
               />
             </div>
           </div>
