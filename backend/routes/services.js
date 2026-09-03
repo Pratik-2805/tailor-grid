@@ -58,25 +58,63 @@ router.get('/stores', async (req, res) => {
       },
     });
 
-    const stores = prismaStores.map((s) => ({
-      id: s.id,
-      name: s.name,
-      area: s.area,
-      address: s.address,
-      postcode: s.postcode,
-      distance: s.distance || `${s.distanceMiles || 0.5} mi away`,
-      distanceMiles: s.distanceMiles || 0.5,
-      rating: s.rating || 4.95,
-      reviewCount: s.reviewCount || 100,
-      openingHours: s.openingHours || '09:00 - 19:00',
-      dailyCapacity: s.dailyCapacity || 25,
-      machines: s.machines || 6,
-      workers: s.workers || 4,
-      leadTailor: s.leadTailor || 'Master Tailor',
-      specialties: Array.isArray(s.specialties) ? s.specialties : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
-      retailSold: s.retailSold ?? true,
-      coords: { lat: s.lat || 40.7259, lng: s.lng || -74.0003 },
-    }));
+    const studioUsers = await prisma.user.findMany({
+      where: { role: 'STUDIO' },
+      select: {
+        id: true,
+        name: true,
+        studioName: true,
+        studioId: true,
+        avatar: true,
+        address: true,
+        postcode: true,
+      },
+    });
+
+    // Deduplicate stores by slug/name/leadTailor
+    const seenKeys = new Set();
+    const stores = [];
+
+    for (const s of prismaStores) {
+      // Find matching studio user
+      const matchingUser = studioUsers.find(
+        (u) =>
+          (u.studioId && u.studioId === s.id) ||
+          (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
+          (u.name && u.name.toLowerCase() === s.leadTailor.toLowerCase())
+      );
+
+      const storeName = (matchingUser && matchingUser.studioName) ? matchingUser.studioName : s.name;
+      const key = (storeName || s.leadTailor || s.id).toLowerCase().trim();
+
+      if (seenKeys.has(key)) {
+        continue;
+      }
+      seenKeys.add(key);
+
+      stores.push({
+        id: s.id,
+        name: storeName,
+        area: s.area,
+        address: (matchingUser && matchingUser.address) ? matchingUser.address : s.address,
+        postcode: (matchingUser && matchingUser.postcode) ? matchingUser.postcode : s.postcode,
+        distance: s.distance || `${s.distanceMiles || 0.4} mi away`,
+        distanceMiles: s.distanceMiles || 0.4,
+        rating: s.rating || 5.0,
+        reviewCount: s.reviewCount || 1,
+        openingHours: s.openingHours || 'Mon–Sat: 09:00 – 19:00',
+        dailyCapacity: s.dailyCapacity || 25,
+        machines: s.machines || 6,
+        workers: s.workers || 4,
+        leadTailor: (matchingUser && matchingUser.name) ? matchingUser.name : s.leadTailor,
+        specialties: Array.isArray(s.specialties) && s.specialties.length > 0
+          ? s.specialties
+          : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+        retailSold: s.retailSold ?? true,
+        coords: { lat: s.lat || 40.7259, lng: s.lng || -74.0003 },
+        image: matchingUser?.avatar || null,
+      });
+    }
 
     return res.json({ stores, total: stores.length });
   } catch (err) {

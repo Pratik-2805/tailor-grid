@@ -36,6 +36,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Sliders,
   Sparkles,
   Star,
   Tag,
@@ -46,8 +47,9 @@ import {
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
 import { fetchStudioOrders, updateOrder } from '@/lib/api'
+import { StudioProfileView } from './studio-profile-view'
 
-type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts'
+export type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts' | 'profile'
 
 interface BroadcastRequest {
   id: string
@@ -106,6 +108,10 @@ interface PartnerFlowProps {
   otp?: string
   user?: UserType | null
   onSignOut?: () => void
+  onOpenProfile?: () => void
+  onUpdateUser?: (updated: UserType) => void
+  activeTab?: StudioTab
+  onTabChange?: (tab: StudioTab) => void
 }
 
 function getSlaCountdown(job: FittingBooking): { text: string; urgent: boolean; percent: number } {
@@ -128,14 +134,28 @@ const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: s
   { id: 'pipeline', label: 'Alterations Pipeline', icon: Layers, shortLabel: 'Orders' },
   { id: 'capacity', label: 'Workshop Capacity', icon: Settings, shortLabel: 'Capacity' },
   { id: 'payouts', label: 'Payouts & Escrow', icon: CreditCard, shortLabel: 'Payouts' },
+  { id: 'profile', label: 'Studio Configuration', icon: Sliders, shortLabel: 'Profile' },
 ]
 
-export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
+export function PartnerFlow({
+  go,
+  user,
+  onSignOut,
+  onOpenProfile,
+  onUpdateUser,
+  activeTab: controlledTab,
+  onTabChange,
+}: PartnerFlowProps) {
   const rawStudioName = user?.studioName || ''
   const studioName = rawStudioName.length > 2 ? rawStudioName : 'Atelier SoHo'
   const tailorName = user?.name || 'Master Tailor'
 
-  const [activeTab, setActiveTab] = useState<StudioTab>('cockpit')
+  const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
+  const activeTab = controlledTab || internalTab
+  const setActiveTab = (tab: StudioTab) => {
+    setInternalTab(tab)
+    if (onTabChange) onTabChange(tab)
+  }
   const [online, setOnline] = useState(true)
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
@@ -169,7 +189,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [conditionNotes, setConditionNotes] = useState('')
   const [sewNotes, setSewNotes] = useState('')
   const [worker, setWorker] = useState(tailorName)
-  const [machine, setMachine] = useState('Juki DDL-8700 Lockstitch')
+  const [machine, setMachine] = useState('Primary Sewing Bench')
 
   // Edit Measurements Modal State
   const [isEditMeasOpen, setIsEditMeasOpen] = useState(false)
@@ -192,8 +212,100 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [retailCategoryInput, setRetailCategoryInput] = useState('Accessories & Ties')
   const [pickupCompleted, setPickupCompleted] = useState(false)
 
-  // Capacity State
-  const [capacityLimit, setCapacityLimit] = useState(25)
+  // Capacity & Workshop Controls State
+  const [capacityLimit, setCapacityLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_capacity')
+      if (stored) return parseInt(stored) || 25
+    }
+    return 25
+  })
+  const [hoursWeekday, setHoursWeekday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_wd') || '09:00 AM – 07:00 PM'
+    return '09:00 AM – 07:00 PM'
+  })
+  const [hoursSaturday, setHoursSaturday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sat') || '10:00 AM – 06:00 PM'
+    return '10:00 AM – 06:00 PM'
+  })
+  const [hoursSunday, setHoursSunday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sun') || 'Closed for Rest'
+    return 'Closed for Rest'
+  })
+  const [isEditingHours, setIsEditingHours] = useState(false)
+  const [editHoursWd, setEditHoursWd] = useState('09:00 AM – 07:00 PM')
+  const [editHoursSat, setEditHoursSat] = useState('10:00 AM – 06:00 PM')
+  const [editHoursSun, setEditHoursSun] = useState('Closed for Rest')
+
+  const [capabilities, setCapabilities] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_capabilities')
+      if (stored) {
+        try { return JSON.parse(stored) } catch { }
+      }
+    }
+    return [
+      'Suit Tailoring & Formalwear',
+      'Dress Hemming & Gown Fit',
+      'Denim Chainstitch & Alterations',
+      'Zip Replacements & Repairs',
+    ]
+  })
+  const [newCapability, setNewCapability] = useState('')
+  const [showAddCap, setShowAddCap] = useState(false)
+  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
+
+  const handleSetCapacity = (val: number) => {
+    setCapacityLimit(val)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_capacity', val.toString())
+    }
+    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
+    setTimeout(() => setCapacityNotice(null), 3000)
+  }
+
+  const toggleCapability = (cap: string) => {
+    const updated = capabilities.includes(cap)
+      ? capabilities.filter(c => c !== cap)
+      : [...capabilities, cap]
+    setCapabilities(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+    }
+    setCapacityNotice(`Updated capability: ${cap}`)
+    setTimeout(() => setCapacityNotice(null), 2500)
+  }
+
+  const handleAddCapability = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCapability.trim()) return
+    const trimmed = newCapability.trim()
+    if (!capabilities.includes(trimmed)) {
+      const updated = [...capabilities, trimmed]
+      setCapabilities(updated)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+      }
+      setCapacityNotice(`Added specialism: ${trimmed}`)
+      setTimeout(() => setCapacityNotice(null), 2500)
+    }
+    setNewCapability('')
+    setShowAddCap(false)
+  }
+
+  const handleSaveHours = () => {
+    setHoursWeekday(editHoursWd)
+    setHoursSaturday(editHoursSat)
+    setHoursSunday(editHoursSun)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_hours_wd', editHoursWd)
+      localStorage.setItem('tg_studio_hours_sat', editHoursSat)
+      localStorage.setItem('tg_studio_hours_sun', editHoursSun)
+    }
+    setIsEditingHours(false)
+    setCapacityNotice('Workshop operating schedule updated')
+    setTimeout(() => setCapacityNotice(null), 2500)
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -641,23 +753,22 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
           {!sidebarCollapsed ? (
             <button
               onClick={() => setOnline(!online)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer border ${
-                online
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer border ${online
                   ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40 hover:bg-emerald-900/40'
                   : 'bg-stone-900 text-stone-400 border-stone-800 hover:bg-stone-800'
-              }`}
+                }`}
             >
               <div className="flex items-center gap-2">
                 <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
-                <span>{online ? 'Grid Active' : 'Workbench Paused'}</span>
+                <span>{online ? 'Studio Active' : 'Studio Inactive'}</span>
               </div>
-              <span className="text-[10px] text-stone-400">{online ? 'Online' : 'Off'}</span>
+              <span className="text-[10px] text-stone-400">{online ? 'Online' : 'Offline'}</span>
             </button>
           ) : (
             <button
               onClick={() => setOnline(!online)}
               className="grid place-items-center cursor-pointer p-2 rounded hover:bg-white/10"
-              title={online ? 'Online — Click to pause' : 'Paused — Click to go online'}
+              title={online ? 'Studio Active — Click to deactivate' : 'Studio Inactive — Click to activate'}
             >
               <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-600'}`} />
             </button>
@@ -671,7 +782,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             const Icon = item.icon
             const badge =
               item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length :
-              item.id === 'pipeline' ? orders.length : null
+                item.id === 'pipeline' ? orders.length : null
 
             return (
               <button
@@ -692,9 +803,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>
                     {badge !== null && badge > 0 && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full leading-none ${
-                        item.id === 'cockpit' ? 'bg-amber-400 text-stone-950' : 'bg-white/20 text-white'
-                      }`}>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full leading-none ${item.id === 'cockpit' ? 'bg-amber-400 text-stone-950' : 'bg-white/20 text-white'
+                        }`}>
                         {badge}
                       </span>
                     )}
@@ -778,21 +888,35 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
           <div className="flex-1" />
 
           {/* Online Indicator */}
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-xs font-semibold text-[#1E2229] border border-[#E8E1D5] shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setOnline(!online)}
+            className="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-xs font-semibold text-[#1E2229] border border-[#E8E1D5] shadow-2xs hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+            title={online ? 'Studio is Active — Click to pause' : 'Studio is Inactive — Click to activate'}
+          >
             <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
-            <span>{online ? 'Grid Active' : 'Standby'}</span>
-          </div>
+            <span>{online ? 'Studio Active' : 'Studio Inactive'}</span>
+          </button>
 
           {/* Profile */}
-          <div className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5]">
-            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs">
-              {tailorName.charAt(0)}
+          <button
+            type="button"
+            onClick={() => setActiveTab('profile')}
+            title="Edit Studio Profile & Configuration"
+            className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5] hover:opacity-80 transition-opacity cursor-pointer group text-left"
+          >
+            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
+              {user?.avatar ? (
+                <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
+              ) : (
+                tailorName.charAt(0)
+              )}
             </div>
             <div className="hidden lg:block text-left">
-              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px]">{tailorName}</div>
-              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor</div>
+              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor ✎</div>
             </div>
-          </div>
+          </button>
         </header>
 
         {/* ── TOAST ALERT ── */}
@@ -923,7 +1047,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   <div className="lg:col-span-7 space-y-4">
                     {!activeIntake ? (
                       <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-6">
-                        
+
                         {/* Header */}
                         <div className="flex items-start justify-between border-b border-[#E8E1D5] pb-4">
                           <div>
@@ -989,13 +1113,12 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                                 return (
                                   <div
                                     key={idx}
-                                    className={`size-14 sm:size-16 rounded-xl bg-white border flex items-center justify-center font-mono font-bold text-2xl sm:text-3xl transition-all shadow-2xs ${
-                                      digit
+                                    className={`size-14 sm:size-16 rounded-xl bg-white border flex items-center justify-center font-mono font-bold text-2xl sm:text-3xl transition-all shadow-2xs ${digit
                                         ? 'border-[#1E2229] text-[#1E2229] bg-white'
                                         : isFocused
-                                        ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
-                                        : 'border-[#E8E1D5] text-[#D1D5DB]'
-                                    }`}
+                                          ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
+                                          : 'border-[#E8E1D5] text-[#D1D5DB]'
+                                      }`}
                                   >
                                     {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
                                   </div>
@@ -1007,11 +1130,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                               type="button"
                               onClick={() => handleLookupPin(pinInput)}
                               disabled={pinInput.length === 0}
-                              className={`w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
-                                pinInput.length === 4
+                              className={`w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${pinInput.length === 4
                                   ? 'bg-[#0F1115] hover:bg-[#9E593B] text-white active:scale-95'
                                   : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
-                              }`}
+                                }`}
                             >
                               <ShieldCheck size={15} />
                               <span>Verify &amp; Intake →</span>
@@ -1043,11 +1165,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                                     key={key}
                                     type="button"
                                     onClick={() => handleKeypadPress(key)}
-                                    className={`py-3 rounded-xl font-mono text-sm font-bold transition-all cursor-pointer active:scale-95 ${
-                                      key === 'CLEAR' || key === 'BACK'
+                                    className={`py-3 rounded-xl font-mono text-sm font-bold transition-all cursor-pointer active:scale-95 ${key === 'CLEAR' || key === 'BACK'
                                         ? 'bg-[#E8E1D5] text-[#1E2229] hover:bg-[#DDD6CB] text-xs'
                                         : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#1E2229] border border-[#E8E1D5] shadow-2xs'
-                                    }`}
+                                      }`}
                                   >
                                     {key}
                                   </button>
@@ -1352,7 +1473,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   {/* ── RIGHT: LIVE SEWING BENCH & WORKSTATIONS FLOOR ── */}
                   <div className="lg:col-span-5 space-y-4">
                     <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-5">
-                      
+
                       {/* Bench Header */}
                       <div className="flex items-center justify-between pb-3.5 border-b border-[#E8E1D5]">
                         <div>
@@ -1424,9 +1545,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                                   </div>
                                   <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full transition-all duration-500 ${
-                                        sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
-                                      }`}
+                                      className={`h-full rounded-full transition-all duration-500 ${sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
+                                        }`}
                                       style={{ width: `${sla.percent}%` }}
                                     />
                                   </div>
@@ -1445,39 +1565,13 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           })}
 
                         {activeOnBench === 0 && (
-                          /* Workstation Readiness Board */
-                          <div className="space-y-3">
-                            <div className="p-4 rounded-xl bg-[#F3EFEA]/70 border border-[#E8E1D5] text-xs">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B] block mb-2">
-                                Atelier Workstations Ready
-                              </span>
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 1: Juki DDL-8700 Lockstitch</span>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Ready</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 2: Juki MO-6814S Overlock</span>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Ready</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#E8E1D5]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-stone-400" />
-                                    <span className="font-semibold text-xs text-[#1E2229]">Bench 3: Union Special Denim</span>
-                                  </div>
-                                  <span className="text-[10px] font-medium text-[#6B7280] bg-[#FAF8F5] px-2 py-0.5 rounded border border-[#E8E1D5]">Standby</span>
-                                </div>
-                              </div>
+                          <div className="py-8 px-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#E8E1D5] text-center space-y-2">
+                            <div className="size-10 rounded-full bg-[#FAF3EC] text-[#9E593B] mx-auto grid place-items-center">
+                              <Scissors size={18} />
                             </div>
-
-                            <p className="text-center text-[11px] text-[#6B7280]">
-                              Verify an incoming customer drop-off code to allocate garments to these workstations.
+                            <div className="text-xs font-semibold text-[#1E2229]">No Garments Currently on Sewing Bench</div>
+                            <p className="text-[11px] text-[#766F66] max-w-[280px] mx-auto">
+                              Verify an incoming customer drop-off PIN to allocate garments and begin alterations.
                             </p>
                           </div>
                         )}
@@ -1563,7 +1657,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           className={`px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${statusFilter === s
                             ? 'bg-[#0F1115] text-white shadow-xs'
                             : 'bg-white border border-[#E8E1D5] text-[#1E2229] hover:border-[#9E593B] hover:bg-[#F3EFEA]'
-                          }`}
+                            }`}
                         >
                           {labelMap[s] || s}
                         </button>
@@ -1585,7 +1679,7 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           className={`bg-white border rounded-2xl p-4 cursor-pointer transition-all ${isSelected
                             ? 'border-[#9E593B] shadow-xs ring-2 ring-[#9E593B]/20'
                             : 'border-[#E8E1D5] hover:border-[#9E593B]'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3 min-w-0">
@@ -1723,81 +1817,310 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             {/* TAB 3: CAPACITY                                                */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'capacity' && (
-              <div className="max-w-4xl mx-auto space-y-6">
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-150">
+                {/* Notice Banner */}
+                {capacityNotice && (
+                  <div className="bg-[#0F1115] text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between shadow-md border border-white/10">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                      <span>{capacityNotice}</span>
+                    </div>
+                    <button type="button" onClick={() => setCapacityNotice(null)} className="text-white/60 hover:text-white cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-6">
-                  {/* Daily Capacity */}
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
+                  {/* Daily Capacity Card */}
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-5">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-bold text-base text-[#1E2229]">Daily Intake Limit</h3>
                         <p className="text-xs text-[#6B7280]">Max garments workshop accepts daily</p>
                       </div>
-                      <span className="text-xs font-bold bg-[#FAF8F5] border border-[#E8E1D5] px-3 py-1 rounded-full text-[#1E2229]">
+                      <span className="text-xs font-bold bg-[#FAF8F5] border border-[#E8E1D5] px-3 py-1 rounded-full text-[#9E593B]">
                         {capacityLimit} / day
                       </span>
                     </div>
 
+                    {/* Progress Fill */}
                     <div className="p-4 bg-[#F3EFEA]/80 rounded-2xl border border-[#E8E1D5] space-y-2">
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-[#6B7280]">Active Bookings:</span>
                         <span className="text-[#1E2229]">{orders.length} of {capacityLimit} slots</span>
                       </div>
-                      <div className="h-2 rounded-full bg-[#E8E1D5] overflow-hidden">
-                        <div className="h-full bg-[#9E593B] rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }} />
+                      <div className="h-2.5 rounded-full bg-[#E8E1D5] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${orders.length >= capacityLimit ? 'bg-rose-500' : 'bg-[#9E593B]'}`}
+                          style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }}
+                        />
                       </div>
-                      <div className="text-[11px] text-[#6B7280] text-right">{Math.max(0, capacityLimit - orders.length)} slots remaining today</div>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]">
+                        <span>{orders.length >= capacityLimit ? 'Capacity reached' : 'Accepting drop-offs'}</span>
+                        <span className="font-semibold text-[#1E2229]">{Math.max(0, capacityLimit - orders.length)} slots remaining today</span>
+                      </div>
                     </div>
 
-                    <input type="range" min={10} max={50} value={capacityLimit} onChange={(e) => setCapacityLimit(parseInt(e.target.value))} className="w-full accent-[#9E593B] cursor-pointer" />
-                    <div className="flex justify-between text-xs text-[#6B7280]">
-                      <span>10 (Boutique)</span><span>25 (Standard)</span><span>50 (High Volume)</span>
+                    {/* Interactive Presets */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-[#1E2229] block">Quick Presets</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { val: 10, label: '10 Boutique' },
+                          { val: 25, label: '25 Standard' },
+                          { val: 40, label: '40 Busy' },
+                          { val: 50, label: '50 High' },
+                        ].map((p) => (
+                          <button
+                            key={p.val}
+                            type="button"
+                            onClick={() => handleSetCapacity(p.val)}
+                            className={`py-2 px-1 text-center rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              capacityLimit === p.val
+                                ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
+                                : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Range Slider */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between text-xs text-[#6B7280]">
+                        <span>10 pcs</span>
+                        <span className="font-bold text-[#1E2229]">{capacityLimit} pcs/day</span>
+                        <span>60 pcs</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10}
+                        max={60}
+                        step={5}
+                        value={capacityLimit}
+                        onChange={(e) => handleSetCapacity(parseInt(e.target.value))}
+                        className="w-full accent-[#9E593B] cursor-pointer"
+                      />
                     </div>
                   </div>
 
-                  {/* Operating Hours */}
+                  {/* Operating Hours & Dispatch Status */}
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
-                    <h3 className="font-bold text-base text-[#1E2229]">Workshop Operating Hours</h3>
-                    <div className="space-y-2 text-xs">
-                      {[
-                        { day: 'Monday – Friday:', time: '09:00 AM – 07:00 PM' },
-                        { day: 'Saturday:', time: '10:00 AM – 06:00 PM' },
-                        { day: 'Sunday:', time: 'Closed for Rest' },
-                      ].map((h) => (
-                        <div key={h.day} className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                          <span className="text-[#6B7280]">{h.day}</span>
-                          <span className={`font-semibold ${h.time.includes('Closed') ? 'text-[#6B7280]' : 'text-[#1E2229]'}`}>{h.time}</span>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-base text-[#1E2229]">Workshop Operating Hours</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditHoursWd(hoursWeekday)
+                          setEditHoursSat(hoursSaturday)
+                          setEditHoursSun(hoursSunday)
+                          setIsEditingHours(!isEditingHours)
+                        }}
+                        className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit3 size={13} />
+                        {isEditingHours ? 'Cancel' : 'Edit Schedule'}
+                      </button>
                     </div>
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
-                        <span className="font-semibold text-emerald-900">Counter Dispatch Status</span>
-                        <span className="font-bold text-emerald-800 flex items-center gap-1.5">
-                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Receiving Orders
-                        </span>
+
+                    {/* Hours Editor or Display */}
+                    {isEditingHours ? (
+                      <div className="space-y-3 p-3.5 bg-[#FAF8F5] rounded-2xl border border-[#E8E1D5]">
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Monday – Friday</label>
+                          <select
+                            value={editHoursWd}
+                            onChange={(e) => setEditHoursWd(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
+                          >
+                            <option value="09:00 AM – 07:00 PM">09:00 AM – 07:00 PM (Standard)</option>
+                            <option value="08:30 AM – 06:30 PM">08:30 AM – 06:30 PM (Early)</option>
+                            <option value="10:00 AM – 08:00 PM">10:00 AM – 08:00 PM (Late Evening)</option>
+                            <option value="09:00 AM – 05:00 PM">09:00 AM – 05:00 PM (Boutique)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Saturday</label>
+                          <select
+                            value={editHoursSat}
+                            onChange={(e) => setEditHoursSat(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
+                          >
+                            <option value="10:00 AM – 06:00 PM">10:00 AM – 06:00 PM (Full Saturday)</option>
+                            <option value="10:00 AM – 02:00 PM">10:00 AM – 02:00 PM (Half Day)</option>
+                            <option value="Closed for Rest">Closed on Saturday</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Sunday</label>
+                          <select
+                            value={editHoursSun}
+                            onChange={(e) => setEditHoursSun(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
+                          >
+                            <option value="Closed for Rest">Closed for Rest</option>
+                            <option value="11:00 AM – 04:00 PM">11:00 AM – 04:00 PM (Sunday Express)</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSaveHours}
+                          className="w-full py-2 bg-[#9E593B] hover:bg-[#86482F] text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                        >
+                          Save Operating Hours
+                        </button>
                       </div>
+                    ) : (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                          <span className="text-[#6B7280]">Monday – Friday:</span>
+                          <span className="font-semibold text-[#1E2229]">{hoursWeekday}</span>
+                        </div>
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                          <span className="text-[#6B7280]">Saturday:</span>
+                          <span className={`font-semibold ${hoursSaturday.includes('Closed') ? 'text-[#6B7280]' : 'text-[#1E2229]'}`}>{hoursSaturday}</span>
+                        </div>
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                          <span className="text-[#6B7280]">Sunday:</span>
+                          <span className={`font-semibold ${hoursSunday.includes('Closed') ? 'text-[#6B7280]' : 'text-emerald-700'}`}>{hoursSunday}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Counter Dispatch Status Toggle */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextState = !online
+                          setOnline(nextState)
+                          setCapacityNotice(nextState ? 'Studio Active - Receiving new orders' : 'Studio Inactive - Counter dispatch paused')
+                          setTimeout(() => setCapacityNotice(null), 3000)
+                        }}
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-xs transition-all cursor-pointer ${
+                          online
+                            ? 'bg-emerald-50 hover:bg-emerald-100/80 border-emerald-200 text-emerald-900'
+                            : 'bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700'
+                        }`}
+                        title="Click to toggle intake dispatch status"
+                      >
+                        <div>
+                          <div className="font-bold flex items-center gap-1.5">
+                            <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
+                            {online ? 'Counter Dispatch Active' : 'Counter Dispatch Paused'}
+                          </div>
+                          <div className="text-[11px] text-[#6B7280] font-normal mt-0.5">
+                            {online ? 'Studio is accepting live booking dispatches' : 'Workshop intake temporarily paused'}
+                          </div>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${online ? 'bg-emerald-600 text-white' : 'bg-stone-600 text-white'}`}>
+                          {online ? 'Active' : 'Paused'}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Machines */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-3">
-                  <h3 className="font-bold text-base text-[#1E2229]">Workshop Machines</h3>
-                  <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                {/* Workshop Capabilities */}
+                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-base text-[#1E2229]">Workshop Capabilities & Specialties</h3>
+                      <p className="text-xs text-[#717680]">Click any specialty to toggle active status or add custom atelier crafts.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCap(!showAddCap)}
+                        className="text-xs font-semibold text-[#1E2229] hover:text-[#9E593B] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Add Specialty
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('profile')}
+                        className="text-xs font-semibold text-[#9E593B] hover:underline cursor-pointer"
+                      >
+                        Edit in Profile →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add Specialty Form */}
+                  {showAddCap && (
+                    <form onSubmit={handleAddCapability} className="flex gap-2 p-3 bg-[#FAF8F5] rounded-xl border border-[#E8E1D5]">
+                      <input
+                        type="text"
+                        value={newCapability}
+                        onChange={(e) => setNewCapability(e.target.value)}
+                        placeholder="e.g. Leather & Suede Alterations, Bespoke Evening Gowns..."
+                        className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E8E1D5] rounded-lg text-[#1E2229] outline-hidden focus:border-[#9E593B]"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 bg-[#9E593B] text-white text-xs font-semibold rounded-lg hover:bg-[#86482F] cursor-pointer"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCap(false)}
+                        className="px-2.5 py-1.5 text-xs text-[#6B7280] hover:text-[#1E2229] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  )}
+
+                  {/* Grid of Capabilities */}
+                  <div className="grid sm:grid-cols-2 gap-2.5 text-xs pt-1">
                     {[
-                      { name: 'Juki DDL-8700 Lockstitch', type: 'Primary Bench', status: 'Ready / Active' },
-                      { name: 'Juki MO-6814S Overlock', type: 'Finishing Bench', status: 'Ready / Active' },
-                      { name: 'Union Special Denim Chainstitch', type: 'Denim Hemming', status: 'Ready / Active' },
-                      { name: 'Reece 101 Eyelet Buttonholer', type: 'Suits & Tailoring', status: 'Standby' },
-                    ].map((m, i) => (
-                      <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                        <div>
-                          <div className="font-bold text-[#1E2229]">{m.name}</div>
-                          <div className="text-[11px] text-[#6B7280]">{m.type}</div>
-                        </div>
-                        <span className="text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-[10px]">{m.status}</span>
-                      </div>
-                    ))}
+                      'Suit Tailoring & Formalwear',
+                      'Dress Hemming & Gown Fit',
+                      'Denim Chainstitch & Alterations',
+                      'Zip Replacements & Repairs',
+                      'Leather & Suede Alterations',
+                      'Bespoke Silk & Evening Gowns',
+                      'Bridal Resizing & Bustles',
+                      'Curtain & Drapery Hemming',
+                      ...capabilities.filter(c => ![
+                        'Suit Tailoring & Formalwear',
+                        'Dress Hemming & Gown Fit',
+                        'Denim Chainstitch & Alterations',
+                        'Zip Replacements & Repairs',
+                        'Leather & Suede Alterations',
+                        'Bespoke Silk & Evening Gowns',
+                        'Bridal Resizing & Bustles',
+                        'Curtain & Drapery Hemming',
+                      ].includes(c))
+                    ].map((spec) => {
+                      const isActive = capabilities.includes(spec)
+                      return (
+                        <button
+                          key={spec}
+                          type="button"
+                          onClick={() => toggleCapability(spec)}
+                          className={`flex justify-between items-center p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-[#FAF8F5] border-[#E8E1D5] hover:border-[#9E593B]'
+                              : 'bg-stone-50/50 border-stone-200 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <div className={`font-semibold ${isActive ? 'text-[#1E2229]' : 'text-stone-500'}`}>{spec}</div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            isActive
+                              ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                              : 'text-stone-500 bg-stone-100 border-stone-300'
+                          }`}>
+                            {isActive ? 'Active' : 'Paused'}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -1894,6 +2217,18 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               </div>
             )}
 
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* TAB 5: STUDIO PROFILE & CONFIGURATION                           */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {activeTab === 'profile' && user && (
+              <StudioProfileView
+                user={user}
+                onUpdateUser={onUpdateUser}
+                onBack={() => setActiveTab('cockpit')}
+                onSignOut={onSignOut}
+              />
+            )}
+
           </div>
         </main>
 
@@ -1907,9 +2242,8 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative ${
-                  active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
-                }`}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
+                  }`}
               >
                 <Icon size={18} />
                 <span className="text-[9px]">{item.shortLabel}</span>
@@ -2043,22 +2377,20 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('YES')}
-                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${
-                        retailAnswer === 'YES'
+                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
                           ? 'bg-[#0F1115] text-white border-[#0F1115]'
                           : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
-                      }`}
+                        }`}
                     >
                       Yes (+Add Sale)
                     </button>
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('NO')}
-                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${
-                        retailAnswer === 'NO'
+                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
                           ? 'bg-[#0F1115] text-white border-[#0F1115]'
                           : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
-                      }`}
+                        }`}
                     >
                       No (Handover Only)
                     </button>
@@ -2096,11 +2428,10 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   type="button"
                   onClick={handleCompletePickupAndSettlement}
                   disabled={retailAnswer === null}
-                  className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${
-                    retailAnswer === null
+                  className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${retailAnswer === null
                       ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
                       : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
-                  }`}
+                    }`}
                 >
                   {pickupCompleted ? '✓ Order Settled!' : 'Complete Handover & Lock Earnings →'}
                 </button>

@@ -18,7 +18,16 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
   useEffect(() => {
     fetchStores()
       .then((st) => {
-        if (st) setStores(st)
+        if (st && Array.isArray(st)) {
+          const seen = new Set<string>()
+          const unique = st.filter((s) => {
+            const key = (s.name || s.id).toLowerCase().trim()
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+          })
+          setStores(unique)
+        }
       })
       .catch(() => {})
       .finally(() => setIsLoading(false))
@@ -36,7 +45,7 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
               {stores.length > 0
-                ? `${stores.length} certified neighbourhood studios.`
+                ? `${stores.length} certified neighbourhood ${stores.length === 1 ? 'studio' : 'studios'}.`
                 : 'Certified Neighbourhood Studios'}
             </h2>
             <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
@@ -61,13 +70,21 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
               >
                 {/* Studio Thumbnail */}
                 <div className="relative h-44 overflow-hidden bg-[#E5E7EB]">
-                  <Image
-                    src={i % 2 === 0 ? '/images/atelier_studio.jpg' : '/images/garments_rack.jpg'}
-                    alt={store.name}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
+                  {store.image ? (
+                    <img
+                      src={store.image}
+                      alt={store.name}
+                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  ) : (
+                    <Image
+                      src={i % 2 === 0 ? '/images/atelier_studio.jpg' : '/images/garments_rack.jpg'}
+                      alt={store.name}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    />
+                  )}
                   
                   {/* Distance pill */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-[#0F1115] shadow-xs">
