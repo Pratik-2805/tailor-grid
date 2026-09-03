@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { usePathname } from 'next/navigation'
+import { ToastContainer } from 'react-toastify'
 import { useApp } from './app-provider'
 import { Header } from './header'
 import { StudioSubNav } from './studio-sub-nav'
@@ -98,6 +99,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           onUpdateUser={(updated) => setUser(updated)}
         />
       )}
+
+      {/* React Toastify Notifications Container */}
+      <ToastContainer
+        position="top-center"
+        autoClose={3500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   )
 }

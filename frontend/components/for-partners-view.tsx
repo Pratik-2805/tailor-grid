@@ -27,6 +27,7 @@ import {
   Users
 } from 'lucide-react'
 import { type Screen } from './data'
+import { toast } from 'react-toastify'
 import { signUpUser, getStudioUrl } from '@/lib/api'
 
 interface ForPartnersViewProps {
@@ -73,8 +74,10 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           onPartnerRegistered(res.user)
         }
       }
+      toast.success('Partner application submitted successfully!', { position: 'top-center' })
     } catch (err) {
       console.warn('Registration notice:', err)
+      toast.success('Application received! Our team will contact you within 24 hours.', { position: 'top-center' })
     }
     setSubmitting(false)
     setFormSubmitted(true)
@@ -132,10 +135,11 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
 
                 <button
                   onClick={() => {
-                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    const role = typeof window !== 'undefined' ? localStorage.getItem('tg_user_role') : null
+                    const token = typeof window !== 'undefined' && role === 'STUDIO' ? localStorage.getItem('tg_token') : null
                     window.location.href = getStudioUrl('/', token)
                   }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
                   <span>Studio Log in ↗</span>
                   <ChevronRight size={14} />

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Mail, Phone, Scissors, Sparkles, Store, X } from 'lucide-react'
+import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
 
@@ -86,10 +87,17 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
   }, [isOpen, authType])
 
   const finalizeAuth = (user: UserType) => {
+    if (user.role && user.role !== 'STUDIO') {
+      const errMsg = 'Unauthorized user, access denied.'
+      setError(errMsg)
+      toast.error(errMsg, { position: 'top-center' })
+      return
+    }
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
       setNotice('Direct phone number is mandatory for partner atelier dispatch and customer intake notifications.')
+      toast.warning('Please link your atelier mobile number to complete authentication.', { position: 'top-center' })
       return
     }
     onSuccess(user)
@@ -119,6 +127,7 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
           if (!tokenResponse?.access_token) {
             setLoading(false)
             setError('Google sign-in was cancelled.')
+            toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             return
           }
           try {
@@ -142,16 +151,32 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
             })
             setLoading(false)
             if (result?.user) {
-              onClose()
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('tg_user', JSON.stringify(result.user))
-                localStorage.setItem('tg_user_role', 'STUDIO')
-                window.location.href = '/onboarding'
+              if (result.user.role && result.user.role !== 'STUDIO') {
+                const msg = 'Unauthorized user, access denied.'
+                setError(msg)
+                toast.error(msg, { position: 'top-center' })
+                return
+              }
+              if (!result.user.studioName) {
+                if (mode === 'studio-options') {
+                  const msg = 'Unauthorized user, access denied.'
+                  setError(msg)
+                  toast.error(msg, { position: 'top-center' })
+                  return
+                }
+                setMode('studio-register')
+                setSTailorName(result.user.name || '')
+                setSEmail(result.user.email || result.user.contact || '')
+                toast.info('Please enter your workshop location details to finish registering.', { position: 'top-center' })
+              } else {
+                finalizeAuth(result.user)
               }
             }
           } catch (err: any) {
             setLoading(false)
-            setError(err.message || 'Google sign-in failed.')
+            const msg = err.message || 'Unauthorized user, access denied.'
+            setError(msg)
+            toast.error(msg, { position: 'top-center' })
           }
         },
       })
@@ -159,13 +184,16 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     } catch (err: any) {
       setLoading(false)
       setError(err.message || 'Google sign-in initialization failed.')
+      toast.error('Google sign-in initialization failed.', { position: 'top-center' })
     }
   }
 
   const handleStudioMobileSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (sPhoneLogin.trim().length < 6) {
-      setError('Please enter a valid phone number.')
+      const msg = 'Please enter a valid phone number.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -176,16 +204,21 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       setSOtpSent(true)
       const code = res.demoCode || '4829'
       setNotice(`Verification code sent! Test code: ${code}`)
+      toast.info(`Verification code sent to ${sPhoneLogin.trim()} (Demo code: ${code})`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to send verification code.')
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
   const handleStudioMobileVerify = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!sOtp || sOtp.length < 4) {
-      setError('Please enter 4-digit code.')
+      const msg = 'Please enter 4-digit code.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -197,17 +230,21 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
         role: 'STUDIO',
       })
       setLoading(false)
-      if (res?.user) onSuccess(res.user)
+      if (res?.user) finalizeAuth(res.user)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Verification failed.')
+      const msg = err.message || 'Unauthorized user, access denied.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
   const handleSendLinkOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (linkPhoneVal.trim().length < 6) {
-      setError('Please enter a valid phone number.')
+      const msg = 'Please enter a valid phone number.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -218,16 +255,21 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       setLinkOtpSent(true)
       const code = res.demoCode || '4829'
       setNotice(`Verification code sent! Test code: ${code}`)
+      toast.info(`Verification code sent to ${linkPhoneVal.trim()} (Demo code: ${code})`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to send verification code.')
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
   const handleVerifyLinkPhone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!linkOtp || linkOtp.length < 4) {
-      setError('Please enter the 4-digit code.')
+      const msg = 'Please enter the 4-digit code.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -239,10 +281,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
         userId: pendingUser?.id,
       })
       setLoading(false)
-      if (res?.user) onSuccess(res.user)
+      if (res?.user) {
+        toast.success('Mobile number linked successfully!', { position: 'top-center' })
+        finalizeAuth(res.user)
+      }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to link phone.')
+      const msg = err.message || 'Unauthorized user, access denied.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -256,7 +303,9 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
       if (result?.user) finalizeAuth(result.user)
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Login failed. Please check your credentials.')
+      const msg = err.message || 'Unauthorized user, access denied.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -277,10 +326,15 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
         machines: sMachines,
       })
       setLoading(false)
-      if (result?.user) onSuccess(result.user)
+      if (result?.user) {
+        toast.success(`Atelier "${sName}" registered successfully!`, { position: 'top-center' })
+        onSuccess(result.user)
+      }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Registration failed. Please check your details.')
+      const msg = err.message || 'Registration failed. Please check your details.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 

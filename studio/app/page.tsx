@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Zap,
 } from 'lucide-react'
+import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type Screen, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
@@ -38,7 +39,6 @@ export default function StudioPage() {
       const token = params.get('token')
       if (token) {
         localStorage.setItem('tg_token', token)
-        localStorage.setItem('tg_user_role', 'STUDIO')
         // Clean URL query params
         window.history.replaceState({}, '', window.location.pathname)
       }
@@ -46,7 +46,7 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        setUser(u)
+        if (u) setUser(u)
       })
       .finally(() => {
         setLoadingUser(false)
@@ -59,12 +59,23 @@ export default function StudioPage() {
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
+    if (loggedUser.role !== 'STUDIO') {
+      toast.error('Unauthorized user, access denied.', {
+        position: 'top-center',
+        autoClose: 4000,
+      })
+      return
+    }
     setUser(loggedUser)
     setIsAuthOpen(false)
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_user_role', 'STUDIO')
       localStorage.setItem('tg_user', JSON.stringify(loggedUser))
     }
+    toast.success(`Authenticated as ${loggedUser.name || 'Studio Partner'}!`, {
+      position: 'top-center',
+      autoClose: 3000,
+    })
   }
 
   const handleUpdateUser = (updated: User) => {
@@ -72,6 +83,10 @@ export default function StudioPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_user', JSON.stringify(updated))
     }
+    toast.success('Studio profile updated successfully!', {
+      position: 'top-center',
+      autoClose: 3000,
+    })
   }
 
   const handleSignOut = () => {
@@ -83,6 +98,10 @@ export default function StudioPage() {
     setUser(null)
     setIsAuthOpen(false)
     setPartnerTab('cockpit')
+    toast.info('Signed out of Studio Workshop.', {
+      position: 'top-center',
+      autoClose: 2500,
+    })
   }
 
   return (
@@ -229,6 +248,20 @@ export default function StudioPage() {
         authType={authType}
         onClose={() => setIsAuthOpen(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      {/* React Toastify Notifications Container */}
+      <ToastContainer
+        position="top-center"
+        autoClose={3500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
       />
     </div>
   )

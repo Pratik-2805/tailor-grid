@@ -104,7 +104,7 @@ export async function loginWithGoogle(params: {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, role: 'STUDIO' }),
     })
 
     if (!res.ok) {

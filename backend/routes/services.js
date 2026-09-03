@@ -185,4 +185,36 @@ router.post('/stores', async (req, res) => {
   }
 });
 
+const { locateTailorsWithinRange } = require('../services/locate.service');
+
+// GET /api/tailors/nearby or /api/locate/tailors - Locate all tailors within range
+const handleLocateTailors = async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radiusMiles = parseFloat(req.query.radiusMiles) || 4.0;
+    const query = req.query.query || '';
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ error: 'Valid lat and lng query parameters are required' });
+    }
+
+    const tailors = await locateTailorsWithinRange({ lat, lng, radiusMiles, query });
+
+    return res.json({
+      success: true,
+      tailors,
+      count: tailors.length,
+      radiusMiles,
+      center: { lat, lng },
+    });
+  } catch (err) {
+    console.error('Error in locateTailors service route:', err);
+    return res.status(500).json({ error: 'Failed to locate tailors within range' });
+  }
+};
+
+router.get('/tailors/nearby', handleLocateTailors);
+router.get('/locate/tailors', handleLocateTailors);
+
 module.exports = router;

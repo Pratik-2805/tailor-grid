@@ -53,8 +53,13 @@ async function findOrLinkUser({
 
   // 1. Try lookup by email first if provided
   if (normEmail) {
-    user = await prisma.user.findUnique({
-      where: { email: normEmail },
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normEmail },
+          { contact: normEmail },
+        ],
+      },
     });
   }
 
@@ -62,9 +67,19 @@ async function findOrLinkUser({
   if (!user && normPhone) {
     user = await prisma.user.findFirst({
       where: {
-        OR: [{ phone: normPhone }, { contact: normPhone }],
+        OR: [
+          { phone: normPhone },
+          { contact: normPhone },
+        ],
       },
     });
+  }
+
+  // STRICT ROLE GATE: If user exists with a different role, REJECT immediately!
+  if (user && user.role && user.role !== role) {
+    const roleErr = new Error('Unauthorized user, access denied.');
+    roleErr.statusCode = 403;
+    throw roleErr;
   }
 
   // 3. If Studio role and creating a store
@@ -182,14 +197,28 @@ async function findOrLinkUser({
   } else {
     // Check if phone or email is already taken
     if (normPhone) {
-      const phoneTaken = await prisma.user.findUnique({ where: { phone: normPhone } });
+      const phoneTaken = await prisma.user.findFirst({
+        where: { OR: [{ phone: normPhone }, { contact: normPhone }] },
+      });
       if (phoneTaken) {
+        if (phoneTaken.role !== role) {
+          const roleErr = new Error('Unauthorized user, access denied.');
+          roleErr.statusCode = 403;
+          throw roleErr;
+        }
         return phoneTaken;
       }
     }
     if (normEmail) {
-      const emailTaken = await prisma.user.findUnique({ where: { email: normEmail } });
+      const emailTaken = await prisma.user.findFirst({
+        where: { OR: [{ email: normEmail }, { contact: normEmail }] },
+      });
       if (emailTaken) {
+        if (emailTaken.role !== role) {
+          const roleErr = new Error('Unauthorized user, access denied.');
+          roleErr.statusCode = 403;
+          throw roleErr;
+        }
         return emailTaken;
       }
     }
@@ -312,20 +341,20 @@ router.post('/verify-otp', async (req, res) => {
         // Strict role validation
         if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
           return res.status(403).json({
-            error: 'Access Denied! Login with an another account.',
+            error: 'Unauthorized user, access denied.',
           });
         }
         if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
           return res.status(403).json({
-            error: 'Access Denied! Login with an another account.',
+            error: 'Unauthorized user, access denied.',
           });
         }
         user = existingUser;
       } else {
         // User does not exist
         if (role === 'STUDIO') {
-          return res.status(404).json({
-            error: 'No Studio partner account found with this mobile number. Please register your studio first.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         user = await findOrLinkUser({
@@ -501,19 +530,21 @@ router.post('/google', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: cleanEmail },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: cleanEmail }, { contact: cleanEmail }],
+      },
     });
 
     if (existingUser) {
       if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
         return res.status(403).json({
-          error: 'Access Denied! Login with an another account.',
+          error: 'Unauthorized user, access denied.',
         });
       }
       if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
         return res.status(403).json({
-          error: 'Access Denied! Login with an another account.',
+          error: 'Unauthorized user, access denied.',
         });
       }
     }
@@ -538,7 +569,7 @@ router.post('/google', async (req, res) => {
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
-    return res.status(500).json({ error: 'Server error during Google authentication.' });
+    return res.status(err.statusCode || 500).json({ error: err.message || 'Server error during Google authentication.' });
   }
 });
 
@@ -576,11 +607,15 @@ router.post('/signup', async (req, res) => {
 
     // Check existing email conflict
     if (cleanEmail) {
-      const existingEmail = await prisma.user.findUnique({ where: { email: cleanEmail } });
+      const existingEmail = await prisma.user.findFirst({
+        where: {
+          OR: [{ email: cleanEmail }, { contact: cleanEmail }],
+        },
+      });
       if (existingEmail) {
         if (existingEmail.role !== role) {
-          return res.status(409).json({
-            error: 'Access Denied! Login with an another account.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         // If Customer role, prevent duplicate registration
@@ -589,8 +624,6 @@ router.post('/signup', async (req, res) => {
             error: 'An account with this email address is already registered. Please sign in instead.',
           });
         }
-        // If STUDIO role, user authenticated via Google and is completing the 3-step studio details.
-        // We allow findOrLinkUser to seamlessly update their studio name, phone, address, and machines!
       }
     }
 
@@ -603,8 +636,8 @@ router.post('/signup', async (req, res) => {
       });
       if (existingPhone) {
         if (existingPhone.role !== role) {
-          return res.status(409).json({
-            error: 'Access Denied! Login with an another account.',
+          return res.status(403).json({
+            error: 'Unauthorized user, access denied.',
           });
         }
         if (existingPhone.email && cleanEmail && existingPhone.email !== cleanEmail) {
@@ -662,6 +695,11 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
+      if (role === 'STUDIO') {
+        return res.status(403).json({
+          error: 'Unauthorized user, access denied.',
+        });
+      }
       return res.status(404).json({
         error: 'No account found with this email or mobile number. Please register first.',
       });
@@ -670,13 +708,13 @@ router.post('/login', async (req, res) => {
     // Role verification
     if (role === 'STUDIO' && user.role !== 'STUDIO') {
       return res.status(403).json({
-        error: 'Access Denied! Login with an another account.',
+        error: 'Unauthorized user, access denied.',
       });
     }
 
     if (role === 'CUSTOMER' && user.role === 'STUDIO') {
       return res.status(403).json({
-        error: 'Access Denied! Login with an another account.',
+        error: 'Unauthorized user, access denied.',
       });
     }
 

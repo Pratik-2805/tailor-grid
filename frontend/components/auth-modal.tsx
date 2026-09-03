@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Store, X } from 'lucide-react'
+import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
 
@@ -224,7 +225,9 @@ export function AuthModal({
   const handleSendMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (cPhone.trim().length < 6) {
-      setError('Please enter a valid mobile number.')
+      const msg = 'Please enter a valid mobile number.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -236,16 +239,21 @@ export function AuthModal({
       setCOtpSent(true)
       const code = res.demoCode || '4829'
       setCDemoCode(code)
+      toast.info(`Verification code sent to ${cPhone.trim()} (Demo code: ${code})`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to send verification code.')
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
   const handleVerifyMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!cOtp || cOtp.length < 4) {
-      setError('Please enter the 4-digit verification code.')
+      const msg = 'Please enter the 4-digit verification code.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -264,7 +272,9 @@ export function AuthModal({
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Invalid code.')
+      const msg = err.message || 'Invalid code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -272,11 +282,15 @@ export function AuthModal({
   const handleCustomerEmail = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!cEmail || !cEmail.includes('@')) {
-      setError('Please enter a valid email address.')
+      const msg = 'Please enter a valid email address.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     if (!cPhone || cPhone.trim().length < 6) {
-      setError('Mobile number is required for fitting passes.')
+      const msg = 'Mobile number is required for fitting passes.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -295,7 +309,9 @@ export function AuthModal({
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Sign up failed.')
+      const msg = err.message || 'Sign up failed.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -303,7 +319,9 @@ export function AuthModal({
   const handleSendLinkOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (linkPhoneVal.trim().length < 6) {
-      setError('Please enter a valid phone number.')
+      const msg = 'Please enter a valid phone number.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -314,16 +332,21 @@ export function AuthModal({
       setLinkOtpSent(true)
       const code = res.demoCode || '4829'
       setLinkDemoCode(code)
+      toast.info(`Verification code sent to ${linkPhoneVal.trim()} (Demo code: ${code})`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to send verification code.')
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
   const handleVerifyLinkPhone = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!linkOtp || linkOtp.length < 4) {
-      setError('Please enter the 4-digit code.')
+      const msg = 'Please enter the 4-digit code.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
@@ -336,11 +359,14 @@ export function AuthModal({
       })
       setLoading(false)
       if (res?.user) {
+        toast.success('Mobile number linked successfully!', { position: 'top-center' })
         onSuccess(res.user)
       }
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Failed to verify code.')
+      const msg = err.message || 'Failed to verify code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -355,7 +381,9 @@ export function AuthModal({
       if (result?.user) finalizeAuth(result.user, 'STUDIO')
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Login failed. Please check your credentials.')
+      const msg = err.message || 'Unauthorized user, access denied.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 

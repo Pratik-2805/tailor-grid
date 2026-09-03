@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-toastify'
 import { getCurrentUser, getStudioUrl } from '@/lib/api'
 import type { Screen, StoreOption, User } from './data'
 
@@ -143,9 +144,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('tg_user', JSON.stringify(loggedUser))
     }
 
+    toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
+      position: 'top-center',
+      autoClose: 3000,
+    })
+
     if (loggedUser.role === 'STUDIO') {
       const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+      toast.info('Redirecting to Studio Dashboard...', { position: 'top-center', autoClose: 2000 })
       window.location.href = getStudioUrl('/', token)
+    } else {
+      router.push('/book')
     }
   }
 
@@ -158,6 +167,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null)
     setIsAuthOpen(false)
+    toast.info('Signed out successfully.', {
+      position: 'top-center',
+      autoClose: 2500,
+    })
     router.push('/')
   }
 
