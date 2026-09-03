@@ -36,6 +36,7 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Sliders,
   Sparkles,
   Star,
   Tag,
@@ -46,8 +47,9 @@ import {
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
 import { fetchStudioOrders, updateOrder } from '@/lib/api'
+import { StudioProfileView } from './studio-profile-view'
 
-type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts'
+export type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts' | 'profile'
 
 interface BroadcastRequest {
   id: string
@@ -106,6 +108,10 @@ interface PartnerFlowProps {
   otp?: string
   user?: UserType | null
   onSignOut?: () => void
+  onOpenProfile?: () => void
+  onUpdateUser?: (updated: UserType) => void
+  activeTab?: StudioTab
+  onTabChange?: (tab: StudioTab) => void
 }
 
 function getSlaCountdown(job: FittingBooking): { text: string; urgent: boolean; percent: number } {
@@ -128,14 +134,28 @@ const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: s
   { id: 'pipeline', label: 'Alterations Pipeline', icon: Layers, shortLabel: 'Orders' },
   { id: 'capacity', label: 'Workshop Capacity', icon: Settings, shortLabel: 'Capacity' },
   { id: 'payouts', label: 'Payouts & Escrow', icon: CreditCard, shortLabel: 'Payouts' },
+  { id: 'profile', label: 'Studio Configuration', icon: Sliders, shortLabel: 'Profile' },
 ]
 
-export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
+export function PartnerFlow({
+  go,
+  user,
+  onSignOut,
+  onOpenProfile,
+  onUpdateUser,
+  activeTab: controlledTab,
+  onTabChange,
+}: PartnerFlowProps) {
   const rawStudioName = user?.studioName || ''
   const studioName = rawStudioName.length > 2 ? rawStudioName : 'Atelier SoHo'
   const tailorName = user?.name || 'Master Tailor'
 
-  const [activeTab, setActiveTab] = useState<StudioTab>('cockpit')
+  const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
+  const activeTab = controlledTab || internalTab
+  const setActiveTab = (tab: StudioTab) => {
+    setInternalTab(tab)
+    if (onTabChange) onTabChange(tab)
+  }
   const [online, setOnline] = useState(true)
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
@@ -192,8 +212,100 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
   const [retailCategoryInput, setRetailCategoryInput] = useState('Accessories & Ties')
   const [pickupCompleted, setPickupCompleted] = useState(false)
 
-  // Capacity State
-  const [capacityLimit, setCapacityLimit] = useState(25)
+  // Capacity & Workshop Controls State
+  const [capacityLimit, setCapacityLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_capacity')
+      if (stored) return parseInt(stored) || 25
+    }
+    return 25
+  })
+  const [hoursWeekday, setHoursWeekday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_wd') || '09:00 AM – 07:00 PM'
+    return '09:00 AM – 07:00 PM'
+  })
+  const [hoursSaturday, setHoursSaturday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sat') || '10:00 AM – 06:00 PM'
+    return '10:00 AM – 06:00 PM'
+  })
+  const [hoursSunday, setHoursSunday] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sun') || 'Closed for Rest'
+    return 'Closed for Rest'
+  })
+  const [isEditingHours, setIsEditingHours] = useState(false)
+  const [editHoursWd, setEditHoursWd] = useState('09:00 AM – 07:00 PM')
+  const [editHoursSat, setEditHoursSat] = useState('10:00 AM – 06:00 PM')
+  const [editHoursSun, setEditHoursSun] = useState('Closed for Rest')
+
+  const [capabilities, setCapabilities] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_capabilities')
+      if (stored) {
+        try { return JSON.parse(stored) } catch { }
+      }
+    }
+    return [
+      'Suit Tailoring & Formalwear',
+      'Dress Hemming & Gown Fit',
+      'Denim Chainstitch & Alterations',
+      'Zip Replacements & Repairs',
+    ]
+  })
+  const [newCapability, setNewCapability] = useState('')
+  const [showAddCap, setShowAddCap] = useState(false)
+  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
+
+  const handleSetCapacity = (val: number) => {
+    setCapacityLimit(val)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_capacity', val.toString())
+    }
+    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
+    setTimeout(() => setCapacityNotice(null), 3000)
+  }
+
+  const toggleCapability = (cap: string) => {
+    const updated = capabilities.includes(cap)
+      ? capabilities.filter(c => c !== cap)
+      : [...capabilities, cap]
+    setCapabilities(updated)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+    }
+    setCapacityNotice(`Updated capability: ${cap}`)
+    setTimeout(() => setCapacityNotice(null), 2500)
+  }
+
+  const handleAddCapability = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newCapability.trim()) return
+    const trimmed = newCapability.trim()
+    if (!capabilities.includes(trimmed)) {
+      const updated = [...capabilities, trimmed]
+      setCapabilities(updated)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+      }
+      setCapacityNotice(`Added specialism: ${trimmed}`)
+      setTimeout(() => setCapacityNotice(null), 2500)
+    }
+    setNewCapability('')
+    setShowAddCap(false)
+  }
+
+  const handleSaveHours = () => {
+    setHoursWeekday(editHoursWd)
+    setHoursSaturday(editHoursSat)
+    setHoursSunday(editHoursSun)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_studio_hours_wd', editHoursWd)
+      localStorage.setItem('tg_studio_hours_sat', editHoursSat)
+      localStorage.setItem('tg_studio_hours_sun', editHoursSun)
+    }
+    setIsEditingHours(false)
+    setCapacityNotice('Workshop operating schedule updated')
+    setTimeout(() => setCapacityNotice(null), 2500)
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -647,9 +759,9 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             >
               <div className="flex items-center gap-2">
                 <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-400 animate-pulse' : 'bg-white/30'}`} />
-                <span>{online ? 'BENCH ONLINE' : 'BENCH PAUSED'}</span>
+                <span>{online ? 'STUDIO ACTIVE' : 'STUDIO INACTIVE'}</span>
               </div>
-              <span className="text-[10px] text-white/40">{online ? 'Active' : 'Muted'}</span>
+              <span className="text-[10px] text-white/40">{online ? 'Online' : 'Offline'}</span>
             </button>
           ) : (
             <button
@@ -778,19 +890,28 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             online ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-stone-100 text-stone-600 border-stone-200'
           }`}>
             <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
-            <span>{online ? 'Live Grid Active' : 'Standby'}</span>
+            <span>{online ? 'Studio Active' : 'Studio Inactive'}</span>
           </div>
 
           {/* Profile */}
-          <div className="flex items-center gap-2 pl-3 border-l border-[#EAECF0]">
-            <div className="size-8 rounded-full bg-[#0F1115] text-[#FAF8F5] border border-black/10 grid place-items-center text-xs font-bold">
-              {tailorName.charAt(0)}
+          <button
+            type="button"
+            onClick={() => setActiveTab('profile')}
+            className="flex items-center gap-2 pl-3 border-l border-[#EAECF0] hover:opacity-80 transition-opacity cursor-pointer group text-left"
+            title="Edit Studio Profile & Configuration"
+          >
+            <div className="size-8 rounded-full bg-[#0F1115] text-[#FAF8F5] border border-black/10 grid place-items-center text-xs font-bold overflow-hidden">
+              {user?.avatar ? (
+                <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
+              ) : (
+                tailorName.charAt(0)
+              )}
             </div>
             <div className="hidden lg:block text-left">
-              <div className="text-xs font-bold text-[#0F1115] leading-tight truncate max-w-[120px]">{tailorName}</div>
-              <div className="text-[10px] text-[#6B7280]">Master Atelier</div>
+              <div className="text-xs font-bold text-[#0F1115] leading-tight truncate max-w-[120px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor ✎</div>
             </div>
-          </div>
+          </button>
         </header>
 
         {/* ── TOAST ALERT ── */}
@@ -1517,39 +1638,13 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                           })}
 
                         {activeOnBench === 0 && (
-                          /* Rich Workshop Station Readiness List */
-                          <div className="space-y-3">
-                            <div className="p-3.5 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0] text-xs">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#71717A] block mb-1">
-                                ATELIER WORKSTATIONS READY
-                              </span>
-                              <div className="space-y-2 mt-2">
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 1: Juki DDL-8700 Lockstitch</span>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Ready</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-emerald-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 2: Juki MO-6814S Overlock</span>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">Ready</span>
-                                </div>
-                                <div className="flex items-center justify-between p-2 rounded-xl bg-white border border-[#EAECF0]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="size-2 rounded-full bg-blue-500" />
-                                    <span className="font-semibold text-xs text-[#0F1115]">Bench 3: Union Special Denim</span>
-                                  </div>
-                                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Standby</span>
-                                </div>
-                              </div>
+                          <div className="py-8 px-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#EAECF0] text-center space-y-2">
+                            <div className="size-10 rounded-full bg-[#FAF3EC] text-[#9E593B] mx-auto grid place-items-center">
+                              <Scissors size={18} />
                             </div>
-
-                            <p className="text-center text-[11px] text-[#71717A] italic">
-                              Verify an arriving customer drop-off code on the left to allocate garments to these sewing stations.
+                            <div className="text-xs font-semibold text-[#0F1115]">No Garments Currently on Sewing Bench</div>
+                            <p className="text-[11px] text-[#71717A] max-w-[280px] mx-auto">
+                              Verify an incoming customer drop-off PIN to allocate garments and begin alterations.
                             </p>
                           </div>
                         )}
@@ -1796,81 +1891,310 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
             {/* TAB 3: CAPACITY                                                */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'capacity' && (
-              <div className="max-w-4xl mx-auto space-y-6">
+              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-150">
+                {/* Notice Banner */}
+                {capacityNotice && (
+                  <div className="bg-[#0F1115] text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between shadow-md border border-white/10">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                      <span>{capacityNotice}</span>
+                    </div>
+                    <button type="button" onClick={() => setCapacityNotice(null)} className="text-white/60 hover:text-white cursor-pointer">
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-6">
-                  {/* Daily Capacity */}
-                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
+                  {/* Daily Capacity Card */}
+                  <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-5">
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-bold text-base text-[#0F1115]">Daily Intake Limit</h3>
                         <p className="text-xs text-[#6B7280]">Max garments your atelier accepts daily</p>
                       </div>
-                      <span className="text-xs font-bold bg-[#F9FAFB] border border-[#EAECF0] px-3 py-1 rounded-xl text-[#0F1115]">
+                      <span className="text-xs font-bold bg-[#F9FAFB] border border-[#EAECF0] px-3 py-1 rounded-xl text-[#9E593B]">
                         {capacityLimit} / day
                       </span>
                     </div>
 
+                    {/* Progress Fill */}
                     <div className="p-4 bg-[#F9FAFB] rounded-2xl border border-[#EAECF0] space-y-2">
                       <div className="flex justify-between text-xs font-bold">
                         <span className="text-[#6B7280]">Today's Bookings:</span>
                         <span className="text-[#0F1115]">{orders.length} of {capacityLimit} slots</span>
                       </div>
                       <div className="h-2.5 rounded-full bg-[#EAECF0] overflow-hidden">
-                        <div className="h-full bg-emerald-600 rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }} />
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${orders.length >= capacityLimit ? 'bg-rose-500' : 'bg-emerald-600'}`}
+                          style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }}
+                        />
                       </div>
-                      <div className="text-[11px] text-[#6B7280] text-right">{Math.max(0, capacityLimit - orders.length)} slots remaining today</div>
+                      <div className="flex justify-between text-[11px] text-[#6B7280]">
+                        <span>{orders.length >= capacityLimit ? 'Capacity reached' : 'Accepting drop-offs'}</span>
+                        <span className="font-semibold text-[#0F1115]">{Math.max(0, capacityLimit - orders.length)} slots remaining today</span>
+                      </div>
                     </div>
 
-                    <input type="range" min={10} max={50} value={capacityLimit} onChange={(e) => setCapacityLimit(parseInt(e.target.value))} className="w-full accent-[#0F1115] cursor-pointer" />
-                    <div className="flex justify-between text-xs text-[#9CA3AF]">
-                      <span>10 (Boutique)</span><span>25 (Standard)</span><span>50 (High Volume)</span>
+                    {/* Interactive Presets */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-[#0F1115] block">Quick Presets</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { val: 10, label: '10 Boutique' },
+                          { val: 25, label: '25 Standard' },
+                          { val: 40, label: '40 Busy' },
+                          { val: 50, label: '50 High' },
+                        ].map((p) => (
+                          <button
+                            key={p.val}
+                            type="button"
+                            onClick={() => handleSetCapacity(p.val)}
+                            className={`py-2 px-1 text-center rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              capacityLimit === p.val
+                                ? 'bg-[#0F1115] text-white border-[#0F1115] shadow-xs'
+                                : 'bg-[#F9FAFB] text-[#0F1115] border-[#EAECF0] hover:bg-[#F3EFEA]'
+                            }`}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Range Slider */}
+                    <div className="space-y-1 pt-1">
+                      <div className="flex justify-between text-xs text-[#6B7280]">
+                        <span>10 pcs</span>
+                        <span className="font-bold text-[#0F1115]">{capacityLimit} pcs/day</span>
+                        <span>60 pcs</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10}
+                        max={60}
+                        step={5}
+                        value={capacityLimit}
+                        onChange={(e) => handleSetCapacity(parseInt(e.target.value))}
+                        className="w-full accent-[#0F1115] cursor-pointer"
+                      />
                     </div>
                   </div>
 
-                  {/* Operating Hours */}
+                  {/* Operating Hours & Dispatch Status */}
                   <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
-                    <h3 className="font-bold text-base text-[#0F1115]">Workshop Operating Hours</h3>
-                    <div className="space-y-2 text-xs">
-                      {[
-                        { day: 'Monday – Friday:', time: '09:00 AM – 07:00 PM' },
-                        { day: 'Saturday:', time: '10:00 AM – 06:00 PM' },
-                        { day: 'Sunday:', time: 'Closed for Rest' },
-                      ].map((h) => (
-                        <div key={h.day} className="flex justify-between p-2.5 rounded-xl bg-[#F9FAFB] border border-[#EAECF0]">
-                          <span className="text-[#6B7280]">{h.day}</span>
-                          <span className={`font-bold ${h.time.includes('Closed') ? 'text-[#9CA3AF]' : 'text-[#0F1115]'}`}>{h.time}</span>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-base text-[#0F1115]">Workshop Operating Hours</h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditHoursWd(hoursWeekday)
+                          setEditHoursSat(hoursSaturday)
+                          setEditHoursSun(hoursSunday)
+                          setIsEditingHours(!isEditingHours)
+                        }}
+                        className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit3 size={13} />
+                        {isEditingHours ? 'Cancel' : 'Edit Schedule'}
+                      </button>
                     </div>
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs">
-                        <span className="font-bold text-emerald-900">Counter Dispatch Status</span>
-                        <span className="font-bold text-emerald-700 flex items-center gap-1.5">
-                          <span className="size-2 rounded-full bg-emerald-500 animate-pulse" /> Receiving New Orders
-                        </span>
+
+                    {/* Hours Editor or Display */}
+                    {isEditingHours ? (
+                      <div className="space-y-3 p-3.5 bg-[#F9FAFB] rounded-2xl border border-[#EAECF0]">
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Monday – Friday</label>
+                          <select
+                            value={editHoursWd}
+                            onChange={(e) => setEditHoursWd(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#EAECF0] rounded-xl px-3 py-1.5 text-xs text-[#0F1115]"
+                          >
+                            <option value="09:00 AM – 07:00 PM">09:00 AM – 07:00 PM (Standard)</option>
+                            <option value="08:30 AM – 06:30 PM">08:30 AM – 06:30 PM (Early)</option>
+                            <option value="10:00 AM – 08:00 PM">10:00 AM – 08:00 PM (Late Evening)</option>
+                            <option value="09:00 AM – 05:00 PM">09:00 AM – 05:00 PM (Boutique)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Saturday</label>
+                          <select
+                            value={editHoursSat}
+                            onChange={(e) => setEditHoursSat(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#EAECF0] rounded-xl px-3 py-1.5 text-xs text-[#0F1115]"
+                          >
+                            <option value="10:00 AM – 06:00 PM">10:00 AM – 06:00 PM (Full Saturday)</option>
+                            <option value="10:00 AM – 02:00 PM">10:00 AM – 02:00 PM (Half Day)</option>
+                            <option value="Closed for Rest">Closed on Saturday</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Sunday</label>
+                          <select
+                            value={editHoursSun}
+                            onChange={(e) => setEditHoursSun(e.target.value)}
+                            className="mt-1 w-full bg-white border border-[#EAECF0] rounded-xl px-3 py-1.5 text-xs text-[#0F1115]"
+                          >
+                            <option value="Closed for Rest">Closed for Rest</option>
+                            <option value="11:00 AM – 04:00 PM">11:00 AM – 04:00 PM (Sunday Express)</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSaveHours}
+                          className="w-full py-2 bg-[#0F1115] hover:bg-black text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
+                        >
+                          Save Operating Hours
+                        </button>
                       </div>
+                    ) : (
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#F9FAFB] border border-[#EAECF0]">
+                          <span className="text-[#6B7280]">Monday – Friday:</span>
+                          <span className="font-semibold text-[#0F1115]">{hoursWeekday}</span>
+                        </div>
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#F9FAFB] border border-[#EAECF0]">
+                          <span className="text-[#6B7280]">Saturday:</span>
+                          <span className={`font-semibold ${hoursSaturday.includes('Closed') ? 'text-[#6B7280]' : 'text-[#0F1115]'}`}>{hoursSaturday}</span>
+                        </div>
+                        <div className="flex justify-between p-2.5 rounded-xl bg-[#F9FAFB] border border-[#EAECF0]">
+                          <span className="text-[#6B7280]">Sunday:</span>
+                          <span className={`font-semibold ${hoursSunday.includes('Closed') ? 'text-[#6B7280]' : 'text-emerald-700'}`}>{hoursSunday}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Counter Dispatch Status Toggle */}
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextState = !online
+                          setOnline(nextState)
+                          setCapacityNotice(nextState ? 'Studio Active - Receiving new orders' : 'Studio Inactive - Counter dispatch paused')
+                          setTimeout(() => setCapacityNotice(null), 3000)
+                        }}
+                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-xs transition-all cursor-pointer ${
+                          online
+                            ? 'bg-emerald-50 hover:bg-emerald-100/80 border-emerald-200 text-emerald-900'
+                            : 'bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700'
+                        }`}
+                        title="Click to toggle intake dispatch status"
+                      >
+                        <div>
+                          <div className="font-bold flex items-center gap-1.5">
+                            <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
+                            {online ? 'Counter Dispatch Active' : 'Counter Dispatch Paused'}
+                          </div>
+                          <div className="text-[11px] text-[#6B7280] font-normal mt-0.5">
+                            {online ? 'Studio is accepting live booking dispatches' : 'Workshop intake temporarily paused'}
+                          </div>
+                        </div>
+                        <span className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${online ? 'bg-emerald-600 text-white' : 'bg-stone-600 text-white'}`}>
+                          {online ? 'Active' : 'Paused'}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Machines */}
-                <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-3">
-                  <h3 className="font-bold text-base text-[#0F1115]">Workshop Machines</h3>
-                  <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                {/* Workshop Capabilities */}
+                <div className="bg-white border border-[#EAECF0] rounded-3xl p-6 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-base text-[#0F1115]">Workshop Capabilities & Specialties</h3>
+                      <p className="text-xs text-[#717680]">Click any specialty to toggle active status or add custom atelier crafts.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCap(!showAddCap)}
+                        className="text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Add Specialty
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('profile')}
+                        className="text-xs font-semibold text-[#9E593B] hover:underline cursor-pointer"
+                      >
+                        Edit in Profile →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add Specialty Form */}
+                  {showAddCap && (
+                    <form onSubmit={handleAddCapability} className="flex gap-2 p-3 bg-[#F9FAFB] rounded-xl border border-[#EAECF0]">
+                      <input
+                        type="text"
+                        value={newCapability}
+                        onChange={(e) => setNewCapability(e.target.value)}
+                        placeholder="e.g. Leather & Suede Alterations, Bespoke Evening Gowns..."
+                        className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#EAECF0] rounded-lg text-[#0F1115] outline-hidden focus:border-[#9E593B]"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 bg-[#0F1115] text-white text-xs font-semibold rounded-lg hover:bg-black cursor-pointer"
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCap(false)}
+                        className="px-2.5 py-1.5 text-xs text-[#6B7280] hover:text-[#0F1115] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  )}
+
+                  {/* Grid of Capabilities */}
+                  <div className="grid sm:grid-cols-2 gap-2.5 text-xs pt-1">
                     {[
-                      { name: 'Juki DDL-8700 Industrial Lockstitch', type: 'Primary Bench', status: 'Ready / Active' },
-                      { name: 'Juki MO-6814S 4-Thread Overlock', type: 'Finishing Bench', status: 'Ready / Active' },
-                      { name: 'Union Special Denim Chainstitch', type: 'Denim Hemming', status: 'Ready / Active' },
-                      { name: 'Reece 101 Eyelet Buttonholer', type: 'Suits & Tailoring', status: 'Standby' },
-                    ].map((m, i) => (
-                      <div key={i} className="flex justify-between items-center p-3 rounded-2xl bg-[#F9FAFB] border border-[#EAECF0]">
-                        <div>
-                          <div className="font-bold text-[#0F1115]">{m.name}</div>
-                          <div className="text-[11px] text-[#6B7280]">{m.type}</div>
-                        </div>
-                        <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg text-[10px]">{m.status}</span>
-                      </div>
-                    ))}
+                      'Suit Tailoring & Formalwear',
+                      'Dress Hemming & Gown Fit',
+                      'Denim Chainstitch & Alterations',
+                      'Zip Replacements & Repairs',
+                      'Leather & Suede Alterations',
+                      'Bespoke Silk & Evening Gowns',
+                      'Bridal Resizing & Bustles',
+                      'Curtain & Drapery Hemming',
+                      ...capabilities.filter(c => ![
+                        'Suit Tailoring & Formalwear',
+                        'Dress Hemming & Gown Fit',
+                        'Denim Chainstitch & Alterations',
+                        'Zip Replacements & Repairs',
+                        'Leather & Suede Alterations',
+                        'Bespoke Silk & Evening Gowns',
+                        'Bridal Resizing & Bustles',
+                        'Curtain & Drapery Hemming',
+                      ].includes(c))
+                    ].map((spec) => {
+                      const isActive = capabilities.includes(spec)
+                      return (
+                        <button
+                          key={spec}
+                          type="button"
+                          onClick={() => toggleCapability(spec)}
+                          className={`flex justify-between items-center p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-[#F9FAFB] border-[#EAECF0] hover:border-[#9E593B]'
+                              : 'bg-stone-50/50 border-stone-200 opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <div className={`font-semibold ${isActive ? 'text-[#0F1115]' : 'text-stone-500'}`}>{spec}</div>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            isActive
+                              ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
+                              : 'text-stone-500 bg-stone-100 border-stone-300'
+                          }`}>
+                            {isActive ? 'Active' : 'Paused'}
+                          </span>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
@@ -1965,6 +2289,18 @@ export function PartnerFlow({ go, user, onSignOut }: PartnerFlowProps) {
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* TAB 5: STUDIO PROFILE & CONFIGURATION                           */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {activeTab === 'profile' && user && (
+              <StudioProfileView
+                user={user}
+                onUpdateUser={onUpdateUser}
+                onBack={() => setActiveTab('cockpit')}
+                onSignOut={onSignOut}
+              />
             )}
 
           </div>

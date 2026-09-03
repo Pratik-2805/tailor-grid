@@ -22,7 +22,6 @@ function generateToken(user) {
       email: user.email || null,
       phone: user.phone || null,
       name: user.name,
-      avatar: user.avatar || null,
       role: user.role || 'CUSTOMER',
       studioId: user.studioId || null,
     },
@@ -69,16 +68,34 @@ async function findOrLinkUser({
   }
 
   // 3. If Studio role and creating a store
-  let actualStudioId = studioId;
+  let actualStudioId = studioId || user?.studioId;
   if (role === 'STUDIO' && (studioName || name)) {
     const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
-    if (!actualStudioId) {
-      const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
-      actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
-    }
 
     try {
-      const existingStore = await prisma.partnerStore.findUnique({ where: { id: actualStudioId } });
+      let existingStore = null;
+      if (actualStudioId) {
+        existingStore = await prisma.partnerStore.findUnique({ where: { id: actualStudioId } });
+      }
+      if (!existingStore) {
+        existingStore = await prisma.partnerStore.findFirst({
+          where: {
+            OR: [
+              { name: actualStoreName },
+              { leadTailor: name || '' },
+            ],
+          },
+        });
+        if (existingStore) {
+          actualStudioId = existingStore.id;
+        }
+      }
+
+      if (!actualStudioId) {
+        const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
+        actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
+      }
+
       if (!existingStore) {
         await prisma.partnerStore.create({
           data: {
@@ -100,6 +117,16 @@ async function findOrLinkUser({
             retailSold: true,
             lat: 40.7259,
             lng: -74.0003,
+          },
+        });
+      } else {
+        await prisma.partnerStore.update({
+          where: { id: existingStore.id },
+          data: {
+            name: actualStoreName,
+            leadTailor: name || existingStore.leadTailor,
+            address: address || existingStore.address,
+            postcode: postcode || existingStore.postcode,
           },
         });
       }
@@ -132,12 +159,12 @@ async function findOrLinkUser({
           ? user.name
           : name || user.name,
       avatar:
-        avatar && !avatar.includes('dicebear')
-          ? avatar
-          : user.avatar && !user.avatar.includes('dicebear')
-            ? user.avatar
-            : avatar ||
-            user.avatar ||
+        user.avatar && !user.avatar.includes('dicebear')
+          ? user.avatar
+          : avatar && !avatar.includes('dicebear')
+            ? avatar
+            : user.avatar ||
+            avatar ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
               normEmail || normPhone || 'user'
             )}`,
@@ -145,7 +172,7 @@ async function findOrLinkUser({
       postcode: user.postcode || postcode || 'W8 4EP',
       contact: user.email || user.phone || normEmail || normPhone || user.contact,
       studioId: actualStudioId || user.studioId || null,
-      studioName: studioName || user.studioName || null,
+      studioName: user.studioName || studioName || null,
     };
 
     user = await prisma.user.update({
@@ -524,9 +551,14 @@ router.post('/signup', async (req, res) => {
             error: 'Access Denied! Login with an another account.',
           });
         }
-        return res.status(409).json({
-          error: 'An account with this email address is already registered. Please sign in instead.',
-        });
+        // If Customer role, prevent duplicate registration
+        if (role === 'CUSTOMER') {
+          return res.status(409).json({
+            error: 'An account with this email address is already registered. Please sign in instead.',
+          });
+        }
+        // If STUDIO role, user authenticated via Google and is completing the 3-step studio details.
+        // We allow findOrLinkUser to seamlessly update their studio name, phone, address, and machines!
       }
     }
 
@@ -543,9 +575,11 @@ router.post('/signup', async (req, res) => {
             error: 'Access Denied! Login with an another account.',
           });
         }
-        return res.status(409).json({
-          error: 'An account with this mobile number is already registered. Please sign in instead.',
-        });
+        if (existingPhone.email && cleanEmail && existingPhone.email !== cleanEmail) {
+          return res.status(409).json({
+            error: 'An account with this mobile number is already registered to another email.',
+          });
+        }
       }
     }
 
@@ -640,8 +674,15 @@ router.post('/update-profile', async (req, res) => {
       } catch (e) { }
     }
 
-    const { id, name, email, phone, address, postcode } = req.body;
-    const targetId = userId || id;
+    const { id, name, email, phone, address, postcode, avatar, studioName } = req.body;
+    let targetId = userId || id;
+
+    if (!targetId && email) {
+      const userByEmail = await prisma.user.findUnique({
+        where: { email: email.toLowerCase().trim() },
+      });
+      if (userByEmail) targetId = userByEmail.id;
+    }
 
     if (!targetId) {
       return res.status(401).json({ error: 'Unauthorized: missing user identity.' });
@@ -649,6 +690,8 @@ router.post('/update-profile', async (req, res) => {
 
     const updateData = {};
     if (name) updateData.name = name;
+    if (studioName !== undefined) updateData.studioName = studioName;
+    if (avatar !== undefined) updateData.avatar = avatar;
     if (email) {
       const cleanEmail = email.toLowerCase().trim();
       const emailConflict = await prisma.user.findFirst({
@@ -678,6 +721,45 @@ router.post('/update-profile', async (req, res) => {
       where: { id: targetId },
       data: updateData,
     });
+
+    // If user is a Studio partner, sync details to partnerStore
+    if (user.role === 'STUDIO') {
+      try {
+        let store = null;
+        if (user.studioId) {
+          store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+        }
+        if (!store) {
+          store = await prisma.partnerStore.findFirst({
+            where: {
+              OR: [
+                ...(user.studioName ? [{ name: user.studioName }] : []),
+                { leadTailor: user.name },
+              ],
+            },
+          });
+        }
+        if (store) {
+          await prisma.partnerStore.update({
+            where: { id: store.id },
+            data: {
+              ...(studioName ? { name: studioName } : {}),
+              ...(name ? { leadTailor: name } : {}),
+              ...(address ? { address } : {}),
+              ...(postcode ? { postcode } : {}),
+            },
+          });
+          if (!user.studioId) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { studioId: store.id },
+            });
+          }
+        }
+      } catch (storeSyncErr) {
+        console.warn('Sync partner store error:', storeSyncErr.message);
+      }
+    }
 
     const token = generateToken(user);
     return res.json({

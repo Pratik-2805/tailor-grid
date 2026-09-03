@@ -14,15 +14,15 @@ export type User = {
   id?: string
   name: string
   contact: string
-  email?: string
-  phone?: string
-  avatar?: string
-  address?: string
-  postcode?: string
+  email?: string | null
+  phone?: string | null
+  avatar?: string | null
+  address?: string | null
+  postcode?: string | null
   method: 'google' | 'apple' | 'email' | 'mobile'
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-  studioId?: string
-  studioName?: string
+  studioId?: string | null
+  studioName?: string | null
 }
 
 export type StoreOption = {
@@ -43,6 +43,7 @@ export type StoreOption = {
   specialties: string[]
   retailSold: boolean
   coords: { lat: number; lng: number }
+  image?: string
 }
 
 export type FittingBooking = {

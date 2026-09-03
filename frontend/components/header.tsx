@@ -58,6 +58,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
               width={140}
               height={48}
               priority
+              style={{ width: 'auto' }}
               className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
             />
             <div className="hidden sm:flex flex-col justify-center">
