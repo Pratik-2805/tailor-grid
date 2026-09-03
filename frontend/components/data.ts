@@ -1,5 +1,6 @@
 export type Screen =
   | 'home'
+  | 'book'
   | 'how-it-works'
   | 'about'
   | 'for-partners'

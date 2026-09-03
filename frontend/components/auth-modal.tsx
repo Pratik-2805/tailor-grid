@@ -988,11 +988,10 @@ export function AuthModal({
                             key={s}
                             type="button"
                             onClick={() => toggleSpecialty(s)}
-                            className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold border transition-all ${
-                              on
+                            className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold border transition-all ${on
                                 ? 'bg-[#0F1115] text-white border-[#0F1115]'
                                 : 'bg-white text-[#5A5D64] border-[#DDD6CB] hover:border-[#9E593B]'
-                            }`}
+                              }`}
                           >
                             {on && <Check size={9} className="inline mr-0.5" />}
                             {s}
@@ -1038,11 +1037,10 @@ function GoogleButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2.5 text-[13px] font-semibold transition-all disabled:opacity-60 ${
-        bordered
+      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2.5 text-[13px] font-semibold transition-all disabled:opacity-60 ${bordered
           ? 'border border-[#DDD6CB] bg-white text-[#18191B] hover:bg-[#FAF8F5]'
           : 'bg-white border border-[#DDD6CB] text-[#18191B] hover:bg-[#FAF8F5]'
-      }`}
+        }`}
     >
       <GoogleLogo />
       <span>{loading ? 'Connecting…' : label}</span>

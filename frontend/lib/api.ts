@@ -255,9 +255,16 @@ export async function getCurrentUser(): Promise<User | null> {
         }
         return data.user
       }
+    } else if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tg_token')
+        localStorage.removeItem('tg_user')
+        localStorage.removeItem('tg_user_role')
+      }
+      return null
     }
   } catch (err) {
-    // API offline
+    // API offline fallback to local cache
   }
 
   if (typeof window !== 'undefined') {

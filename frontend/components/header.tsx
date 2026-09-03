@@ -74,24 +74,55 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
-          <button
-            onClick={() => nav('how-it-works')}
-            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
-          >
-            How it Works
-          </button>
-          <button
-            onClick={() => nav('about')}
-            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
-          >
-            About Us
-          </button>
-          <button
-            onClick={() => nav('for-partners')}
-            className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
-          >
-            For Studios
-          </button>
+          {user && (user.role === 'CUSTOMER' || !user.role) ? (
+            <>
+              <button
+                onClick={() => nav('book')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'book' ? 'text-[#0F1115] font-bold' : ''}`}
+              >
+                Book Alterations
+              </button>
+              <button
+                onClick={() => nav('orders')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'orders' || currentScreen === 'order' ? 'text-[#0F1115] font-bold' : ''}`}
+              >
+                My Orders
+              </button>
+              <button
+                onClick={() => nav('how-it-works')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
+              >
+                How it Works
+              </button>
+              <button
+                onClick={() => nav('about')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
+              >
+                About Us
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => nav('how-it-works')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
+              >
+                How it Works
+              </button>
+              <button
+                onClick={() => nav('about')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
+              >
+                About Us
+              </button>
+              <button
+                onClick={() => nav('for-partners')}
+                className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
+              >
+                For Studios
+              </button>
+            </>
+          )}
         </nav>
 
         {/* Right CTAs & User Auth */}
@@ -249,40 +280,63 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
       {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-          {[
-            { label: 'How it Works', screen: 'how-it-works' as Screen },
-            { label: 'Track My Orders', screen: 'orders' as Screen },
-            { label: 'About Us', screen: 'about' as Screen },
-            { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={() => {
-                if (item.screen === 'orders' && !user && onOpenAuth) {
-                  setOpen(false)
-                  onOpenAuth()
-                } else {
-                  nav(item.screen)
-                }
-              }}
-              className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
-            >
-              <span>{item.label}</span>
-              <span className="text-[#9CA3AF]">→</span>
-            </button>
-          ))}
+          {user && (user.role === 'CUSTOMER' || !user.role) ? (
+            <>
+              {[
+                { label: 'Book Alterations', screen: 'book' as Screen },
+                { label: 'My Orders', screen: 'orders' as Screen },
+                { label: 'My Profile', screen: 'profile' as Screen },
+                { label: 'How it Works', screen: 'how-it-works' as Screen },
+                { label: 'About Us', screen: 'about' as Screen },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => nav(item.screen)}
+                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
+                >
+                  <span>{item.label}</span>
+                  <span className="text-[#9CA3AF]">→</span>
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              {[
+                { label: 'How it Works', screen: 'how-it-works' as Screen },
+                { label: 'Track My Orders', screen: 'orders' as Screen },
+                { label: 'About Us', screen: 'about' as Screen },
+                { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    if (item.screen === 'orders' && !user && onOpenAuth) {
+                      setOpen(false)
+                      onOpenAuth()
+                    } else {
+                      nav(item.screen)
+                    }
+                  }}
+                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
+                >
+                  <span>{item.label}</span>
+                  <span className="text-[#9CA3AF]">→</span>
+                </button>
+              ))}
 
-          {user && (
-            <button
-              onClick={() => {
-                setOpen(false)
-                onOpenProfile?.()
-              }}
-              className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
-            >
-              <span>My Profile</span>
-              <span className="text-[#9CA3AF]">→</span>
-            </button>
+              {user && (
+                <button
+                  onClick={() => {
+                    setOpen(false)
+                    onOpenProfile?.()
+                  }}
+                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
+                >
+                  <span>My Profile</span>
+                  <span className="text-[#9CA3AF]">→</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
