@@ -7,7 +7,6 @@ export type Screen =
   | 'orders'
   | 'partner'
   | 'admin'
-  | 'confirm-measurement'
   | 'order'
   | 'profile'
 

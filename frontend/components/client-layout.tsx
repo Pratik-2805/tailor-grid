@@ -35,7 +35,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     if (clean === 'about') return 'about'
     if (clean === 'how-it-works') return 'how-it-works'
     if (clean === 'for-partners') return 'for-partners'
-    if (clean === 'confirm-measurement') return 'confirm-measurement'
     if (clean === 'orders') return 'orders'
     if (clean === 'order') return 'order'
     if (clean === 'admin') return 'admin'

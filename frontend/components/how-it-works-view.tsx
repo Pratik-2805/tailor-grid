@@ -46,7 +46,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
     if (onQuickSearch) {
       onQuickSearch('W8 4EP', garmentId)
     }
-    go('confirm-measurement')
+    go('book')
   }
 
   // 5 Step-by-Step Milestones
@@ -329,7 +329,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
 
               <div className="pt-2">
                 <button
-                  onClick={() => go('confirm-measurement')}
+                  onClick={() => go('book')}
                   className="rounded-full bg-[#0F1115] px-7 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-all shadow-md active:scale-95 inline-flex items-center gap-2"
                 >
                   <span>Book tailoring without an app</span>
@@ -453,7 +453,7 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
 
             <div className="flex flex-wrap items-center gap-4">
               <button
-                onClick={() => go('confirm-measurement')}
+                onClick={() => go('book')}
                 className="rounded-full bg-[#FAF8F5] text-[#0F1115] px-8 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-md transition-all hover:bg-[#9E593B] hover:text-white active:scale-95 inline-flex items-center gap-2"
               >
                 <span>Book a fitting pass now</span>

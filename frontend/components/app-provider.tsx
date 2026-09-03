@@ -113,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = JSON.parse(stored)
           setUser(parsed)
-          if ((parsed.role === 'CUSTOMER' || !parsed.role) && window.location.pathname === '/') {
+          if (parsed.role === 'CUSTOMER' && window.location.pathname === '/') {
             router.replace('/book')
           }
         } catch { }
@@ -131,7 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(u)
         if (typeof window !== 'undefined') {
           localStorage.setItem('tg_user', JSON.stringify(u))
-          if ((u.role === 'CUSTOMER' || !u.role) && window.location.pathname === '/') {
+          if (u.role === 'CUSTOMER' && window.location.pathname === '/') {
             router.replace('/book')
           }
         }
@@ -156,7 +156,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setIsAuthOpen(false)
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user_role', loggedUser.role || 'CUSTOMER')
+      localStorage.setItem('tg_user_role', loggedUser.role ?? 'CUSTOMER')
       localStorage.setItem('tg_user', JSON.stringify(loggedUser))
     }
 
@@ -191,12 +191,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const navigate = (screenOrPath: Screen | string) => {
-    if (screenOrPath === 'confirm-measurement' || screenOrPath === '/confirm-measurement') {
-      if (!user || !user.phone) {
-        openAuth('CUSTOMER', user ? 'signup' : 'signin')
-        return
-      }
-      router.push('/confirm-measurement')
+    if (screenOrPath === 'book' || screenOrPath === '/book') {
+      router.push('/book')
       return
     }
 
@@ -215,7 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
-      if (user && (user.role === 'CUSTOMER' || !user.role)) {
+      if (user && user.role === 'CUSTOMER') {
         router.push('/book')
         return
       }

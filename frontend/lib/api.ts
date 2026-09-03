@@ -62,10 +62,14 @@ export async function verifyOtp(params: {
     }
 
     const data = await res.json()
+    if (data.user) {
+      data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
+    }
     if (data.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', data.token)
       if (data.user) {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
+        localStorage.setItem('tg_user_role', data.user.role)
       }
     }
     return data
@@ -97,11 +101,15 @@ export async function linkPhone(params: {
     }
 
     const data = await res.json()
+    if (data.user) {
+      data.user.role = data.user.role ?? 'CUSTOMER'
+    }
     if (data.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', data.token)
     }
     if (data.user && typeof window !== 'undefined') {
       localStorage.setItem('tg_user', JSON.stringify(data.user))
+      localStorage.setItem('tg_user_role', data.user.role)
     }
     return data
   } catch (err: any) {
@@ -128,10 +136,14 @@ export async function loginWithGoogle(params: {
     }
 
     const data = await res.json()
+    if (data.user) {
+      data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
+    }
     if (data.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', data.token)
       if (data.user) {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
+        localStorage.setItem('tg_user_role', data.user.role)
       }
     }
     return data
@@ -180,10 +192,14 @@ export async function signUpUser(data: {
     }
 
     const result = await res.json()
+    if (result.user) {
+      result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
+    }
     if (result.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', result.token)
       if (result.user) {
         localStorage.setItem('tg_user', JSON.stringify(result.user))
+        localStorage.setItem('tg_user_role', result.user.role)
       }
     }
     return result
@@ -211,10 +227,14 @@ export async function loginUser(data: {
     }
 
     const result = await res.json()
+    if (result.user) {
+      result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
+    }
     if (result.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', result.token)
       if (result.user) {
         localStorage.setItem('tg_user', JSON.stringify(result.user))
+        localStorage.setItem('tg_user_role', result.user.role)
       }
     }
     return result

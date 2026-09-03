@@ -20,13 +20,13 @@ export default function HomePage() {
   } = useApp()
 
   useEffect(() => {
-    if (user && (user.role === 'CUSTOMER' || !user.role)) {
+    if (user && user.role === 'CUSTOMER') {
       router.replace('/book')
     }
   }, [user, router])
 
   // If user is a logged-in customer, redirect to customer book view and do not display home page
-  if (user && (user.role === 'CUSTOMER' || !user.role)) {
+  if (user && user.role === 'CUSTOMER') {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">

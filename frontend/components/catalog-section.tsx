@@ -43,7 +43,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
             </p>
           </div>
           <button
-            onClick={() => go('confirm-measurement')}
+            onClick={() => go('book')}
             className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
           >
             Custom order request <ArrowRight size={13} />
@@ -102,7 +102,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
                 <button
                   onClick={() => {
                     onSelectService?.(cat.id, svc.id)
-                    go('confirm-measurement')
+                    go('book')
                   }}
                   className="rounded-full bg-[#0F1115] px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-all hover:bg-[#9E593B] active:scale-95 shadow-2xs"
                 >
@@ -117,7 +117,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
         <div className="mt-8 p-4 rounded-2xl bg-[#F3EFEA] border border-[#EBE6DF] text-center text-xs text-[#6B7280]">
           Looking for a custom consultation or complex bridal alteration?{' '}
           <button
-            onClick={() => go('confirm-measurement')}
+            onClick={() => go('book')}
             className="text-[#0F1115] font-bold underline hover:text-[#9E593B] ml-1"
           >
             Book an Artisan Consultation →

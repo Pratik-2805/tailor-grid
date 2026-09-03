@@ -129,7 +129,7 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
                   <button
                     onClick={() => {
                       if (onSelectStore) onSelectStore(store)
-                      go('confirm-measurement')
+                      go('book')
                     }}
                     className="w-full rounded-2xl bg-[#FAF8F5] py-2.5 text-xs font-bold uppercase tracking-wider text-[#0F1115] border border-[#E8E1D5] transition-all hover:bg-[#0F1115] hover:text-white hover:border-[#0F1115] active:scale-98 cursor-pointer"
                   >
