@@ -257,7 +257,14 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
 
 export async function getCurrentUser(): Promise<User | null> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-  if (!token) return null
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
+    }
+    return null
+  }
 
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
@@ -272,20 +279,17 @@ export async function getCurrentUser(): Promise<User | null> {
         return data.user
       }
     }
-  } catch (err) {
-    // API offline
-  }
 
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('tg_user')
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch { }
+    // User not found in DB or token invalid -> clear stale local session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
     }
+    return null
+  } catch (err) {
+    return null
   }
-
-  return null
 }
 
 export async function fetchOrders(query?: string): Promise<FittingBooking[]> {

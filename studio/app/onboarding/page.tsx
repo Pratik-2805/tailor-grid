@@ -10,7 +10,7 @@ export default function StudioOnboardingPage() {
 
   useEffect(() => {
     getCurrentUser().then((u) => {
-      if (u) setUser(u)
+      setUser(u)
     })
   }, [])
 

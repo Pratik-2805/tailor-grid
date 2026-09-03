@@ -46,7 +46,7 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u) setUser(u)
+        setUser(u)
       })
       .finally(() => {
         setLoadingUser(false)

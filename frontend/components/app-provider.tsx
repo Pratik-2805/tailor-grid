@@ -104,16 +104,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     images: [],
   })
 
-  // Sync current user session on mount
+  // Sync current user session on mount directly from DB
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      if (stored) {
-        try {
-          setUser(JSON.parse(stored))
-        } catch {}
-      }
-
       const params = new URLSearchParams(window.location.search)
       const authParam = params.get('auth')
       if (authParam === 'required' || authParam === 'signin') {
@@ -122,11 +115,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     getCurrentUser().then((u) => {
-      if (u) {
-        setUser(u)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(u))
-        }
+      setUser(u)
+      if (!u && typeof window !== 'undefined') {
+        localStorage.removeItem('tg_user')
+        localStorage.removeItem('tg_token')
+        localStorage.removeItem('tg_user_role')
       }
     })
   }, [])

@@ -69,6 +69,7 @@ async function findOrLinkUser({
 
   // 3. If Studio role and creating a store
   let actualStudioId = studioId || user?.studioId;
+  let resolvedStore = null;
   if (role === 'STUDIO' && (studioName || name)) {
     const actualStoreName = studioName || `${name || 'Master'}'s Studio`;
 
@@ -97,7 +98,7 @@ async function findOrLinkUser({
       }
 
       if (!existingStore) {
-        await prisma.partnerStore.create({
+        resolvedStore = await prisma.partnerStore.create({
           data: {
             id: actualStudioId,
             name: actualStoreName,
@@ -120,13 +121,15 @@ async function findOrLinkUser({
           },
         });
       } else {
-        await prisma.partnerStore.update({
+        resolvedStore = await prisma.partnerStore.update({
           where: { id: existingStore.id },
           data: {
             name: actualStoreName,
             leadTailor: name || existingStore.leadTailor,
             address: address || existingStore.address,
             postcode: postcode || existingStore.postcode,
+            ...(storeArea ? { area: storeArea } : {}),
+            ...(machines ? { machines: parseInt(machines) || existingStore.machines } : {}),
           },
         });
       }
@@ -137,9 +140,8 @@ async function findOrLinkUser({
 
   // 4. Update existing user or create new user
   if (user) {
-    // If user has no phone and a new unique phone was passed, check phone conflict first
     let updatedPhone = user.phone;
-    if (!user.phone && normPhone) {
+    if (normPhone) {
       const phoneConflict = await prisma.user.findFirst({
         where: { phone: normPhone, NOT: { id: user.id } },
       });
@@ -149,15 +151,12 @@ async function findOrLinkUser({
     }
 
     const updatedFields = {
-      email: user.email || normEmail,
+      email: normEmail || user.email,
       phone: updatedPhone,
       name:
-        user.name &&
-          user.name !== 'Darzi Member' &&
-          user.name !== 'Google User' &&
-          user.name !== 'Mobile Member'
-          ? user.name
-          : name || user.name,
+        name && name !== 'Master Tailor' && name !== 'Google User' && name !== 'Darzi Member' && name !== 'Mobile Member'
+          ? name
+          : user.name || name || 'Darzi Member',
       avatar:
         user.avatar && !user.avatar.includes('dicebear')
           ? user.avatar
@@ -168,11 +167,12 @@ async function findOrLinkUser({
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
               normEmail || normPhone || 'user'
             )}`,
-      address: user.address || address || '18 Kensington Church St',
-      postcode: user.postcode || postcode || 'W8 4EP',
-      contact: user.email || user.phone || normEmail || normPhone || user.contact,
+      address: address || resolvedStore?.address || user.address || '18 Kensington Church St',
+      postcode: postcode || resolvedStore?.postcode || user.postcode || 'W8 4EP',
+      contact: normEmail || normPhone || user.email || user.phone || user.contact,
+      role: role || user.role || 'CUSTOMER',
       studioId: actualStudioId || user.studioId || null,
-      studioName: user.studioName || studioName || null,
+      studioName: studioName || resolvedStore?.name || user.studioName || null,
     };
 
     user = await prisma.user.update({
@@ -205,14 +205,14 @@ async function findOrLinkUser({
       avatar:
         avatar ||
         `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
-      address: address || '18 Kensington Church St',
-      postcode: postcode || 'W8 4EP',
+      address: address || resolvedStore?.address || '18 Kensington Church St',
+      postcode: postcode || resolvedStore?.postcode || 'W8 4EP',
       method:
         method ||
         (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
       role: role || 'CUSTOMER',
       studioId: actualStudioId || null,
-      studioName: studioName || null,
+      studioName: studioName || resolvedStore?.name || null,
     };
 
     user = await prisma.user.create({
@@ -831,6 +831,30 @@ router.get('/me', async (req, res) => {
 
     if (!user) {
       return res.status(404).json({ error: 'User profile not found' });
+    }
+
+    if (user.role === 'STUDIO' && user.studioId) {
+      try {
+        const store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+        if (store) {
+          const needsSync =
+            (store.address && user.address !== store.address) ||
+            (store.postcode && user.postcode !== store.postcode) ||
+            (store.name && user.studioName !== store.name);
+          if (needsSync) {
+            user = await prisma.user.update({
+              where: { id: user.id },
+              data: {
+                address: store.address || user.address,
+                postcode: store.postcode || user.postcode,
+                studioName: store.name || user.studioName,
+              },
+            });
+          }
+        }
+      } catch (syncErr) {
+        console.warn('Sync partner store in /me notice:', syncErr.message);
+      }
     }
 
     return res.json({
