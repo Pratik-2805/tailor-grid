@@ -24,7 +24,15 @@ export function StudioSubNav({
   onOpenAuth,
 }: StudioSubNavProps) {
   const [activeSection, setActiveSection] = useState<string>('')
-  const isStudioUser = user && user.role === 'STUDIO'
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  const isStudioUser =
+    (user && user.role === 'STUDIO') ||
+    (isClient && localStorage.getItem('tg_user_role') === 'STUDIO')
 
   const scrollToSection = (id: string) => {
     if (currentScreen !== 'for-partners') {
@@ -47,12 +55,16 @@ export function StudioSubNav({
     }
   }
 
+  const [scrolledPastHero, setScrolledPastHero] = useState(false)
+
   // Active section observer on scroll
   useEffect(() => {
-    if (currentScreen !== 'for-partners') return
-
     const handleScroll = () => {
-      const sections = ['why-partner', 'requirements', 'safety', 'faq', 'apply-form']
+      setScrolledPastHero(window.scrollY > 380)
+
+      if (currentScreen !== 'for-partners') return
+
+      const sections = ['why-partner', 'requirements', 'safety', 'faq']
       const scrollPos = window.scrollY + 140
 
       for (const sectionId of sections) {
@@ -69,56 +81,45 @@ export function StudioSubNav({
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
     return () => window.removeEventListener('scroll', handleScroll)
   }, [currentScreen])
 
+  const handleOpenStudioPortal = (authAction?: 'signin' | 'signup') => {
+    const token = isClient ? localStorage.getItem('tg_token') : null
+    if (isStudioUser && token) {
+      window.location.href = getStudioUrl('/', token)
+    } else if (authAction) {
+      window.location.href = getStudioUrl(`/?auth=${authAction}`)
+    } else {
+      window.location.href = getStudioUrl('/')
+    }
+  }
+
   return (
     <div className="sticky top-[68px] z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E1D5] shadow-xs transition-all">
-      <div className="mx-auto flex h-[54px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
+      <div className="mx-auto flex h-[54px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-3 sm:gap-4">
         
-        {/* Left: Bold Category Title (Uber-style sub-brand header) */}
+        {/* Left: Bold Category Title */}
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => {
               go('for-partners')
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
-            className="flex items-center gap-2 group text-left"
+            className="flex items-center gap-2 group text-left cursor-pointer"
           >
-            <span className="font-serif text-[20px] sm:text-[22px] font-bold text-[#0F1115] tracking-tight group-hover:text-[#9E593B] transition-colors">
+            <span className="font-serif text-[19px] sm:text-[22px] font-bold text-[#0F1115] tracking-tight group-hover:text-[#9E593B] transition-colors">
               For Studios
             </span>
           </button>
         </div>
 
-        {/* Right: Sub Navigation Links (Uber Style) */}
-        <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 overflow-x-auto no-scrollbar py-1">
-          
-          <button
-            onClick={() => scrollToSection('apply-form')}
-            className={`px-3 py-1.5 text-[13px] font-semibold rounded-full transition-colors whitespace-nowrap ${
-              activeSection === 'apply-form'
-                ? 'bg-[#F4EFEA] text-[#0F1115]'
-                : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
-            }`}
-          >
-            Sign up
-          </button>
-
-          <button
-            onClick={() => scrollToSection('requirements')}
-            className={`px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
-              activeSection === 'requirements'
-                ? 'bg-[#F4EFEA] text-[#0F1115] font-semibold'
-                : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
-            }`}
-          >
-            Requirements
-          </button>
-
+        {/* Center/Right: Informational Navigation Links + Action CTAs */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => scrollToSection('why-partner')}
-            className={`px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
+            className={`px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer ${
               activeSection === 'why-partner'
                 ? 'bg-[#F4EFEA] text-[#0F1115] font-semibold'
                 : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
@@ -128,8 +129,19 @@ export function StudioSubNav({
           </button>
 
           <button
+            onClick={() => scrollToSection('requirements')}
+            className={`px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer ${
+              activeSection === 'requirements'
+                ? 'bg-[#F4EFEA] text-[#0F1115] font-semibold'
+                : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
+            }`}
+          >
+            Requirements
+          </button>
+
+          <button
             onClick={() => scrollToSection('safety')}
-            className={`hidden md:inline-flex px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
+            className={`hidden md:inline-flex px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer ${
               activeSection === 'safety'
                 ? 'bg-[#F4EFEA] text-[#0F1115] font-semibold'
                 : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
@@ -140,7 +152,7 @@ export function StudioSubNav({
 
           <button
             onClick={() => scrollToSection('faq')}
-            className={`hidden sm:inline-flex px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap ${
+            className={`hidden sm:inline-flex px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer ${
               activeSection === 'faq'
                 ? 'bg-[#F4EFEA] text-[#0F1115] font-semibold'
                 : 'text-[#4B5563] hover:text-[#0F1115] hover:bg-[#FAF8F5]'
@@ -149,29 +161,40 @@ export function StudioSubNav({
             FAQ
           </button>
 
-          {/* Studio Action / Portal CTA -> Runs on Port 3001 */}
-          <div className="pl-1 sm:pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
+          {/* Action CTAs (Studio Sign In / Apply to Partner / Studio Workbench) */}
+          <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
             {isStudioUser ? (
               <button
-                onClick={() => {
-                  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                  window.location.href = getStudioUrl('/', token)
-                }}
-                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer"
+                onClick={() => handleOpenStudioPortal()}
+                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer"
               >
-                <Store size={13} />
-                <span>Studio Dashboard ↗</span>
+                <Store size={13} className="text-[#E7C9BA]" />
+                <span>Studio Workbench ↗</span>
               </button>
             ) : (
-              <button
-                onClick={() => {
-                  window.location.href = getStudioUrl('/')
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12.5px] font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap cursor-pointer"
-              >
-                <LogIn size={13} />
-                <span>Studio Portal ↗</span>
-              </button>
+              <>
+                <button
+                  onClick={() => handleOpenStudioPortal('signin')}
+                  className="flex items-center gap-1.5 rounded-full border border-[#D5CDC2] hover:border-[#0F1115] bg-white px-3 sm:px-3.5 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-[#0F1115] hover:bg-[#FAF8F5] transition-all whitespace-nowrap cursor-pointer"
+                  title="Access Studio Portal Workbench"
+                >
+                  <LogIn size={13} className="text-[#6B7280]" />
+                  <span>Studio Portal ↗</span>
+                </button>
+
+                {/* Show Enroll Studio button in sticky nav only when scrolled past the hero */}
+                {scrolledPastHero && (
+                  <button
+                    onClick={() => {
+                      window.location.href = '/partner/onboarding'
+                    }}
+                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
+                  >
+                    <Sparkles size={12} className="text-[#E7C9BA]" />
+                    <span>Enroll Studio</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
