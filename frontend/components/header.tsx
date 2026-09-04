@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronDown, LogOut, MapPin, Menu, Package, Phone, Scissors, ShieldCheck, User as UserIcon, X } from 'lucide-react'
+import { Building2, ChevronDown, LogOut, MapPin, Menu, Package, Phone, Scissors, ShieldCheck, User as UserIcon, X } from 'lucide-react'
+import { getStudioUrl } from '@/lib/api'
 import { type Screen, type User } from './data'
 
 interface HeaderProps {
@@ -74,7 +75,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
-          {user && user.role === 'CUSTOMER' ? (
+          {user ? (
             <>
               <button
                 onClick={() => nav('book')}
@@ -196,6 +197,23 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
 
                   {/* Navigation Links */}
                   <div className="space-y-1">
+                    {user?.role === 'STUDIO' && (
+                      <button
+                        onClick={() => {
+                          setIsPinned(false)
+                          setIsHovered(false)
+                          const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                          window.location.href = getStudioUrl('/', token)
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-[#FAF8F5] text-[13px] font-semibold text-[#18191B] transition-colors text-left group"
+                      >
+                        <span className="size-6 rounded-lg bg-[#FAF8F5] group-hover:bg-white border border-[#E8E1D5]/80 grid place-items-center text-[#9E593B] shrink-0 transition-colors">
+                          <Building2 size={13} />
+                        </span>
+                        <span>Studio Dashboard</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => {
                         setIsPinned(false)
@@ -280,8 +298,24 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
       {/* Mobile Menu */}
       {open && (
         <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-          {user && user.role === 'CUSTOMER' ? (
+          {user ? (
             <>
+              {user.role === 'STUDIO' && (
+                <button
+                  onClick={() => {
+                    setOpen(false)
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    window.location.href = getStudioUrl('/', token)
+                  }}
+                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Building2 size={16} className="text-[#9E593B]" />
+                    Studio Dashboard
+                  </span>
+                  <span className="text-[#9CA3AF]">→</span>
+                </button>
+              )}
               {[
                 { label: 'Book Alterations', screen: 'book' as Screen },
                 { label: 'My Orders', screen: 'orders' as Screen },

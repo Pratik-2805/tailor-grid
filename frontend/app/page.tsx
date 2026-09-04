@@ -20,18 +20,18 @@ export default function HomePage() {
   } = useApp()
 
   useEffect(() => {
-    if (user && user.role === 'CUSTOMER') {
+    if (user) {
       router.replace('/book')
     }
   }, [user, router])
 
-  // If user is a logged-in customer, redirect to customer book view and do not display home page
-  if (user && user.role === 'CUSTOMER') {
+  // If user is logged in, redirect to alterations book view and do not display home page
+  if (user) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="size-7 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-medium text-[#7A7E85]">Loading your studio…</p>
+          <p className="text-xs font-medium text-[#7A7E85]">Loading alterations map…</p>
         </div>
       </div>
     )

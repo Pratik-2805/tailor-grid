@@ -113,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         try {
           const parsed = JSON.parse(stored)
           setUser(parsed)
-          if (parsed.role === 'CUSTOMER' && window.location.pathname === '/') {
+          if (window.location.pathname === '/') {
             router.replace('/book')
           }
         } catch { }
@@ -131,7 +131,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(u)
         if (typeof window !== 'undefined') {
           localStorage.setItem('tg_user', JSON.stringify(u))
-          if (u.role === 'CUSTOMER' && window.location.pathname === '/') {
+          if (window.location.pathname === '/') {
             router.replace('/book')
           }
         }
@@ -211,7 +211,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
-      if (user && user.role === 'CUSTOMER') {
+      if (user) {
         router.push('/book')
         return
       }

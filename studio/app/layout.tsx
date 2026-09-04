@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Plus_Jakarta_Sans } from 'next/font/google'
+import Script from 'next/script'
 import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
 
@@ -35,9 +36,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${playfair.variable} ${jakarta.variable} scroll-smooth`}>
+      <head>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+      </head>
       <body className="font-sans antialiased bg-[#FAF8F5] text-[#1D2024] selection:bg-[#9E593B]/20 selection:text-[#9E593B]">
         {children}
       </body>
     </html>
   )
 }
+
