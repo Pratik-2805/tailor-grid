@@ -43,7 +43,10 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
             </p>
           </div>
           <button
-            onClick={() => go('book')}
+            onClick={() => {
+              onSelectService?.(activeCategoryId, cat.popularServices[0]?.id || '')
+              go('book')
+            }}
             className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
           >
             Custom order request <ArrowRight size={13} />
@@ -117,7 +120,10 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
         <div className="mt-8 p-4 rounded-2xl bg-[#F3EFEA] border border-[#EBE6DF] text-center text-xs text-[#6B7280]">
           Looking for a custom consultation or complex bridal alteration?{' '}
           <button
-            onClick={() => go('book')}
+            onClick={() => {
+              onSelectService?.(activeCategoryId, cat.popularServices[0]?.id || '')
+              go('book')
+            }}
             className="text-[#0F1115] font-bold underline hover:text-[#9E593B] ml-1"
           >
             Book an Artisan Consultation →
