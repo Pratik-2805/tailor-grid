@@ -99,7 +99,8 @@ export async function loginWithGoogle(params: {
   accessToken?: string
   profile?: Partial<User>
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+  isSignup?: boolean
+}): Promise<{ token?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
@@ -135,6 +136,7 @@ export async function checkEmailExists(email: string, role: string = 'STUDIO'): 
 }
 
 export async function signUpUser(data: {
+  tempSignupId?: string
   name: string
   email?: string
   phone?: string
