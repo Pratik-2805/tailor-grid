@@ -293,10 +293,15 @@ export default function BookPage() {
     user,
     navigate,
     openAuth,
+    prefilledPostcode,
     setPrefilledPostcode,
+    prefilledGarmentId,
     setPrefilledGarmentId,
+    prefilledServiceId,
     setPrefilledServiceId,
+    prefilledStore,
     setPrefilledStore,
+    measurementDraft,
     setMeasurementDraft,
     setConfirmedMeasurements,
     setCreatedOrderId,
@@ -305,9 +310,9 @@ export default function BookPage() {
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
 
-  // Selection states
-  const [selectedGarmentId, setSelectedGarmentId] = useState('trousers')
-  const [selectedServiceId, setSelectedServiceId] = useState('trouser-hem-plain')
+  // Selection states initialized from prefilled context
+  const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
+  const [selectedServiceId, setSelectedServiceId] = useState(prefilledServiceId || 'trouser-hem-plain')
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
 
@@ -336,14 +341,40 @@ export default function BookPage() {
   }, [selectedCity])
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(() => {
-    return getClosestStoreForLocation(selectedCity)
+    return prefilledStore || getClosestStoreForLocation(selectedCity)
   })
 
   // Update selectedStore when city changes
   useEffect(() => {
-    const closest = getClosestStoreForLocation(selectedCity)
-    setSelectedStore(closest)
-  }, [selectedCity])
+    if (prefilledStore) {
+      setSelectedStore(prefilledStore)
+    } else {
+      const closest = getClosestStoreForLocation(selectedCity)
+      setSelectedStore(closest)
+    }
+  }, [selectedCity, prefilledStore])
+
+  // Sync prefilled state from App context / measurement draft
+  useEffect(() => {
+    if (prefilledGarmentId) {
+      setSelectedGarmentId(prefilledGarmentId)
+    }
+    if (prefilledServiceId) {
+      setSelectedServiceId(prefilledServiceId)
+    }
+    if (prefilledStore) {
+      setSelectedStore(prefilledStore)
+    }
+    if (measurementDraft) {
+      if (measurementDraft.garmentId) setSelectedGarmentId(measurementDraft.garmentId)
+      if (measurementDraft.serviceId) setSelectedServiceId(measurementDraft.serviceId)
+      if (measurementDraft.city) setSelectedCity(measurementDraft.city)
+      if (measurementDraft.images && measurementDraft.images.length > 0) setUploadedImages(measurementDraft.images)
+      if (measurementDraft.scheduleDate) setScheduleDateObj(new Date(measurementDraft.scheduleDate))
+      if (measurementDraft.scheduleTime) setSelectedTime(measurementDraft.scheduleTime)
+      if (measurementDraft.measurements) setCustomMeasurements(measurementDraft.measurements)
+    }
+  }, [prefilledGarmentId, prefilledServiceId, prefilledStore, measurementDraft])
 
   // Derive active category & service
   const currentCategory = useMemo(() => {

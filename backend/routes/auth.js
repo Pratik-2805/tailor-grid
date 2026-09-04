@@ -447,6 +447,35 @@ router.post('/link-phone', async (req, res) => {
       otpStore.delete(cleanPhone);
     }
 
+    if (targetUserId && String(targetUserId).startsWith('temp_g_')) {
+      const cached = getPendingGoogleSignup(targetUserId);
+      if (!cached) {
+        return res.status(400).json({
+          error: 'Your signup session has expired (5 minute limit). Please sign in with Google again.',
+        });
+      }
+
+      const user = await findOrLinkUser({
+        name: cached.name,
+        email: cached.email,
+        avatar: cached.avatar,
+        phone: cleanPhone,
+        method: 'google',
+        role: cached.role || 'CUSTOMER',
+      });
+
+      removePendingGoogleSignup(targetUserId);
+
+      const token = generateToken(user);
+      return res.json({
+        success: true,
+        message: 'Mobile number linked and account created successfully',
+        user,
+        token,
+        hasPhone: true,
+      });
+    }
+
     const user = await prisma.user.update({
       where: { id: targetUserId },
       data: { phone: cleanPhone },
@@ -489,10 +518,44 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
+// In-memory 5-minute TTL cache for pending Google signups: tempSignupId -> { data, expiresAt }
+const pendingGoogleSignups = new Map();
+
+// Periodic sweep for expired pending signup cache entries every 60 seconds
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, item] of pendingGoogleSignups.entries()) {
+    if (item.expiresAt < now) {
+      pendingGoogleSignups.delete(key);
+    }
+  }
+}, 60 * 1000);
+
+function storePendingGoogleSignup(tempId, data, ttlMs = 5 * 60 * 1000) {
+  pendingGoogleSignups.set(tempId, {
+    data,
+    expiresAt: Date.now() + ttlMs,
+  });
+}
+
+function getPendingGoogleSignup(tempId) {
+  const item = pendingGoogleSignups.get(tempId);
+  if (!item) return null;
+  if (item.expiresAt < Date.now()) {
+    pendingGoogleSignups.delete(tempId);
+    return null;
+  }
+  return item.data;
+}
+
+function removePendingGoogleSignup(tempId) {
+  pendingGoogleSignups.delete(tempId);
+}
+
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
   try {
-    const { idToken, accessToken, profile, role = 'CUSTOMER' } = req.body;
+    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false } = req.body;
 
     let email = '';
     let name = '';
@@ -543,7 +606,7 @@ router.post('/google', async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check if user already exists
+    // 1. Check if user already exists in DB
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email: cleanEmail }, { contact: cleanEmail }],
@@ -561,25 +624,51 @@ router.post('/google', async (req, res) => {
           error: 'Unauthorized user, access denied.',
         });
       }
+
+      // Existing user logging in directly
+      const token = generateToken(existingUser);
+      return res.json({
+        success: true,
+        message: 'Authenticated with Google successfully',
+        token,
+        user: existingUser,
+        isNewUser: false,
+        needsPhone: !existingUser.phone,
+        hasPhone: Boolean(existingUser.phone),
+      });
     }
 
-    const user = await findOrLinkUser({
+    // 2. New user signing up with Google -> DO NOT save to database yet!
+    // Store profile in memory cache for 5 minutes (300 seconds)
+    const tempSignupId = `temp_g_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const pendingData = {
+      tempSignupId,
       email: cleanEmail,
-      name,
-      avatar,
+      name: name || 'Google User',
+      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       method: 'google',
       role,
-    });
+      createdAt: Date.now(),
+    };
 
-    const token = generateToken(user);
+    storePendingGoogleSignup(tempSignupId, pendingData, 5 * 60 * 1000);
 
     return res.json({
       success: true,
-      message: 'Authenticated with Google successfully',
-      token,
-      user,
-      needsPhone: !user.phone,
-      hasPhone: Boolean(user.phone),
+      isNewUser: true,
+      tempSignupId,
+      message: 'Google identity verified. Please complete your registration details.',
+      user: {
+        id: tempSignupId,
+        email: cleanEmail,
+        name: pendingData.name,
+        avatar: pendingData.avatar,
+        role,
+        isPending: true,
+      },
+      needsPhone: true,
+      hasPhone: false,
+      expiresIn: 300,
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -600,6 +689,7 @@ router.post('/signup', async (req, res) => {
     }
 
     const {
+      tempSignupId,
       name,
       email,
       phone,
@@ -611,19 +701,33 @@ router.post('/signup', async (req, res) => {
       machines,
     } = req.body;
 
-    const contactStr = email || phone;
+    // Check if there is a pending Google cache entry
+    let cachedGoogleData = null;
+    if (tempSignupId) {
+      cachedGoogleData = getPendingGoogleSignup(tempSignupId);
+      if (!cachedGoogleData) {
+        return res.status(400).json({
+          error: 'Your sign-up session has expired (5 minute limit). Please sign up with Google again.',
+        });
+      }
+    }
+
+    const finalEmail = (email || cachedGoogleData?.email || '').trim().toLowerCase();
+    const finalPhone = phone ? phone.trim() : null;
+    const finalName = name || cachedGoogleData?.name || 'Darzi Member';
+    const finalAvatar = cachedGoogleData?.avatar;
+    const finalMethod = cachedGoogleData ? 'google' : 'email';
+
+    const contactStr = finalEmail || finalPhone;
     if (!contactStr) {
       return res.status(400).json({ error: 'Email or mobile number is required.' });
     }
 
-    const cleanEmail = email ? email.trim().toLowerCase() : null;
-    const cleanPhone = phone ? phone.trim() : null;
-
     // Check existing email conflict
-    if (cleanEmail) {
+    if (finalEmail) {
       const existingEmail = await prisma.user.findFirst({
         where: {
-          OR: [{ email: cleanEmail }, { contact: cleanEmail }],
+          OR: [{ email: finalEmail }, { contact: finalEmail }],
         },
       });
       if (existingEmail) {
@@ -642,10 +746,10 @@ router.post('/signup', async (req, res) => {
     }
 
     // Check existing phone conflict
-    if (cleanPhone) {
+    if (finalPhone) {
       const existingPhone = await prisma.user.findFirst({
         where: {
-          OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
+          OR: [{ phone: finalPhone }, { contact: finalPhone }],
         },
       });
       if (existingPhone) {
@@ -654,7 +758,7 @@ router.post('/signup', async (req, res) => {
             error: 'Unauthorized user, access denied.',
           });
         }
-        if (existingPhone.email && cleanEmail && existingPhone.email !== cleanEmail) {
+        if (existingPhone.email && finalEmail && existingPhone.email !== finalEmail) {
           return res.status(409).json({
             error: 'An account with this mobile number is already registered to another email.',
           });
@@ -662,17 +766,24 @@ router.post('/signup', async (req, res) => {
       }
     }
 
+    // Now write to database
     const user = await findOrLinkUser({
-      name,
-      email: cleanEmail,
-      phone: cleanPhone,
+      name: finalName,
+      email: finalEmail || undefined,
+      phone: finalPhone || undefined,
+      avatar: finalAvatar,
+      method: finalMethod,
       address,
       postcode,
-      role,
+      role: role || cachedGoogleData?.role || 'CUSTOMER',
       studioName: storeName,
       storeArea,
       machines,
     });
+
+    if (tempSignupId) {
+      removePendingGoogleSignup(tempSignupId);
+    }
 
     const token = generateToken(user);
     return res.json({
@@ -684,7 +795,7 @@ router.post('/signup', async (req, res) => {
     });
   } catch (err) {
     console.error('Signup Error:', err);
-    return res.status(500).json({ error: 'Server error during registration.' });
+    return res.status(500).json({ error: err.message || 'Server error during registration.' });
   }
 });
 
