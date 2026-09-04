@@ -111,9 +111,6 @@ export function AuthModal({
       const modeToSet = initialMode()
       setMode(modeToSet)
       setPendingUser(null)
-      if (isOpen && (modeToSet === 'studio-signup-options' || modeToSet === 'studio-options' || modeToSet === 'customer-options')) {
-        triggerGoogle(targetRole)
-      }
     }
     setRegisterStep(1)
     setError('')
@@ -455,31 +452,42 @@ export function AuthModal({
     >
       <div className="relative w-full max-w-[390px] rounded-3xl bg-white shadow-2xl border border-[#E8E1D5] overflow-hidden">
 
-        {/* Minimal Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-3">
-          <div className="flex items-center gap-2">
-            {isSubPage ? (
-              <button
-                onClick={goBack}
-                className="size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors"
-                aria-label="Back"
-              >
-                <ArrowLeft size={14} />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Image src="/bg_logo.png" alt="Darzi" width={100} height={28} priority style={{ width: 'auto' }} className="h-7 w-auto object-contain" />
-              </div>
-            )}
-          </div>
-
+        {/* Top Controls: Back button & Top-Right Close Button */}
+        {isSubPage && (
           <button
-            onClick={onClose}
-            className="size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors"
-            aria-label="Close"
+            onClick={goBack}
+            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors"
+            aria-label="Back"
           >
-            <X size={14} />
+            <ArrowLeft size={14} />
           </button>
+        )}
+
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors"
+          aria-label="Close"
+        >
+          <X size={14} />
+        </button>
+
+        {/* Header Logo / Spacer */}
+        <div className="flex items-center justify-center px-6 pt-6 pb-2">
+          {!isSubPage ? (
+            <div className="flex items-center justify-center">
+              <Image
+                src="/bg_logo.png"
+                alt="Darzi"
+                width={120}
+                height={34}
+                priority
+                style={{ width: 'auto', height: 'auto' }}
+                className="h-10 w-auto object-contain"
+              />
+            </div>
+          ) : (
+            <div className="h-6" />
+          )}
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
@@ -1006,8 +1014,8 @@ export function AuthModal({
                             type="button"
                             onClick={() => toggleSpecialty(s)}
                             className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold border transition-all ${on
-                                ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                                : 'bg-white text-[#5A5D64] border-[#DDD6CB] hover:border-[#9E593B]'
+                              ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                              : 'bg-white text-[#5A5D64] border-[#DDD6CB] hover:border-[#9E593B]'
                               }`}
                           >
                             {on && <Check size={9} className="inline mr-0.5" />}
@@ -1055,8 +1063,8 @@ function GoogleButton({
       onClick={onClick}
       disabled={loading}
       className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2.5 text-[13px] font-semibold transition-all disabled:opacity-60 ${bordered
-          ? 'border border-[#DDD6CB] bg-white text-[#18191B] hover:bg-[#FAF8F5]'
-          : 'bg-white border border-[#DDD6CB] text-[#18191B] hover:bg-[#FAF8F5]'
+        ? 'border border-[#DDD6CB] bg-white text-[#18191B] hover:bg-[#FAF8F5]'
+        : 'bg-white border border-[#DDD6CB] text-[#18191B] hover:bg-[#FAF8F5]'
         }`}
     >
       <GoogleLogo />
