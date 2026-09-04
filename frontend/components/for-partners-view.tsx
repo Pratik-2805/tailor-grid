@@ -39,48 +39,8 @@ interface ForPartnersViewProps {
 export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPartnersViewProps) {
   const [partnerTypeTab, setPartnerTypeTab] = useState<'tailors' | 'retailers'>('tailors')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [formSubmitted, setFormSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [storeName, setStoreName] = useState('')
-  const [postcode, setPostcode] = useState('')
-  const [contactName, setContactName] = useState('')
-  const [email, setEmail] = useState('')
-  const [machines, setMachines] = useState('4-6')
-
   const toggleFaq = (idx: number) => {
     setOpenFaq(openFaq === idx ? null : idx)
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      const res = await signUpUser({
-        name: contactName.trim() || 'Master Tailor',
-        email: email.trim(),
-        storeName: storeName.trim(),
-        postcode: postcode.trim(),
-        machines,
-        role: 'STUDIO',
-      })
-      if (res && res.user) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(res.user))
-          localStorage.setItem('tg_user_role', 'STUDIO')
-          window.location.href = '/partner/onboarding'
-          return
-        }
-        if (onPartnerRegistered) {
-          onPartnerRegistered(res.user)
-        }
-      }
-      toast.success('Partner application submitted successfully!', { position: 'top-center' })
-    } catch (err) {
-      console.warn('Registration notice:', err)
-      toast.success('Application received! Our team will contact you within 24 hours.', { position: 'top-center' })
-    }
-    setSubmitting(false)
-    setFormSubmitted(true)
   }
 
   const FAQS = [
@@ -125,24 +85,26 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 Earn on your own schedule. Join our network of certified partner studios to fill idle machine capacity and drive in-store retail footfall.
               </p>
 
-              <div className="mt-8 flex flex-wrap items-center gap-4">
+              <div className="mt-8 flex flex-wrap items-center gap-5">
                 <button
-                  onClick={() => onOpenAuth?.('STUDIO', 'signup')}
+                  onClick={() => {
+                    window.location.href = '/partner/onboarding'
+                  }}
                   className="rounded-full bg-white text-[#0F1115] px-8 py-4 text-xs font-extrabold uppercase tracking-wider transition-all hover:bg-[#FAF8F5] active:scale-95 shadow-md cursor-pointer"
                 >
-                  Get started
+                  Enroll Your Studio
                 </button>
 
                 <button
                   onClick={() => {
                     const role = typeof window !== 'undefined' ? localStorage.getItem('tg_user_role') : null
                     const token = typeof window !== 'undefined' && role === 'STUDIO' ? localStorage.getItem('tg_token') : null
-                    window.location.href = getStudioUrl('/', token)
+                    window.location.href = getStudioUrl(token ? '/' : '/?auth=signin', token)
                   }}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-6 py-4 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-white/70 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 py-2"
                 >
-                  <span>Studio Log in ↗</span>
-                  <ChevronRight size={14} />
+                  <span>Already an atelier partner? <span className="underline underline-offset-4 text-white">Log in</span></span>
+                  <ChevronRight size={13} />
                 </button>
               </div>
 
@@ -454,145 +416,40 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
         </div>
       </section>
 
-      {/* 8. Partner Application Form (Warm Theme) */}
-      <section id="apply-form" className="py-20 sm:py-28 bg-[#F4EFEA]">
-        <div className="mx-auto max-w-[800px] px-4 sm:px-6">
-          
-          <div className="text-center mb-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#9E593B] block mb-2">
-              Fast Onboarding
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0F1115] tracking-tight">
-              Apply to partner your studio
-            </h2>
-            <p className="mt-2 text-sm text-[#5A5D64]">
-              Complete the details below. Our team audits and activates your studio within 48 hours.
-            </p>
+      {/* 8. Partner CTA Banner */}
+      <section className="py-20 sm:py-24 bg-[#F4EFEA] border-t border-[#E8E1D5]">
+        <div className="mx-auto max-w-[800px] px-4 sm:px-6 text-center">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#9E593B] block mb-3">
+            Fast Onboarding
+          </span>
+          <h2 className="font-serif text-3xl sm:text-4xl font-extrabold text-[#0F1115] tracking-tight">
+            Ready to partner your studio?
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-[#5A5D64] max-w-[540px] mx-auto leading-relaxed">
+            Join Darzi&apos;s network of master tailors. Register your atelier in minutes or sign in to your workbench.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                window.location.href = '/partner/onboarding'
+              }}
+              className="rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-8 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              Enroll Your Studio
+            </button>
+
+            <button
+              onClick={() => {
+                const role = typeof window !== 'undefined' ? localStorage.getItem('tg_user_role') : null
+                const token = typeof window !== 'undefined' && role === 'STUDIO' ? localStorage.getItem('tg_token') : null
+                window.location.href = getStudioUrl(token ? '/' : '/?auth=signin', token)
+              }}
+              className="rounded-full border border-[#0F1115]/30 hover:border-[#0F1115] bg-white px-7 py-3.5 text-xs font-bold uppercase tracking-wider text-[#0F1115] hover:bg-[#FAF8F5] transition-all cursor-pointer"
+            >
+              <span>Studio Log in ↗</span>
+            </button>
           </div>
-
-          {formSubmitted ? (
-            <div className="rounded-3xl bg-white p-8 sm:p-12 text-center border border-[#10B981]/30 shadow-xs">
-              <div className="size-16 rounded-full bg-[#ECFDF5] text-[#065F46] grid place-items-center mx-auto mb-4">
-                <CheckCircle2 size={32} />
-              </div>
-              <h3 className="text-2xl font-extrabold text-[#0F1115]">Application Received</h3>
-              <p className="mt-2 text-sm text-[#5A5D64] max-w-[480px] mx-auto">
-                Thank you, <strong className="text-[#0F1115]">{contactName}</strong>. Our partner onboarding director will contact <strong className="text-[#0F1115]">{email}</strong> within 24 hours to schedule a brief studio visit and machine calibration check.
-              </p>
-              <button
-                onClick={() => {
-                  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-                  window.location.href = getStudioUrl('/', token)
-                }}
-                className="mt-6 rounded-full bg-[#0F1115] px-8 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] transition-colors"
-              >
-                Launch Studio Portal Demo ↗
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-10 rounded-3xl border border-[#E8E1D5] shadow-xs space-y-4">
-              
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Studio / Business Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={storeName}
-                    onChange={(e) => setStoreName(e.target.value)}
-                    placeholder="e.g. West Broadway Tailors"
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-4 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">ZIP Code / Location</label>
-                  <input
-                    type="text"
-                    required
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value)}
-                    placeholder="e.g. 10012 or 90210"
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-4 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Lead Tailor / Contact Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                    placeholder="e.g. Marco Rossi"
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-4 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none transition-colors"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Contact Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. marco@ateliersoho.com"
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-4 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Number of Machines</label>
-                  <select
-                    value={machines}
-                    onChange={(e) => setMachines(e.target.value)}
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-3 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none cursor-pointer"
-                  >
-                    <option value="2-3">2 – 3 Machines</option>
-                    <option value="4-6">4 – 6 Machines</option>
-                    <option value="7+">7+ Machines</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Daily Garment Capacity</label>
-                  <select
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-3 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none cursor-pointer"
-                  >
-                    <option>5 – 15 items/day</option>
-                    <option>15 – 30 items/day</option>
-                    <option>30+ items/day</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#0F1115] mb-1.5">Do you sell retail goods?</label>
-                  <select
-                    className="w-full rounded-2xl border border-[#E8E1D5] bg-[#FAF8F5] px-3 py-3 text-sm font-medium focus:border-[#0F1115] focus:bg-white focus:outline-none cursor-pointer"
-                  >
-                    <option>Yes (Fabrics, Shirts, Goods)</option>
-                    <option>No (Alterations Only)</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="mt-6 w-full rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-4 text-sm font-extrabold uppercase tracking-wider text-white shadow-md transition-all active:scale-[0.99] cursor-pointer"
-              >
-                Submit Partner Application
-              </button>
-              
-              <p className="text-[11px] text-[#7A7E85] text-center mt-2">
-                By submitting, you agree to Darzi partner studio quality standards and audit terms.
-              </p>
-            </form>
-          )}
-
         </div>
       </section>
 
@@ -600,13 +457,15 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
       <div className="bg-[#0F1115] text-white py-4 px-4 sm:px-8 border-t border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="size-2 rounded-full bg-[#10B981]" />
-          <span className="text-xs font-bold text-white">Sign up to partner your studio</span>
+          <span className="text-xs font-bold text-white">Enroll your partner studio</span>
         </div>
         <button
-          onClick={() => onOpenAuth?.('STUDIO', 'signup')}
+          onClick={() => {
+            window.location.href = '/partner/onboarding'
+          }}
           className="rounded-full bg-white text-[#0F1115] px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors cursor-pointer"
         >
-          Sign up to partner
+          Enroll studio
         </button>
       </div>
 

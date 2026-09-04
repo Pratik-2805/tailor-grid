@@ -32,11 +32,13 @@ export default function StudioPage() {
 
   const customerSiteUrl = CUSTOMER_SITE_URL
 
-  // Token handover from main website (port 3000 -> port 3001)
+  // Token & auth action handover from main website (port 3000 -> port 3001)
   useEffect(() => {
+    let authParam: string | null = null
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
       const token = params.get('token')
+      authParam = params.get('auth') || params.get('action')
       if (token) {
         localStorage.setItem('tg_token', token)
         // Clean URL query params
@@ -46,12 +48,55 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u) setUser(u)
+        if (u) {
+          setUser(u)
+        } else if (authParam === 'signin' || authParam === 'login') {
+          setAuthType('signin')
+          setIsAuthOpen(true)
+        } else if (authParam === 'signup' || authParam === 'register') {
+          setAuthType('signup')
+          setIsAuthOpen(true)
+        }
+      })
+      .catch(() => {
+        if (authParam === 'signin' || authParam === 'login') {
+          setAuthType('signin')
+          setIsAuthOpen(true)
+        } else if (authParam === 'signup' || authParam === 'register') {
+          setAuthType('signup')
+          setIsAuthOpen(true)
+        }
       })
       .finally(() => {
         setLoadingUser(false)
       })
   }, [])
+
+  const handleDemoAccess = () => {
+    const demoUser: User = {
+      id: 'demo-studio-1',
+      name: 'Mayfair Bespoke Atelier',
+      contact: '+44 20 7946 0912',
+      email: 'mayfair.atelier@darzi.co.uk',
+      phone: '+44 20 7946 0912',
+      avatar: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=150&auto=format&fit=crop',
+      method: 'email',
+      role: 'STUDIO',
+      studioId: 'store-mayfair',
+      studioName: 'Mayfair Bespoke Atelier',
+      address: '14 Savile Row, Mayfair',
+      postcode: 'W1S 3JN',
+    }
+    setUser(demoUser)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_user_role', 'STUDIO')
+      localStorage.setItem('tg_user', JSON.stringify(demoUser))
+    }
+    toast.success('Workbench Demo Sandbox activated!', {
+      position: 'top-center',
+      autoClose: 3000,
+    })
+  }
 
   const handleOpenAuth = (type: 'signin' | 'signup' = 'signin') => {
     setAuthType(type)
@@ -149,10 +194,10 @@ export default function StudioPage() {
                     Live alteration intake with 4-digit customer PIN verification, digital hang tags, 48h SLA timers, machine capacity controls, and guaranteed weekly payouts.
                   </p>
 
-                  <div className="mt-8 flex flex-wrap items-center gap-4">
+                  <div className="mt-8 flex flex-wrap items-center gap-3.5">
                     <button
                       onClick={() => handleOpenAuth('signin')}
-                      className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-xs font-extrabold uppercase tracking-wider text-[#0F1115] hover:bg-[#FAF8F5] shadow-md transition-all active:scale-95"
+                      className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-xs font-extrabold uppercase tracking-wider text-[#0F1115] hover:bg-[#FAF8F5] shadow-md transition-all active:scale-95 cursor-pointer"
                     >
                       <LogIn size={15} />
                       <span>Studio Log In</span>
@@ -160,10 +205,18 @@ export default function StudioPage() {
 
                     <button
                       onClick={() => handleOpenAuth('signup')}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/10 transition-colors cursor-pointer"
                     >
-                      <span>Register New Atelier</span>
+                      <span>Register Atelier</span>
                       <ArrowRight size={14} />
+                    </button>
+
+                    <button
+                      onClick={handleDemoAccess}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white shadow-xs transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Sparkles size={14} className="text-[#E7C9BA]" />
+                      <span>Demo Workbench Sandbox</span>
                     </button>
                   </div>
 
@@ -214,18 +267,18 @@ export default function StudioPage() {
               <div className="mt-8 p-6 rounded-2xl bg-[#F4EFEA] border border-[#DDD6CB] flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
                 <div>
                   <span className="font-serif font-bold text-base text-[#0F1115] block">
-                    Want to test without signing up?
+                    Want to test without registering?
                   </span>
                   <span className="text-xs text-[#5A5D64]">
-                    Launch the interactive master tailor sandbox to try order verification and tailoring timers.
+                    Launch the interactive master tailor sandbox to test order verification, customer PIN drop-offs, and tailoring timers.
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={() => handleOpenAuth('signin')}
-                    className="rounded-full bg-[#0F1115] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#9E593B] transition-colors whitespace-nowrap"
+                    onClick={handleDemoAccess}
+                    className="rounded-full bg-[#0F1115] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#9E593B] transition-colors whitespace-nowrap cursor-pointer shadow-xs"
                   >
-                    Sign In to Studio
+                    Launch Demo Workbench
                   </button>
                   <a
                     href={customerSiteUrl}
