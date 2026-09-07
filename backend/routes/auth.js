@@ -356,20 +356,23 @@ router.post('/verify-otp', async (req, res) => {
         // Strict role validation
         if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
           return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+            error: 'This mobile number is registered as a Customer. Please use a different number for Studio.',
           });
         }
         if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
           return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+            error: 'This mobile number is registered as a Studio partner. Please sign in via the Studio portal.',
           });
         }
         user = existingUser;
       } else {
         // User does not exist
         if (role === 'STUDIO') {
-          return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+          return res.json({
+            success: true,
+            isNewUser: true,
+            phone: cleanPhone,
+            message: 'Mobile number verified. Please complete your studio registration.',
           });
         }
         user = await findOrLinkUser({

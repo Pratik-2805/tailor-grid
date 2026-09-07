@@ -12,6 +12,7 @@ import {
   Sparkles,
   Store,
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import type { User } from '@/components/data'
 import {
   signUpUser,
@@ -112,6 +113,13 @@ export function PartnerOnboarding({
   const [emailVal, setEmailVal] = useState(
     user?.email || pendingGoogle?.email || ''
   )
+
+  // Step 3 Direct Mobile Phone Twilio OTP Verification State
+  const [isPhoneVerified, setIsPhoneVerified] = useState(() => Boolean(user?.phone))
+  const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => user?.phone || '')
+  const [step3OtpSent, setStep3OtpSent] = useState(false)
+  const [step3Otp, setStep3Otp] = useState('')
+  const [step3OtpLoading, setStep3OtpLoading] = useState(false)
 
   // Submission & Error
   const [submitting, setSubmitting] = useState(false)
@@ -241,24 +249,31 @@ export function PartnerOnboarding({
     }
   }
 
-  // Handle Mobile Sign In: Send OTP
-  const handleSendMobileOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (sPhoneLogin.trim().length < 6) {
-      setError('Please enter a valid phone number.')
+  // Handle Mobile Sign In: Send Twilio OTP
+  const handleSendMobileOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    const raw = sPhoneLogin.trim()
+    const cleanedDigits = raw.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 75584 96659).'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
       return
     }
     setAuthLoading(true)
     setError('')
+    setNotice('')
     try {
-      const res = await sendOtp(sPhoneLogin.trim())
+      const res = await sendOtp(raw)
       setAuthLoading(false)
       setSOtpSent(true)
       if (res.phone) setSPhoneLogin(res.phone)
       setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
     } catch (err: any) {
       setAuthLoading(false)
-      setError(err.message || 'Failed to send verification code.')
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -295,6 +310,69 @@ export function PartnerOnboarding({
         return
       }
       setError(err.message || 'Verification failed. Please check the code.')
+    }
+  }
+
+  // Step 3: Send Twilio OTP for Direct Mobile Phone
+  const handleStep3SendOtp = async () => {
+    const raw = phone.trim()
+    const cleanedDigits = raw.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
+      return
+    }
+    setStep3OtpLoading(true)
+    setError('')
+    setNotice('')
+    try {
+      const res = await sendOtp(raw)
+      setStep3OtpLoading(false)
+      setStep3OtpSent(true)
+      if (res.phone) setPhone(res.phone)
+      const successMsg = res.message || `Verification code sent via SMS to ${res.phone || raw}`
+      setNotice(successMsg)
+      toast.success(successMsg, { position: 'top-center' })
+    } catch (err: any) {
+      setStep3OtpLoading(false)
+      const msg = err.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
+    }
+  }
+
+  // Step 3: Verify Twilio OTP for Direct Mobile Phone
+  const handleStep3VerifyOtp = async () => {
+    const cleanOtp = step3Otp.trim()
+    if (!cleanOtp || cleanOtp.length < 4) {
+      const msg = 'Please enter the 4-digit verification code.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
+      return
+    }
+    setStep3OtpLoading(true)
+    setError('')
+    setNotice('')
+    try {
+      const res = await verifyOtp({
+        phone: phone.trim(),
+        otp: cleanOtp,
+        role: 'STUDIO',
+      })
+      setStep3OtpLoading(false)
+      setIsPhoneVerified(true)
+      const validatedPhone = res.phone || phone.trim()
+      setPhone(validatedPhone)
+      setStep3VerifiedPhone(validatedPhone)
+      setStep3OtpSent(false)
+      setStep3Otp('')
+      toast.success('Mobile number verified successfully!', { position: 'top-center' })
+    } catch (err: any) {
+      setStep3OtpLoading(false)
+      const msg = err.message || 'Invalid verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -664,7 +742,7 @@ export function PartnerOnboarding({
                             autoFocus
                             value={sPhoneLogin}
                             onChange={(e) => setSPhoneLogin(e.target.value)}
-                            placeholder="+44 7700 900123"
+                            placeholder="+91 98765 43210 or +44 7700 900000"
                             className="w-full rounded-xl bg-gray-100 border-none px-4 py-3 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -680,6 +758,8 @@ export function PartnerOnboarding({
                       <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={4}
                           required
                           autoFocus
@@ -992,7 +1072,7 @@ export function PartnerOnboarding({
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
                             Lead Master Tailor *
@@ -1005,31 +1085,120 @@ export function PartnerOnboarding({
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
+
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Direct Mobile Phone *
+                            Partner Contact Email *
                           </label>
                           <input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="e.g. +44 7700 900123"
+                            type="email"
+                            value={emailVal}
+                            onChange={(e) => setEmailVal(e.target.value)}
+                            placeholder="e.g. marco@ateliersoho.com"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                          Partner Contact Email *
-                        </label>
-                        <input
-                          type="email"
-                          value={emailVal}
-                          onChange={(e) => setEmailVal(e.target.value)}
-                          placeholder="e.g. marco@ateliersoho.com"
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
+                      {/* Direct Mobile Phone with OTP Verification */}
+                      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-[#0F1115]">
+                            Direct Mobile Phone *
+                          </label>
+                          {isPhoneVerified ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                              <CheckCircle2 size={13} className="text-emerald-600" />
+                              Verified
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] bg-[#FFF3EC] border border-[#F2D2C2] px-2 py-0.5 rounded-full">
+                              OTP Required
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="tel"
+                            value={phone}
+                            onChange={(e) => {
+                              setPhone(e.target.value)
+                              if (isPhoneVerified && e.target.value.trim() !== step3VerifiedPhone) {
+                                setIsPhoneVerified(false)
+                              }
+                            }}
+                            disabled={isPhoneVerified}
+                            placeholder="e.g. +91 98765 43210"
+                            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
+                              ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
+                              : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
+                              }`}
+                          />
+                          {isPhoneVerified ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsPhoneVerified(false)
+                                setStep3VerifiedPhone('')
+                                setStep3OtpSent(false)
+                                setStep3Otp('')
+                              }}
+                              className="px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition-colors cursor-pointer shrink-0"
+                            >
+                              Change
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={step3OtpLoading || !phone.trim()}
+                              onClick={handleStep3SendOtp}
+                              className="px-4 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
+                            >
+                              {step3OtpLoading ? 'Sending…' : step3OtpSent ? 'Resend SMS' : 'Send OTP'}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* OTP input container when code was sent */}
+                        {step3OtpSent && !isPhoneVerified && (
+                          <div className="pt-2 border-t border-[#E8E1D5] space-y-2.5 animate-in fade-in">
+                            <div className="flex items-center justify-between text-xs text-[#7A7E85]">
+                              <span>
+                                Enter 4-digit SMS code sent to <strong className="text-[#0F1115]">{phone}</strong>
+                              </span>
+                              <button
+                                type="button"
+                                disabled={step3OtpLoading}
+                                onClick={handleStep3SendOtp}
+                                className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                              >
+                                Resend
+                              </button>
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                maxLength={4}
+                                autoFocus
+                                value={step3Otp}
+                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, ''))}
+                                placeholder="• • • •"
+                                className="w-36 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
+                              />
+                              <button
+                                type="button"
+                                disabled={step3OtpLoading || step3Otp.length < 4}
+                                onClick={handleStep3VerifyOtp}
+                                className="flex-1 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-xs"
+                              >
+                                {step3OtpLoading ? 'Verifying…' : 'Verify Code'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1037,6 +1206,12 @@ export function PartnerOnboarding({
                       onClick={() => {
                         if (!shopName.trim() || !shopArea.trim() || !postcode.trim() || !tailorName.trim() || !phone.trim() || !emailVal.trim()) {
                           setError('Please fill in Shop Name, Area, Postcode, Lead Tailor, Phone, and Email.')
+                          return
+                        }
+                        if (!isPhoneVerified) {
+                          const msg = 'Please verify your Direct Mobile Phone with the SMS OTP code before continuing.'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
                           return
                         }
                         setError('')

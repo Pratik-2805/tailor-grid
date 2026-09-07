@@ -39,7 +39,14 @@ export async function verifyOtp(params: {
   email?: string
   userId?: string
   role?: 'CUSTOMER' | 'STUDIO'
-}): Promise<{ token: string; user: User; hasPhone: boolean }> {
+}): Promise<{
+  token?: string
+  user?: User
+  hasPhone?: boolean
+  isNewUser?: boolean
+  phone?: string
+  message?: string
+}> {
   try {
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: 'POST',

@@ -1,22 +1,42 @@
 require('dotenv').config();
-const twilio = require('twilio');
+let twilio = null;
+try {
+  twilio = require('twilio');
+} catch (e) {
+  console.warn('[SMS] Twilio module not installed, fallback OTP mode active.');
+}
 const { prisma } = require('./prisma');
 
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromPhone = process.env.TWILIO_PHONE_NUMBER;
-
 let twilioClient = null;
-if (accountSid && authToken && accountSid.startsWith('AC')) {
-  try {
-    twilioClient = twilio(accountSid, authToken);
-    console.log('[SMS] Twilio client initialized with SID:', accountSid.substring(0, 6) + '...');
-  } catch (err) {
-    console.error('[SMS] Failed to initialize Twilio client:', err.message);
+
+function getTwilioClient() {
+  if (twilioClient) return twilioClient;
+
+  if (!twilio) {
+    try {
+      twilio = require('twilio');
+    } catch (e) {
+      return null;
+    }
   }
-} else {
-  console.warn('[SMS] Twilio credentials missing in .env');
+
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+
+  if (twilio && sid && token && sid.startsWith('AC')) {
+    try {
+      twilioClient = twilio(sid, token);
+      console.log(`[SMS] Twilio client active with SID: ${sid.substring(0, 6)}... Sender: ${process.env.TWILIO_PHONE_NUMBER}`);
+      return twilioClient;
+    } catch (err) {
+      console.error('[SMS] Failed to initialize Twilio client:', err.message);
+    }
+  }
+  return null;
 }
+
+// Initialize on module load
+getTwilioClient();
 
 // In-memory cache as secondary fallback
 const memoryOtpStore = new Map();
@@ -200,14 +220,17 @@ async function sendVerificationSms(toPhone, otpCode) {
   const formattedTo = validation.formatted;
   const messageBody = `Your Darzi verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
 
-  if (!twilioClient || !fromPhone) {
+  const client = getTwilioClient();
+  const senderNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  if (!client || !senderNumber) {
     throw new Error('Twilio SMS is not configured in backend .env.');
   }
 
   try {
-    const result = await twilioClient.messages.create({
+    const result = await client.messages.create({
       body: messageBody,
-      from: fromPhone,
+      from: senderNumber,
       to: formattedTo,
     });
 
@@ -241,14 +264,15 @@ async function sendVerificationSms(toPhone, otpCode) {
  * Sends order status update SMS.
  */
 async function sendOrderUpdateSms(toPhone, orderId, statusText) {
-  const validation = validateAndFormatPhone(toPhone);
-  if (!validation.isValid || !twilioClient || !fromPhone) return null;
+  const client = getTwilioClient();
+  const senderNumber = process.env.TWILIO_PHONE_NUMBER;
+  if (!validation.isValid || !client || !senderNumber) return null;
 
   try {
     const body = `Darzi Update: Your order ${orderId} is now ${statusText}. Track your bespoke alterations in your Darzi portal.`;
-    const result = await twilioClient.messages.create({
+    const result = await client.messages.create({
       body,
-      from: fromPhone,
+      from: senderNumber,
       to: validation.formatted,
     });
     return result.sid;
