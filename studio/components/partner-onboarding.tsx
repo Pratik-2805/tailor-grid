@@ -267,9 +267,7 @@ export function PartnerOnboarding({
       setAuthLoading(false)
       setSOtpSent(true)
       if (res.phone) setSPhoneLogin(res.phone)
-      const successMsg = res.message || `Verification code sent via SMS to ${res.phone || raw}`
-      setNotice(successMsg)
-      toast.success(successMsg, { position: 'top-center' })
+      setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
     } catch (err: any) {
       setAuthLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -787,62 +785,25 @@ export function PartnerOnboarding({
                         </button>
                       </form>
                     ) : (
-                      <div className="space-y-3.5 pt-1">
-                        <div className="flex items-center justify-between text-xs text-[#7A7E85] bg-[#FAF8F5] border border-[#E8E1D5] px-3.5 py-2 rounded-xl">
-                          <span className="truncate">
-                            Code sent via SMS to <strong className="text-[#0F1115] font-semibold">{sPhoneLogin}</strong>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSOtpSent(false)
-                              setSOtp('')
-                              setError('')
-                              setNotice('')
-                            }}
-                            className="text-[#9E593B] font-bold hover:underline shrink-0 ml-2 cursor-pointer"
-                          >
-                            Change
-                          </button>
-                        </div>
-
-                        <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5">
-                          <div>
-                            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1.5 text-center">
-                              4-Digit Verification Code
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={4}
-                              required
-                              autoFocus
-                              value={sOtp}
-                              onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
-                              placeholder="• • • •"
-                              className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em] transition-colors"
-                            />
-                          </div>
-                          <button
-                            type="submit"
-                            disabled={authLoading}
-                            className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-sm"
-                          >
-                            {authLoading ? 'Verifying…' : 'Verify & Enter Workbench'}
-                          </button>
-                          <div className="flex items-center justify-center text-xs pt-1">
-                            <button
-                              type="button"
-                              disabled={authLoading}
-                              onClick={() => handleSendMobileOtp()}
-                              className="text-xs text-[#9E593B] font-semibold hover:underline cursor-pointer disabled:opacity-50"
-                            >
-                              Didn't receive SMS? Resend Code
-                            </button>
-                          </div>
-                        </form>
-                      </div>
+                      <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
+                        <input
+                          type="text"
+                          maxLength={4}
+                          required
+                          autoFocus
+                          value={sOtp}
+                          onChange={(e) => setSOtp(e.target.value)}
+                          placeholder="••••"
+                          className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {authLoading ? 'Verifying…' : 'Verify & Continue'}
+                        </button>
+                      </form>
                     )}
                   </div>
                 )}
@@ -1198,8 +1159,8 @@ export function PartnerOnboarding({
                             disabled={isPhoneVerified}
                             placeholder="e.g. +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
-                                ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
-                                : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
+                              ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
+                              : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
                               }`}
                           />
                           {isPhoneVerified ? (

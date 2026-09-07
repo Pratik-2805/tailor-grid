@@ -268,9 +268,7 @@ export function PartnerOnboarding({
       setAuthLoading(false)
       setSOtpSent(true)
       if (res.phone) setSPhoneLogin(res.phone)
-      const successMsg = res.message || `Verification code sent via SMS to ${res.phone || raw}`
-      setNotice(successMsg)
-      toast.success(successMsg, { position: 'top-center' })
+      setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
     } catch (err: any) {
       setAuthLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -766,9 +764,9 @@ export function PartnerOnboarding({
                           required
                           autoFocus
                           value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="• • • •"
-                          className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300"
+                          onChange={(e) => setSOtp(e.target.value)}
+                          placeholder="••••"
+                          className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
                         <button
                           type="submit"
@@ -1133,8 +1131,8 @@ export function PartnerOnboarding({
                             disabled={isPhoneVerified}
                             placeholder="e.g. +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
-                                ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
-                                : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
+                              ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
+                              : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
                               }`}
                           />
                           {isPhoneVerified ? (
