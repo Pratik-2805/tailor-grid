@@ -88,7 +88,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               <div className="mt-8 flex flex-wrap items-center gap-5">
                 <button
                   onClick={() => {
-                    window.location.href = '/partner/onboarding'
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    window.location.href = getStudioUrl('/onboarding', token)
                   }}
                   className="rounded-full bg-white text-[#0F1115] px-8 py-4 text-xs font-extrabold uppercase tracking-wider transition-all hover:bg-[#FAF8F5] active:scale-95 shadow-md cursor-pointer"
                 >
@@ -432,7 +433,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <button
               onClick={() => {
-                window.location.href = '/partner/onboarding'
+                const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                window.location.href = getStudioUrl('/onboarding', token)
               }}
               className="rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-8 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-md transition-all active:scale-95 cursor-pointer"
             >
@@ -461,7 +463,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
         </div>
         <button
           onClick={() => {
-            window.location.href = '/partner/onboarding'
+            const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+            window.location.href = getStudioUrl('/onboarding', token)
           }}
           className="rounded-full bg-white text-[#0F1115] px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors cursor-pointer"
         >

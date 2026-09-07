@@ -33,6 +33,12 @@ export default function StudioPage() {
       }
     }
 
+    // If signup requested, redirect immediately to the Enroll Studio form (/onboarding)
+    if (authParam === 'signup' || authParam === 'register') {
+      window.location.href = '/onboarding'
+      return
+    }
+
     getCurrentUser()
       .then((u) => {
         if (u) {
@@ -41,8 +47,6 @@ export default function StudioPage() {
           setUser(null)
           if (authParam === 'signin' || authParam === 'login') {
             setAuthType('signin')
-          } else if (authParam === 'signup' || authParam === 'register') {
-            setAuthType('signup')
           }
         }
       })
@@ -50,8 +54,6 @@ export default function StudioPage() {
         setUser(null)
         if (authParam === 'signin' || authParam === 'login') {
           setAuthType('signin')
-        } else if (authParam === 'signup' || authParam === 'register') {
-          setAuthType('signup')
         }
       })
       .finally(() => {
@@ -86,6 +88,10 @@ export default function StudioPage() {
   }
 
   const handleOpenAuth = (type: 'signin' | 'signup' = 'signin') => {
+    if (type === 'signup') {
+      window.location.href = '/onboarding'
+      return
+    }
     setAuthType(type)
   }
 

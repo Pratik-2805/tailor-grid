@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useEffect } from 'react'
 import type { User } from '@/components/data'
-import { signUpUser, loginWithGoogle, checkEmailExists } from '@/lib/api'
+import { signUpUser, loginWithGoogle, checkEmailExists, CUSTOMER_SITE_URL } from '@/lib/api'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -83,6 +83,18 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
         : ''
   )
   const [phone, setPhone] = useState(user?.phone || '')
+  const [emailVal, setEmailVal] = useState(
+    user?.email || pendingGoogle?.email || ''
+  )
+
+  useEffect(() => {
+    if (pendingGoogle?.email && !emailVal) {
+      setEmailVal(pendingGoogle.email)
+    }
+    if (user?.email && !emailVal) {
+      setEmailVal(user.email)
+    }
+  }, [pendingGoogle, user])
 
   // Submission & error
   const [submitting, setSubmitting] = useState(false)
@@ -207,7 +219,7 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
     setSubmitting(true)
     setError('')
     try {
-      const emailToSubmit = user?.email || pendingGoogle?.email
+      const emailToSubmit = emailVal.trim() || user?.email || pendingGoogle?.email
       const resolvedTempId =
         pendingGoogle?.tempSignupId ||
         (user?.id && String(user.id).startsWith('temp_g_') ? user.id : undefined)
@@ -282,14 +294,28 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
           </div>
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() => setShowHelpDropdown(!showHelpDropdown)}
-            className="flex items-center gap-1.5 rounded-full bg-gray-100 hover:bg-gray-200 px-3.5 py-1.5 text-xs font-bold text-[#0F1115] transition-colors"
+        <div className="flex items-center gap-2.5">
+          <a
+            href={CUSTOMER_SITE_URL}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            <span>Help</span>
-            <span className="text-[10px]">▼</span>
-          </button>
+            <span>← Customer Site</span>
+          </a>
+          <a
+            href="/?auth=signin"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-xs font-bold text-[#0F1115] transition-colors"
+          >
+            <span>Sign In</span>
+          </a>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowHelpDropdown(!showHelpDropdown)}
+              className="flex items-center gap-1.5 rounded-full bg-gray-100 hover:bg-gray-200 px-3.5 py-1.5 text-xs font-bold text-[#0F1115] transition-colors cursor-pointer"
+            >
+              <span>Help</span>
+              <span className="text-[10px]">▼</span>
+            </button>
 
           {showHelpDropdown && (
             <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-gray-200 shadow-xl py-2 z-50 text-xs text-gray-800">
@@ -314,6 +340,7 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
               </button>
             </div>
           )}
+          </div>
         </div>
       </header>
 
@@ -366,19 +393,16 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
                 <div className="flex items-center bg-gray-100 p-1 rounded-full text-xs font-bold">
                   <button
                     type="button"
-                    onClick={() => setAuthTab('signin')}
-                    className={`px-3 py-1 rounded-full transition-all ${
-                      authTab === 'signin' ? 'bg-white shadow-xs text-[#0F1115]' : 'text-gray-500 hover:text-gray-900'
-                    }`}
+                    onClick={() => {
+                      window.location.href = '/?auth=signin'
+                    }}
+                    className="px-3 py-1 rounded-full transition-all text-gray-500 hover:text-gray-900 cursor-pointer"
                   >
                     Sign In
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAuthTab('register')}
-                    className={`px-3 py-1 rounded-full transition-all ${
-                      authTab === 'register' ? 'bg-white shadow-xs text-[#0F1115]' : 'text-gray-500 hover:text-gray-900'
-                    }`}
+                    className="px-3 py-1 rounded-full transition-all bg-white shadow-xs text-[#0F1115]"
                   >
                     Register
                   </button>
@@ -489,14 +513,12 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
               <div className="pt-2 text-center border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setAuthTab(authTab === 'register' ? 'signin' : 'register')}
+                  onClick={() => {
+                    window.location.href = '/?auth=signin'
+                  }}
                   className="text-xs text-gray-600 hover:text-black font-semibold transition-colors cursor-pointer"
                 >
-                  {authTab === 'register' ? (
-                    <>Already registered? <span className="font-bold text-[#9E593B] underline">Sign in →</span></>
-                  ) : (
-                    <>New workshop? <span className="font-bold text-[#9E593B] underline">Register Atelier →</span></>
-                  )}
+                  Already registered? <span className="font-bold text-[#9E593B] underline">Sign in to Studio →</span>
                 </button>
               </div>
             </div>
@@ -582,8 +604,7 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
                 <button
                   type="button"
                   onClick={() => {
-                    setAuthTab('signin')
-                    setCurrentStep('auth')
+                    window.location.href = '/?auth=signin'
                   }}
                   className="text-xs text-gray-500 hover:text-black font-semibold transition-colors cursor-pointer"
                 >
@@ -761,12 +782,25 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                    Partner Contact Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={emailVal}
+                    onChange={(e) => setEmailVal(e.target.value)}
+                    placeholder="e.g. marco@ateliersoho.com"
+                    className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                  />
+                </div>
               </div>
 
               <button
                 onClick={() => {
-                  if (!shopName.trim() || !shopArea.trim() || !postcode.trim()) {
-                    setError('Please fill in Shop Name, Area, and Postcode.')
+                  if (!shopName.trim() || !shopArea.trim() || !postcode.trim() || !tailorName.trim() || !phone.trim() || !emailVal.trim()) {
+                    setError('Please fill in Shop Name, Area, Postcode, Lead Tailor, Phone, and Email.')
                     return
                   }
                   setError('')
