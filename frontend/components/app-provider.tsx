@@ -167,20 +167,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               router.replace('/book')
             }
           }
-        } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
+        } else {
           setUser(null)
-          clearAuthCookies()
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tg_user')
+            localStorage.removeItem('tg_token')
+            localStorage.removeItem('tg_user_role')
+            sessionStorage.removeItem('tg_pending_google')
+            clearAuthCookies()
+          }
         }
-      } else {
-        setUser(null)
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('tg_user')
-          localStorage.removeItem('tg_token')
-          localStorage.removeItem('tg_user_role')
-          sessionStorage.removeItem('tg_pending_google')
-        }
-      }
-    })
+      })
+      .finally(() => {
+        setIsAuthLoading(false)
+      })
   }, [])
 
   const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
