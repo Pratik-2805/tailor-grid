@@ -106,7 +106,7 @@ export function AuthModal({
   const finalizeAuth = (user: UserType) => {
     if (user.role && user.role !== 'STUDIO') {
       const errMsg = 'Unauthorized user, access denied.'
-      setError(errMsg)
+      setError('')
       toast.error(errMsg, { position: 'top-center' })
       return
     }
@@ -192,21 +192,17 @@ export function AuthModal({
             setLoading(false)
             if (result?.user) {
               if (result.user.role && result.user.role !== 'STUDIO') {
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('tg_token')
-                  localStorage.removeItem('tg_user')
-                  localStorage.removeItem('tg_user_role')
-                }
-                const msg = 'This Google account is registered as a Customer. Please sign in via the main site or use a Studio partner account.'
-                setError(msg)
+                const msg = 'Unauthorized user, access denied.'
+                setError('')
                 toast.error(msg, { position: 'top-center' })
                 return
               }
-              if (!result.user.studioName || result.isNewUser) {
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('tg_token')
-                  localStorage.removeItem('tg_user')
-                  localStorage.removeItem('tg_user_role')
+              if (!result.user.studioName) {
+                if (mode === 'studio-options') {
+                  const msg = 'Unauthorized user, access denied.'
+                  setError('')
+                  toast.error(msg, { position: 'top-center' })
+                  return
                 }
                 setMode('studio-register')
                 setRegisterStep(1)
@@ -219,14 +215,14 @@ export function AuthModal({
             }
           } catch (err: any) {
             setLoading(false)
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('tg_token')
-              localStorage.removeItem('tg_user')
-              localStorage.removeItem('tg_user_role')
+            const msg = err.message || 'Unauthorized user, access denied.'
+            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+              setError('')
+              toast.error(msg, { position: 'top-center' })
+            } else {
+              setError(msg)
+              toast.error(msg, { position: 'top-center' })
             }
-            const msg = err.message || 'Authentication failed.'
-            setError(msg)
-            toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
@@ -290,8 +286,13 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
+      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+        setError('')
+        toast.error(msg, { position: 'top-center' })
+      } else {
+        setError(msg)
+        toast.error(msg, { position: 'top-center' })
+      }
     }
   }
 
@@ -344,8 +345,13 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
+      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+        setError('')
+        toast.error(msg, { position: 'top-center' })
+      } else {
+        setError(msg)
+        toast.error(msg, { position: 'top-center' })
+      }
     }
   }
 
@@ -360,8 +366,13 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
+      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+        setError('')
+        toast.error(msg, { position: 'top-center' })
+      } else {
+        setError(msg)
+        toast.error(msg, { position: 'top-center' })
+      }
     }
   }
 
@@ -497,7 +508,7 @@ export function AuthModal({
       </div>
 
       <div className="px-6 py-6 space-y-5">
-        {error && (
+        {error && !error.toLowerCase().includes('unauthorized') && !error.toLowerCase().includes('access denied') && (
           <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3.5 text-xs text-red-700 font-bold leading-snug shadow-xs animate-in fade-in space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-sm shrink-0">⚠️</span>
