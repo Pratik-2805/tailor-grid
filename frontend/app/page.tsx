@@ -38,28 +38,27 @@ export default function HomePage() {
   })
 
   useEffect(() => {
-    const isCustomer =
-      user?.role === 'CUSTOMER' ||
-      (typeof window !== 'undefined' && localStorage.getItem('tg_user_role') === 'CUSTOMER')
-
-    if (isCustomer) {
-      setHasCustomerSession(true)
-      router.replace('/book')
-    } else if (!isAuthLoading && !user) {
-      setHasCustomerSession(false)
+    if (!isAuthLoading) {
+      if (user?.role === 'CUSTOMER') {
+        const timer = setTimeout(() => {
+          router.replace('/book')
+        }, 50)
+        return () => clearTimeout(timer)
+      } else if (!user) {
+        setHasCustomerSession(false)
+      }
     }
   }, [user, isAuthLoading, router])
 
   // While auth is initializing or if customer session exists, smoothly render the Atelier loader
   if (isAuthLoading || hasCustomerSession || (user && user.role === 'CUSTOMER')) {
     return (
-      <div className="min-h-[calc(100vh-68px)] flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
         <CustomLoader
           size="lg"
           variant="atelier"
           text={user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Opening your Atelier studio'}
           subtext="Preparing your bespoke alteration experience"
-          showProgressBar
         />
       </div>
     )

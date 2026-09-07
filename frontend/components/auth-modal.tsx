@@ -518,13 +518,9 @@ export function AuthModal({
         <div className="flex items-center justify-center px-6 pt-6 pb-2">
           {!isSubPage ? (
             <div className="flex items-center justify-center">
-              <Image
+              <img
                 src="/bg_logo.png"
                 alt="Darzi"
-                width={120}
-                height={34}
-                priority
-                style={{ width: 'auto', height: 'auto' }}
                 className="h-10 w-auto object-contain"
               />
             </div>

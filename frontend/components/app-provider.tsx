@@ -142,9 +142,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(stored)
           setUser(parsed)
           syncAuthCookies(token, parsed.role)
-          if (parsed.role === 'CUSTOMER' && window.location.pathname === '/') {
-            router.replace('/book')
-          }
         } catch { }
       }
 
@@ -163,9 +160,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('tg_user', JSON.stringify(u))
             localStorage.setItem('tg_user_role', u.role ?? 'CUSTOMER')
             syncAuthCookies(localStorage.getItem('tg_token'), u.role)
-            if (u.role === 'CUSTOMER' && window.location.pathname === '/') {
-              router.replace('/book')
-            }
           }
         } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
           setUser(null)

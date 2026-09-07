@@ -16,6 +16,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const {
     user,
     setUser,
+    isAuthLoading,
     isAuthOpen,
     authRole,
     authType,
@@ -48,20 +49,31 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
   const hideFooter = currentScreen === 'partner' || isBookScreen
 
+  // Check if home page is in custom loader state
+  const isHomePageLoading =
+    (pathname === '/' || !pathname) &&
+    (isAuthLoading || (user && user.role === 'CUSTOMER'))
+
+  const isLoaderRunning = isHomePageLoading
+  const showHeader = !isLoaderRunning
+  const showFooter = !isLoaderRunning && !hideFooter
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
-      {/* Primary Global Navigation Header (Always Mounted & Static) */}
-      <Header
-        currentScreen={currentScreen}
-        go={navigate}
-        user={user}
-        onOpenAuth={() => openAuth('CUSTOMER')}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onSignOut={handleSignOut}
-      />
+      {/* Primary Global Navigation Header (Only visible when loader is not running) */}
+      {showHeader && (
+        <Header
+          currentScreen={currentScreen}
+          go={navigate}
+          user={user}
+          onOpenAuth={() => openAuth('CUSTOMER')}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onSignOut={handleSignOut}
+        />
+      )}
 
       {/* Sub-Navbar for Partner Pages */}
-      {isStudioScreen && (
+      {showHeader && isStudioScreen && (
         <StudioSubNav
           currentScreen={currentScreen}
           go={navigate}
@@ -76,7 +88,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Universal Footer */}
-      {!hideFooter && <Footer go={navigate} />}
+      {showFooter && <Footer go={navigate} />}
 
       {/* Global Auth Modal */}
       <AuthModal
