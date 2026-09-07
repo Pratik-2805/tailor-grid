@@ -37,8 +37,6 @@ export function CustomLoader({
   dark = false,
   blurBackdrop = true,
   className = '',
-  showProgressBar = true,
-  progress,
 }: CustomLoaderProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [dots, setDots] = useState('')
@@ -83,7 +81,7 @@ export function CustomLoader({
       aria-live="polite"
     >
       {/* Visual Animation Element */}
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex items-center justify-center transform-gpu">
         {/* Ambient Radial Aura */}
         <div
           className={`absolute rounded-full pointer-events-none transition-all duration-700 ${
@@ -93,7 +91,7 @@ export function CustomLoader({
             width: sizeConfig.iconSize * 1.8,
             height: sizeConfig.iconSize * 1.8,
             filter: 'blur(16px)',
-            animation: 'darzi-pulse-glow 3s ease-in-out infinite',
+            animation: 'darzi-pulse-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite',
           }}
         />
 
@@ -126,35 +124,12 @@ export function CustomLoader({
       {/* Subtitle / Context Note */}
       {subtext && (
         <p
-          className={`mt-1 max-w-[280px] ${sizeConfig.subSize} leading-relaxed ${
+          className={`mt-1.5 max-w-[290px] ${sizeConfig.subSize} leading-relaxed transition-opacity duration-300 ${
             dark ? 'text-white/60' : 'text-[#6B7280]'
           }`}
         >
           {subtext}
         </p>
-      )}
-
-      {/* Shimmering Progress Bar */}
-      {showProgressBar && (
-        <div
-          className={`mt-4 h-1 w-36 sm:w-44 rounded-full overflow-hidden relative ${
-            dark ? 'bg-white/10' : 'bg-[#E5E0D8]'
-          }`}
-        >
-          {typeof progress === 'number' ? (
-            <div
-              className="h-full bg-gradient-to-r from-[#9E593B] via-[#C97A56] to-[#E7C9BA] rounded-full transition-all duration-300"
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
-            />
-          ) : (
-            <div
-              className="h-full bg-gradient-to-r from-transparent via-[#9E593B] to-transparent rounded-full w-1/2 absolute"
-              style={{
-                animation: 'darzi-shimmer-slide 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
-              }}
-            />
-          )}
-        </div>
       )}
 
       {/* Micro Tailor Badge */}
@@ -179,19 +154,16 @@ export function CustomLoader({
             opacity: 0.9;
           }
         }
-        @keyframes darzi-shimmer-slide {
-          0% {
-            left: -50%;
-          }
-          100% {
-            left: 100%;
-          }
-        }
         @keyframes darzi-spin-slow {
           from {
             transform: rotate(0deg);
           }
           to {
+            transform: rotate(360deg);
+          }
+        }
+        @keyframes darzi-spin-reverse {
+          from {
             transform: rotate(360deg);
           }
         }
@@ -235,7 +207,7 @@ export function CustomLoader({
     return (
       <div
         className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in ${
-          dark ? 'bg-[#0F1115]/95' : 'bg-[#FAF8F5]/95'
+          dark ? 'bg-[#0F1115]' : 'bg-[#FAF8F5]'
         } ${blurBackdrop ? 'backdrop-blur-md' : ''}`}
       >
         <div className="relative z-10">{content}</div>
@@ -272,26 +244,20 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
           stroke={dark ? 'rgba(255,255,255,0.1)' : 'rgba(15,17,21,0.08)'}
           strokeWidth="1.5"
         />
-        {/* Precision Measuring Ticks */}
-        {Array.from({ length: 12 }).map((_, i) => {
-          const angle = (i * 30 * Math.PI) / 180
-          const x1 = 50 + 42 * Math.cos(angle)
-          const y1 = 50 + 42 * Math.sin(angle)
-          const x2 = 50 + 46 * Math.cos(angle)
-          const y2 = 50 + 46 * Math.sin(angle)
-          return (
-            <line
-              key={i}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke={i % 3 === 0 ? accentColor : dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,17,21,0.2)'}
-              strokeWidth={i % 3 === 0 ? '2' : '1'}
-              strokeLinecap="round"
-            />
-          )
-        })}
+        {/* Precision Measuring Ticks (Deterministic SVG transforms for 100% SSR hydration safety) */}
+        {Array.from({ length: 12 }).map((_, i) => (
+          <line
+            key={i}
+            x1="50"
+            y1="4"
+            x2="50"
+            y2="8"
+            transform={`rotate(${i * 30} 50 50)`}
+            stroke={i % 3 === 0 ? accentColor : dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,17,21,0.2)'}
+            strokeWidth={i % 3 === 0 ? '2' : '1'}
+            strokeLinecap="round"
+          />
+        ))}
       </g>
 
       {/* Middle Animated Running Stitch Track (Counter-clockwise flow) */}
