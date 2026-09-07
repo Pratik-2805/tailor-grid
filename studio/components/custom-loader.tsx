@@ -275,10 +275,10 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
         {/* Precision Measuring Ticks */}
         {Array.from({ length: 12 }).map((_, i) => {
           const angle = (i * 30 * Math.PI) / 180
-          const x1 = 50 + 42 * Math.cos(angle)
-          const y1 = 50 + 42 * Math.sin(angle)
-          const x2 = 50 + 46 * Math.cos(angle)
-          const y2 = 50 + 46 * Math.sin(angle)
+          const x1 = Number((50 + 42 * Math.cos(angle)).toFixed(4))
+          const y1 = Number((50 + 42 * Math.sin(angle)).toFixed(4))
+          const x2 = Number((50 + 46 * Math.cos(angle)).toFixed(4))
+          const y2 = Number((50 + 46 * Math.sin(angle)).toFixed(4))
           return (
             <line
               key={i}

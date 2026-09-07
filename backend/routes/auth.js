@@ -451,7 +451,7 @@ router.post('/link-phone', async (req, res) => {
       const cached = getPendingGoogleSignup(targetUserId);
       if (!cached) {
         return res.status(400).json({
-          error: 'Your signup session has expired (5 minute limit). Please sign in with Google again.',
+          error: 'Your signup session has expired (60 minute limit). Please sign in with Google again.',
         });
       }
 
@@ -639,7 +639,7 @@ router.post('/google', async (req, res) => {
     }
 
     // 2. New user signing up with Google -> DO NOT save to database yet!
-    // Store profile in memory cache for 5 minutes (300 seconds)
+    // Store profile in memory cache for 60 minutes (3600 seconds)
     const tempSignupId = `temp_g_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const pendingData = {
       tempSignupId,
@@ -651,7 +651,7 @@ router.post('/google', async (req, res) => {
       createdAt: Date.now(),
     };
 
-    storePendingGoogleSignup(tempSignupId, pendingData, 5 * 60 * 1000);
+    storePendingGoogleSignup(tempSignupId, pendingData, 60 * 60 * 1000);
 
     return res.json({
       success: true,
@@ -668,7 +668,7 @@ router.post('/google', async (req, res) => {
       },
       needsPhone: true,
       hasPhone: false,
-      expiresIn: 300,
+      expiresIn: 3600,
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -705,9 +705,9 @@ router.post('/signup', async (req, res) => {
     let cachedGoogleData = null;
     if (tempSignupId) {
       cachedGoogleData = getPendingGoogleSignup(tempSignupId);
-      if (!cachedGoogleData) {
+      if (!cachedGoogleData && !email) {
         return res.status(400).json({
-          error: 'Your sign-up session has expired (5 minute limit). Please sign up with Google again.',
+          error: 'Your sign-up session has expired (60 minute limit). Please sign up with Google again.',
         });
       }
     }
