@@ -102,9 +102,13 @@ export function StudioProfileView({
       if (user.postcode) setPostcode(user.postcode)
       if (user.avatar) {
         setAvatar(user.avatar)
-      } else if (typeof window !== 'undefined') {
-        const cached = localStorage.getItem(`tg_studio_avatar_${user.email || user.id}`)
-        if (cached) setAvatar(cached)
+      } else {
+        setAvatar('')
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
+          } catch {}
+        }
       }
     }
   }, [user])
@@ -182,9 +186,49 @@ export function StudioProfileView({
     setError('')
   }
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = async () => {
     setAvatar('')
     if (fileInputRef.current) fileInputRef.current.value = ''
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
+        const stored = localStorage.getItem('tg_user')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          parsed.avatar = null
+          localStorage.setItem('tg_user', JSON.stringify(parsed))
+        }
+      } catch {}
+    }
+
+    // Auto-save removal to backend immediately so the cache is permanently destroyed
+    try {
+      const updates: Partial<UserType> = {
+        id: user.id,
+        email: user.email,
+        name: name.trim(),
+        studioName: studioName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        postcode: postcode.trim(),
+        avatar: null,
+      }
+      const res = await updateUserProfile(updates)
+      const mergedUser: UserType = {
+        ...user,
+        ...updates,
+        ...(res?.user || {}),
+        avatar: null,
+      }
+      if (onUpdateUser) {
+        onUpdateUser(mergedUser)
+      }
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      console.warn('Auto-save avatar removal error:', err)
+    }
   }
 
   const handleSave = async (e?: React.FormEvent) => {
@@ -202,7 +246,7 @@ export function StudioProfileView({
         phone: phone.trim(),
         address: address.trim(),
         postcode: postcode.trim(),
-        avatar: avatar || null,
+        avatar: avatar ? avatar.trim() : null,
       }
 
       const res = await updateUserProfile(updates)
@@ -213,15 +257,26 @@ export function StudioProfileView({
         ...user,
         ...updates,
         ...(res?.user || {}),
+        avatar: avatar ? avatar.trim() : null,
       }
 
       if (onUpdateUser) {
         onUpdateUser(mergedUser)
       }
 
-      if (avatar && typeof window !== 'undefined') {
+      if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(`tg_studio_avatar_${user.email || user.id}`, avatar)
+          if (avatar) {
+            localStorage.setItem(`tg_studio_avatar_${user.email || user.id}`, avatar)
+          } else {
+            localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
+          }
+          const stored = localStorage.getItem('tg_user')
+          if (stored) {
+            const parsed = JSON.parse(stored)
+            parsed.avatar = avatar ? avatar.trim() : null
+            localStorage.setItem('tg_user', JSON.stringify(parsed))
+          }
         } catch { }
       }
 
