@@ -1,5 +1,10 @@
 require('dotenv').config();
-const twilio = require('twilio');
+let twilio = null;
+try {
+  twilio = require('twilio');
+} catch (e) {
+  console.warn('[SMS] Twilio module not installed, fallback OTP mode active.');
+}
 const { prisma } = require('./prisma');
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -7,7 +12,7 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
 let twilioClient = null;
-if (accountSid && authToken && accountSid.startsWith('AC')) {
+if (twilio && accountSid && authToken && accountSid.startsWith('AC')) {
   try {
     twilioClient = twilio(accountSid, authToken);
     console.log('[SMS] Twilio client initialized with SID:', accountSid.substring(0, 6) + '...');
@@ -15,7 +20,7 @@ if (accountSid && authToken && accountSid.startsWith('AC')) {
     console.error('[SMS] Failed to initialize Twilio client:', err.message);
   }
 } else {
-  console.warn('[SMS] Twilio credentials missing in .env');
+  console.warn('[SMS] Twilio client not configured or missing credentials, fallback demo codes active.');
 }
 
 // In-memory cache as secondary fallback
