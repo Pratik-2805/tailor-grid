@@ -1197,11 +1197,10 @@ export function PartnerOnboarding({
                             }}
                             disabled={isPhoneVerified}
                             placeholder="e.g. +91 98765 43210"
-                            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${
-                              isPhoneVerified
+                            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
                                 ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
                                 : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
-                            }`}
+                              }`}
                           />
                           {isPhoneVerified ? (
                             <button

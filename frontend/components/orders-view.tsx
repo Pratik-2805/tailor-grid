@@ -125,7 +125,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   return (
     <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
       <div className="mx-auto max-w-[1040px] px-5 lg:px-8">
-        
+
         {/* Navigation */}
         <button
           onClick={() => go('home')}
@@ -153,21 +153,19 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
         <div className="mt-8 flex gap-3 border-b border-[#DDD6CB] pb-4 text-xs font-semibold">
           <button
             onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2 rounded-full transition-all ${
-              activeTab === 'orders'
+            className={`px-4 py-2 rounded-full transition-all ${activeTab === 'orders'
                 ? 'bg-[#18191B] text-white shadow-xs'
                 : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
-            }`}
+              }`}
           >
             Active &amp; Past Orders ({displayOrders.length})
           </button>
           <button
             onClick={() => setActiveTab('fit-profile')}
-            className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 ${
-              activeTab === 'fit-profile'
+            className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 ${activeTab === 'fit-profile'
                 ? 'bg-[#18191B] text-white shadow-xs'
                 : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
-            }`}
+              }`}
           >
             <Sparkles size={13} className="text-[#E7C9BA]" />
             <span>Digital Fit Passport</span>
@@ -207,7 +205,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
 
                     <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B]">{o.garment}</h3>
                     <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
-                    
+
                     <div className="mt-3 flex items-center gap-2 text-[11px] text-[#7A7E85]">
                       <MapPin size={12} className="text-[#9E593B]" />
                       <span>{o.studio} ({o.address})</span>
@@ -217,9 +215,8 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                   <div className="flex sm:flex-col items-center sm:items-end justify-between gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-[#F0EBE3]">
                     <div className="sm:text-right">
                       <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
-                      <span className={`block text-[11px] font-semibold mt-0.5 ${
-                        o.status.includes('Ready') ? 'text-emerald-700' : 'text-[#9E593B]'
-                      }`}>
+                      <span className={`block text-[11px] font-semibold mt-0.5 ${o.status.includes('Ready') ? 'text-emerald-700' : 'text-[#9E593B]'
+                        }`}>
                         {o.status}
                       </span>
                     </div>

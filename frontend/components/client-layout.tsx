@@ -46,30 +46,29 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
   const hideFooter = currentScreen === 'partner' || isBookScreen
 
-  // Check if home page is in custom loader state
-  const isHomePageLoading =
-    (pathname === '/' || !pathname) &&
-    (isAuthLoading || (user && user.role === 'CUSTOMER'))
-
-  const isLoaderRunning = isHomePageLoading
-  const showHeader = !isLoaderRunning
-  const showFooter = !isLoaderRunning && !hideFooter
+  // Disable browser automatic scroll restoration and force top scroll on load / route changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual'
+      }
+      window.scrollTo(0, 0)
+    }
+  }, [pathname])
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
-      {/* Primary Global Navigation Header (Only visible when loader is not running) */}
-      {showHeader && (
-        <Header
-          currentScreen={currentScreen}
-          go={navigate}
-          user={user}
-          onOpenAuth={() => openAuth('CUSTOMER')}
-          onSignOut={handleSignOut}
-        />
-      )}
+      {/* Primary Global Navigation Header (Always permanently mounted) */}
+      <Header
+        currentScreen={currentScreen}
+        go={navigate}
+        user={user}
+        onOpenAuth={() => openAuth('CUSTOMER')}
+        onSignOut={handleSignOut}
+      />
 
       {/* Sub-Navbar for Partner Pages */}
-      {showHeader && isStudioScreen && (
+      {isStudioScreen && (
         <StudioSubNav
           currentScreen={currentScreen}
           go={navigate}
@@ -79,12 +78,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Dynamic Main Route View Content */}
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col">
         {children}
       </main>
 
       {/* Universal Footer */}
-      {showFooter && <Footer go={navigate} />}
+      {!hideFooter && <Footer go={navigate} />}
 
       {/* Global Auth Modal */}
       <AuthModal
