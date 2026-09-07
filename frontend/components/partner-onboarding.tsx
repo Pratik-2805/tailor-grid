@@ -254,7 +254,7 @@ export function PartnerOnboarding({
       const res = await sendOtp(sPhoneLogin.trim())
       setAuthLoading(false)
       setSOtpSent(true)
-      const code = res.demoCode || '4829'
+      const code = (res as any).demoCode || '4829'
       setNotice(`Verification code sent! Test code: ${code}`)
     } catch (err: any) {
       setAuthLoading(false)

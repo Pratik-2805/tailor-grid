@@ -16,7 +16,7 @@ export default function OrdersPage() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
+      <div className="flex-1 flex items-center justify-center py-20 p-6 bg-[#FAF8F5] transition-opacity duration-300">
         <CustomLoader
           size="lg"
           variant="atelier"
