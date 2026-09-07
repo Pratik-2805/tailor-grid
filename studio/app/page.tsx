@@ -20,6 +20,7 @@ import { makeOtp, type Screen, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { AuthModal } from '@/components/auth-modal'
+import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
 export default function StudioPage() {
@@ -161,7 +162,21 @@ export default function StudioPage() {
       />
 
       <main className="flex-1">
-        {user ? (
+        {loadingUser ? (
+          <div className="min-h-[60vh] flex items-center justify-center p-8">
+            <CustomLoader
+              size="lg"
+              variant="atelier"
+              text="Authenticating Master Workshop"
+              steps={[
+                'Authenticating Master Workshop',
+                'Checking studio partner credentials',
+                'Connecting to live workbench',
+              ]}
+              subtext="Please wait a moment while your atelier workspace loads"
+            />
+          </div>
+        ) : user ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
             go={() => { }}

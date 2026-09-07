@@ -2,6 +2,22 @@ import { type User, type FittingBooking, type StoreOption, type GarmentCategory,
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
+export function syncAuthCookies(token?: string | null, role?: string | null) {
+  if (typeof document === 'undefined') return
+  if (token) {
+    document.cookie = `tg_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`
+  }
+  if (role) {
+    document.cookie = `tg_user_role=${encodeURIComponent(role)}; path=/; max-age=2592000; SameSite=Lax`
+  }
+}
+
+export function clearAuthCookies() {
+  if (typeof document === 'undefined') return
+  document.cookie = 'tg_token=; path=/; max-age=0; SameSite=Lax'
+  document.cookie = 'tg_user_role=; path=/; max-age=0; SameSite=Lax'
+}
+
 export const STUDIO_BASE_URL =
   process.env.NEXT_PUBLIC_STUDIO_URL ||
   (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
@@ -71,6 +87,7 @@ export async function verifyOtp(params: {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
         localStorage.setItem('tg_user_role', data.user.role)
       }
+      syncAuthCookies(data.token, data.user?.role)
     }
     return data
   } catch (err: any) {
@@ -111,6 +128,7 @@ export async function linkPhone(params: {
       localStorage.setItem('tg_user', JSON.stringify(data.user))
       localStorage.setItem('tg_user_role', data.user.role)
     }
+    syncAuthCookies(data.token || token, data.user?.role)
     return data
   } catch (err: any) {
     throw err
@@ -145,6 +163,7 @@ export async function loginWithGoogle(params: {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
         localStorage.setItem('tg_user_role', data.user.role)
       }
+      syncAuthCookies(data.token, data.user?.role)
     }
     return data
   } catch (err: any) {
@@ -201,6 +220,7 @@ export async function signUpUser(data: {
         localStorage.setItem('tg_user', JSON.stringify(result.user))
         localStorage.setItem('tg_user_role', result.user.role)
       }
+      syncAuthCookies(result.token, result.user?.role)
     }
     return result
   } catch (err: any) {
@@ -236,6 +256,7 @@ export async function loginUser(data: {
         localStorage.setItem('tg_user', JSON.stringify(result.user))
         localStorage.setItem('tg_user_role', result.user.role)
       }
+      syncAuthCookies(result.token, result.user?.role)
     }
     return result
   } catch (err: any) {
@@ -268,6 +289,7 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
       if (data.user) {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
       }
+      syncAuthCookies(data.token || token, data.user?.role)
     } catch (storageErr) {
       console.warn('LocalStorage quota notice:', storageErr)
     }
@@ -282,6 +304,7 @@ export async function getCurrentUser(): Promise<User | null> {
       localStorage.removeItem('tg_token')
       localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
+      clearAuthCookies()
     }
     return null
   }
@@ -295,6 +318,8 @@ export async function getCurrentUser(): Promise<User | null> {
       if (data.user) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('tg_user', JSON.stringify(data.user))
+          localStorage.setItem('tg_user_role', data.user.role || 'CUSTOMER')
+          syncAuthCookies(token, data.user.role)
         }
         return data.user
       }
@@ -305,6 +330,7 @@ export async function getCurrentUser(): Promise<User | null> {
       localStorage.removeItem('tg_token')
       localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
+      clearAuthCookies()
     }
     return null
   } catch (err) {
