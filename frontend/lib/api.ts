@@ -140,7 +140,8 @@ export async function loginWithGoogle(params: {
   accessToken?: string
   profile?: Partial<User>
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+  isSignup?: boolean
+}): Promise<{ token?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
@@ -159,7 +160,7 @@ export async function loginWithGoogle(params: {
     }
     if (data.token && typeof window !== 'undefined') {
       localStorage.setItem('tg_token', data.token)
-      if (data.user) {
+      if (data.user && !data.isNewUser) {
         localStorage.setItem('tg_user', JSON.stringify(data.user))
         localStorage.setItem('tg_user_role', data.user.role)
       }
@@ -184,6 +185,7 @@ export async function checkEmailExists(email: string, role: string = 'STUDIO'): 
 }
 
 export async function signUpUser(data: {
+  tempSignupId?: string
   name: string
   email?: string
   phone?: string

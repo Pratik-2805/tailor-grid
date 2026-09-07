@@ -1,7 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Mail, Phone, Scissors, Sparkles, Store, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  Lock,
+  Mail,
+  Phone,
+  Scissors,
+  Sparkles,
+  Store,
+  X,
+} from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
@@ -15,17 +27,26 @@ type AuthMode =
   | 'studio-register'
 
 interface AuthModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen?: boolean
+  onClose?: () => void
   onSuccess: (user: UserType) => void
   authType?: 'signin' | 'signup'
+  inline?: boolean
+  onDemoAccess?: () => void
 }
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
   '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com'
 
-export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: AuthModalProps) {
+export function AuthModal({
+  isOpen = true,
+  onClose,
+  onSuccess,
+  authType = 'signin',
+  inline = false,
+  onDemoAccess,
+}: AuthModalProps) {
   const initialMode = (): AuthMode => (authType === 'signup' ? 'studio-signup-options' : 'studio-options')
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1)
@@ -37,7 +58,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
 
   // Studio Login fields
   const [sLoginEmail, setSLoginEmail] = useState('')
-  const [sLoginPass, setSLoginPass] = useState('')
 
   // Studio Mobile OTP fields
   const [sPhoneLogin, setSPhoneLogin] = useState('')
@@ -81,9 +101,6 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setSOtp('')
     setLinkOtpSent(false)
     setLinkOtp('')
-    if (isOpen) {
-      triggerGoogle()
-    }
   }, [isOpen, authType])
 
   const finalizeAuth = (user: UserType) => {
@@ -360,362 +377,444 @@ export function AuthModal({ isOpen, onClose, onSuccess, authType = 'signin' }: A
     setNotice('')
   }
 
-  if (!isOpen) return null
+  if (!isOpen && !inline) return null
 
   const isSubPage =
     mode !== 'studio-options' &&
     mode !== 'studio-signup-options'
 
+  const cardContent = (
+    <div className={`relative w-full ${inline ? 'max-w-[460px]' : 'max-w-[440px]'} rounded-3xl bg-white shadow-xl border border-[#E8E1D5] overflow-hidden`}>
+      {/* Top Header / Mode Switcher */}
+      <div className="px-6 pt-5 pb-4 border-b border-[#F3EFEA] bg-[#FCFAF8] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {isSubPage ? (
+            <button
+              onClick={goBack}
+              className="size-8 rounded-xl bg-white hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center transition-colors cursor-pointer text-[#374151]"
+              title="Back"
+            >
+              <ArrowLeft size={15} />
+            </button>
+          ) : (
+            <div className="size-8 rounded-xl bg-[#9E593B]/10 border border-[#9E593B]/20 grid place-items-center text-[#9E593B]">
+              <Scissors size={16} />
+            </div>
+          )}
+
+          <div>
+            <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+              Studio Portal
+            </span>
+            <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
+              Workbench Node · Port 3001
+            </span>
+          </div>
+        </div>
+
+        {!isSubPage && (
+          <div className="flex items-center bg-[#F3EFEA] p-0.5 rounded-full border border-[#E8E1D5]/60 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setError('')
+                setNotice('')
+                setMode('studio-options')
+              }}
+              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                mode === 'studio-options'
+                  ? 'bg-white text-[#0F1115] shadow-xs'
+                  : 'text-[#6B7280] hover:text-[#0F1115]'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError('')
+                setNotice('')
+                setMode('studio-signup-options')
+              }}
+              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
+                mode === 'studio-signup-options'
+                  ? 'bg-white text-[#0F1115] shadow-xs'
+                  : 'text-[#6B7280] hover:text-[#0F1115]'
+              }`}
+            >
+              Register
+            </button>
+          </div>
+        )}
+
+        {!inline && onClose && (
+          <button
+            onClick={onClose}
+            className="size-7 rounded-full bg-white hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center transition-colors cursor-pointer ml-2"
+          >
+            <X size={14} className="text-[#374151]" />
+          </button>
+        )}
+      </div>
+
+      <div className="px-6 py-6 space-y-5">
+        {error && (
+          <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3.5 text-xs text-red-700 font-bold leading-snug shadow-xs animate-in fade-in space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm shrink-0">⚠️</span>
+              <span>{error}</span>
+            </div>
+            {error.includes('Please sign in instead') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setNotice('')
+                  setMode('studio-options')
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9E593B] hover:underline cursor-pointer ml-6"
+              >
+                Sign in to this account →
+              </button>
+            )}
+          </div>
+        )}
+
+        {notice && (
+          <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        )}
+
+        {/* LINK PHONE STEP */}
+        {mode === 'link-phone-step' && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="font-serif text-[22px] font-bold text-[#0F1115] leading-tight">
+                Link Atelier Phone Number
+              </h2>
+              <p className="text-xs text-[#6B7280] mt-1">
+                Required to receive booking SMS alerts and dispatch updates.
+              </p>
+            </div>
+
+            {!linkOtpSent ? (
+              <form onSubmit={handleSendLinkOtp} className="space-y-3.5">
+                <Field label="Direct mobile number *" type="tel" required value={linkPhoneVal} onChange={setLinkPhoneVal} placeholder="+44 7700 900123" />
+                <SubmitBtn loading={loading} label="Send Verification Code" />
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyLinkPhone} className="space-y-3.5">
+                <p className="text-xs text-[#6B7280]">Enter code sent to <strong>{linkPhoneVal}</strong></p>
+                <input
+                  type="text"
+                  maxLength={4}
+                  required
+                  autoFocus
+                  value={linkOtp}
+                  onChange={(e) => setLinkOtp(e.target.value)}
+                  placeholder="4829"
+                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                />
+                <SubmitBtn loading={loading} label="Verify & Link Phone" />
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ── STUDIO SIGN UP OPTIONS ── */}
+        {mode === 'studio-signup-options' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Network</p>
+              <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Register Your Atelier</h2>
+              <p className="text-xs text-[#6B7280] mt-1">Join Darzi as a certified partner atelier to receive pre-pinned alteration jobs.</p>
+            </div>
+
+            <div className="space-y-2.5">
+              <GoogleButton label="Sign up with Google (Partner)" loading={loading} onClick={triggerGoogle} bordered />
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setNotice('')
+                  setMode('studio-register')
+                  setRegisterStep(1)
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-xs cursor-pointer active:scale-98"
+              >
+                <Store size={15} />
+                <span>Register with 3-Step Form</span>
+              </button>
+              <AuthButton
+                icon={<Phone size={15} className="text-[#9E593B]" />}
+                label="Sign in / Register with Mobile"
+                onClick={() => setMode('studio-mobile')}
+              />
+            </div>
+
+            <Divider />
+
+            <div className="text-center">
+              <span className="text-xs text-[#6B7280]">Already have a registered studio? </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setNotice('')
+                  setMode('studio-options')
+                }}
+                className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
+              >
+                Sign in →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STUDIO SIGN IN OPTIONS ── */}
+        {mode === 'studio-options' && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Portal</p>
+              <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Sign in to Studio</h2>
+              <p className="text-xs text-[#6B7280] mt-1">Access live alteration intake, 48h timers, and weekly settlements.</p>
+            </div>
+
+            <div className="space-y-2.5">
+              <GoogleButton label="Sign in with Google" loading={loading} onClick={triggerGoogle} bordered />
+              <AuthButton icon={<Phone size={15} className="text-[#9E593B]" />} label="Sign in with Mobile Number" onClick={() => setMode('studio-mobile')} />
+              <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign in with Email" onClick={() => setMode('studio-login')} />
+            </div>
+
+            {onDemoAccess && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onDemoAccess}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#9E593B]/10 hover:bg-[#9E593B]/20 border border-[#9E593B]/30 py-3 text-xs font-bold text-[#9E593B] transition-all cursor-pointer"
+                >
+                  <Sparkles size={14} className="text-[#9E593B]" />
+                  <span>Launch Demo Workbench Sandbox</span>
+                </button>
+              </div>
+            )}
+
+            <Divider />
+
+            <div className="text-center">
+              <span className="text-xs text-[#6B7280]">New workshop? </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  setNotice('')
+                  setMode('studio-signup-options')
+                }}
+                className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
+              >
+                Register Atelier →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STUDIO MOBILE SIGN IN ── */}
+        {mode === 'studio-mobile' && (
+          <div className="space-y-4">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">SMS Authentication</p>
+              <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">
+                {sOtpSent ? 'Enter Partner Code' : 'Partner Mobile Number'}
+              </h2>
+            </div>
+
+            {!sOtpSent ? (
+              <form onSubmit={handleStudioMobileSend} className="space-y-3.5">
+                <Field label="Registered mobile phone *" type="tel" required value={sPhoneLogin} onChange={setSPhoneLogin} placeholder="+44 7700 900123" />
+                <SubmitBtn loading={loading} label="Send Partner Code" />
+              </form>
+            ) : (
+              <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
+                <input
+                  type="text"
+                  maxLength={4}
+                  required
+                  autoFocus
+                  value={sOtp}
+                  onChange={(e) => setSOtp(e.target.value)}
+                  placeholder="4829"
+                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                />
+                <SubmitBtn loading={loading} label="Verify & Sign In" />
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ── STUDIO EMAIL LOGIN ── */}
+        {mode === 'studio-login' && (
+          <form onSubmit={handleStudioLogin} className="space-y-4">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Login</p>
+              <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">Welcome back</h2>
+              <p className="text-xs text-[#6B7280] mt-1">Enter your registered partner email or phone.</p>
+            </div>
+
+            <Field label="Partner email or phone" required value={sLoginEmail} onChange={setSLoginEmail} placeholder="marco@ateliersoho.com" />
+            <SubmitBtn loading={loading} label="Access Studio Dashboard" />
+          </form>
+        )}
+
+        {/* ── STUDIO 3-STEP REGISTER ── */}
+        {mode === 'studio-register' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Sign Up</p>
+              <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Create Studio Account</h2>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] font-bold text-[#374151]">
+                  {registerStep === 1 ? '1. Studio Location' : registerStep === 2 ? '2. Lead Tailor Details' : '3. Capacity & Machines'}
+                </p>
+                <span className="text-[11px] font-bold text-[#9E593B]">Step {registerStep} of 3 ({Math.round((registerStep / 3) * 100)}%)</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
+                <div className="h-full rounded-full bg-[#9E593B] transition-all duration-300" style={{ width: `${(registerStep / 3) * 100}%` }} />
+              </div>
+            </div>
+
+            {registerStep === 1 && (
+              <div className="space-y-4">
+                <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Area / Neighborhood *" required value={sArea} onChange={setSArea} placeholder="SoHo, Kensington" />
+                  <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="W8 4EP" />
+                </div>
+                <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
+                    setError('')
+                    setRegisterStep(2)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors cursor-pointer shadow-xs"
+                >
+                  <span>Next: Lead Tailor Details</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
+
+            {registerStep === 2 && (
+              <div className="space-y-4">
+                <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
+                <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
+                <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+44 7700 900123" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
+                    setError('')
+                    setRegisterStep(3)
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors cursor-pointer shadow-xs"
+                >
+                  <span>Next: Capacity & Equipment</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            )}
+
+            {registerStep === 3 && (
+              <form onSubmit={handleStudioRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Machines</label>
+                    <select
+                      value={sMachines}
+                      onChange={(e) => setSMachines(e.target.value)}
+                      className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
+                    >
+                      <option value="2-3">2–3 machines</option>
+                      <option value="4-6">4–6 machines</option>
+                      <option value="8+">8+ machines</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Daily limit</label>
+                    <select
+                      value={sCapacity}
+                      onChange={(e) => setSCapacity(e.target.value)}
+                      className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
+                    >
+                      <option value="15">15 / day</option>
+                      <option value="25">25 / day</option>
+                      <option value="50">50 / day</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-2">Specialties</label>
+                  <div className="flex flex-wrap gap-2">
+                    {SPECIALTIES.map((s) => {
+                      const on = sSpecialties.includes(s)
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => toggleSpecialty(s)}
+                          className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all cursor-pointer ${
+                            on
+                              ? 'bg-[#9E593B] text-white border-[#9E593B]'
+                              : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
+                          }`}
+                        >
+                          {on && <Check size={10} className="inline mr-1" />}
+                          {s}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors disabled:opacity-60 cursor-pointer shadow-xs"
+                >
+                  <Sparkles size={15} />
+                  <span>{loading ? 'Activating studio…' : 'Open Studio Dashboard'}</span>
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  if (inline) {
+    return cardContent
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
       onClick={(e) => {
-        if (e.target === e.currentTarget) {
+        if (e.target === e.currentTarget && onClose) {
           onClose()
         }
       }}
     >
-      <div className="relative w-full max-w-[420px] rounded-2xl bg-white shadow-2xl border border-[#E5E7EB] max-h-[94vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#F3F4F6]">
-          <div className="flex items-center gap-2.5">
-            {isSubPage ? (
-              <button onClick={goBack} className="size-7 rounded-lg bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
-                <ArrowLeft size={14} className="text-[#374151]" />
-              </button>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Scissors size={20} className="text-[#9E593B]" />
-                <span className="text-xs font-extrabold uppercase tracking-widest text-[#0F1115]">Studio Partner</span>
-              </div>
-            )}
-          </div>
-          <button onClick={onClose} className="size-7 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] grid place-items-center transition-colors">
-            <X size={14} className="text-[#374151]" />
-          </button>
-        </div>
-
-        <div className="px-6 py-5 space-y-5">
-          {error && (
-            <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug shadow-sm animate-in fade-in space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg shrink-0">⚠️</span>
-                <span>{error}</span>
-              </div>
-              {error.includes('Please sign in instead') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode('studio-options')
-                  }}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer ml-7"
-                >
-                  Sign in to this account →
-                </button>
-              )}
-            </div>
-          )}
-
-          {notice && (
-            <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium flex items-center gap-2">
-              <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
-              <span>{notice}</span>
-            </div>
-          )}
-
-          {/* LINK PHONE STEP */}
-          {mode === 'link-phone-step' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="font-serif text-[22px] font-bold text-[#0F1115] leading-tight">
-                  Link Atelier Phone Number
-                </h2>
-                <p className="text-xs text-[#6B7280] mt-1">
-                  Required to receive booking SMS alerts and dispatch updates.
-                </p>
-              </div>
-
-              {!linkOtpSent ? (
-                <form onSubmit={handleSendLinkOtp} className="space-y-3.5">
-                  <Field label="Direct mobile number *" type="tel" required value={linkPhoneVal} onChange={setLinkPhoneVal} placeholder="+44 7700 900123" />
-                  <SubmitBtn loading={loading} label="Send Verification Code" />
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyLinkPhone} className="space-y-3.5">
-                  <p className="text-xs text-[#6B7280]">Enter code sent to <strong>{linkPhoneVal}</strong></p>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    required
-                    autoFocus
-                    value={linkOtp}
-                    onChange={(e) => setLinkOtp(e.target.value)}
-                    placeholder="4829"
-                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
-                  />
-                  <SubmitBtn loading={loading} label="Verify & Link Phone" />
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* ── STUDIO SIGN UP OPTIONS ── */}
-          {mode === 'studio-signup-options' && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Network</p>
-                <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Register Your Atelier</h2>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">Join Darzi as a certified partner atelier to receive pre-pinned alteration jobs.</p>
-              </div>
-
-              <div className="space-y-2.5">
-                <GoogleButton label="Sign up with Google (Partner)" loading={loading} onClick={triggerGoogle} bordered />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode('studio-register')
-                    setRegisterStep(1)
-                  }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all shadow-xs cursor-pointer active:scale-98"
-                >
-                  <Store size={15} />
-                  <span>Register with 3-Step Form</span>
-                </button>
-                <AuthButton
-                  icon={<Phone size={15} className="text-[#9E593B]" />}
-                  label="Sign in / Register with Mobile"
-                  onClick={() => setMode('studio-mobile')}
-                />
-              </div>
-
-              <Divider />
-
-              <div className="text-center">
-                <span className="text-xs text-[#6B7280]">Already have a registered studio? </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode('studio-options')
-                  }}
-                  className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
-                >
-                  Sign in →
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── STUDIO SIGN IN OPTIONS ── */}
-          {mode === 'studio-options' && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Portal</p>
-                <h2 className="font-serif text-[26px] font-bold text-[#0F1115] mt-0.5 leading-tight">Sign in to Studio</h2>
-                <p className="text-[13px] text-[#6B7280] mt-1.5">Access live orders, workbench controls, and weekly settlements.</p>
-              </div>
-
-              <div className="space-y-2.5">
-                <GoogleButton label="Sign in with Google" loading={loading} onClick={triggerGoogle} bordered />
-                <AuthButton icon={<Phone size={15} className="text-[#9E593B]" />} label="Sign in with Mobile Number" onClick={() => setMode('studio-mobile')} />
-                <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign in with Email" onClick={() => setMode('studio-login')} />
-                <button
-                  onClick={() => {
-                    setMode('studio-register')
-                    setRegisterStep(1)
-                  }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
-                >
-                  <Store size={15} />
-                  <span>Register New Atelier Studio</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── STUDIO MOBILE SIGN IN ── */}
-          {mode === 'studio-mobile' && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">SMS Authentication</p>
-                <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">
-                  {sOtpSent ? 'Enter Partner Code' : 'Partner Mobile Number'}
-                </h2>
-              </div>
-
-              {!sOtpSent ? (
-                <form onSubmit={handleStudioMobileSend} className="space-y-3.5">
-                  <Field label="Registered mobile phone *" type="tel" required value={sPhoneLogin} onChange={setSPhoneLogin} placeholder="+44 7700 900123" />
-                  <SubmitBtn loading={loading} label="Send Partner Code" />
-                </form>
-              ) : (
-                <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
-                  <input
-                    type="text"
-                    maxLength={4}
-                    required
-                    autoFocus
-                    value={sOtp}
-                    onChange={(e) => setSOtp(e.target.value)}
-                    placeholder="4829"
-                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
-                  />
-                  <SubmitBtn loading={loading} label="Verify & Sign In" />
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* ── STUDIO EMAIL LOGIN ── */}
-          {mode === 'studio-login' && (
-            <form onSubmit={handleStudioLogin} className="space-y-4">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Login</p>
-                <h2 className="font-serif text-2xl font-bold text-[#0F1115] mt-0.5">Welcome back</h2>
-                <p className="text-xs text-[#6B7280] mt-1">Enter your registered partner email or phone.</p>
-              </div>
-
-              <Field label="Partner email or phone" required value={sLoginEmail} onChange={setSLoginEmail} placeholder="marco@ateliersoho.com" />
-              <SubmitBtn loading={loading} label="Access Studio Dashboard" />
-            </form>
-          )}
-
-          {/* ── STUDIO 3-STEP REGISTER ── */}
-          {mode === 'studio-register' && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Sign Up</p>
-                <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Create Studio Account</h2>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[11px] font-bold text-[#374151]">
-                    {registerStep === 1 ? '1. Studio Location' : registerStep === 2 ? '2. Lead Tailor Details' : '3. Capacity & Machines'}
-                  </p>
-                  <span className="text-[11px] font-bold text-[#9E593B]">Step {registerStep} of 3 ({Math.round((registerStep / 3) * 100)}%)</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
-                  <div className="h-full rounded-full bg-[#9E593B] transition-all duration-300" style={{ width: `${(registerStep / 3) * 100}%` }} />
-                </div>
-              </div>
-
-              {registerStep === 1 && (
-                <div className="space-y-4">
-                  <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Area / Neighborhood *" required value={sArea} onChange={setSArea} placeholder="SoHo, Kensington" />
-                    <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="W8 4EP" />
-                  </div>
-                  <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
-                      setError('')
-                      setRegisterStep(2)
-                    }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
-                  >
-                    <span>Next: Lead Tailor Details</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              )}
-
-              {registerStep === 2 && (
-                <div className="space-y-4">
-                  <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
-                  <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+44 7700 900123" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
-                      setError('')
-                      setRegisterStep(3)
-                    }}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors cursor-pointer shadow-xs"
-                  >
-                    <span>Next: Capacity & Equipment</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              )}
-
-              {registerStep === 3 && (
-                <form onSubmit={handleStudioRegister} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Machines</label>
-                      <select
-                        value={sMachines}
-                        onChange={(e) => setSMachines(e.target.value)}
-                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
-                      >
-                        <option value="2-3">2–3 machines</option>
-                        <option value="4-6">4–6 machines</option>
-                        <option value="8+">8+ machines</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Daily limit</label>
-                      <select
-                        value={sCapacity}
-                        onChange={(e) => setSCapacity(e.target.value)}
-                        className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
-                      >
-                        <option value="15">15 / day</option>
-                        <option value="25">25 / day</option>
-                        <option value="50">50 / day</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-2">Specialties</label>
-                    <div className="flex flex-wrap gap-2">
-                      {SPECIALTIES.map((s) => {
-                        const on = sSpecialties.includes(s)
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => toggleSpecialty(s)}
-                            className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all cursor-pointer ${
-                              on
-                                ? 'bg-[#9E593B] text-white border-[#9E593B]'
-                                : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
-                            }`}
-                          >
-                            {on && <Check size={10} className="inline mr-1" />}
-                            {s}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors disabled:opacity-60 cursor-pointer shadow-xs"
-                  >
-                    <Sparkles size={15} />
-                    <span>{loading ? 'Activating studio…' : 'Open Studio Dashboard'}</span>
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {cardContent}
     </div>
   )
 }
@@ -736,7 +835,7 @@ function GoogleButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`w-full flex items-center justify-center gap-3 rounded-xl py-3 text-[13px] font-semibold transition-all disabled:opacity-60 ${
+      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3.5 text-xs font-bold transition-all disabled:opacity-60 cursor-pointer ${
         bordered
           ? 'border-2 border-[#0F1115] bg-white text-[#0F1115] hover:bg-[#FAF8F5]'
           : 'bg-white border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB]'
@@ -753,7 +852,7 @@ function AuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: st
     <button
       type="button"
       onClick={onClick}
-      className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#F4EFEA] hover:bg-[#EAE4DC] py-3 text-[13px] font-semibold text-[#0F1115] transition-colors"
+      className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#F4EFEA] hover:bg-[#EAE4DC] py-3.5 text-xs font-bold text-[#0F1115] transition-colors cursor-pointer"
     >
       {icon}
       {label}
@@ -796,7 +895,7 @@ function SubmitBtn({ loading, label }: { loading: boolean; label: string }) {
     <button
       type="submit"
       disabled={loading}
-      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-colors disabled:opacity-60"
+      className="w-full rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors disabled:opacity-60 cursor-pointer"
     >
       {loading ? 'Please wait…' : label}
     </button>

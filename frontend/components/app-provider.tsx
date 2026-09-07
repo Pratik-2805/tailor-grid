@@ -78,12 +78,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [createdOrderId, setCreatedOrderId] = useState('ORD-2654')
 
   const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
-  const [prefilledGarmentId, setPrefilledGarmentId] = useState('trousers')
-  const [prefilledServiceId, setPrefilledServiceId] = useState<string | undefined>()
+  const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tg_prefilled_garment') || 'trousers'
+    }
+    return 'trousers'
+  })
+  const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('tg_prefilled_service') || undefined
+    }
+    return undefined
+  })
   const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
   const [confirmedMeasurements, setConfirmedMeasurements] = useState<Record<string, string> | undefined>()
   const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
   const [garmentNotes, setGarmentNotes] = useState<string | undefined>()
+
+  const setPrefilledGarmentId = (g: string) => {
+    setPrefilledGarmentIdState(g)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tg_prefilled_garment', g)
+    }
+  }
+
+  const setPrefilledServiceId = (s: string | undefined) => {
+    setPrefilledServiceIdState(s)
+    if (typeof window !== 'undefined') {
+      if (s) localStorage.setItem('tg_prefilled_service', s)
+      else localStorage.removeItem('tg_prefilled_service')
+    }
+  }
 
   const [measurementDraft, setMeasurementDraft] = useState<{
     city: string
@@ -205,6 +230,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const navigate = (screenOrPath: Screen | string) => {
     if (screenOrPath === 'book' || screenOrPath === '/book') {
+      if (!user || !user.phone) {
+        openAuth('CUSTOMER', 'signup')
+        return
+      }
       router.push('/book')
       return
     }
@@ -223,17 +252,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    if (screenOrPath === 'orders' || screenOrPath === '/orders') {
+      if (!user || !user.phone) {
+        openAuth('CUSTOMER', user ? 'signup' : 'signin')
+        return
+      }
+      router.push('/orders')
+      return
+    }
+
+    if (screenOrPath === 'profile' || screenOrPath === '/profile') {
+      if (!user) {
+        openAuth('CUSTOMER', 'signin')
+        return
+      }
+      setIsProfileOpen(true)
+      return
+    }
+
     if (screenOrPath === 'home' || screenOrPath === '/') {
       if (user && user.role === 'CUSTOMER') {
         router.push('/book')
         return
       }
       router.push('/')
-      return
-    }
-
-    if (screenOrPath === 'book' || screenOrPath === '/book') {
-      router.push('/book')
       return
     }
 
