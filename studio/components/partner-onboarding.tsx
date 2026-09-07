@@ -208,8 +208,11 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
     setError('')
     try {
       const emailToSubmit = user?.email || pendingGoogle?.email
+      const resolvedTempId =
+        pendingGoogle?.tempSignupId ||
+        (user?.id && String(user.id).startsWith('temp_g_') ? user.id : undefined)
       const res = await signUpUser({
-        tempSignupId: pendingGoogle?.tempSignupId,
+        tempSignupId: resolvedTempId,
         name: tailorName.trim() || user?.name || pendingGoogle?.name || 'Master Tailor',
         email: emailToSubmit || undefined,
         phone: phone.trim() || user?.phone || undefined,
@@ -260,10 +263,10 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
       {/* Top Navbar */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-200 px-4 sm:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {currentStepNum > 1 && currentStep !== 'hub' && (
+          {currentStepNum > 0 && currentStep !== 'hub' && (
             <button
-              onClick={() => setCurrentStep(stepsList[currentStepNum - 2])}
-              className="p-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700"
+              onClick={() => setCurrentStep(stepsList[currentStepNum - 1])}
+              className="p-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700 cursor-pointer"
               title="Go Back"
             >
               <ArrowLeft size={18} />
@@ -574,6 +577,19 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
                 <span>{alreadyRegistered ? 'Go to Studio Workbench' : 'Join now'}</span>
                 <ArrowRight size={16} />
               </button>
+
+              <div className="pt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthTab('signin')
+                    setCurrentStep('auth')
+                  }}
+                  className="text-xs text-gray-500 hover:text-black font-semibold transition-colors cursor-pointer"
+                >
+                  Already have a partner account? <span className="font-bold text-[#9E593B] underline">Sign in to Studio →</span>
+                </button>
+              </div>
             </div>
           )}
 

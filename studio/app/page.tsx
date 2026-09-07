@@ -36,13 +36,17 @@ export default function StudioPage() {
       .then((u) => {
         if (u) {
           setUser(u)
-        } else if (authParam === 'signin' || authParam === 'login') {
-          setAuthType('signin')
-        } else if (authParam === 'signup' || authParam === 'register') {
-          setAuthType('signup')
+        } else {
+          setUser(null)
+          if (authParam === 'signin' || authParam === 'login') {
+            setAuthType('signin')
+          } else if (authParam === 'signup' || authParam === 'register') {
+            setAuthType('signup')
+          }
         }
       })
       .catch(() => {
+        setUser(null)
         if (authParam === 'signin' || authParam === 'login') {
           setAuthType('signin')
         } else if (authParam === 'signup' || authParam === 'register') {

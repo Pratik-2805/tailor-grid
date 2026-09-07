@@ -160,8 +160,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             router.replace('/book')
           }
         }
-      } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
+      } else {
         setUser(null)
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('tg_user')
+          localStorage.removeItem('tg_token')
+          localStorage.removeItem('tg_user_role')
+          sessionStorage.removeItem('tg_pending_google')
+        }
       }
     })
   }, [])

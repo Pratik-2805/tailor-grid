@@ -136,11 +136,6 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => nav('admin')} className="hover:text-white transition-colors text-left">
-                    Operations Admin
-                  </button>
-                </li>
-                <li>
                   <button onClick={() => setActiveModal('contact')} className="hover:text-white transition-colors text-left">
                     Contact & Support
                   </button>

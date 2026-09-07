@@ -447,11 +447,19 @@ router.post('/link-phone', async (req, res) => {
       otpStore.delete(cleanPhone);
     }
 
-    if (targetUserId && String(targetUserId).startsWith('temp_g_')) {
-      const cached = getPendingGoogleSignup(targetUserId);
+    if (targetUserId && (String(targetUserId).startsWith('temp_g_') || String(targetUserId).startsWith('ey'))) {
+      let cached = getPendingGoogleSignup(targetUserId);
+      if (!cached && (req.body.email || req.body.phone)) {
+        cached = {
+          email: req.body.email,
+          name: req.body.name || 'Google User',
+          avatar: req.body.avatar,
+          role: req.body.role || 'CUSTOMER',
+        };
+      }
       if (!cached) {
         return res.status(400).json({
-          error: 'Your signup session has expired (5 minute limit). Please sign in with Google again.',
+          error: 'Your signup session has expired. Please sign in with Google again.',
         });
       }
 
@@ -518,10 +526,11 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
-// In-memory 5-minute TTL cache for pending Google signups: tempSignupId -> { data, expiresAt }
+// In-memory cache for pending Google signups: tempSignupId -> { data, expiresAt }
+// 7-day TTL so onboarding sessions do not expire while forms are being completed
 const pendingGoogleSignups = new Map();
 
-// Periodic sweep for expired pending signup cache entries every 60 seconds
+// Periodic sweep for expired pending signup cache entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, item] of pendingGoogleSignups.entries()) {
@@ -529,9 +538,9 @@ setInterval(() => {
       pendingGoogleSignups.delete(key);
     }
   }
-}, 60 * 1000);
+}, 5 * 60 * 1000);
 
-function storePendingGoogleSignup(tempId, data, ttlMs = 5 * 60 * 1000) {
+function storePendingGoogleSignup(tempId, data, ttlMs = 7 * 24 * 60 * 60 * 1000) {
   pendingGoogleSignups.set(tempId, {
     data,
     expiresAt: Date.now() + ttlMs,
@@ -539,13 +548,36 @@ function storePendingGoogleSignup(tempId, data, ttlMs = 5 * 60 * 1000) {
 }
 
 function getPendingGoogleSignup(tempId) {
+  if (!tempId) return null;
+
+  // 1. Check in-memory map first
   const item = pendingGoogleSignups.get(tempId);
-  if (!item) return null;
-  if (item.expiresAt < Date.now()) {
+  if (item) {
+    if (item.expiresAt >= Date.now()) {
+      return item.data;
+    }
     pendingGoogleSignups.delete(tempId);
-    return null;
   }
-  return item.data;
+
+  // 2. Stateless JWT verification: allows surviving server restarts & multi-day onboarding
+  const rawToken = String(tempId).startsWith('temp_g_') ? String(tempId).slice(7) : String(tempId);
+  try {
+    const decoded = jwt.verify(rawToken, JWT_SECRET);
+    if (decoded && (decoded.email || decoded.type === 'pending_google_signup')) {
+      return {
+        tempSignupId: tempId,
+        email: decoded.email,
+        name: decoded.name || 'Google User',
+        avatar: decoded.avatar,
+        role: decoded.role || 'CUSTOMER',
+        method: decoded.method || 'google',
+      };
+    }
+  } catch (jwtErr) {
+    // Not a valid or signed JWT
+  }
+
+  return null;
 }
 
 function removePendingGoogleSignup(tempId) {
@@ -639,19 +671,25 @@ router.post('/google', async (req, res) => {
     }
 
     // 2. New user signing up with Google -> DO NOT save to database yet!
-    // Store profile in memory cache for 5 minutes (300 seconds)
-    const tempSignupId = `temp_g_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const pendingData = {
-      tempSignupId,
+    // Issue a signed stateless token (valid 7 days) and cache in memory
+    const tokenPayload = {
+      type: 'pending_google_signup',
       email: cleanEmail,
       name: name || 'Google User',
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
-      method: 'google',
       role,
+      method: 'google',
       createdAt: Date.now(),
     };
+    const signedToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+    const tempSignupId = `temp_g_${signedToken}`;
 
-    storePendingGoogleSignup(tempSignupId, pendingData, 5 * 60 * 1000);
+    const pendingData = {
+      ...tokenPayload,
+      tempSignupId,
+    };
+
+    storePendingGoogleSignup(tempSignupId, pendingData, 7 * 24 * 60 * 60 * 1000);
 
     return res.json({
       success: true,
@@ -668,7 +706,7 @@ router.post('/google', async (req, res) => {
       },
       needsPhone: true,
       hasPhone: false,
-      expiresIn: 300,
+      expiresIn: 7 * 24 * 3600,
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -705,9 +743,11 @@ router.post('/signup', async (req, res) => {
     let cachedGoogleData = null;
     if (tempSignupId) {
       cachedGoogleData = getPendingGoogleSignup(tempSignupId);
-      if (!cachedGoogleData) {
+      // Resilient fallback: If cache entry is missing or expired, but the client provides email or phone,
+      // allow registration to proceed so active onboarding users never get blocked by timeouts or restarts.
+      if (!cachedGoogleData && !email && !phone) {
         return res.status(400).json({
-          error: 'Your sign-up session has expired (5 minute limit). Please sign up with Google again.',
+          error: 'Your sign-up session has expired. Please sign up with Google again.',
         });
       }
     }
@@ -716,7 +756,7 @@ router.post('/signup', async (req, res) => {
     const finalPhone = phone ? phone.trim() : null;
     const finalName = name || cachedGoogleData?.name || 'Darzi Member';
     const finalAvatar = cachedGoogleData?.avatar;
-    const finalMethod = cachedGoogleData ? 'google' : 'email';
+    const finalMethod = (tempSignupId || cachedGoogleData) ? 'google' : 'email';
 
     const contactStr = finalEmail || finalPhone;
     if (!contactStr) {
