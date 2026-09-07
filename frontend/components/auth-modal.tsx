@@ -186,11 +186,12 @@ export function AuthModal({
             if (result?.user) {
               const returnedRole = result.user.role
               if (returnedRole && returnedRole !== role) {
-                setError(
+                const msg =
                   returnedRole === 'STUDIO'
                     ? 'This Google account is registered as a Studio partner. Please sign in via the Studio portal.'
                     : 'This Google account is registered as a Customer. Please use a different Google account for Studio.'
-                )
+                setError('')
+                toast.error(msg, { position: 'top-center' })
                 return
               }
 
@@ -207,7 +208,14 @@ export function AuthModal({
             }
           } catch (err: any) {
             setLoading(false)
-            setError(err.message || 'Google sign-in failed.')
+            const msg = err.message || 'Google sign-in failed.'
+            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+              setError('')
+              toast.error(msg, { position: 'top-center' })
+            } else {
+              setError(msg)
+              toast.error(msg, { position: 'top-center' })
+            }
           }
         },
       })
@@ -379,8 +387,13 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
+      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
+        setError('')
+        toast.error(msg, { position: 'top-center' })
+      } else {
+        setError(msg)
+        toast.error(msg, { position: 'top-center' })
+      }
     }
   }
 
@@ -492,7 +505,7 @@ export function AuthModal({
 
         <div className="px-6 pb-6 pt-1 space-y-5">
           {/* Error Banner */}
-          {error && (
+          {error && !error.toLowerCase().includes('unauthorized') && !error.toLowerCase().includes('access denied') && (
             <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug shadow-sm animate-in fade-in space-y-2">
               <div className="flex items-center gap-2.5">
                 <span className="text-lg shrink-0">⚠️</span>
