@@ -24,7 +24,8 @@
     "express": "^5.2.1",
     "google-auth-library": "^11.0.2",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "twilio": "^6.1.0"
   },
   "devDependencies": {
     "prisma": "^7.10.0"
