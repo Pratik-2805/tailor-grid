@@ -429,7 +429,7 @@ export function AuthModal({
               Studio Portal
             </span>
             <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
-              Workbench Node · Port 3001
+              Workbench Node
             </span>
           </div>
         </div>
@@ -454,15 +454,9 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => {
-                setError('')
-                setNotice('')
-                setMode('studio-signup-options')
+                window.location.href = '/onboarding'
               }}
-              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                mode === 'studio-signup-options'
-                  ? 'bg-white text-[#0F1115] shadow-xs'
-                  : 'text-[#6B7280] hover:text-[#0F1115]'
-              }`}
+              className="px-3 py-1 rounded-full font-bold transition-all cursor-pointer text-[#6B7280] hover:text-[#0F1115]"
             >
               Register
             </button>
@@ -561,15 +555,12 @@ export function AuthModal({
               <button
                 type="button"
                 onClick={() => {
-                  setError('')
-                  setNotice('')
-                  setMode('studio-register')
-                  setRegisterStep(1)
+                  window.location.href = '/onboarding'
                 }}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-xs cursor-pointer active:scale-98"
               >
                 <Store size={15} />
-                <span>Register with 3-Step Form</span>
+                <span>Enroll Studio (Onboarding Form)</span>
               </button>
               <AuthButton
                 icon={<Phone size={15} className="text-[#9E593B]" />}
@@ -632,9 +623,7 @@ export function AuthModal({
               <button
                 type="button"
                 onClick={() => {
-                  setError('')
-                  setNotice('')
-                  setMode('studio-signup-options')
+                  window.location.href = '/onboarding'
                 }}
                 className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
               >

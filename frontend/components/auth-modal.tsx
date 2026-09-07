@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
 
 type AuthMode =
   | 'customer-options'
@@ -198,7 +198,7 @@ export function AuthModal({
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('tg_user', JSON.stringify(result.user))
                   localStorage.setItem('tg_user_role', 'STUDIO')
-                  window.location.href = '/partner/onboarding'
+                  window.location.href = getStudioUrl('/onboarding', result.token)
                 }
               } else {
                 finalizeAuth(result.user, role)
@@ -854,7 +854,7 @@ export function AuthModal({
                   onClick={() => {
                     onClose()
                     if (typeof window !== 'undefined') {
-                      window.location.href = '/partner/onboarding'
+                      window.location.href = getStudioUrl('/onboarding')
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
@@ -883,7 +883,7 @@ export function AuthModal({
                   onClick={() => {
                     onClose()
                     if (typeof window !== 'undefined') {
-                      window.location.href = '/partner/onboarding'
+                      window.location.href = getStudioUrl('/onboarding')
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"

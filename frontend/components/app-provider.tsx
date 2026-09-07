@@ -158,9 +158,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('tg_user_role', u.role ?? 'CUSTOMER')
             syncAuthCookies(localStorage.getItem('tg_token'), u.role)
           }
-        } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
+        } else {
           setUser(null)
-          clearAuthCookies()
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('tg_user')
+            localStorage.removeItem('tg_token')
+            localStorage.removeItem('tg_user_role')
+            sessionStorage.removeItem('tg_pending_google')
+            clearAuthCookies()
+          }
         }
       })
       .finally(() => {

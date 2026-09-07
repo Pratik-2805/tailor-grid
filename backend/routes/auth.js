@@ -543,7 +543,7 @@ setInterval(() => {
       pendingGoogleSignups.delete(key);
     }
   }
-}, 60 * 1000);
+}, 5 * 60 * 1000);
 
 function storePendingGoogleSignup(tempId, data, ttlMs = 60 * 60 * 1000) {
   pendingGoogleSignups.set(tempId, {
@@ -553,13 +553,36 @@ function storePendingGoogleSignup(tempId, data, ttlMs = 60 * 60 * 1000) {
 }
 
 function getPendingGoogleSignup(tempId) {
+  if (!tempId) return null;
+
+  // 1. Check in-memory map first
   const item = pendingGoogleSignups.get(tempId);
-  if (!item) return null;
-  if (item.expiresAt < Date.now()) {
+  if (item) {
+    if (item.expiresAt >= Date.now()) {
+      return item.data;
+    }
     pendingGoogleSignups.delete(tempId);
-    return null;
   }
-  return item.data;
+
+  // 2. Stateless JWT verification: allows surviving server restarts & multi-day onboarding
+  const rawToken = String(tempId).startsWith('temp_g_') ? String(tempId).slice(7) : String(tempId);
+  try {
+    const decoded = jwt.verify(rawToken, JWT_SECRET);
+    if (decoded && (decoded.email || decoded.type === 'pending_google_signup')) {
+      return {
+        tempSignupId: tempId,
+        email: decoded.email,
+        name: decoded.name || 'Google User',
+        avatar: decoded.avatar,
+        role: decoded.role || 'CUSTOMER',
+        method: decoded.method || 'google',
+      };
+    }
+  } catch (jwtErr) {
+    // Not a valid or signed JWT
+  }
+
+  return null;
 }
 
 function removePendingGoogleSignup(tempId) {
@@ -656,7 +679,6 @@ router.post('/google', async (req, res) => {
       email: cleanEmail,
       name: name || 'Google User',
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
-      method: 'google',
       role,
     });
 
@@ -705,9 +727,11 @@ router.post('/signup', async (req, res) => {
     let cachedGoogleData = null;
     if (tempSignupId) {
       cachedGoogleData = getPendingGoogleSignup(tempSignupId);
-      if (!cachedGoogleData) {
+      // Resilient fallback: If cache entry is missing or expired, but the client provides email or phone,
+      // allow registration to proceed so active onboarding users never get blocked by timeouts or restarts.
+      if (!cachedGoogleData && !email && !phone) {
         return res.status(400).json({
-          error: 'Your sign-up session has expired (5 minute limit). Please sign up with Google again.',
+          error: 'Your sign-up session has expired. Please sign up with Google again.',
         });
       }
     }
@@ -723,7 +747,7 @@ router.post('/signup', async (req, res) => {
     }
     const finalName = name || cachedGoogleData?.name || 'Darzi Member';
     const finalAvatar = cachedGoogleData?.avatar;
-    const finalMethod = cachedGoogleData ? 'google' : 'email';
+    const finalMethod = (tempSignupId || cachedGoogleData) ? 'google' : 'email';
 
     const contactStr = finalEmail || finalPhone;
     if (!contactStr) {

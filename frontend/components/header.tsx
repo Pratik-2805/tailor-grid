@@ -122,19 +122,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-          <button
-            onClick={() => {
-              if (!user) {
-                onOpenAuth?.()
-              } else {
-                nav('orders')
-              }
-            }}
-            className="flex items-center gap-1.5 rounded-full px-3 lg:px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors whitespace-nowrap shrink-0"
-          >
-            <Package size={14} className="text-[#6B7280] shrink-0" />
-            <span>Track Order</span>
-          </button>
 
           {user ? (
             <div
@@ -298,7 +285,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             <>
               {[
                 { label: 'How it Works', screen: 'how-it-works' as Screen },
-                { label: 'Track My Orders', screen: 'orders' as Screen },
                 { label: 'About Us', screen: 'about' as Screen },
                 { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
               ].map((item) => (
