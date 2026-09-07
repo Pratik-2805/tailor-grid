@@ -1,37 +1,14 @@
 'use client'
 
-import { PartnerOnboarding } from '@/components/partner-onboarding'
-import { useEffect, useState } from 'react'
-import type { User } from '@/components/data'
-import { getCurrentUser } from '@/lib/api'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function StudioOnboardingPage() {
-  const [user, setUser] = useState<User | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
-      setUser(u)
-    })
-  }, [])
+    router.replace('/')
+  }, [router])
 
-  return (
-    <PartnerOnboarding
-      user={user}
-      onComplete={(u) => {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(u))
-          localStorage.setItem('tg_user_role', 'STUDIO')
-          window.location.href = '/'
-        }
-      }}
-      onSignOut={() => {
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('tg_token')
-          localStorage.removeItem('tg_user')
-          localStorage.removeItem('tg_user_role')
-          window.location.href = '/'
-        }
-      }}
-    />
-  )
+  return null
 }

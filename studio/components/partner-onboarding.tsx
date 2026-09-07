@@ -70,29 +70,9 @@ export function PartnerOnboarding({
     return null
   })
 
-  // Auth Card State
-  const [authTab, setAuthTab] = useState<'signin' | 'signup'>(initialTab)
+  // Auth Card State: single card with options, mobile, or email subviews
   const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>('options')
   const [authLoading, setAuthLoading] = useState(false)
-
-  // Sync initialTab and query parameters
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const tabParam = params.get('tab') || params.get('mode') || params.get('auth')
-      if (tabParam === 'signin' || tabParam === 'login') {
-        setAuthTab('signin')
-      } else if (tabParam === 'signup' || tabParam === 'register') {
-        setAuthTab('signup')
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (initialTab) {
-      setAuthTab(initialTab)
-    }
-  }, [initialTab])
 
   // Sign In with Mobile fields
   const [sPhoneLogin, setSPhoneLogin] = useState('')
@@ -200,7 +180,6 @@ export function PartnerOnboarding({
             const result = await loginWithGoogle({
               accessToken: tokenResponse.access_token,
               role: 'STUDIO',
-              isSignup: authTab === 'signup',
               profile: {
                 name: profile.name || 'Google User',
                 contact: profile.email,
@@ -213,7 +192,7 @@ export function PartnerOnboarding({
 
             setAuthLoading(false)
 
-            // If existing registered studio user -> sign in directly
+            // If existing registered studio user in Prisma -> sign in directly
             if (!result.isNewUser && result.user) {
               if (result.user.role && result.user.role !== 'STUDIO') {
                 setError('This Google account is registered as a Customer. Please use a Studio partner account.')
@@ -229,7 +208,7 @@ export function PartnerOnboarding({
               return
             }
 
-            // New Studio User -> advance to Step 1 (Image 2: Earn with Darzi) with prefilled Google info
+            // Not in Prisma yet -> advance directly to registration form with prefilled Google details!
             const pending = {
               tempSignupId: result.tempSignupId,
               email: profile.email,
@@ -282,7 +261,7 @@ export function PartnerOnboarding({
     }
   }
 
-  // Handle Mobile Sign In: Verify OTP
+  // Handle Mobile: Verify OTP (Log in if in Prisma, or open form if not)
   const handleVerifyMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!sOtp || sOtp.length < 4) {
@@ -308,32 +287,52 @@ export function PartnerOnboarding({
       }
     } catch (err: any) {
       setAuthLoading(false)
+      // If code was verified but partner is not in Prisma yet, advance to registration form!
+      if (err.message?.includes('Unauthorized') || err.message?.includes('not found') || err.message?.includes('access denied')) {
+        setPhone(sPhoneLogin.trim())
+        setCurrentStep('location')
+        return
+      }
       setError(err.message || 'Verification failed. Please check the code.')
     }
   }
 
-  // Handle Email Sign In
+  // Handle Email: Check Prisma & Log in, or open form if not registered
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!sLoginEmail.trim()) {
-      setError('Please enter your registered email or phone.')
+    const cleanEmail = sLoginEmail.trim()
+    if (!cleanEmail) {
+      setError('Please enter your email address.')
       return
     }
     setAuthLoading(true)
     setError('')
     try {
-      const res = await loginUser({ identifier: sLoginEmail.trim(), role: 'STUDIO' })
-      setAuthLoading(false)
-      if (res?.user) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(res.user))
-          localStorage.setItem('tg_user_role', 'STUDIO')
-          if (res.token) localStorage.setItem('tg_token', res.token)
-          window.location.href = '/'
+      const check = await checkEmailExists(cleanEmail, 'STUDIO')
+      if (check.exists && check.user) {
+        const res = await loginUser({ identifier: cleanEmail, role: 'STUDIO' })
+        setAuthLoading(false)
+        if (res?.user) {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tg_user', JSON.stringify(res.user))
+            localStorage.setItem('tg_user_role', 'STUDIO')
+            if (res.token) localStorage.setItem('tg_token', res.token)
+            window.location.href = '/'
+          }
         }
+      } else {
+        // Not in Prisma yet -> open registration form with email prefilled
+        setAuthLoading(false)
+        setEmailVal(cleanEmail)
+        setCurrentStep('location')
       }
     } catch (err: any) {
       setAuthLoading(false)
+      if (err.message?.includes('not found') || err.message?.includes('Invalid') || err.message?.includes('Unauthorized')) {
+        setEmailVal(cleanEmail)
+        setCurrentStep('location')
+        return
+      }
       setError(err.message || 'Login failed. Please check your credentials.')
     }
   }
@@ -543,10 +542,10 @@ export function PartnerOnboarding({
           {/* Sign Up: opens and keeps "Earn with Darzi" form (Image 2)        */}
           {/* ================================================================ */}
           <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200">
-            {/* Card Header with Port & Sign In / Sign Up Toggle */}
+            {/* Card Header with Port Badge (NO Sign In / Sign Up toggle) */}
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
               <div className="flex items-center gap-2.5">
-                {authTab === 'signup' && currentStep !== 'auth' && currentStep !== 'location' ? (
+                {currentStep !== 'auth' ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -555,6 +554,10 @@ export function PartnerOnboarding({
                       if (currentStep === 'hub') setCurrentStep('shop-info')
                       else if (currentStep === 'shop-info') setCurrentStep('language')
                       else if (currentStep === 'language') setCurrentStep('location')
+                      else if (currentStep === 'location') {
+                        setSignInMode('options')
+                        setCurrentStep('auth')
+                      }
                     }}
                     className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"
                     title="Back"
@@ -571,50 +574,20 @@ export function PartnerOnboarding({
                     Studio Portal
                   </span>
                   <span className="text-xs font-bold text-[#0F1115] block">
-                    Workbench Node · Port 3001
+                    Workbench Node
                   </span>
                 </div>
               </div>
 
-              {/* Pill Toggle like customer side */}
-              <div className="flex items-center bg-gray-100 p-1 rounded-full text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthTab('signin')
-                    setSignInMode('options')
-                    setError('')
-                    setNotice('')
-                  }}
-                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
-                    authTab === 'signin'
-                      ? 'bg-white shadow-xs text-[#0F1115]'
-                      : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthTab('signup')
-                    setSignInMode('options')
-                    setError('')
-                    setNotice('')
-                  }}
-                  className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
-                    authTab === 'signup'
-                      ? 'bg-white shadow-xs text-[#0F1115]'
-                      : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  Sign Up
-                </button>
-              </div>
+              {currentStep !== 'auth' && (
+                <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  Step {currentStepNum} of 4
+                </span>
+              )}
             </div>
 
-            {/* ── A. SIGN IN TAB ("in sign in as it is") ── */}
-            {authTab === 'signin' && (
+            {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
+            {currentStep === 'auth' && (
               <div className="space-y-5">
                 {/* Submode: Email Login */}
                 {signInMode === 'email' && (
@@ -628,18 +601,18 @@ export function PartnerOnboarding({
                         <ArrowLeft size={14} />
                       </button>
                       <div>
-                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">Studio Sign In</p>
-                        <h2 className="font-serif text-2xl font-bold text-[#0F1115]">Welcome back</h2>
+                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">Partner Email</p>
+                        <h2 className="font-serif text-2xl font-bold text-[#0F1115]">Access Atelier</h2>
                       </div>
                     </div>
 
                     <form onSubmit={handleEmailLogin} className="space-y-3.5 pt-1">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Registered Partner Email or Mobile *
+                          Partner Email Address *
                         </label>
                         <input
-                          type="text"
+                          type="email"
                           required
                           autoFocus
                           value={sLoginEmail}
@@ -653,7 +626,7 @@ export function PartnerOnboarding({
                         disabled={authLoading}
                         className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
                       >
-                        {authLoading ? 'Signing in…' : 'Access Studio Workbench'}
+                        {authLoading ? 'Verifying…' : 'Continue'}
                       </button>
                     </form>
                   </div>
@@ -682,7 +655,7 @@ export function PartnerOnboarding({
                       <form onSubmit={handleSendMobileOtp} className="space-y-3.5 pt-1">
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Registered Mobile Phone *
+                            Mobile Phone Number *
                           </label>
                           <input
                             type="tel"
@@ -719,14 +692,14 @@ export function PartnerOnboarding({
                           disabled={authLoading}
                           className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
                         >
-                          {authLoading ? 'Verifying…' : 'Verify & Sign In'}
+                          {authLoading ? 'Verifying…' : 'Verify & Continue'}
                         </button>
                       </form>
                     )}
                   </div>
                 )}
 
-                {/* Submode: Options Menu (Image 1) */}
+                {/* Submode: Options Menu (Single unified card) */}
                 {signInMode === 'options' && (
                   <>
                     <div>
@@ -734,10 +707,10 @@ export function PartnerOnboarding({
                         Partner Portal
                       </span>
                       <h2 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
-                        Sign in to Studio
+                        Studio Workbench Access
                       </h2>
                       <p className="text-xs text-gray-500 mt-1">
-                        Access live alteration intake, 48h timers, and weekly settlements.
+                        Access live alteration intake, 48h timers, and atelier operations.
                       </p>
                     </div>
 
@@ -755,7 +728,7 @@ export function PartnerOnboarding({
                           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                         </svg>
-                        <span>{authLoading ? 'Connecting Google…' : 'Sign in with Google'}</span>
+                        <span>{authLoading ? 'Connecting Google…' : 'Continue with Google'}</span>
                       </button>
 
                       {/* 2. Mobile Button */}
@@ -769,7 +742,7 @@ export function PartnerOnboarding({
                         className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
                       >
                         <Phone size={16} className="text-[#9E593B]" />
-                        <span>Sign in with Mobile Number</span>
+                        <span>Continue with Mobile Number</span>
                       </button>
 
                       {/* 3. Email Button */}
@@ -783,7 +756,7 @@ export function PartnerOnboarding({
                         className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
                       >
                         <Mail size={16} className="text-[#9E593B]" />
-                        <span>Sign in with Email</span>
+                        <span>Continue with Email</span>
                       </button>
 
                       {/* 4. Demo Sandbox Button */}
@@ -796,35 +769,26 @@ export function PartnerOnboarding({
                         <span>Launch Demo Workbench Sandbox</span>
                       </button>
                     </div>
-
-                    {/* Bottom Toggle Link */}
-                    <div className="pt-2 text-center border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('')
-                          setNotice('')
-                          setAuthTab('signup')
-                          setSignInMode('options')
-                        }}
-                        className="text-xs text-gray-600 hover:text-black font-semibold transition-colors cursor-pointer"
-                      >
-                        New workshop? <span className="font-bold text-[#9E593B] underline">Register Atelier →</span>
-                      </button>
-                    </div>
                   </>
                 )}
               </div>
             )}
 
-            {/* ── B. SIGN UP TAB ("if not sign in then for sign up open keep this form") ── */}
-            {authTab === 'signup' && (
+            {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
+            {currentStep !== 'auth' && (
               <div className="space-y-6">
                 {/* Step 1: Image 2 — "Earn with Darzi" */}
-                {(currentStep === 'auth' || currentStep === 'location') && (
+                {currentStep === 'location' && (
                   <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="w-12 h-10 rounded-xl bg-[#10B981]/15 text-[#059669] flex items-center justify-center font-bold">
-                      <Store size={22} />
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-10 rounded-xl bg-[#10B981]/15 text-[#059669] flex items-center justify-center font-bold">
+                        <Store size={22} />
+                      </div>
+                      {(pendingGoogle?.email || emailVal || phone) && (
+                        <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full truncate max-w-[220px]">
+                          {pendingGoogle?.email || emailVal || phone}
+                        </span>
+                      )}
                     </div>
 
                     <div>
@@ -836,26 +800,10 @@ export function PartnerOnboarding({
                       </p>
                     </div>
 
-                    {/* Quick 1-click Google option */}
-                    <button
-                      type="button"
-                      disabled={authLoading}
-                      onClick={triggerGoogleAuth}
-                      className="w-full flex items-center justify-center gap-2.5 rounded-2xl border-2 border-[#0F1115] bg-white hover:bg-gray-50 py-3 px-4 text-xs font-bold text-[#0F1115] shadow-xs active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
-                    >
-                      <svg className="size-4 shrink-0" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                      </svg>
-                      <span>{authLoading ? 'Connecting Google…' : 'Sign up faster with Google'}</span>
-                    </button>
-
                     <div className="space-y-4 pt-1">
                       <div>
                         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Where would you like to earn?
+                          Where would you like to earn? *
                         </label>
                         <input
                           type="text"
@@ -887,19 +835,6 @@ export function PartnerOnboarding({
                     <button
                       type="button"
                       onClick={() => {
-                        if (alreadyRegistered) {
-                          const activeUser = alreadyRegisteredUser || user
-                          if (activeUser && typeof window !== 'undefined') {
-                            localStorage.setItem('tg_user', JSON.stringify(activeUser))
-                            localStorage.setItem('tg_user_role', 'STUDIO')
-                          }
-                          if (onComplete && activeUser) {
-                            onComplete(activeUser)
-                          } else if (typeof window !== 'undefined') {
-                            window.location.href = '/'
-                          }
-                          return
-                        }
                         if (!locationCity.trim()) {
                           setError('Please specify your city or workshop location.')
                           return
@@ -909,23 +844,8 @@ export function PartnerOnboarding({
                       }}
                       className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
                     >
-                      <span>{alreadyRegistered ? 'Go to Studio Workbench' : 'Join now →'}</span>
+                      <span>Continue to Atelier Setup →</span>
                     </button>
-
-                    <div className="pt-2 text-center border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('')
-                          setNotice('')
-                          setAuthTab('signin')
-                          setSignInMode('options')
-                        }}
-                        className="text-xs text-gray-600 hover:text-black font-semibold transition-colors cursor-pointer"
-                      >
-                        Already have a partner account? <span className="font-bold text-[#9E593B] underline">Sign in to Studio →</span>
-                      </button>
-                    </div>
                   </div>
                 )}
 

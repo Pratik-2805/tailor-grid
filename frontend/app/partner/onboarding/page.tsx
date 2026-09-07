@@ -6,7 +6,7 @@ import { getStudioUrl } from '@/lib/api'
 export default function PartnerOnboardingPage() {
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-    window.location.href = getStudioUrl('/onboarding', token)
+    window.location.href = getStudioUrl('/', token)
   }, [])
 
   return (

@@ -427,7 +427,7 @@ export function AuthModal({
               Studio Portal
             </span>
             <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
-              Workbench Node · Port 3001
+              Workbench Node
             </span>
           </div>
         </div>

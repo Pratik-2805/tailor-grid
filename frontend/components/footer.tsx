@@ -126,11 +126,6 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               </h5>
               <ul className="space-y-2 text-xs text-[#9CA3AF]">
                 <li>
-                  <button onClick={() => nav('orders')} className="hover:text-white transition-colors text-left">
-                    Track Orders
-                  </button>
-                </li>
-                <li>
                   <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
                     Partner Studio Portal
                   </button>
