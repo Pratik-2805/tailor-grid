@@ -8,7 +8,6 @@ import { Header } from './header'
 import { StudioSubNav } from './studio-sub-nav'
 import { Footer } from './footer'
 import { AuthModal } from './auth-modal'
-import { ProfileModal } from './profile-modal'
 import type { Screen } from './data'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -22,8 +21,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     authType,
     openAuth,
     closeAuth,
-    isProfileOpen,
-    setIsProfileOpen,
     navigate,
     handleAuthSuccess,
     handleSignOut,
@@ -67,7 +64,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           go={navigate}
           user={user}
           onOpenAuth={() => openAuth('CUSTOMER')}
-          onOpenProfile={() => setIsProfileOpen(true)}
           onSignOut={handleSignOut}
         />
       )}
@@ -101,16 +97,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         onSuccess={handleAuthSuccess}
         onSignOut={handleSignOut}
       />
-
-      {/* Account Profile Modal */}
-      {user && (
-        <ProfileModal
-          isOpen={isProfileOpen}
-          onClose={() => setIsProfileOpen(false)}
-          user={user}
-          onUpdateUser={(updated) => setUser(updated)}
-        />
-      )}
 
       {/* React Toastify Notifications Container */}
       <ToastContainer

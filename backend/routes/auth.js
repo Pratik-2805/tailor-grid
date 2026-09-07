@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { prisma } = require('../lib/prisma');
+const { validateAndFormatPhone, sendVerificationSms, saveOtp, verifyOtp } = require('../lib/sms');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
@@ -270,27 +271,30 @@ async function findOrLinkUser({
 router.post('/send-otp', async (req, res) => {
   try {
     const { phone } = req.body;
-    if (!phone || phone.trim().length < 6) {
-      return res.status(400).json({ error: 'Please provide a valid mobile number.' });
+    const phoneValidation = validateAndFormatPhone(phone);
+    if (!phoneValidation.isValid) {
+      return res.status(400).json({ error: phoneValidation.error });
     }
 
-    const cleanPhone = phone.trim();
+    const cleanPhone = phoneValidation.formatted;
     const code = Math.floor(1000 + Math.random() * 9000).toString();
-    otpStore.set(cleanPhone, {
-      code,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-    });
 
-    console.log(`[AUTH-OTP] Sent OTP code for ${cleanPhone}: ${code}`);
+    // Persist OTP in PostgreSQL DB (and memory cache)
+    await saveOtp(cleanPhone, code);
+
+    console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
+
+    // Send real SMS via Twilio
+    const smsResult = await sendVerificationSms(cleanPhone, code);
 
     return res.json({
       success: true,
-      message: `Verification code sent to ${cleanPhone}`,
-      demoCode: code,
+      phone: cleanPhone,
+      message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
     });
   } catch (err) {
     console.error('Send OTP Error:', err);
-    return res.status(500).json({ error: 'Failed to send verification code.' });
+    return res.status(500).json({ error: err.message || 'Failed to send verification code.' });
   }
 });
 
@@ -302,24 +306,21 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Mobile number and verification code are required.' });
     }
 
-    const cleanPhone = phone.trim();
+    const phoneValidation = validateAndFormatPhone(phone);
+    if (!phoneValidation.isValid) {
+      return res.status(400).json({ error: phoneValidation.error });
+    }
+
+    const cleanPhone = phoneValidation.formatted;
     const cleanOtp = otp.trim();
 
-    const stored = otpStore.get(cleanPhone);
-    const isValidOtp =
-      (stored && stored.code === cleanOtp && Date.now() <= stored.expiresAt) ||
-      cleanOtp === '4829' ||
-      cleanOtp === '1234' ||
-      cleanOtp === '0000' ||
-      cleanOtp === '9999';
+    const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
 
     if (!isValidOtp) {
       return res
         .status(400)
-        .json({ error: 'Invalid or expired verification code. Use 4829 or click Resend.' });
+        .json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
     }
-
-    otpStore.delete(cleanPhone);
 
     let user;
     if (userId) {
@@ -416,7 +417,12 @@ router.post('/link-phone', async (req, res) => {
       return res.status(400).json({ error: 'Mobile number is required.' });
     }
 
-    const cleanPhone = phone.trim();
+    const phoneValidation = validateAndFormatPhone(phone);
+    if (!phoneValidation.isValid) {
+      return res.status(400).json({ error: phoneValidation.error });
+    }
+
+    const cleanPhone = phoneValidation.formatted;
 
     // Check unique constraint: Is this phone already linked to ANOTHER user?
     const existingWithPhone = await prisma.user.findFirst({
@@ -434,60 +440,61 @@ router.post('/link-phone', async (req, res) => {
 
     if (otp) {
       const cleanOtp = otp.trim();
-      const stored = otpStore.get(cleanPhone);
-      const isValid =
-        (stored && stored.code === cleanOtp && Date.now() <= stored.expiresAt) ||
-        cleanOtp === '4829' ||
-        cleanOtp === '1234' ||
-        cleanOtp === '0000' ||
-        cleanOtp === '9999';
+      const isValid = await verifyOtp(cleanPhone, cleanOtp);
       if (!isValid) {
-        return res.status(400).json({ error: 'Invalid verification code. Use 4829 for testing.' });
+        return res.status(400).json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
       }
-      otpStore.delete(cleanPhone);
     }
 
-    if (targetUserId && (String(targetUserId).startsWith('temp_g_') || String(targetUserId).startsWith('ey'))) {
-      let cached = getPendingGoogleSignup(targetUserId);
-      if (!cached && (req.body.email || req.body.phone)) {
-        cached = {
-          email: req.body.email,
-          name: req.body.name || 'Google User',
-          avatar: req.body.avatar,
-          role: req.body.role || 'CUSTOMER',
-        };
-      }
-      if (!cached) {
-        return res.status(400).json({
-          error: 'Your signup session has expired. Please sign in with Google again.',
+    if (targetUserId && String(targetUserId).startsWith('temp_g_')) {
+      const cached = getPendingGoogleSignup(targetUserId);
+      if (cached) {
+        const createdUser = await findOrLinkUser({
+          name: cached.name,
+          email: cached.email,
+          avatar: cached.avatar,
+          phone: cleanPhone,
+          method: 'google',
+          role: cached.role || 'CUSTOMER',
+        });
+
+        removePendingGoogleSignup(targetUserId);
+
+        const token = generateToken(createdUser);
+        return res.json({
+          success: true,
+          message: 'Mobile number linked and account created successfully',
+          user: createdUser,
+          token,
+          hasPhone: true,
         });
       }
+    }
 
-      const user = await findOrLinkUser({
-        name: cached.name,
-        email: cached.email,
-        avatar: cached.avatar,
-        phone: cleanPhone,
-        method: 'google',
-        role: cached.role || 'CUSTOMER',
-      });
+    let user = null;
+    if (targetUserId) {
+      user = await prisma.user.findUnique({ where: { id: targetUserId } }).catch(() => null);
+    }
 
-      removePendingGoogleSignup(targetUserId);
-
-      const token = generateToken(user);
-      return res.json({
-        success: true,
-        message: 'Mobile number linked and account created successfully',
-        user,
-        token,
-        hasPhone: true,
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
+        },
       });
     }
 
-    const user = await prisma.user.update({
-      where: { id: targetUserId },
-      data: { phone: cleanPhone },
-    });
+    if (user) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { phone: cleanPhone },
+      });
+    } else {
+      user = await findOrLinkUser({
+        phone: cleanPhone,
+        role: 'CUSTOMER',
+      });
+    }
 
     const token = generateToken(user);
     return res.json({
@@ -526,11 +533,9 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
-// In-memory cache for pending Google signups: tempSignupId -> { data, expiresAt }
-// 7-day TTL so onboarding sessions do not expire while forms are being completed
+// In-memory cache for pending Google signups (as optional fallback)
 const pendingGoogleSignups = new Map();
 
-// Periodic sweep for expired pending signup cache entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, item] of pendingGoogleSignups.entries()) {
@@ -540,7 +545,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-function storePendingGoogleSignup(tempId, data, ttlMs = 7 * 24 * 60 * 60 * 1000) {
+function storePendingGoogleSignup(tempId, data, ttlMs = 60 * 60 * 1000) {
   pendingGoogleSignups.set(tempId, {
     data,
     expiresAt: Date.now() + ttlMs,
@@ -638,7 +643,7 @@ router.post('/google', async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Check if user already exists in DB
+    // Check if user already exists in DB
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email: cleanEmail }, { contact: cleanEmail }],
@@ -657,7 +662,6 @@ router.post('/google', async (req, res) => {
         });
       }
 
-      // Existing user logging in directly
       const token = generateToken(existingUser);
       return res.json({
         success: true,
@@ -670,43 +674,23 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    // 2. New user signing up with Google -> DO NOT save to database yet!
-    // Issue a signed stateless token (valid 7 days) and cache in memory
-    const tokenPayload = {
-      type: 'pending_google_signup',
+    // Persist new user directly to database
+    const newUser = await findOrLinkUser({
       email: cleanEmail,
       name: name || 'Google User',
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
-      method: 'google',
-      createdAt: Date.now(),
-    };
-    const signedToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
-    const tempSignupId = `temp_g_${signedToken}`;
+    });
 
-    const pendingData = {
-      ...tokenPayload,
-      tempSignupId,
-    };
-
-    storePendingGoogleSignup(tempSignupId, pendingData, 7 * 24 * 60 * 60 * 1000);
-
+    const token = generateToken(newUser);
     return res.json({
       success: true,
       isNewUser: true,
-      tempSignupId,
-      message: 'Google identity verified. Please complete your registration details.',
-      user: {
-        id: tempSignupId,
-        email: cleanEmail,
-        name: pendingData.name,
-        avatar: pendingData.avatar,
-        role,
-        isPending: true,
-      },
-      needsPhone: true,
-      hasPhone: false,
-      expiresIn: 7 * 24 * 3600,
+      message: 'Google identity verified successfully.',
+      token,
+      user: newUser,
+      needsPhone: !newUser.phone,
+      hasPhone: Boolean(newUser.phone),
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);
@@ -753,7 +737,14 @@ router.post('/signup', async (req, res) => {
     }
 
     const finalEmail = (email || cachedGoogleData?.email || '').trim().toLowerCase();
-    const finalPhone = phone ? phone.trim() : null;
+    let finalPhone = null;
+    if (phone) {
+      const phoneValidation = validateAndFormatPhone(phone);
+      if (!phoneValidation.isValid) {
+        return res.status(400).json({ error: phoneValidation.error });
+      }
+      finalPhone = phoneValidation.formatted;
+    }
     const finalName = name || cachedGoogleData?.name || 'Darzi Member';
     const finalAvatar = cachedGoogleData?.avatar;
     const finalMethod = (tempSignupId || cachedGoogleData) ? 'google' : 'email';
@@ -848,14 +839,23 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Please enter your email or mobile number.' });
     }
 
-    const cleanVal = searchVal.trim().toLowerCase();
+    const cleanVal = searchVal.trim();
 
     let user = null;
     if (cleanVal.includes('@')) {
-      user = await prisma.user.findUnique({ where: { email: cleanVal } });
+      user = await prisma.user.findUnique({ where: { email: cleanVal.toLowerCase() } });
     } else {
+      const phoneValidation = validateAndFormatPhone(cleanVal);
+      const searchFormatted = phoneValidation.isValid ? phoneValidation.formatted : cleanVal;
       user = await prisma.user.findFirst({
-        where: { OR: [{ phone: cleanVal }, { contact: cleanVal }] },
+        where: {
+          OR: [
+            { phone: searchFormatted },
+            { phone: cleanVal },
+            { contact: searchFormatted },
+            { contact: cleanVal },
+          ],
+        },
       });
     }
 
@@ -938,7 +938,11 @@ router.post('/update-profile', async (req, res) => {
       updateData.email = cleanEmail;
     }
     if (phone) {
-      const cleanPhone = phone.trim();
+      const phoneValidation = validateAndFormatPhone(phone);
+      if (!phoneValidation.isValid) {
+        return res.status(400).json({ error: phoneValidation.error });
+      }
+      const cleanPhone = phoneValidation.formatted;
       const phoneConflict = await prisma.user.findFirst({
         where: { phone: cleanPhone, NOT: { id: targetId } },
       });

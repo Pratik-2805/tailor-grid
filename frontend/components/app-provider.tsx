@@ -15,8 +15,6 @@ interface AppContextType {
   authType: 'signin' | 'signup'
   openAuth: (role?: 'CUSTOMER' | 'STUDIO', type?: 'signin' | 'signup') => void
   closeAuth: () => void
-  isProfileOpen: boolean
-  setIsProfileOpen: (open: boolean) => void
   navigate: (screen: Screen | string) => void
   handleAuthSuccess: (user: User) => void
   handleSignOut: () => void
@@ -74,7 +72,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [createdOrderId, setCreatedOrderId] = useState('ORD-2654')
 
   const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
@@ -266,7 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         openAuth('CUSTOMER', 'signin')
         return
       }
-      setIsProfileOpen(true)
+      router.push('/profile')
       return
     }
 
@@ -294,8 +291,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         authType,
         openAuth,
         closeAuth,
-        isProfileOpen,
-        setIsProfileOpen,
         navigate,
         handleAuthSuccess,
         handleSignOut,

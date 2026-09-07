@@ -12,7 +12,7 @@ export function getCustomerSiteUrl(path: string = ''): string {
   return `${base}${cleanPath}`
 }
 
-export async function sendOtp(phone: string): Promise<{ success: boolean; message: string; demoCode?: string }> {
+export async function sendOtp(phone: string): Promise<{ success: boolean; message: string; phone?: string }> {
   try {
     const res = await fetch(`${API_BASE}/auth/send-otp`, {
       method: 'POST',
@@ -21,15 +21,14 @@ export async function sendOtp(phone: string): Promise<{ success: boolean; messag
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(err.error || 'Failed to send OTP code')
+      throw new Error(err.error || 'Failed to send verification code')
     }
     return await res.json()
   } catch (err: any) {
-    return {
-      success: true,
-      message: `Verification code sent to ${phone}`,
-      demoCode: '4829',
+    if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('fetch failed'))) {
+      throw new Error('Unable to connect to authentication server. Please ensure the backend is running.')
     }
+    throw err
   }
 }
 
