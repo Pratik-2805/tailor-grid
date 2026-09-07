@@ -129,6 +129,36 @@ export default function StudioPage() {
     })
   }
 
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6">
+        <CustomLoader
+          size="lg"
+          variant="atelier"
+          text="Accessing Master Workshop"
+          steps={[
+            'Accessing Master Workshop',
+            'Syncing active alteration queue',
+            'Connecting to Partner Network',
+          ]}
+          subtext="Preparing your tailor workbench controls and live telemetry"
+        />
+        <ToastContainer
+          position="top-center"
+          autoClose={3500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
 
@@ -141,14 +171,7 @@ export default function StudioPage() {
       />
 
       <main className="flex-1 flex flex-col">
-        {loadingUser ? (
-          <div className="flex-1 min-h-[70vh] flex flex-col items-center justify-center gap-3">
-            <div className="size-8 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs font-semibold text-[#7A7E85] tracking-wider uppercase">
-              Connecting to Atelier Node…
-            </p>
-          </div>
-        ) : user ? (
+        {user ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
             go={() => { }}

@@ -52,13 +52,9 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
             className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Darzi home"
           >
-            <Image
+            <img
               src="/bg_logo.png"
               alt="Darzi"
-              width={140}
-              height={48}
-              priority
-              style={{ width: 'auto' }}
               className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
             />
             <div className="hidden sm:flex flex-col justify-center">

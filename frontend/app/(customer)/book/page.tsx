@@ -23,6 +23,7 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { SewingLoader } from '@/components/sewing-loader'
+import { CustomLoader } from '@/components/custom-loader'
 import { useApp } from '@/components/app-provider'
 import { createOrder } from '@/lib/api'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
@@ -129,86 +130,84 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
   ],
   jackets: [
     {
-      key: 'shoulderWidth',
-      label: 'Shoulder Width',
-      whatItMeans: 'Assessing if the jacket shoulder pads align with your natural bone structure.',
-      placeholder: 'e.g. 18 in across back',
-    },
-    {
-      key: 'sleeveLengthCuff',
-      label: 'Sleeve Length at Cuff',
-      whatItMeans: 'Adjusting sleeve length from the bottom cuff or shoulder crown.',
-      placeholder: 'e.g. Shorten 1.0 in / Show 0.5 in shirt cuff',
+      key: 'sleeveLength',
+      label: 'Jacket Sleeve (At Cuff or Shoulder)',
+      whatItMeans: 'Shortening or lengthening sleeves to expose shirt cuff.',
+      placeholder: 'e.g. Shorten 1.0 in with working buttonholes',
     },
     {
       key: 'waistSuppression',
-      label: 'Jacket Waist Suppression',
-      whatItMeans: 'Tapering the torso through side and center back seams.',
-      placeholder: 'e.g. Take in 1.5 in through side seams',
+      label: 'Waist Suppression (Sides & Back)',
+      whatItMeans: 'Taking in waist suppression seams for an hourglass silhouette.',
+      placeholder: 'e.g. Take in 1.5 in',
+    },
+    {
+      key: 'collarRoll',
+      label: 'Collar Roll / Lowering',
+      whatItMeans: 'Fixing the roll beneath the back of the neck.',
+      placeholder: 'e.g. Clean collar roll 0.75 in',
     },
   ],
   dresses: [
     {
       key: 'hemLength',
-      label: 'Dress Hem Length',
-      whatItMeans: 'Adjusting overall hem length to knee, midi, or floor height.',
-      placeholder: 'e.g. Shorten 2.0 in (Midi height)',
+      label: 'Dress Hem (Floor / Midi / Knee)',
+      whatItMeans: 'Shortening or reshaping the lower skirt hem.',
+      placeholder: 'e.g. Hem 2 in with horsehair braid / rolled hem',
     },
     {
       key: 'bodiceFit',
-      label: 'Bodice & Bust Contouring',
-      whatItMeans: 'Adjusting side darts or zipper line for contoured bust and waist fit.',
-      placeholder: 'e.g. Take in 1.0 in at bust darts',
+      label: 'Bodice & Bust Adjustment',
+      whatItMeans: 'Contouring darts and side seams around bust and ribcage.',
+      placeholder: 'e.g. Take in 0.5 in at princess seams',
     },
     {
-      key: 'strapAdjustment',
-      label: 'Straps & Shoulder Fit',
-      whatItMeans: 'Shortening straps to eliminate gaping.',
-      placeholder: 'e.g. Shorten shoulder straps 0.75 in',
+      key: 'strapsShoulders',
+      label: 'Straps & Shoulder Lift',
+      whatItMeans: 'Shortening straps to raise neckline and armholes.',
+      placeholder: 'e.g. Shorten straps by 1.0 in',
     },
   ],
   skirts: [
     {
-      key: 'skirtHem',
-      label: 'Skirt Hem Length',
-      whatItMeans: 'Adjusting hem height with original border or clean blind stitch.',
-      placeholder: 'e.g. Shorten 2.5 in',
+      key: 'waistHips',
+      label: 'Waistband & Hip Contouring',
+      whatItMeans: 'Adjusting waistband and tapering hips.',
+      placeholder: 'e.g. Take in waist 1 in, hips 0.5 in',
     },
     {
-      key: 'skirtWaist',
-      label: 'Waistband Adjustment',
-      whatItMeans: 'Taking in the waistband circumference.',
-      placeholder: 'e.g. Take in 1.0 in',
+      key: 'hemLine',
+      label: 'Hem Line',
+      whatItMeans: 'Shortening skirt hem while preserving original lining/kick pleats.',
+      placeholder: 'e.g. Shorten by 2 in',
     },
   ],
   suits: [
     {
       key: 'jacketTorso',
-      label: 'Jacket Chest & Torso Fit',
-      whatItMeans: 'Contouring jacket silhouette through side and back seams.',
-      placeholder: 'e.g. Classic European Slim taper',
+      label: 'Jacket Torso & Sleeves',
+      whatItMeans: 'Comprehensive 2-piece jacket tailoring.',
+      placeholder: 'e.g. Sleeves -1 in, Waist -1.5 in',
     },
     {
-      key: 'trouserInseam',
-      label: 'Trouser Inseam & Break',
-      whatItMeans: 'Determining exact break (No Break, Quarter Break, Medium Break).',
-      placeholder: 'e.g. No break / 30 in inseam',
-      type: 'select',
-      options: ['No Break (Modern Cropped)', 'Quarter Break (Clean Classic)', 'Medium Break (Traditional)'],
+      key: 'trouserInseamWaist',
+      label: 'Trouser Hem & Waist',
+      whatItMeans: 'Trouser hem (cuffed or plain) and waist adjustment.',
+      placeholder: 'e.g. Inseam 31 in with 1.75 in cuffs',
     },
   ],
   occasion: [
     {
-      key: 'blouseFit',
-      label: 'Blouse / Kurti Fit & Darts',
-      whatItMeans: 'Custom contouring with margin preservation.',
-      placeholder: 'e.g. Tighten bust darts by 0.75 in',
+      key: 'bustBodice',
+      label: 'Bust & Bodice Boning Fitting',
+      whatItMeans: 'Adjusting internal structure and cups for gala/wedding attire.',
+      placeholder: 'e.g. Fit cups and boning snug',
     },
     {
-      key: 'lehengaHem',
-      label: 'Lehenga / Gown Hem Length',
-      whatItMeans: 'Hem shortening with embroidered border reset.',
-      placeholder: 'e.g. Shorten 2 in preserving border',
+      key: 'delicateHem',
+      label: 'Delicate Layered Hemming',
+      whatItMeans: 'Hemming multiple layers of tulle, silk, or satin.',
+      placeholder: 'e.g. Hem 3 layers to 3-inch heel height',
     },
   ],
 }
@@ -287,10 +286,120 @@ function MeasurementOptionDropdown({
   )
 }
 
+interface DropdownItem {
+  id: string
+  label: string
+  sublabel?: string
+  price?: string
+}
+
+function DropdownSelector({
+  label,
+  value,
+  items,
+  isOpen,
+  onToggle,
+  onSelect,
+}: {
+  label: string
+  value: string
+  items: DropdownItem[]
+  isOpen: boolean
+  onToggle: () => void
+  onSelect: (id: string) => void
+}) {
+  const selectedItem = items.find((i) => i.id === value)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        if (isOpen) onToggle()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen, onToggle])
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <label className="block text-[11px] font-bold uppercase tracking-widest text-[#7A7E85] mb-1.5">
+        {label}
+      </label>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-white border border-[#E8E1D5] hover:border-[#9E593B] shadow-xs text-left transition-all group cursor-pointer"
+      >
+        <div className="min-w-0 flex-1 mr-2">
+          <p className="text-sm font-bold text-[#0F1115] truncate">
+            {selectedItem?.label || 'Select…'}
+          </p>
+          {selectedItem?.sublabel && (
+            <p className="text-xs text-[#7A7E85] truncate mt-0.5">
+              {selectedItem.sublabel}
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {selectedItem?.price && (
+            <span className="text-xs font-bold text-[#9E593B] bg-[#9E593B]/10 px-2 py-0.5 rounded-md">
+              {selectedItem.price}
+            </span>
+          )}
+          <ChevronDown
+            size={16}
+            className={`text-[#7A7E85] group-hover:text-[#0F1115] transition-transform duration-200 ${
+              isOpen ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-40 max-h-60 overflow-y-auto rounded-2xl bg-white border border-[#E8E1D5] shadow-xl p-1.5 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+          {items.map((item) => {
+            const isSelected = item.id === value
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  onSelect(item.id)
+                  onToggle()
+                }}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#9E593B]/10 text-[#9E593B]'
+                    : 'hover:bg-[#FAF8F5] text-[#0F1115]'
+                }`}
+              >
+                <div className="min-w-0 flex-1 mr-2">
+                  <p className="text-xs font-bold truncate">{item.label}</p>
+                  {item.sublabel && (
+                    <p className="text-[11px] text-[#7A7E85] truncate mt-0.5">
+                      {item.sublabel}
+                    </p>
+                  )}
+                </div>
+                {item.price && (
+                  <span className="text-xs font-bold shrink-0">{item.price}</span>
+                )}
+                {isSelected && <Check size={13} className="shrink-0 ml-1.5" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function BookPage() {
   const router = useRouter()
   const {
     user,
+    isAuthLoading,
     navigate,
     openAuth,
     prefilledPostcode,
