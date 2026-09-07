@@ -10,11 +10,10 @@ interface HeaderProps {
   go: (s: Screen) => void
   user?: User | null
   onOpenAuth?: () => void
-  onOpenProfile?: () => void
   onSignOut?: () => void
 }
 
-export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onSignOut }: HeaderProps) {
+export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
@@ -256,7 +255,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
         <div className="flex md:hidden items-center gap-2">
           {user && (
             <button
-              onClick={() => onOpenProfile?.()}
+              onClick={() => nav('profile')}
               className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden"
               aria-label="Profile"
             >
@@ -324,7 +323,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
                 <button
                   onClick={() => {
                     setOpen(false)
-                    onOpenProfile?.()
+                    nav('profile')
                   }}
                   className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
                 >
