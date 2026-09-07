@@ -67,7 +67,7 @@ export function PartnerOnboarding({
       try {
         const stored = sessionStorage.getItem('tg_pending_google')
         return stored ? JSON.parse(stored) : null
-      } catch {}
+      } catch { }
     }
     return null
   })

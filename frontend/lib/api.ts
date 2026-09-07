@@ -347,7 +347,7 @@ export async function getCurrentUser(): Promise<User | null> {
       if (stored) {
         try {
           return JSON.parse(stored)
-        } catch {}
+        } catch { }
       }
     }
     return null
