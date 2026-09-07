@@ -103,22 +103,13 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               )}
             </div>
           ) : (
-            <>
-              <button
-                onClick={() => onOpenAuth?.('signin')}
-                className="flex items-center gap-1.5 border border-[#1E2229] rounded-full px-4 py-1.5 text-xs font-medium text-[#1E2229] hover:bg-[#1E2229] hover:text-white transition-all whitespace-nowrap shrink-0 cursor-pointer"
-              >
-                <UserIcon size={13} className="shrink-0" />
-                <span>Log In</span>
-              </button>
-
-              <button
-                onClick={() => onOpenAuth?.('signup')}
-                className="bg-[#0F1115] hover:bg-[#9E593B] rounded-full px-4 py-1.5 text-xs font-semibold text-white transition-all whitespace-nowrap shrink-0 cursor-pointer shadow-xs"
-              >
-                Partner Register
-              </button>
-            </>
+            <button
+              onClick={() => onOpenAuth?.('signin')}
+              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <UserIcon size={14} className="shrink-0" />
+              <span>Sign In / Up</span>
+            </button>
           )}
         </div>
 
@@ -150,26 +141,16 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
 
           <div className="pt-1 flex flex-col gap-2">
             {!user ? (
-              <>
-                <button
-                  onClick={() => {
-                    setOpen(false)
-                    onOpenAuth?.('signin')
-                  }}
-                  className="w-full border border-[#E8E1D5] rounded-xl py-2 text-center text-xs font-medium text-[#1E2229] bg-white"
-                >
-                  Studio Log In
-                </button>
-                <button
-                  onClick={() => {
-                    setOpen(false)
-                    onOpenAuth?.('signup')
-                  }}
-                  className="w-full bg-[#0F1115] hover:bg-[#9E593B] rounded-xl py-2.5 text-center text-xs font-semibold text-white"
-                >
-                  Partner Register
-                </button>
-              </>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  onOpenAuth?.('signin')
+                }}
+                className="w-full flex items-center justify-center gap-2 border border-[#0F1115] rounded-xl py-2.5 text-center text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all"
+              >
+                <UserIcon size={14} />
+                <span>Sign In / Up</span>
+              </button>
             ) : (
               <button
                 onClick={() => {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { User } from '@/components/data'
 import { signUpUser, loginWithGoogle, checkEmailExists } from '@/lib/api'
+
 const CUSTOMER_SITE_URL = '/'
 
 interface PartnerOnboardingProps {
@@ -47,7 +48,7 @@ export function PartnerOnboarding({ user, onComplete, onSignOut }: PartnerOnboar
       try {
         const stored = sessionStorage.getItem('tg_pending_google')
         return stored ? JSON.parse(stored) : null
-      } catch {}
+      } catch { }
     }
     return null
   })

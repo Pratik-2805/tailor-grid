@@ -6,7 +6,7 @@ import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
-import { AuthModal } from '@/components/auth-modal'
+import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
@@ -33,10 +33,10 @@ export default function StudioPage() {
       }
     }
 
-    // If signup requested, redirect immediately to the Enroll Studio form (/onboarding)
     if (authParam === 'signup' || authParam === 'register') {
-      window.location.href = '/onboarding'
-      return
+      setAuthType('signup')
+    } else if (authParam === 'signin' || authParam === 'login') {
+      setAuthType('signin')
     }
 
     getCurrentUser()
@@ -178,11 +178,10 @@ export default function StudioPage() {
 
             <div className="relative z-10 w-full flex flex-col items-center">
               {/* Direct Auth Card */}
-              <AuthModal
-                inline
-                authType={authType}
-                onSuccess={handleAuthSuccess}
-                onDemoAccess={handleDemoAccess}
+              <PartnerOnboarding
+                initialTab={authType}
+                hideHeader={true}
+                onComplete={handleAuthSuccess}
               />
 
               {/* Bottom Customer Site Return Link */}
