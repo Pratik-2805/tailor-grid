@@ -341,7 +341,7 @@ export function PartnerOnboarding({
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 75584 96659).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -390,7 +390,7 @@ export function PartnerOnboarding({
       setStep3VerifiedPhone(validatedPhone)
       setStep3OtpSent(false)
       setStep3Otp('')
-      toast.success('Mobile number verified successfully via Twilio SMS!', { position: 'top-center' })
+      toast.success('Mobile number verified successfully!', { position: 'top-center' })
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Invalid verification code.'
@@ -752,7 +752,7 @@ export function PartnerOnboarding({
                         <ArrowLeft size={14} />
                       </button>
                       <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">Twilio SMS Verification</p>
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">SMS Verification</p>
                         <h2 className="font-serif text-2xl font-bold text-[#0F1115]">
                           {sOtpSent ? 'Enter Verification Code' : 'Partner Mobile Number'}
                         </h2>
@@ -771,11 +771,11 @@ export function PartnerOnboarding({
                             autoFocus
                             value={sPhoneLogin}
                             onChange={(e) => setSPhoneLogin(e.target.value)}
-                            placeholder="+91 75584 96659 or +44 7700 900123"
+                            placeholder="+91 98765 43210 or +44 7700 900000"
                             className="w-full rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3 text-sm font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
                           />
                           <p className="text-[11px] text-[#7A7E85] mt-1.5">
-                            We will send a 4-digit verification code via Twilio SMS to this mobile number.
+                            We will send a 4-digit verification code via SMS to this mobile number.
                           </p>
                         </div>
                         <button
@@ -829,7 +829,7 @@ export function PartnerOnboarding({
                             disabled={authLoading}
                             className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-sm"
                           >
-                            {authLoading ? 'Verifying with Twilio…' : 'Verify & Enter Workbench'}
+                            {authLoading ? 'Verifying…' : 'Verify & Enter Workbench'}
                           </button>
                           <div className="flex items-center justify-center text-xs pt-1">
                             <button
@@ -1167,7 +1167,7 @@ export function PartnerOnboarding({
                         </div>
                       </div>
 
-                      {/* Direct Mobile Phone with Twilio OTP Verification */}
+                      {/* Direct Mobile Phone with OTP Verification */}
                       <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3">
                         <div className="flex items-center justify-between">
                           <label className="block text-xs font-bold uppercase tracking-wider text-[#0F1115]">
@@ -1176,11 +1176,11 @@ export function PartnerOnboarding({
                           {isPhoneVerified ? (
                             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-2.5 py-0.5 rounded-full">
                               <CheckCircle2 size={13} className="text-emerald-600" />
-                              Twilio Verified
+                              Verified
                             </span>
                           ) : (
                             <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] bg-[#FFF3EC] border border-[#F2D2C2] px-2 py-0.5 rounded-full">
-                              Twilio OTP Required
+                              OTP Required
                             </span>
                           )}
                         </div>
@@ -1196,7 +1196,7 @@ export function PartnerOnboarding({
                               }
                             }}
                             disabled={isPhoneVerified}
-                            placeholder="e.g. +91 75584 96659 or +44 7700 900123"
+                            placeholder="e.g. +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${
                               isPhoneVerified
                                 ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
@@ -1277,7 +1277,7 @@ export function PartnerOnboarding({
                           return
                         }
                         if (!isPhoneVerified) {
-                          const msg = 'Please verify your Direct Mobile Phone with Twilio SMS OTP before continuing.'
+                          const msg = 'Please verify your Direct Mobile Phone with the SMS OTP code before continuing.'
                           setError(msg)
                           toast.warning(msg, { position: 'top-center' })
                           return
