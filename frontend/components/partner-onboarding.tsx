@@ -254,8 +254,8 @@ export function PartnerOnboarding({
       const res = await sendOtp(sPhoneLogin.trim())
       setAuthLoading(false)
       setSOtpSent(true)
-      const code = (res as any).demoCode || '4829'
-      setNotice(`Verification code sent! Test code: ${code}`)
+      if (res.phone) setSPhoneLogin(res.phone)
+      setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
     } catch (err: any) {
       setAuthLoading(false)
       setError(err.message || 'Failed to send verification code.')
@@ -685,7 +685,7 @@ export function PartnerOnboarding({
                           autoFocus
                           value={sOtp}
                           onChange={(e) => setSOtp(e.target.value)}
-                          placeholder="4829"
+                          placeholder="••••"
                           className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
                         <button
