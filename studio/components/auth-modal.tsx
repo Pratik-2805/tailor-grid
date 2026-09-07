@@ -192,29 +192,39 @@ export function AuthModal({
             setLoading(false)
             if (result?.user) {
               if (result.user.role && result.user.role !== 'STUDIO') {
-                const msg = 'Unauthorized user, access denied.'
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('tg_token')
+                  localStorage.removeItem('tg_user')
+                  localStorage.removeItem('tg_user_role')
+                }
+                const msg = 'This Google account is registered as a Customer. Please sign in via the main site or use a Studio partner account.'
                 setError(msg)
                 toast.error(msg, { position: 'top-center' })
                 return
               }
-              if (!result.user.studioName) {
-                if (mode === 'studio-options') {
-                  const msg = 'Unauthorized user, access denied.'
-                  setError(msg)
-                  toast.error(msg, { position: 'top-center' })
-                  return
+              if (!result.user.studioName || result.isNewUser) {
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('tg_token')
+                  localStorage.removeItem('tg_user')
+                  localStorage.removeItem('tg_user_role')
                 }
                 setMode('studio-register')
+                setRegisterStep(1)
                 setSTailorName(result.user.name || '')
                 setSEmail(result.user.email || result.user.contact || '')
-                toast.info('Please enter your workshop location details to finish registering.', { position: 'top-center' })
+                toast.info('Google account verified! Please enter your workshop location details to complete registration.', { position: 'top-center' })
               } else {
                 finalizeAuth(result.user)
               }
             }
           } catch (err: any) {
             setLoading(false)
-            const msg = err.message || 'Unauthorized user, access denied.'
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('tg_token')
+              localStorage.removeItem('tg_user')
+              localStorage.removeItem('tg_user_role')
+            }
+            const msg = err.message || 'Authentication failed.'
             setError(msg)
             toast.error(msg, { position: 'top-center' })
           }

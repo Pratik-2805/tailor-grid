@@ -263,9 +263,15 @@ export async function getCurrentUser(): Promise<User | null> {
       localStorage.removeItem('tg_token')
       localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
+      sessionStorage.clear()
     }
     return null
   } catch (err) {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
+    }
     return null
   }
 }

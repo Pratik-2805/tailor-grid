@@ -302,27 +302,22 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    // User not found in DB or token invalid -> clear stale local session
+    // User not found in DB or token invalid -> clear stale local session completely
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('tg_token')
+      localStorage.removeItem('tg_user')
+      localStorage.removeItem('tg_user_role')
+      sessionStorage.clear()
+    }
+    return null
+  } catch (err) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tg_token')
       localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
     }
     return null
-  } catch (err) {
-    // API offline
   }
-
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('tg_user')
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch { }
-    }
-  }
-
-  return null
 }
 
 export async function fetchOrders(query?: string): Promise<FittingBooking[]> {
