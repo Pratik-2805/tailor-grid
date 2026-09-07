@@ -7,6 +7,7 @@ import { makeOtp, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { AuthModal } from '@/components/auth-modal'
+import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 
 export default function StudioPage() {

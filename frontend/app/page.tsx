@@ -1,15 +1,17 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { HomeView } from '@/components/home-view'
 import { useApp } from '@/components/app-provider'
+import { CustomLoader } from '@/components/custom-loader'
 import type { StoreOption } from '@/components/data'
 
 export default function HomePage() {
   const router = useRouter()
   const {
     user,
+    isAuthLoading,
     navigate,
     openAuth,
     setPrefilledPostcode,
@@ -19,20 +21,46 @@ export default function HomePage() {
     setMeasurementDraft,
   } = useApp()
 
-  useEffect(() => {
-    if (user) {
-      router.replace('/book')
+  const [hasCustomerSession, setHasCustomerSession] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('tg_user')
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser)
+          if (parsed.role === 'CUSTOMER') return true
+        } catch { }
+      }
+      const token = localStorage.getItem('tg_token')
+      const role = localStorage.getItem('tg_user_role')
+      return Boolean(token && (!role || role === 'CUSTOMER'))
     }
-  }, [user, router])
+    return false
+  })
 
-  // If user is logged in, redirect to alterations book view and do not display home page
-  if (user) {
+  useEffect(() => {
+    const isCustomer =
+      user?.role === 'CUSTOMER' ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_user_role') === 'CUSTOMER')
+
+    if (isCustomer) {
+      setHasCustomerSession(true)
+      router.replace('/book')
+    } else if (!isAuthLoading && !user) {
+      setHasCustomerSession(false)
+    }
+  }, [user, isAuthLoading, router])
+
+  // While auth is initializing or if customer session exists, smoothly render the Atelier loader
+  if (isAuthLoading || hasCustomerSession || (user && user.role === 'CUSTOMER')) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="size-7 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs font-medium text-[#7A7E85]">Loading alterations map…</p>
-        </div>
+      <div className="min-h-[calc(100vh-68px)] flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
+        <CustomLoader
+          size="lg"
+          variant="atelier"
+          text={user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Opening your Atelier studio'}
+          subtext="Preparing your bespoke alteration experience"
+          showProgressBar
+        />
       </div>
     )
   }

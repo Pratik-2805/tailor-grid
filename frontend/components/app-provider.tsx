@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { getCurrentUser, getStudioUrl } from '@/lib/api'
+import { clearAuthCookies, getCurrentUser, getStudioUrl, syncAuthCookies } from '@/lib/api'
 import type { Screen, StoreOption, User } from './data'
 
 interface AppContextType {
   user: User | null
   setUser: (u: User | null) => void
+  isAuthLoading: boolean
   isAuthOpen: boolean
   authRole: 'CUSTOMER' | 'STUDIO'
   authType: 'signin' | 'signup'
@@ -69,6 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const [user, setUser] = useState<User | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
@@ -134,11 +136,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('tg_user')
+      const token = localStorage.getItem('tg_token')
       if (stored) {
         try {
           const parsed = JSON.parse(stored)
           setUser(parsed)
-          if (window.location.pathname === '/') {
+          syncAuthCookies(token, parsed.role)
+          if (parsed.role === 'CUSTOMER' && window.location.pathname === '/') {
             router.replace('/book')
           }
         } catch { }
@@ -151,19 +155,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    getCurrentUser().then((u) => {
-      if (u) {
-        setUser(u)
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(u))
-          if (window.location.pathname === '/') {
-            router.replace('/book')
+    getCurrentUser()
+      .then((u) => {
+        if (u) {
+          setUser(u)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('tg_user', JSON.stringify(u))
+            localStorage.setItem('tg_user_role', u.role ?? 'CUSTOMER')
+            syncAuthCookies(localStorage.getItem('tg_token'), u.role)
+            if (u.role === 'CUSTOMER' && window.location.pathname === '/') {
+              router.replace('/book')
+            }
           }
+        } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
+          setUser(null)
+          clearAuthCookies()
         }
-      } else if (typeof window !== 'undefined' && !localStorage.getItem('tg_token')) {
-        setUser(null)
-      }
-    })
+      })
+      .finally(() => {
+        setIsAuthLoading(false)
+      })
   }, [])
 
   const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
@@ -183,6 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('tg_user_role', loggedUser.role ?? 'CUSTOMER')
       localStorage.setItem('tg_user', JSON.stringify(loggedUser))
+      syncAuthCookies(localStorage.getItem('tg_token'), loggedUser.role)
     }
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
@@ -205,6 +217,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('tg_user')
       localStorage.removeItem('tg_user_role')
       localStorage.removeItem('tg_screen')
+      clearAuthCookies()
     }
     setUser(null)
     setIsAuthOpen(false)
@@ -275,6 +288,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         setUser,
+        isAuthLoading,
         isAuthOpen,
         authRole,
         authType,
