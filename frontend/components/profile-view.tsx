@@ -72,7 +72,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             if (parsed.inseam) setInseam(parsed.inseam)
             if (parsed.chest) setChest(parsed.chest)
             if (parsed.sleeve) setSleeve(parsed.sleeve)
-          } catch {}
+          } catch { }
         }
       }
 
@@ -83,7 +83,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           .then((ords) => {
             if (ords) setOrders(ords)
           })
-          .catch(() => {})
+          .catch(() => { })
           .finally(() => setIsLoadingOrders(false))
       }
     }
@@ -246,7 +246,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Personal Details</h2>
-              
+
               {!isEditingPersonal ? (
                 <button
                   type="button"
@@ -277,7 +277,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                 </div>
               )}
             </div>
-            
+
             {/* Full Name & Address grouped together */}
             <div className="space-y-3 pt-1">
               <div>
@@ -355,11 +355,10 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                   key={fit}
                   type="button"
                   onClick={() => setFitPreference(fit)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                    fitPreference === fit
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${fitPreference === fit
                       ? 'bg-[#18191B] text-white'
                       : 'bg-transparent text-[#7A7E85] hover:text-[#18191B]'
-                  }`}
+                    }`}
                 >
                   {fit}
                 </button>
@@ -413,7 +412,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
         {orders.length > 0 && (
           <div className="pt-6 border-t border-[#E8E1D5] space-y-3">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Recent Alterations</h2>
-            
+
             <div className="space-y-1 divide-y divide-[#EAE6DF]">
               {orders.slice(0, 3).map((order) => (
                 <div
