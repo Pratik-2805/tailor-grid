@@ -134,7 +134,7 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, targetRole, authType, currentUser, mandatoryPhoneRequired])
 
-  const finalizeAuth = (user: UserType, role: 'CUSTOMER' | 'STUDIO') => {
+  const finalizeAuth = (user: UserType, role?: UserType['role']) => {
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
@@ -219,27 +219,7 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              const returnedRole = result.user.role
-              if (returnedRole && returnedRole !== role) {
-                const msg =
-                  returnedRole === 'STUDIO'
-                    ? 'This Google account is registered as a Studio partner. Please sign in via the Studio portal.'
-                    : 'This Google account is registered as a Customer. Please use a different Google account for Studio.'
-                setError('')
-                toast.error(msg, { position: 'top-center' })
-                return
-              }
-
-              if (role === 'STUDIO') {
-                onClose()
-                if (typeof window !== 'undefined') {
-                  setAuthUser(result.user)
-                  setAuthRole('STUDIO')
-                  window.location.href = getStudioUrl('/onboarding', result.token)
-                }
-              } else {
-                finalizeAuth(result.user, role)
-              }
+              finalizeAuth(result.user, result.user.role || role)
             }
           } catch (err: any) {
             setLoading(false)
