@@ -100,25 +100,12 @@ export function removeAuthRole(): void {
 }
 
 export function getAuthUser<T = any>(): T | null {
-  const val = getCookie('tg_user')
-  if (val) {
-    try {
-      return JSON.parse(val) as T
-    } catch {
-      return null
-    }
-  }
   if (typeof window !== 'undefined') {
-    const legacy = localStorage.getItem('tg_user')
-    if (legacy) {
+    const fullUser = localStorage.getItem('tg_user_data') || localStorage.getItem('tg_user')
+    if (fullUser) {
       try {
-        const parsed = JSON.parse(legacy) as T
-        setAuthUser(parsed)
-        localStorage.removeItem('tg_user')
-        return parsed
-      } catch {
-        localStorage.removeItem('tg_user')
-      }
+        return JSON.parse(fullUser) as T
+      } catch {}
     }
   }
   return null
@@ -129,19 +116,24 @@ export function setAuthUser(user: any): void {
     removeAuthUser()
     return
   }
-  try {
-    setCookie('tg_user', JSON.stringify(user), 30, '/')
-  } catch (err) {
-    console.error('Error saving user cookie:', err)
-  }
+
+  // Store full user object ONLY in localStorage (never in cookies to avoid HTTP 431)
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_user')
+    try {
+      localStorage.setItem('tg_user_data', JSON.stringify(user))
+    } catch (err) {
+      console.error('Error saving user to localStorage:', err)
+    }
   }
+
+  // Ensure any legacy tg_user cookie is wiped
+  deleteCookie('tg_user', '/')
 }
 
 export function removeAuthUser(): void {
   deleteCookie('tg_user', '/')
   if (typeof window !== 'undefined') {
+    localStorage.removeItem('tg_user_data')
     localStorage.removeItem('tg_user')
   }
 }
@@ -153,38 +145,47 @@ export function clearAllAuth(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('tg_token')
     localStorage.removeItem('tg_user')
+    localStorage.removeItem('tg_user_data')
     localStorage.removeItem('tg_user_role')
     localStorage.removeItem('tg_screen')
     sessionStorage.removeItem('tg_pending_google')
   }
 }
 
-// ================= GENERIC STORAGE COOKIE HELPERS =================
+// ================= LOCAL STORAGE HELPERS (REPLACES STORAGE COOKIES) =================
+// Non-auth UI states (filters, city, preferences) belong in localStorage, NOT cookies!
 
 export function getStorageCookie(key: string, defaultValue: string = ''): string {
-  const val = getCookie(key)
-  if (val !== null) return val
-  if (typeof window !== 'undefined') {
-    const legacy = localStorage.getItem(key)
-    if (legacy !== null) {
-      setStorageCookie(key, legacy)
-      localStorage.removeItem(key)
-      return legacy
+  if (typeof window === 'undefined') return defaultValue
+  try {
+    const val = localStorage.getItem(key)
+    if (val !== null) return val
+    
+    // Clean up legacy cookie if found and migrate to localStorage
+    const legacyCookie = getCookie(key)
+    if (legacyCookie !== null) {
+      localStorage.setItem(key, legacyCookie)
+      deleteCookie(key, '/')
+      return legacyCookie
     }
-  }
+  } catch {}
   return defaultValue
 }
 
-export function setStorageCookie(key: string, value: string, days: number = 30): void {
-  setCookie(key, value, days, '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(key)
+export function setStorageCookie(key: string, value: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(key, value)
+    // Always delete any existing cookie for this key to keep HTTP headers clean
+    deleteCookie(key, '/')
+  } catch (err) {
+    console.warn(`Error setting localStorage for key ${key}:`, err)
   }
 }
 
 export function removeStorageCookie(key: string): void {
-  deleteCookie(key, '/')
   if (typeof window !== 'undefined') {
     localStorage.removeItem(key)
   }
+  deleteCookie(key, '/')
 }
