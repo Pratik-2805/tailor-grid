@@ -70,6 +70,9 @@ interface AppContextType {
   setGarmentBrand: (b: string | undefined) => void
   garmentNotes: string | undefined
   setGarmentNotes: (n: string | undefined) => void
+  isBookingTransitioning: boolean
+  startBookingTransition: () => void
+  stopBookingTransition: () => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -83,6 +86,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
   const [createdOrderId, setCreatedOrderId] = useState('ORD-2654')
+  const [isBookingTransitioning, setIsBookingTransitioning] = useState(false)
+
+  const startBookingTransition = () => setIsBookingTransitioning(true)
+  const stopBookingTransition = () => setIsBookingTransitioning(false)
 
   const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
   const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>(() => {
@@ -106,14 +113,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setPrefilledGarmentId = (g: string) => {
     setPrefilledGarmentIdState(g)
     if (typeof window !== 'undefined') {
-      setStorageCookie('tg_prefilled_garment', g, 30)
+      setStorageCookie('tg_prefilled_garment', g)
     }
   }
 
   const setPrefilledServiceId = (s: string | undefined) => {
     setPrefilledServiceIdState(s)
     if (typeof window !== 'undefined') {
-      if (s) setStorageCookie('tg_prefilled_service', s, 30)
+      if (s) setStorageCookie('tg_prefilled_service', s)
       else removeStorageCookie('tg_prefilled_service')
     }
   }
@@ -305,6 +312,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setGarmentBrand,
         garmentNotes,
         setGarmentNotes,
+        isBookingTransitioning,
+        startBookingTransition,
+        stopBookingTransition,
       }}
     >
       {children}

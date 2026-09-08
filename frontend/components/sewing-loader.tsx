@@ -5,13 +5,15 @@ import { useEffect, useRef, useState } from 'react'
 export interface SewingLoaderProps {
   active: boolean
   durationSeconds?: number
-  onComplete: () => void
+  onComplete?: () => void
+  persistent?: boolean
 }
 
 export function SewingLoader({
   active,
   durationSeconds = 15,
   onComplete,
+  persistent = false,
 }: SewingLoaderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const animRef = useRef<any>(null)
@@ -30,11 +32,14 @@ export function SewingLoader({
 
     let isMounted = true
     let minTimePassed = false
+    let minTimer: NodeJS.Timeout | null = null
 
-    // Minimum time threshold timer
-    const minTimer = setTimeout(() => {
-      minTimePassed = true
-    }, durationSeconds * 1000)
+    // Minimum time threshold timer (only active if not in persistent manual mode)
+    if (!persistent && onComplete) {
+      minTimer = setTimeout(() => {
+        minTimePassed = true
+      }, durationSeconds * 1000)
+    }
 
     // Dynamically load lottie-web for SSR safety in Next.js Turbopack
     import('lottie-web').then((lottie) => {
@@ -52,9 +57,9 @@ export function SewingLoader({
         })
         animRef.current = anim
 
-        // Ensure animation finishes its full loop cycle cleanly without stopping mid-frame
+        // Ensure animation finishes its full loop cycle cleanly without stopping mid-frame (only when timer based)
         anim.addEventListener('loopComplete', () => {
-          if (minTimePassed) {
+          if (!persistent && minTimePassed && onComplete) {
             try {
               anim.destroy()
             } catch { }
@@ -69,14 +74,14 @@ export function SewingLoader({
     return () => {
       isMounted = false
       clearInterval(dotsInterval)
-      clearTimeout(minTimer)
+      if (minTimer) clearTimeout(minTimer)
       if (animRef.current) {
         try {
           animRef.current.destroy()
         } catch { }
       }
     }
-  }, [active, durationSeconds, onComplete])
+  }, [active, durationSeconds, onComplete, persistent])
 
   if (!active) return null
 
