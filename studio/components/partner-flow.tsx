@@ -460,27 +460,54 @@ export function PartnerFlow({
     setTimeout(() => setBroadcastToast(null), 6000)
   }
 
-  // Intake with customer PIN
+  // Intake with customer PIN - strictly for Accepted drop-offs
   const handleLookupPin = (pin: string) => {
     setPinError('')
     const clean = pin.trim()
-    const found = orders.find((o) => o.otp === clean || o.id.toLowerCase().includes(clean.toLowerCase()))
-    if (found) {
-      setActiveIntake(found)
-      setHangTag(found.hangTagNo || `Tag #${Math.floor(Math.random() * 30 + 1)} · Rack A`)
-      setConditionNotes(found.fabricConditionNotes || 'Clean condition, pristine fabric.')
-      setMeasHem(found.measurements?.hem || found.pinnedAdjustment || '')
-      setMeasWaist(found.measurements?.waist || '')
-      setMeasSleeve(found.measurements?.sleeve || '')
-      setMeasInseam(found.measurements?.inseam || '')
-      setMeasCustom(found.measurements?.custom || '')
-      setSewNotes(found.sewingNotes || '')
+    if (!clean) return
+
+    // Strictly match an Accepted order waiting for drop-off
+    const acceptedOrder = orders.find(
+      (o) => o.status === 'Accepted' && (o.otp === clean || o.id.toLowerCase() === clean.toLowerCase())
+    )
+
+    if (acceptedOrder) {
+      setActiveIntake(acceptedOrder)
+      setHangTag(acceptedOrder.hangTagNo || `Tag #${Math.floor(Math.random() * 30 + 1)} · Rack A`)
+      setConditionNotes(acceptedOrder.fabricConditionNotes || 'Clean condition, pristine fabric.')
+      setMeasHem(acceptedOrder.measurements?.hem || acceptedOrder.pinnedAdjustment || '')
+      setMeasWaist(acceptedOrder.measurements?.waist || '')
+      setMeasSleeve(acceptedOrder.measurements?.sleeve || '')
+      setMeasInseam(acceptedOrder.measurements?.inseam || '')
+      setMeasCustom(acceptedOrder.measurements?.custom || '')
+      setSewNotes(acceptedOrder.sewingNotes || '')
       setIntakeSuccess(false)
       setPriceAdjustApproved(false)
       setShowPriceAdjust(false)
-    } else {
-      setPinError(`No order found with PIN "${clean}". Tap any customer below to auto-fill.`)
+      return
     }
+
+    // Check other statuses to give helpful feedback
+    const otherOrder = orders.find(
+      (o) => o.otp === clean || o.id.toLowerCase() === clean.toLowerCase()
+    )
+
+    if (otherOrder) {
+      if (otherOrder.status === 'Work in Progress') {
+        setPinError(`Order #${otherOrder.id} (${otherOrder.customerName}) is already on the sewing bench.`)
+      } else if (otherOrder.status === 'Ready') {
+        setPinError(`Order #${otherOrder.id} is already completed and ready on the rack for pickup.`)
+      } else if (otherOrder.status === 'Closed' || otherOrder.status === 'Collected') {
+        setPinError(`Order #${otherOrder.id} has already been completed and collected.`)
+      } else if (otherOrder.status === 'Allocated') {
+        setPinError(`Order #${otherOrder.id} is an incoming dispatch. Please accept it first.`)
+      } else {
+        setPinError(`Order #${otherOrder.id} is currently in "${otherOrder.status}" status.`)
+      }
+      return
+    }
+
+    setPinError(`No scheduled drop-off found with PIN "${clean}".`)
   }
 
   const handleConfirmIntakeAndStart = () => {
@@ -1186,17 +1213,17 @@ export function PartnerFlow({
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-[#1E2229] flex items-center gap-1.5">
                               <Clock size={13} className="text-[#9E593B]" />
-                              <span>Scheduled Customer Appointments</span>
+                              <span>Scheduled Drop-Off Appointments</span>
                             </span>
                             <span className="text-xs text-[#6B7280] font-medium">
-                              {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length} in queue
+                              {pendingDropOffs} in queue
                             </span>
                           </div>
 
-                          {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length > 0 ? (
+                          {orders.filter((o) => o.status === 'Accepted').length > 0 ? (
                             <div className="grid sm:grid-cols-2 gap-3">
                               {orders
-                                .filter((o) => ['Accepted', 'Allocated'].includes(o.status))
+                                .filter((o) => o.status === 'Accepted')
                                 .map((o) => (
                                   <div
                                     key={o.id}
@@ -1208,8 +1235,8 @@ export function PartnerFlow({
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5 mb-0.5">
-                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.2 rounded">
-                                            #{o.otp}
+                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.5 rounded">
+                                            PIN #{o.otp}
                                           </span>
                                           <span className="font-semibold text-xs text-[#1E2229] truncate">{o.customerName}</span>
                                         </div>
@@ -1219,61 +1246,26 @@ export function PartnerFlow({
                                       </div>
                                     </div>
 
-                                    {o.status === 'Allocated' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAcceptAllocatedOrder(o)}
-                                        className="px-3 py-1.5 rounded-lg bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1"
-                                      >
-                                        <Zap size={12} className="fill-white" />
-                                        <span>Accept (${o.partnerPayout || Math.round((o.price || 30) * 0.75)})</span>
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setPinInput(o.otp)
-                                          handleLookupPin(o.otp)
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95"
-                                      >
-                                        Intake #{o.otp} →
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPinInput(o.otp)
+                                        handleLookupPin(o.otp)
+                                      }}
+                                      className="px-3.5 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1.5"
+                                    >
+                                      <ShieldCheck size={13} />
+                                      <span>Intake Drop-Off →</span>
+                                    </button>
                                   </div>
                                 ))}
                             </div>
                           ) : (
-                            /* Elegant Ready-to-Test Ingress State */
-                            <div className="p-4 rounded-xl bg-[#F3EFEA]/60 border border-[#E8E1D5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                              <div className="space-y-0.5">
-                                <div className="font-semibold text-[#1E2229] flex items-center gap-1.5">
-                                  <Sparkles size={13} className="text-[#9E593B]" />
-                                  <span>Test Ingress with Active Orders:</span>
-                                </div>
-                                <p className="text-[#6B7280] text-[11px]">
-                                  Tap any active customer ticket to auto-fill their 4-digit PIN code.
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-2 flex-wrap shrink-0">
-                                {orders.slice(0, 2).map((sample) => (
-                                  <button
-                                    key={sample.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (sample?.otp) {
-                                        setPinInput(sample.otp)
-                                        handleLookupPin(sample.otp)
-                                      }
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-[#1E2229] hover:text-black hover:border-[#9E593B] font-mono text-xs font-semibold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5"
-                                  >
-                                    <span>#{sample.otp} ({sample.customerName.split(' ')[0]})</span>
-                                    <ArrowRight size={11} className="text-[#9E593B]" />
-                                  </button>
-                                ))}
-                              </div>
+                            <div className="p-5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-center text-xs text-[#6B7280]">
+                              <p className="font-semibold text-[#1E2229]">No appointments awaiting drop-off intake</p>
+                              <p className="text-[11px] mt-1 text-[#7A7E85]">
+                                When an incoming booking is accepted, the customer's drop-off appointment will appear here for quick 1-click counter intake.
+                              </p>
                             </div>
                           )}
                         </div>
