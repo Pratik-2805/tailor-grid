@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -57,6 +57,18 @@ export function AuthModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+
+  const isSendingOtpRef = useRef(false)
+  const isSendingLinkOtpRef = useRef(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [resendCountdown])
 
   // ── Pending User awaiting Mobile Number linking ───────────────────────────
   const [pendingUser, setPendingUser] = useState<UserType | null>(currentUser || null)
@@ -225,8 +237,9 @@ export function AuthModal({
   }
 
   // ── Customer Mobile (SMS OTP) Flow ────────────────────────────────────────
-  const handleSendMobileOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendMobileOtp = async (e?: React.FormEvent, force: boolean = false) => {
+    if (e) e.preventDefault()
+    if (isSendingOtpRef.current) return
     const cleanedDigits = cPhone.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number.'
@@ -234,20 +247,28 @@ export function AuthModal({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingOtpRef.current = true
     setLoading(true)
     setError('')
     setNotice('')
     try {
-      const res = await sendOtp(cPhone.trim())
+      const res = await sendOtp(cPhone.trim(), force)
       setLoading(false)
       setCOtpSent(true)
+      setResendCountdown(30)
       if (res.phone) setCPhone(res.phone)
-      toast.success(res.message || `Verification code sent via SMS to ${res.phone || cPhone.trim()}`, { position: 'top-center' })
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || cPhone.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingOtpRef.current = false
     }
   }
 
@@ -319,8 +340,9 @@ export function AuthModal({
   }
 
   // ── Mandatory Mobile Link Step ────────────────────────────────────────────
-  const handleSendLinkOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendLinkOtp = async (e?: React.FormEvent, force: boolean = false) => {
+    if (e) e.preventDefault()
+    if (isSendingLinkOtpRef.current) return
     const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
@@ -328,19 +350,26 @@ export function AuthModal({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingLinkOtpRef.current = true
     setLoading(true)
     setError('')
     try {
-      const res = await sendOtp(linkPhoneVal.trim())
+      const res = await sendOtp(linkPhoneVal.trim(), force)
       setLoading(false)
       setLinkOtpSent(true)
       if (res.phone) setLinkPhoneVal(res.phone)
-      toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingLinkOtpRef.current = false
     }
   }
 
@@ -648,10 +677,11 @@ export function AuthModal({
                     <div className="text-center pt-1">
                       <button
                         type="button"
-                        onClick={handleSendLinkOtp}
-                        className="text-xs text-[#9E593B] font-semibold hover:underline"
+                        disabled={loading || resendCountdown > 0}
+                        onClick={() => handleSendLinkOtp(undefined, true)}
+                        className="text-xs text-[#9E593B] font-semibold hover:underline disabled:opacity-50"
                       >
-                        Resend code
+                        {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend code'}
                       </button>
                     </div>
                   </form>
@@ -777,10 +807,11 @@ export function AuthModal({
                     </button>
                     <button
                       type="button"
-                      onClick={handleSendMobileOtp}
-                      className="text-[#9E593B] font-semibold hover:underline"
+                      disabled={loading || resendCountdown > 0}
+                      onClick={() => handleSendMobileOtp(undefined, true)}
+                      className="text-[#9E593B] font-semibold hover:underline disabled:opacity-50"
                     >
-                      Resend code
+                      {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend code'}
                     </button>
                   </div>
                 </form>

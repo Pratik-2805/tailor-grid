@@ -67,7 +67,7 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
             <span>Customer Site</span>
           </a>
 
-          {user ? (
+          {user && user.studioName && user.phone ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">
               <button
                 type="button"
@@ -140,7 +140,7 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
           </div>
 
           <div className="pt-1 flex flex-col gap-2">
-            {!user ? (
+            {!user || !user.studioName || !user.phone ? (
               <button
                 onClick={() => {
                   setOpen(false)

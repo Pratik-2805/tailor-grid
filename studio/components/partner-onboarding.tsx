@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -55,6 +55,18 @@ export function PartnerOnboarding({
   initialTab = 'signup',
   hideHeader = false,
 }: PartnerOnboardingProps) {
+  // ──────── Session-persisted state helpers ────────
+  const ssGet = (key: string) => {
+    if (typeof window === 'undefined') return null
+    try { return sessionStorage.getItem(key) } catch { return null }
+  }
+  const ssSet = (key: string, val: string) => {
+    if (typeof window !== 'undefined') try { sessionStorage.setItem(key, val) } catch { }
+  }
+  const ssRemove = (key: string) => {
+    if (typeof window !== 'undefined') try { sessionStorage.removeItem(key) } catch { }
+  }
+
   // Check if we have cached pending Google data from session
   const [pendingGoogle, setPendingGoogle] = useState<{
     tempSignupId?: string
@@ -62,18 +74,29 @@ export function PartnerOnboarding({
     name?: string
     avatar?: string
   } | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = sessionStorage.getItem('tg_pending_google')
-        return stored ? JSON.parse(stored) : null
-      } catch { }
-    }
-    return null
+    const stored = ssGet('tg_pending_google')
+    return stored ? JSON.parse(stored) : null
   })
 
   // Auth Card State: single card with options, mobile, or email subviews
   const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>('options')
   const [authLoading, setAuthLoading] = useState(false)
+
+  // Double-submit locks
+  const isSendingMobileOtpRef = useRef(false)
+  const isSendingStep3OtpRef = useRef(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
+  const [step3Countdown, setStep3Countdown] = useState(0)
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (resendCountdown <= 0 && step3Countdown <= 0) return
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+      setStep3Countdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [resendCountdown, step3Countdown])
 
   // Sign In with Mobile fields
   const [sPhoneLogin, setSPhoneLogin] = useState('')
@@ -83,39 +106,56 @@ export function PartnerOnboarding({
   // Sign In with Email field
   const [sLoginEmail, setSLoginEmail] = useState('')
 
-  // Multi-step Flow State
-  const initialStep: Step = user?.email || pendingGoogle?.email ? 'location' : 'auth'
-  const [currentStep, setCurrentStep] = useState<Step>(initialStep)
+  // Multi-step Flow State — restore from sessionStorage on refresh
+  const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
+    const cached = ssGet('tg_onboard_step')
+    if (cached && ['auth', 'location', 'language', 'shop-info', 'hub'].includes(cached)) {
+      return cached as Step
+    }
+    return user?.email || pendingGoogle?.email ? 'location' : 'auth'
+  })
+  // Wrapper that also persists to sessionStorage
+  const setCurrentStep = (step: Step) => {
+    setCurrentStepRaw(step)
+    ssSet('tg_onboard_step', step)
+  }
+
+  // ──────── Restore cached onboarding form data from sessionStorage ────────
+  const cachedForm = (() => {
+    const raw = ssGet('tg_onboard_form')
+    if (!raw) return null
+    try { return JSON.parse(raw) } catch { return null }
+  })()
 
   // Step 1: Location & Referral (Image 2 - Earn with Darzi)
-  const [locationCity, setLocationCity] = useState(user?.postcode ? `Area ${user.postcode}` : '')
-  const [referralCode, setReferralCode] = useState('')
+  const [locationCity, setLocationCity] = useState(cachedForm?.locationCity || '')
+  const [referralCode, setReferralCode] = useState(cachedForm?.referralCode || '')
 
   // Step 2: Language & Capacity
-  const [language, setLanguage] = useState('English')
-  const [machines, setMachines] = useState('4-6')
-  const [dailyCapacity, setDailyCapacity] = useState('25')
+  const [language, setLanguage] = useState(cachedForm?.language || 'English')
+  const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
+  const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')
 
-  // Step 3: Shop Info
-  const [shopName, setShopName] = useState(user?.studioName || '')
-  const [shopArea, setShopArea] = useState('')
-  const [postcode, setPostcode] = useState(user?.postcode || '')
-  const [streetAddress, setStreetAddress] = useState(user?.address || '')
-  const [tailorName, setTailorName] = useState(
-    user?.name && user.name !== 'Master Tailor' && user.name !== 'Google User'
-      ? user.name
-      : pendingGoogle?.name && pendingGoogle.name !== 'Google User'
-        ? pendingGoogle.name
-        : ''
-  )
-  const [phone, setPhone] = useState(user?.phone || '')
+  // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
+  const [shopName, setShopName] = useState(cachedForm?.shopName || '')
+  const [shopArea, setShopArea] = useState(cachedForm?.shopArea || '')
+  const [postcode, setPostcode] = useState(cachedForm?.postcode || '')
+  const [streetAddress, setStreetAddress] = useState(cachedForm?.streetAddress || '')
+  const [tailorName, setTailorName] = useState(cachedForm?.tailorName || '')
+  const [phone, setPhone] = useState(cachedForm?.phone || '')
   const [emailVal, setEmailVal] = useState(
-    user?.email || pendingGoogle?.email || ''
+    cachedForm?.emailVal || pendingGoogle?.email || ''
   )
 
   // Step 3 Direct Mobile Phone Twilio OTP Verification State
-  const [isPhoneVerified, setIsPhoneVerified] = useState(() => Boolean(user?.phone))
-  const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => user?.phone || '')
+  const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
+    const cached = ssGet('tg_phone_verified')
+    if (cached === 'true') return true
+    return Boolean(user?.phone)
+  })
+  const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => {
+    return ssGet('tg_verified_phone') || user?.phone || ''
+  })
   const [step3OtpSent, setStep3OtpSent] = useState(false)
   const [step3Otp, setStep3Otp] = useState('')
   const [step3OtpLoading, setStep3OtpLoading] = useState(false)
@@ -135,10 +175,24 @@ export function PartnerOnboarding({
     if (user?.email && !emailVal) {
       setEmailVal(user.email)
     }
-    if (pendingGoogle?.name && !tailorName) {
-      setTailorName(pendingGoogle.name)
-    }
   }, [pendingGoogle, user])
+
+  // ──────── Persist form data to sessionStorage on every change ────────
+  useEffect(() => {
+    const formData = {
+      locationCity, referralCode, language, machines, dailyCapacity,
+      shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
+    }
+    ssSet('tg_onboard_form', JSON.stringify(formData))
+  }, [locationCity, referralCode, language, machines, dailyCapacity, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal])
+
+  // Persist phone verification state
+  useEffect(() => {
+    ssSet('tg_phone_verified', isPhoneVerified ? 'true' : 'false')
+  }, [isPhoneVerified])
+  useEffect(() => {
+    if (step3VerifiedPhone) ssSet('tg_verified_phone', step3VerifiedPhone)
+  }, [step3VerifiedPhone])
 
   useEffect(() => {
     if (user?.email) {
@@ -200,8 +254,8 @@ export function PartnerOnboarding({
 
             setAuthLoading(false)
 
-            // If existing registered studio user in Prisma -> sign in directly
-            if (!result.isNewUser && result.user) {
+            // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
+            if (!result.isNewUser && result.user && result.user.studioName && result.user.phone) {
               if (result.user.role && result.user.role !== 'STUDIO') {
                 setError('This Google account is registered as a Customer. Please use a Studio partner account.')
                 return
@@ -228,11 +282,23 @@ export function PartnerOnboarding({
               sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
             }
 
+            // Only set email from Google — don't prefill name or shop
             if (profile.email) setEmailVal(profile.email)
-            if (profile.name && profile.name !== 'Google User') {
-              setTailorName(profile.name)
-              if (!shopName) setShopName(`${profile.name}'s Atelier`)
-            }
+
+            // Clear stale form cache — start fresh registration
+            ssRemove('tg_onboard_form')
+            ssRemove('tg_phone_verified')
+            ssRemove('tg_verified_phone')
+            setLocationCity('')
+            setReferralCode('')
+            setShopName('')
+            setShopArea('')
+            setPostcode('')
+            setStreetAddress('')
+            setTailorName('')
+            setPhone('')
+            setIsPhoneVerified(false)
+            setStep3VerifiedPhone('')
 
             setCurrentStep('location')
           } catch (err: any) {
@@ -249,8 +315,9 @@ export function PartnerOnboarding({
   }
 
   // Handle Mobile Sign In: Send Twilio OTP
-  const handleSendMobileOtp = async (e?: React.FormEvent) => {
+  const handleSendMobileOtp = async (e?: React.FormEvent, force: boolean = false) => {
     if (e) e.preventDefault()
+    if (isSendingMobileOtpRef.current) return
     const raw = sPhoneLogin.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
@@ -259,20 +326,29 @@ export function PartnerOnboarding({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingMobileOtpRef.current = true
     setAuthLoading(true)
     setError('')
     setNotice('')
     try {
-      const res = await sendOtp(raw)
+      const res = await sendOtp(raw, force)
       setAuthLoading(false)
       setSOtpSent(true)
+      setResendCountdown(30)
       if (res.phone) setSPhoneLogin(res.phone)
       setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setAuthLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingMobileOtpRef.current = false
     }
   }
 
@@ -335,7 +411,8 @@ export function PartnerOnboarding({
   }
 
   // Step 3: Send Twilio OTP for Direct Mobile Phone
-  const handleStep3SendOtp = async () => {
+  const handleStep3SendOtp = async (force: boolean = false) => {
+    if (isSendingStep3OtpRef.current) return
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
@@ -344,22 +421,30 @@ export function PartnerOnboarding({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingStep3OtpRef.current = true
     setStep3OtpLoading(true)
     setError('')
     setNotice('')
     try {
-      const res = await sendOtp(raw)
+      const res = await sendOtp(raw, force)
       setStep3OtpLoading(false)
       setStep3OtpSent(true)
+      setStep3Countdown(30)
       if (res.phone) setPhone(res.phone)
       const successMsg = res.message || `Verification code sent via SMS to ${res.phone || raw}`
       setNotice(successMsg)
-      toast.success(successMsg, { position: 'top-center' })
+      if (res.cooldown) {
+        toast.info(successMsg, { position: 'top-center' })
+      } else {
+        toast.success(successMsg, { position: 'top-center' })
+      }
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingStep3OtpRef.current = false
     }
   }
 
@@ -397,7 +482,7 @@ export function PartnerOnboarding({
     }
   }
 
-  // Handle Email: Check Prisma & Log in, or open form if not registered
+  // Handle Email: Check Prisma & Trigger SMS OTP for registered phone, or open form if not registered
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanEmail = sLoginEmail.trim()
@@ -410,22 +495,26 @@ export function PartnerOnboarding({
     try {
       const check = await checkEmailExists(cleanEmail, 'STUDIO')
       if (check.exists && check.user) {
-        const res = await loginUser({ identifier: cleanEmail, role: 'STUDIO' })
-        setAuthLoading(false)
-        if (res?.user) {
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('tg_user', JSON.stringify(res.user))
-            localStorage.setItem('tg_user_role', 'STUDIO')
-            if (res.token) localStorage.setItem('tg_token', res.token)
-            window.location.href = '/'
-          }
+        // Partner exists -> Send SMS OTP to their registered mobile number
+        const partnerPhone = check.user.phone || check.user.contact
+        if (partnerPhone) {
+          setSPhoneLogin(partnerPhone)
+          setSignInMode('mobile')
+          const otpRes = await sendOtp(partnerPhone)
+          setAuthLoading(false)
+          setSOtpSent(true)
+          setResendCountdown(30)
+          toast.info(otpRes.message || `Verification code sent to registered number (${partnerPhone})`, {
+            position: 'top-center',
+          })
+          return
         }
-      } else {
-        // Not in Prisma yet -> open registration form with email prefilled
-        setAuthLoading(false)
-        setEmailVal(cleanEmail)
-        setCurrentStep('location')
       }
+
+      // Not in Prisma yet -> open registration form with email prefilled
+      setAuthLoading(false)
+      setEmailVal(cleanEmail)
+      setCurrentStep('location')
     } catch (err: any) {
       setAuthLoading(false)
       if (err.message?.includes('not found') || err.message?.includes('Invalid') || err.message?.includes('Unauthorized')) {
@@ -482,9 +571,12 @@ export function PartnerOnboarding({
         machines,
       })
 
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('tg_pending_google')
-      }
+      // Clear all onboarding session data on successful registration
+      ssRemove('tg_pending_google')
+      ssRemove('tg_onboard_step')
+      ssRemove('tg_onboard_form')
+      ssRemove('tg_phone_verified')
+      ssRemove('tg_verified_phone')
 
       const finalUser: User = res?.user || {
         id: user?.id || `usr_${Date.now()}`,
@@ -768,7 +860,7 @@ export function PartnerOnboarding({
                             required
                             autoFocus
                             value={sPhoneLogin}
-                            onChange={(e) => setSPhoneLogin(e.target.value)}
+                            onChange={(e) => setSPhoneLogin(e.target.value.replace(/[^\d+\-\s()]/g, ''))}
                             placeholder="+91 98765 43210 or +44 7700 900000"
                             className="w-full rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3 text-sm font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
                           />
@@ -786,19 +878,34 @@ export function PartnerOnboarding({
                       </form>
                     ) : (
                       <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
+                        <div className="flex items-center justify-between text-xs text-[#7A7E85]">
+                          <span>
+                            Enter code sent to <strong className="text-[#0F1115]">{sPhoneLogin}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={authLoading || resendCountdown > 0}
+                            onClick={() => handleSendMobileOtp(undefined, true)}
+                            className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                          >
+                            {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend'}
+                          </button>
+                        </div>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={4}
                           required
                           autoFocus
                           value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value)}
-                          placeholder="••••"
+                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
+                          placeholder="• • • •"
                           className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
                         <button
                           type="submit"
-                          disabled={authLoading}
+                          disabled={authLoading || sOtp.length < 4}
                           className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
                         >
                           {authLoading ? 'Verifying…' : 'Verify & Continue'}
@@ -1055,7 +1162,7 @@ export function PartnerOnboarding({
                           type="text"
                           value={shopName}
                           onChange={(e) => setShopName(e.target.value)}
-                          placeholder="e.g. Atelier SoHo Tailors"
+                          placeholder="Enter your shop or atelier name"
                           className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                         />
                       </div>
@@ -1069,7 +1176,7 @@ export function PartnerOnboarding({
                             type="text"
                             value={shopArea}
                             onChange={(e) => setShopArea(e.target.value)}
-                            placeholder="e.g. SoHo or Bandra"
+                            placeholder="Enter your area or locality"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1081,7 +1188,7 @@ export function PartnerOnboarding({
                             type="text"
                             value={postcode}
                             onChange={(e) => setPostcode(e.target.value)}
-                            placeholder="e.g. W8 4EP"
+                            placeholder="Enter your PIN or postcode"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1095,7 +1202,7 @@ export function PartnerOnboarding({
                           type="text"
                           value={streetAddress}
                           onChange={(e) => setStreetAddress(e.target.value)}
-                          placeholder="e.g. 18 Kensington Church St"
+                          placeholder="Enter your full street address"
                           className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                         />
                       </div>
@@ -1109,7 +1216,7 @@ export function PartnerOnboarding({
                             type="text"
                             value={tailorName}
                             onChange={(e) => setTailorName(e.target.value)}
-                            placeholder="e.g. Marco Rossi"
+                            placeholder="Enter lead tailor's full name"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1121,10 +1228,16 @@ export function PartnerOnboarding({
                           <input
                             type="email"
                             value={emailVal}
-                            onChange={(e) => setEmailVal(e.target.value)}
-                            placeholder="e.g. marco@ateliersoho.com"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
+                            disabled={!!pendingGoogle?.email}
+                            placeholder="Enter your business email"
+                            className={`w-full rounded-lg border-none px-4 py-3 text-sm font-semibold outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
                           />
+                          {pendingGoogle?.email && (
+                            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                              <Lock size={10} /> Email linked via Google sign-in
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -1151,8 +1264,9 @@ export function PartnerOnboarding({
                             type="tel"
                             value={phone}
                             onChange={(e) => {
-                              setPhone(e.target.value)
-                              if (isPhoneVerified && e.target.value.trim() !== step3VerifiedPhone) {
+                              const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                              setPhone(cleaned)
+                              if (isPhoneVerified && cleaned.trim() !== step3VerifiedPhone) {
                                 setIsPhoneVerified(false)
                               }
                             }}
@@ -1163,27 +1277,20 @@ export function PartnerOnboarding({
                               : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
                               }`}
                           />
-                          {isPhoneVerified ? (
+                          {!isPhoneVerified && (
                             <button
                               type="button"
-                              onClick={() => {
-                                setIsPhoneVerified(false)
-                                setStep3VerifiedPhone('')
-                                setStep3OtpSent(false)
-                                setStep3Otp('')
-                              }}
-                              className="px-3.5 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition-colors cursor-pointer shrink-0"
-                            >
-                              Change
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={step3OtpLoading || !phone.trim()}
-                              onClick={handleStep3SendOtp}
+                              disabled={step3OtpLoading || !phone.trim() || (step3OtpSent && step3Countdown > 0)}
+                              onClick={() => handleStep3SendOtp(step3OtpSent)}
                               className="px-4 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
                             >
-                              {step3OtpLoading ? 'Sending…' : step3OtpSent ? 'Resend SMS' : 'Send OTP'}
+                              {step3OtpLoading
+                                ? 'Sending…'
+                                : step3OtpSent
+                                  ? step3Countdown > 0
+                                    ? `Resend in ${step3Countdown}s`
+                                    : 'Resend SMS'
+                                  : 'Send OTP'}
                             </button>
                           )}
                         </div>
@@ -1197,11 +1304,11 @@ export function PartnerOnboarding({
                               </span>
                               <button
                                 type="button"
-                                disabled={step3OtpLoading}
-                                onClick={handleStep3SendOtp}
+                                disabled={step3OtpLoading || step3Countdown > 0}
+                                onClick={() => handleStep3SendOtp(true)}
                                 className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
                               >
-                                Resend
+                                {step3Countdown > 0 ? `Resend (${step3Countdown}s)` : 'Resend'}
                               </button>
                             </div>
                             <div className="flex gap-2">
@@ -1232,8 +1339,60 @@ export function PartnerOnboarding({
 
                     <button
                       onClick={() => {
-                        if (!shopName.trim() || !shopArea.trim() || !postcode.trim() || !tailorName.trim() || !phone.trim() || !emailVal.trim()) {
-                          setError('Please fill in Shop Name, Area, Postcode, Lead Tailor, Phone, and Email.')
+                        // Field-by-field validation
+                        if (!shopName.trim()) {
+                          setError('Please enter your Atelier / Shop Name.')
+                          toast.warning('Shop Name is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (shopName.trim().length < 2) {
+                          setError('Shop Name must be at least 2 characters.')
+                          return
+                        }
+                        if (!shopArea.trim()) {
+                          setError('Please enter your Area / Neighborhood.')
+                          toast.warning('Area is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (!postcode.trim()) {
+                          setError('Please enter your Postcode / PIN.')
+                          toast.warning('Postcode is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (!streetAddress.trim()) {
+                          setError('Please enter your Street Address.')
+                          toast.warning('Street Address is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (!tailorName.trim()) {
+                          setError('Please enter the Lead Master Tailor name.')
+                          toast.warning('Lead Tailor name is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (tailorName.trim().length < 2) {
+                          setError('Tailor name must be at least 2 characters.')
+                          return
+                        }
+                        if (!emailVal.trim()) {
+                          setError('Please enter your Partner Contact Email.')
+                          toast.warning('Email is required.', { position: 'top-center' })
+                          return
+                        }
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                        if (!emailRegex.test(emailVal.trim())) {
+                          setError('Please enter a valid email address (e.g. name@domain.com).')
+                          toast.warning('Invalid email format.', { position: 'top-center' })
+                          return
+                        }
+                        if (!phone.trim()) {
+                          setError('Please enter your Direct Mobile Phone number.')
+                          toast.warning('Phone number is required.', { position: 'top-center' })
+                          return
+                        }
+                        const phoneDigits = phone.replace(/\D/g, '')
+                        if (phoneDigits.length < 10) {
+                          setError('Phone number must have at least 10 digits.')
+                          toast.warning('Invalid phone number.', { position: 'top-center' })
                           return
                         }
                         if (!isPhoneVerified) {

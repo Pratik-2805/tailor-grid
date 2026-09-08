@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -75,6 +75,21 @@ export function PartnerOnboarding({
   // Auth Card State: single card with options, mobile, or email subviews
   const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>('options')
   const [authLoading, setAuthLoading] = useState(false)
+
+  // Double-submit locks
+  const isSendingMobileOtpRef = useRef(false)
+  const isSendingStep3OtpRef = useRef(false)
+  const [resendCountdown, setResendCountdown] = useState(0)
+  const [step3Countdown, setStep3Countdown] = useState(0)
+
+  useEffect(() => {
+    if (resendCountdown <= 0 && step3Countdown <= 0) return
+    const interval = setInterval(() => {
+      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+      setStep3Countdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [resendCountdown, step3Countdown])
 
   // Sign In with Mobile fields
   const [sPhoneLogin, setSPhoneLogin] = useState('')
@@ -250,8 +265,9 @@ export function PartnerOnboarding({
   }
 
   // Handle Mobile Sign In: Send Twilio OTP
-  const handleSendMobileOtp = async (e?: React.FormEvent) => {
+  const handleSendMobileOtp = async (e?: React.FormEvent, force: boolean = false) => {
     if (e) e.preventDefault()
+    if (isSendingMobileOtpRef.current) return
     const raw = sPhoneLogin.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
@@ -260,20 +276,29 @@ export function PartnerOnboarding({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingMobileOtpRef.current = true
     setAuthLoading(true)
     setError('')
     setNotice('')
     try {
-      const res = await sendOtp(raw)
+      const res = await sendOtp(raw, force)
       setAuthLoading(false)
       setSOtpSent(true)
+      setResendCountdown(30)
       if (res.phone) setSPhoneLogin(res.phone)
       setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setAuthLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingMobileOtpRef.current = false
     }
   }
 
@@ -314,7 +339,8 @@ export function PartnerOnboarding({
   }
 
   // Step 3: Send Twilio OTP for Direct Mobile Phone
-  const handleStep3SendOtp = async () => {
+  const handleStep3SendOtp = async (force: boolean = false) => {
+    if (isSendingStep3OtpRef.current) return
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
@@ -323,22 +349,30 @@ export function PartnerOnboarding({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingStep3OtpRef.current = true
     setStep3OtpLoading(true)
     setError('')
     setNotice('')
     try {
-      const res = await sendOtp(raw)
+      const res = await sendOtp(raw, force)
       setStep3OtpLoading(false)
       setStep3OtpSent(true)
+      setStep3Countdown(30)
       if (res.phone) setPhone(res.phone)
       const successMsg = res.message || `Verification code sent via SMS to ${res.phone || raw}`
       setNotice(successMsg)
-      toast.success(successMsg, { position: 'top-center' })
+      if (res.cooldown) {
+        toast.info(successMsg, { position: 'top-center' })
+      } else {
+        toast.success(successMsg, { position: 'top-center' })
+      }
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingStep3OtpRef.current = false
     }
   }
 
@@ -756,6 +790,19 @@ export function PartnerOnboarding({
                       </form>
                     ) : (
                       <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
+                        <div className="flex items-center justify-between text-xs text-[#7A7E85]">
+                          <span>
+                            Enter code sent to <strong className="text-[#0F1115]">{sPhoneLogin}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            disabled={authLoading || resendCountdown > 0}
+                            onClick={() => handleSendMobileOtp(undefined, true)}
+                            className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                          >
+                            {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend'}
+                          </button>
+                        </div>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -764,13 +811,13 @@ export function PartnerOnboarding({
                           required
                           autoFocus
                           value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value)}
-                          placeholder="••••"
+                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
+                          placeholder="• • • •"
                           className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
                         <button
                           type="submit"
-                          disabled={authLoading}
+                          disabled={authLoading || sOtp.length < 4}
                           className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
                         >
                           {authLoading ? 'Verifying…' : 'Verify & Continue'}
@@ -1151,11 +1198,17 @@ export function PartnerOnboarding({
                           ) : (
                             <button
                               type="button"
-                              disabled={step3OtpLoading || !phone.trim()}
-                              onClick={handleStep3SendOtp}
+                              disabled={step3OtpLoading || !phone.trim() || (step3OtpSent && step3Countdown > 0)}
+                              onClick={() => handleStep3SendOtp(step3OtpSent)}
                               className="px-4 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
                             >
-                              {step3OtpLoading ? 'Sending…' : step3OtpSent ? 'Resend SMS' : 'Send OTP'}
+                              {step3OtpLoading
+                                ? 'Sending…'
+                                : step3OtpSent
+                                  ? step3Countdown > 0
+                                    ? `Resend in ${step3Countdown}s`
+                                    : 'Resend SMS'
+                                  : 'Send OTP'}
                             </button>
                           )}
                         </div>
@@ -1169,11 +1222,11 @@ export function PartnerOnboarding({
                               </span>
                               <button
                                 type="button"
-                                disabled={step3OtpLoading}
-                                onClick={handleStep3SendOtp}
+                                disabled={step3OtpLoading || step3Countdown > 0}
+                                onClick={() => handleStep3SendOtp(true)}
                                 className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
                               >
-                                Resend
+                                {step3Countdown > 0 ? `Resend (${step3Countdown}s)` : 'Resend'}
                               </button>
                             </div>
                             <div className="flex gap-2">

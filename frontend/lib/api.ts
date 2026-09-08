@@ -34,12 +34,12 @@ export function getStudioUrl(path: string = '', token?: string | null): string {
 }
 
 // Send OTP to phone number
-export async function sendOtp(phone: string): Promise<{ success: boolean; message: string; phone?: string }> {
+export async function sendOtp(phone: string, forceResend: boolean = false): Promise<{ success: boolean; message: string; phone?: string; cooldown?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/send-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone, forceResend }),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))

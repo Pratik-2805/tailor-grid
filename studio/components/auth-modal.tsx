@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists } from '@/lib/api'
 
 type AuthMode =
   | 'studio-options'
@@ -53,6 +53,18 @@ export function AuthModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+
+  const isSendingOtpRef = useRef(false)
+  const isSendingLinkOtpRef = useRef(false)
+  const [sResendCountdown, setSResendCountdown] = useState(0)
+
+  useEffect(() => {
+    if (sResendCountdown <= 0) return
+    const interval = setInterval(() => {
+      setSResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [sResendCountdown])
 
   const [pendingUser, setPendingUser] = useState<UserType | null>(null)
 
@@ -210,8 +222,9 @@ export function AuthModal({
     }
   }
 
-  const handleStudioMobileSend = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleStudioMobileSend = async (e?: React.FormEvent, force: boolean = false) => {
+    if (e) e.preventDefault()
+    if (isSendingOtpRef.current) return
     const cleanedDigits = sPhoneLogin.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
@@ -219,20 +232,28 @@ export function AuthModal({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingOtpRef.current = true
     setLoading(true)
     setError('')
     try {
-      const res = await sendOtp(sPhoneLogin.trim())
+      const res = await sendOtp(sPhoneLogin.trim(), force)
       setLoading(false)
       setSOtpSent(true)
+      setSResendCountdown(30)
       if (res.phone) setSPhoneLogin(res.phone)
-      setNotice(`Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
-      toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
+      setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingOtpRef.current = false
     }
   }
 
@@ -267,8 +288,9 @@ export function AuthModal({
     }
   }
 
-  const handleSendLinkOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSendLinkOtp = async (e?: React.FormEvent, force: boolean = false) => {
+    if (e) e.preventDefault()
+    if (isSendingLinkOtpRef.current) return
     const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
@@ -276,20 +298,27 @@ export function AuthModal({
       toast.warning(msg, { position: 'top-center' })
       return
     }
+    isSendingLinkOtpRef.current = true
     setLoading(true)
     setError('')
     try {
-      const res = await sendOtp(linkPhoneVal.trim())
+      const res = await sendOtp(linkPhoneVal.trim(), force)
       setLoading(false)
       setLinkOtpSent(true)
       if (res.phone) setLinkPhoneVal(res.phone)
-      setNotice(`Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`)
-      toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
+      setNotice(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`)
+      if (res.cooldown) {
+        toast.info(res.message, { position: 'top-center' })
+      } else {
+        toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
+      }
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+    } finally {
+      isSendingLinkOtpRef.current = false
     }
   }
 
@@ -329,12 +358,35 @@ export function AuthModal({
 
   const handleStudioLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanEmail = sLoginEmail.trim()
+    if (!cleanEmail) {
+      setError('Please enter your partner email.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      const result = await loginUser({ identifier: sLoginEmail.trim(), role: 'STUDIO' })
+      const check = await checkEmailExists(cleanEmail, 'STUDIO')
+      if (check.exists && check.user) {
+        const partnerPhone = check.user.phone || check.user.contact
+        if (partnerPhone) {
+          setSPhoneLogin(partnerPhone)
+          setMode('studio-mobile')
+          const otpRes = await sendOtp(partnerPhone)
+          setLoading(false)
+          setSOtpSent(true)
+          setSResendCountdown(30)
+          toast.info(otpRes.message || `Verification code sent to registered number (${partnerPhone})`, {
+            position: 'top-center',
+          })
+          return
+        }
+      }
+
       setLoading(false)
-      if (result?.user) finalizeAuth(result.user)
+      setSEmail(cleanEmail)
+      setMode('studio-register')
+      toast.info('Please complete your atelier details to register.', { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
@@ -650,6 +702,19 @@ export function AuthModal({
               </form>
             ) : (
               <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
+                <div className="flex items-center justify-between text-xs text-[#7A7E85]">
+                  <span>
+                    Enter code sent to <strong className="text-[#0F1115]">{sPhoneLogin}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={loading || sResendCountdown > 0}
+                    onClick={() => handleStudioMobileSend(undefined, true)}
+                    className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    {sResendCountdown > 0 ? `Resend (${sResendCountdown}s)` : 'Resend'}
+                  </button>
+                </div>
                 <input
                   type="text"
                   inputMode="numeric"
