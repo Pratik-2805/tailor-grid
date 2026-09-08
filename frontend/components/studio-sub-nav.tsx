@@ -174,23 +174,20 @@ export function StudioSubNav({
                   <Store size={13} className="text-[#E7C9BA]" />
                   <span>Studio Portal ↗</span>
                 </button>
-
-                {/* Show Enroll Studio button in sticky nav only when scrolled past the hero */}
-                {scrolledPastHero && (
-                  <button
-                    onClick={() => {
-                      const token = isClient ? getAuthToken() : null
-                      window.location.href = getStudioUrl('/', token)
-                    }}
-                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
-                  >
-                    <Sparkles size={12} className="text-[#E7C9BA]" />
-                    <span>Enroll Studio</span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+              ) : scrolledPastHero ? (
+                <button
+                  onClick={() => {
+                    const token = isClient ? getAuthToken() : null
+                    window.location.href = getStudioUrl('/', token)
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
+                >
+                  <Sparkles size={12} className="text-[#E7C9BA]" />
+                  <span>Enroll Studio</span>
+                </button>
+              ) : null}
+            </div>
+          )}
 
         </div>
 

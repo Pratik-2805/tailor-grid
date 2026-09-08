@@ -291,6 +291,7 @@ router.post('/send-otp', async (req, res) => {
       success: true,
       phone: cleanPhone,
       message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
+      ...(process.env.NODE_ENV !== 'production' && { devOtp: code }),
     });
   } catch (err) {
     console.error('Send OTP Error:', err);

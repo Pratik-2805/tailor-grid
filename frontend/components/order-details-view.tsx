@@ -21,7 +21,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { fetchOrderById, getCurrentUser } from '@/lib/api'
+import { fetchOrderById, getCurrentUser, deleteOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie } from '@/lib/cookies'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
