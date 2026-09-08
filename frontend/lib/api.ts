@@ -33,7 +33,10 @@ export function getStudioUrl(path: string = '', token?: string | null): string {
   const base = STUDIO_BASE_URL.replace(/\/$/, '')
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
   const url = `${base}${cleanPath}`
-  if (token) {
+  
+  // Strict Role Gate: Never hand over Customer tokens to the Studio domain
+  const currentRole = getAuthRole()
+  if (token && currentRole === 'STUDIO') {
     const separator = url.includes('?') ? '&' : '?'
     return `${url}${separator}token=${encodeURIComponent(token)}`
   }

@@ -1,37 +1,65 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useApp } from '@/components/app-provider'
+import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { getStudioUrl } from '@/lib/api'
+import { getAuthRole, getAuthUser } from '@/lib/cookies'
 import { CustomLoader } from '@/components/custom-loader'
 
 export default function PartnerPage() {
-  const { user, isAuthLoading, navigate, handleSignOut, openAuth } = useApp()
+  const router = useRouter()
+  const [isChecking, setIsChecking] = useState(true)
+  const hasTriggeredRef = useRef(false)
 
   useEffect(() => {
-    if (!isAuthLoading && (!user || user.role !== 'STUDIO')) {
-      openAuth('STUDIO', 'signin')
-    }
-  }, [isAuthLoading, user, openAuth])
+    if (hasTriggeredRef.current) return
+    hasTriggeredRef.current = true
 
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text="Connecting to Partner Network"
-          subtext="Authenticating your master tailor workshop credentials"
-        />
-      </div>
-    )
-  }
+    const role = getAuthRole()
+    const user = getAuthUser()
+
+    // If logged in as Customer, reject and redirect to user portal
+    if (role === 'CUSTOMER' || user?.role === 'CUSTOMER') {
+      toast.error('Unauthorized access, redirecting to user portal.', {
+        position: 'top-center',
+        autoClose: 2500,
+        toastId: 'unauthorized-partner-access',
+      })
+
+      setTimeout(() => {
+        router.replace('/')
+      }, 1800)
+      return
+    }
+
+    // Otherwise redirect to Studio Portal
+    setTimeout(() => {
+      window.location.href = getStudioUrl('/')
+    }, 800)
+  }, [router])
 
   return (
-    <div className="min-h-[65vh] flex flex-col items-center justify-center gap-3 bg-[#FAF8F5]">
-      <div className="size-9 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
-      <p className="text-xs font-semibold text-[#7A7E85] tracking-wider uppercase">
-        Connecting to Studio Portal Node…
-      </p>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#FAF8F5] relative">
+      <CustomLoader
+        size="lg"
+        variant="atelier"
+        text="Verifying Studio Access"
+        subtext="Checking partner credentials and role permissions…"
+      />
+      <ToastContainer
+        position="top-center"
+        autoClose={2500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
     </div>
   )
 }

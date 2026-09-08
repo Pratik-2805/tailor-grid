@@ -42,7 +42,7 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u) {
+        if (u && u.role === 'STUDIO') {
           setUser(u)
         } else {
           setUser(null)
