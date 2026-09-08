@@ -289,11 +289,11 @@ router.post('/send-otp', async (req, res) => {
       return res.json(inFlightResult);
     }
 
-    // 2. Cooldown check: if an OTP was sent within the last 25 seconds, reuse existing without spamming SMS
+    // 2. Cooldown check: if an OTP was sent within the last 30 seconds, reuse existing without spamming SMS
     const lastSentAt = otpCooldownStore.get(cleanPhone);
     const now = Date.now();
-    if (lastSentAt && (now - lastSentAt < 25000) && !forceResend) {
-      console.log(`[AUTH-OTP] Cooldown active for ${cleanPhone} (${Math.round((25000 - (now - lastSentAt)) / 1000)}s remaining)`);
+    if (lastSentAt && (now - lastSentAt < 30000) && !forceResend) {
+      console.log(`[AUTH-OTP] Cooldown active for ${cleanPhone} (${Math.round((30000 - (now - lastSentAt)) / 1000)}s remaining)`);
       return res.json({
         success: true,
         phone: cleanPhone,
@@ -302,33 +302,45 @@ router.post('/send-otp', async (req, res) => {
       });
     }
 
-    // 3. Process dispatch with in-flight lock
-    const dispatchPromise = (async () => {
-      const code = Math.floor(1000 + Math.random() * 9000).toString();
+    // 3. Register lock and timestamp immediately (synchronously) before entering async dispatch
+    otpCooldownStore.set(cleanPhone, Date.now());
 
-      // Persist OTP in PostgreSQL DB (and memory cache)
-      await saveOtp(cleanPhone, code);
-      console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
-
-      // Send real SMS via Twilio
-      const smsResult = await sendVerificationSms(cleanPhone, code);
-      otpCooldownStore.set(cleanPhone, Date.now());
-
-      return {
-        success: true,
-        phone: cleanPhone,
-        message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
-      };
-    })();
-
+    let resolveDispatch;
+    let rejectDispatch;
+    const dispatchPromise = new Promise((resolve, reject) => {
+      resolveDispatch = resolve;
+      rejectDispatch = reject;
+    });
     inFlightOtpRequests.set(cleanPhone, dispatchPromise);
 
-    try {
-      const result = await dispatchPromise;
-      return res.json(result);
-    } finally {
-      inFlightOtpRequests.delete(cleanPhone);
-    }
+    (async () => {
+      try {
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+
+        // Persist OTP in PostgreSQL DB (and memory cache)
+        await saveOtp(cleanPhone, code);
+        console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
+
+        // Send real SMS via Twilio
+        const smsResult = await sendVerificationSms(cleanPhone, code);
+
+        const responsePayload = {
+          success: true,
+          phone: cleanPhone,
+          message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
+        };
+        resolveDispatch(responsePayload);
+      } catch (dispatchErr) {
+        // Clear cooldown so user can retry on true failure
+        otpCooldownStore.delete(cleanPhone);
+        rejectDispatch(dispatchErr);
+      } finally {
+        inFlightOtpRequests.delete(cleanPhone);
+      }
+    })();
+
+    const result = await dispatchPromise;
+    return res.json(result);
   } catch (err) {
     console.error('Send OTP Error:', err);
     return res.status(500).json({ error: err.message || 'Failed to send verification code.' });

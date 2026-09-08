@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // When an authenticated customer visits root '/', redirect seamlessly to '/book'
@@ -16,6 +16,8 @@ export function middleware(request: NextRequest) {
 
   return NextResponse.next()
 }
+
+export default proxy
 
 export const config = {
   matcher: ['/'],
