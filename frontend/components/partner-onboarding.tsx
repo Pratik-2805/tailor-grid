@@ -773,11 +773,12 @@ export function PartnerOnboarding({
                           </label>
                           <input
                             type="tel"
+                            inputMode="tel"
                             required
                             autoFocus
                             value={sPhoneLogin}
-                            onChange={(e) => setSPhoneLogin(e.target.value)}
-                            placeholder="+91 98765 43210 or +44 7700 900000"
+                            onChange={(e) => setSPhoneLogin(e.target.value.replace(/[^\d+ ]/g, ''))}
+                            placeholder="+91 98765 43210"
                             className="w-full rounded-xl bg-gray-100 border-none px-4 py-3 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -812,8 +813,8 @@ export function PartnerOnboarding({
                           required
                           autoFocus
                           value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="• • • •"
+                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                          placeholder="••••"
                           className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
                         <button
@@ -1095,13 +1096,15 @@ export function PartnerOnboarding({
                         </div>
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / PIN *
+                            Postcode / 6-Digit PIN *
                           </label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            maxLength={6}
                             value={postcode}
-                            onChange={(e) => setPostcode(e.target.value)}
-                            placeholder="e.g. W8 4EP"
+                            onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="e.g. 400001"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1169,10 +1172,12 @@ export function PartnerOnboarding({
                         <div className="flex gap-2">
                           <input
                             type="tel"
+                            inputMode="tel"
                             value={phone}
                             onChange={(e) => {
-                              setPhone(e.target.value)
-                              if (isPhoneVerified && e.target.value.trim() !== step3VerifiedPhone) {
+                              const val = e.target.value.replace(/[^\d+ ]/g, '')
+                              setPhone(val)
+                              if (isPhoneVerified && val.trim() !== step3VerifiedPhone) {
                                 setIsPhoneVerified(false)
                               }
                             }}
@@ -1238,7 +1243,7 @@ export function PartnerOnboarding({
                                 maxLength={4}
                                 autoFocus
                                 value={step3Otp}
-                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, ''))}
+                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                 placeholder="• • • •"
                                 className="w-36 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
                               />
@@ -1260,6 +1265,13 @@ export function PartnerOnboarding({
                       onClick={() => {
                         if (!shopName.trim() || !shopArea.trim() || !postcode.trim() || !tailorName.trim() || !phone.trim() || !emailVal.trim()) {
                           setError('Please fill in Shop Name, Area, Postcode, Lead Tailor, Phone, and Email.')
+                          return
+                        }
+                        const cleanPin = postcode.trim().replace(/\D/g, '')
+                        if (cleanPin.length < 6) {
+                          const msg = 'Please enter a valid 6-digit numeric PIN code (e.g. 400001).'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
                           return
                         }
                         if (!isPhoneVerified) {

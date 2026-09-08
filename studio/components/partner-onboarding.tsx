@@ -23,7 +23,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthRole, setAuthToken } from '@/lib/cookies'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -262,7 +262,6 @@ export function PartnerOnboarding({
                 return
               }
               if (typeof window !== 'undefined') {
-                setAuthUser(result.user)
                 setAuthRole('STUDIO')
                 if (result.token) setAuthToken(result.token)
                 window.location.href = '/'
@@ -390,7 +389,6 @@ export function PartnerOnboarding({
 
       if (res?.user) {
         if (typeof window !== 'undefined') {
-          setAuthUser(res.user)
           setAuthRole('STUDIO')
           if (res.token) setAuthToken(res.token)
         }
@@ -500,7 +498,6 @@ export function PartnerOnboarding({
         setAuthLoading(false)
         if (res?.user) {
           if (typeof window !== 'undefined') {
-            setAuthUser(res.user)
             setAuthRole('STUDIO')
             if (res.token) setAuthToken(res.token)
             window.location.href = '/'
@@ -539,7 +536,6 @@ export function PartnerOnboarding({
       address: '18 Kensington Church St',
     }
     if (typeof window !== 'undefined') {
-      setAuthUser(demoUser)
       setAuthRole('STUDIO')
       window.location.href = '/'
     }
@@ -590,7 +586,6 @@ export function PartnerOnboarding({
       }
 
       if (typeof window !== 'undefined') {
-        setAuthUser(finalUser)
         setAuthRole('STUDIO')
         window.location.href = '/'
         return
@@ -854,6 +849,7 @@ export function PartnerOnboarding({
                           </label>
                           <input
                             type="tel"
+                            inputMode="tel"
                             required
                             autoFocus
                             value={sPhoneLogin}
@@ -890,6 +886,8 @@ export function PartnerOnboarding({
                         </div>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           inputMode="numeric"
                           pattern="[0-9]*"
                           maxLength={4}
@@ -1179,10 +1177,12 @@ export function PartnerOnboarding({
                         </div>
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / PIN *
+                            Postcode / 6-Digit PIN *
                           </label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            maxLength={6}
                             value={postcode}
                             onChange={(e) => setPostcode(e.target.value)}
                             placeholder="Enter your PIN or postcode"
@@ -1259,6 +1259,7 @@ export function PartnerOnboarding({
                         <div className="flex gap-2">
                           <input
                             type="tel"
+                            inputMode="tel"
                             value={phone}
                             onChange={(e) => {
                               const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
@@ -1316,7 +1317,7 @@ export function PartnerOnboarding({
                                 maxLength={4}
                                 autoFocus
                                 value={step3Otp}
-                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, ''))}
+                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                 placeholder="• • • •"
                                 className="w-36 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
                               />

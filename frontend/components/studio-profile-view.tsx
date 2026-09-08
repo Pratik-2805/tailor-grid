@@ -237,15 +237,31 @@ export function StudioProfileView({
     setError('')
     setSuccess(false)
 
+    const cleanedPhone = phone.trim()
+    const phoneDigits = cleanedPhone.replace(/\D/g, '')
+    if (phoneDigits.length < 10) {
+      setSaving(false)
+      setError('Please enter a valid 10-digit mobile number (e.g. +91 98765 43210).')
+      return
+    }
+
+    const cleanPostcode = postcode.trim()
+    const pinDigits = cleanPostcode.replace(/\D/g, '')
+    if (pinDigits.length < 6) {
+      setSaving(false)
+      setError('Please enter a valid 6-digit numeric PIN code (e.g. 400001).')
+      return
+    }
+
     try {
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
-        phone: phone.trim(),
+        phone: cleanedPhone,
         address: address.trim(),
-        postcode: postcode.trim(),
+        postcode: cleanPostcode,
         avatar: avatar ? avatar.trim() : null,
       }
 
@@ -587,14 +603,17 @@ export function StudioProfileView({
 
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Postcode / Postal Code *
+                    Postcode / 6-Digit PIN *
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={6}
                     required
+                    placeholder="400001"
                     value={postcode}
-                    onChange={(e) => setPostcode(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors uppercase"
+                    onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
 
@@ -606,9 +625,11 @@ export function StudioProfileView({
                     <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="tel"
+                      inputMode="tel"
                       required
+                      placeholder="+91 98765 43210"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
                   </div>
