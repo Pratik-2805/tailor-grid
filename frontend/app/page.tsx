@@ -98,7 +98,11 @@ export default function HomePage() {
           : '10012'
     )
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_measurement_draft', JSON.stringify(params))
+      try {
+        localStorage.setItem('tg_measurement_draft', JSON.stringify(params))
+      } catch (err) {
+        console.warn('LocalStorage error:', err)
+      }
     }
   }
 

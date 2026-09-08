@@ -623,8 +623,8 @@ export default function BookPage() {
       customerName: user?.name || 'Customer',
       customerEmail: user?.email || '',
       customerPhone: user?.phone || '',
-      storeId: closestStore?.id || 'studio-dispatch',
-      storeName: closestStore?.name || 'Local Partner Atelier',
+      storeId: null,
+      storeName: 'Awaiting Studio Acceptance',
       storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
       garmentId: selectedGarmentId,
       garmentName: currentCategory.name,
@@ -642,9 +642,28 @@ export default function BookPage() {
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
-      localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
-      localStorage.setItem('tg_measurement_draft', JSON.stringify(bookingPending || orderData))
+      try {
+        // Strip heavy base64 strings before storing in localStorage to conserve quota
+        const storageOrderData = {
+          ...orderData,
+          images: uploadedImages.map((img) => (img.startsWith('data:') && img.length > 500 ? '[Image Data]' : img)),
+        }
+        localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(storageOrderData))
+        localStorage.setItem('tg_latest_order', JSON.stringify(storageOrderData))
+        localStorage.setItem('tg_measurement_draft', JSON.stringify(storageOrderData))
+      } catch (err) {
+        console.warn('LocalStorage quota limit reached while saving order:', err)
+        try {
+          // Clear old order entries to free quota if possible
+          Object.keys(localStorage).forEach((key) => {
+            if (key.startsWith('tg_order_') || key === 'tg_measurement_draft') {
+              localStorage.removeItem(key)
+            }
+          })
+          const minimalOrderData = { ...orderData, images: [] }
+          localStorage.setItem('tg_latest_order', JSON.stringify(minimalOrderData))
+        } catch { }
+      }
     }
 
     // Persist to backend PostgreSQL database asynchronously
@@ -659,8 +678,8 @@ export default function BookPage() {
       garmentName: currentCategory.name,
       serviceId: selectedServiceId,
       serviceName: currentService.name,
-      storeId: closestStore?.id,
-      storeName: closestStore?.name,
+      storeId: undefined,
+      storeName: 'Awaiting Studio Acceptance',
       price: currentService.customerPrice || currentCategory.startingPrice || 25,
       date: formattedDateDisplay,
       timeSlot: schedTime,

@@ -244,20 +244,26 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
           stroke={dark ? 'rgba(255,255,255,0.1)' : 'rgba(15,17,21,0.08)'}
           strokeWidth="1.5"
         />
-        {/* Precision Measuring Ticks (Deterministic SVG transforms for 100% SSR hydration safety) */}
-        {Array.from({ length: 12 }).map((_, i) => (
-          <line
-            key={i}
-            x1="50"
-            y1="4"
-            x2="50"
-            y2="8"
-            transform={`rotate(${i * 30} 50 50)`}
-            stroke={i % 3 === 0 ? accentColor : dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,17,21,0.2)'}
-            strokeWidth={i % 3 === 0 ? '2' : '1'}
-            strokeLinecap="round"
-          />
-        ))}
+        {/* Precision Measuring Ticks */}
+        {Array.from({ length: 12 }).map((_, i) => {
+          const angle = (i * 30 * Math.PI) / 180
+          const x1 = 50 + 42 * Math.cos(angle)
+          const y1 = 50 + 42 * Math.sin(angle)
+          const x2 = 50 + 46 * Math.cos(angle)
+          const y2 = 50 + 46 * Math.sin(angle)
+          return (
+            <line
+              key={i}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke={i % 3 === 0 ? accentColor : dark ? 'rgba(255,255,255,0.3)' : 'rgba(15,17,21,0.2)'}
+              strokeWidth={i % 3 === 0 ? '2' : '1'}
+              strokeLinecap="round"
+            />
+          )
+        })}
       </g>
 
       {/* Middle Animated Running Stitch Track (Counter-clockwise flow) */}

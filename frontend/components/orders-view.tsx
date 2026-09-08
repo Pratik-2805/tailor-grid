@@ -17,9 +17,11 @@ import {
   ShieldCheck,
   Sparkles,
   User as UserIcon,
+  XCircle,
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
-import { fetchOrders } from '@/lib/api'
+import { fetchOrders, updateOrder, deleteOrder } from '@/lib/api'
 
 interface OrdersViewProps {
   go: (s: Screen) => void
@@ -30,6 +32,8 @@ interface OrdersViewProps {
 export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   const [activeTab, setActiveTab] = useState<'orders' | 'fit-profile'>('orders')
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
+  const [cancellingOrder, setCancellingOrder] = useState<any | null>(null)
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false)
   const [backendOrders, setBackendOrders] = useState<FittingBooking[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
@@ -55,6 +59,38 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       setBackendOrders([])
     }
   }, [user])
+
+  const handleConfirmCancel = async () => {
+    if (!cancellingOrder) return
+    setIsSubmittingCancel(true)
+    try {
+      // Delete order from PostgreSQL database
+      await deleteOrder(cancellingOrder.id)
+      
+      // Filter out deleted order from state
+      setBackendOrders((prev) => prev.filter((o) => o.id !== cancellingOrder.id))
+      
+      // Clean up localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`tg_order_${cancellingOrder.id}`)
+        const latest = localStorage.getItem('tg_latest_order')
+        if (latest) {
+          try {
+            const parsed = JSON.parse(latest)
+            if (parsed.id === cancellingOrder.id) {
+              localStorage.removeItem('tg_latest_order')
+            }
+          } catch { }
+        }
+      }
+      toast.success(`Order #${cancellingOrder.id} cancelled and deleted from database`, { position: 'top-center' })
+    } catch (err) {
+      toast.error('Failed to delete order. Please try again.', { position: 'top-center' })
+    } finally {
+      setIsSubmittingCancel(false)
+      setCancellingOrder(null)
+    }
+  }
 
   // If user is NOT signed in, display the auth protection view
   if (!user) {
@@ -218,19 +254,32 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                     <div className="sm:text-right">
                       <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
                       <span className={`block text-[11px] font-semibold mt-0.5 ${
-                        o.status.includes('Ready') ? 'text-emerald-700' : 'text-[#9E593B]'
+                        o.status.includes('Ready') ? 'text-emerald-700' : o.status === 'Cancelled' ? 'text-red-600 font-bold' : 'text-[#9E593B]'
                       }`}>
                         {o.status}
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedOrder(o)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-[#18191B] bg-[#FAF8F5] px-4 py-2 rounded-full border border-[#DDD6CB] hover:bg-[#F4EFEA] transition-colors"
-                    >
-                      <QrCode size={13} />
-                      <span>View Pass</span>
-                    </button>
+                    <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                      {o.status !== 'Cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => setCancellingOrder(o)}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-full transition-colors cursor-pointer active:scale-95 shadow-2xs"
+                        >
+                          <XCircle size={13} />
+                          <span>Cancel Order</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedOrder(o)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#18191B] bg-[#FAF8F5] px-4 py-2 rounded-full border border-[#DDD6CB] hover:bg-[#F4EFEA] transition-colors cursor-pointer"
+                      >
+                        <QrCode size={13} />
+                        <span>View Pass</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -311,6 +360,44 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               >
                 Done
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Confirmation Modal */}
+        {cancellingOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+            <div className="w-full max-w-[440px] rounded-3xl border border-red-200 bg-white p-6 shadow-2xl text-center space-y-4">
+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-red-50 text-red-600 border border-red-200">
+                <XCircle size={28} />
+              </div>
+
+              <div>
+                <h3 className="font-serif text-xl font-bold text-[#18191B]">Cancel Alteration Request?</h3>
+                <p className="mt-1.5 text-xs text-[#5A5D64] leading-relaxed">
+                  Are you sure you want to cancel order <strong className="text-[#18191B]">#{cancellingOrder.id}</strong> ({cancellingOrder.garment})?
+                  This action will remove the request from partner studio fitting queues.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-[#F0EBE3] flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCancellingOrder(null)}
+                  disabled={isSubmittingCancel}
+                  className="flex-1 py-3 px-4 rounded-full border border-[#DDD6CB] text-xs font-bold text-[#18191B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancel}
+                  disabled={isSubmittingCancel}
+                  className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingCancel ? 'Cancelling...' : 'Yes, Cancel Order'}
+                </button>
+              </div>
             </div>
           </div>
         )}

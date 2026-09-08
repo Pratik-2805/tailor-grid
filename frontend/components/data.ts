@@ -75,6 +75,7 @@ export type OrderStatus =
   | 'Ready'
   | 'Collected'
   | 'Closed'
+  | 'Cancelled'
 
 export type FittingBooking = {
   id: string

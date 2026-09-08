@@ -18,9 +18,10 @@ import {
   ChevronRight,
   Lock,
   LogIn,
+  XCircle,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { fetchOrderById, getCurrentUser } from '@/lib/api'
+import { fetchOrderById, getCurrentUser, updateOrder, deleteOrder } from '@/lib/api'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
@@ -135,15 +136,15 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   useEffect(() => {
     let isMounted = true
 
-    async function loadOrderData() {
-      setIsLoading(true)
+    async function loadOrderData(isInitial = false) {
+      if (isInitial) setIsLoading(true)
 
       // 1. Check backend API first
       try {
         const fetched = await fetchOrderById(slugId)
         if (isMounted && fetched) {
           setOrder(fetched)
-          setIsLoading(false)
+          if (isInitial) setIsLoading(false)
           return
         }
       } catch (err) {
@@ -157,11 +158,11 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           try {
             const parsed = JSON.parse(saved)
             if (isMounted) {
-              setOrder({
+              setOrder((prev: any) => prev || {
                 ...parsed,
                 id: slugId || parsed.id || 'ORD-6154',
               })
-              setIsLoading(false)
+              if (isInitial) setIsLoading(false)
               return
             }
           } catch { }
@@ -169,15 +170,20 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       }
 
       // 3. Complete loading
-      if (isMounted) {
+      if (isMounted && isInitial) {
         setIsLoading(false)
       }
     }
 
-    loadOrderData()
+    loadOrderData(true)
+
+    const interval = setInterval(() => {
+      loadOrderData(false)
+    }, 3000)
 
     return () => {
       isMounted = false
+      clearInterval(interval)
     }
   }, [slugId])
 
@@ -279,6 +285,42 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }
 
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+
+  const handleCancelCurrentOrder = async () => {
+    if (!order?.id) return
+    setIsCancelling(true)
+    try {
+      // 1. Delete order permanently from PostgreSQL database
+      await deleteOrder(order.id)
+
+      // 2. Clear local storage records
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`tg_order_${order.id}`)
+        const latest = localStorage.getItem('tg_latest_order')
+        if (latest) {
+          try {
+            const parsed = JSON.parse(latest)
+            if (parsed.id === order.id) {
+              localStorage.removeItem('tg_latest_order')
+            }
+          } catch { }
+        }
+      }
+
+      toast.success(`Order #${order.id} cancelled and deleted from database`, { position: 'top-center' })
+      if (onGoOrders) onGoOrders()
+      else if (onGoHome) onGoHome()
+      else window.location.href = '/orders'
+    } catch (err) {
+      toast.error('Failed to delete order. Please try again.', { position: 'top-center' })
+    } finally {
+      setIsCancelling(false)
+      setShowCancelModal(false)
+    }
+  }
+
   if (authChecked && !currentUser) {
     return (
       <div className="bg-[#FAF8F5] min-h-[calc(100vh-68px)] flex flex-col justify-center items-center px-4 py-16 text-center max-w-lg mx-auto select-none font-sans">
@@ -353,22 +395,58 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] tracking-tight leading-none">
-                    Order Confirmed
+                    {order?.status === 'Cancelled' ? 'Order Cancelled' : order?.status === 'Allocated' ? 'Request Broadcast' : 'Order Accepted'}
                   </h1>
                   <span className="text-[11px] font-semibold text-gray-500 mt-1 block">
-                    Studio allocated &bull; Order #{order?.id || slugId}
+                    {order?.status === 'Cancelled'
+                      ? `This alteration request was cancelled \u2022 Order #${order?.id || slugId}`
+                      : order?.status === 'Allocated'
+                      ? `Broadcasting request to nearby studios \u2022 Order #${order?.id || slugId}`
+                      : `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} \u2022 Order #${order?.id || slugId}`}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-xs font-bold text-emerald-800">
-                  Ready for Drop-off
-                </span>
+              <div className="flex items-center gap-2">
+                {order?.status === 'Cancelled' ? (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
+                    <span className="size-2 rounded-full bg-red-500" />
+                    <span className="text-xs font-bold text-red-700">
+                      Cancelled
+                    </span>
+                  </div>
+                ) : order?.status === 'Allocated' ? (
+                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                    </span>
+                    <span className="text-xs font-bold text-amber-900">
+                      Awaiting Studio Acceptance
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="text-xs font-bold text-emerald-800">
+                      Accepted &bull; Ready for Drop-off
+                    </span>
+                  </div>
+                )}
+
+                {order?.status !== 'Cancelled' && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer active:scale-95 ml-2"
+                  >
+                    <XCircle size={14} />
+                    <span>Cancel Order</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -617,6 +695,44 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           </div>
         </div>
       </div>
+
+      {/* Cancel Order Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-[440px] rounded-3xl border border-red-200 bg-white p-6 shadow-2xl text-center space-y-4 font-sans">
+            <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-red-50 text-red-600 border border-red-200">
+              <XCircle size={28} />
+            </div>
+
+            <div>
+              <h3 className="text-xl font-bold text-[#0F1115]">Cancel Alteration Request?</h3>
+              <p className="mt-1.5 text-xs text-gray-600 leading-relaxed">
+                Are you sure you want to cancel order <strong className="text-[#0F1115]">#{order?.id || slugId}</strong>?
+                This action will remove the request from partner studio fitting queues.
+              </p>
+            </div>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(false)}
+                disabled={isCancelling}
+                className="flex-1 py-3 px-4 rounded-full border border-gray-300 text-xs font-bold text-[#0F1115] hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelCurrentOrder}
+                disabled={isCancelling}
+                className="flex-1 py-3 px-4 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {isCancelling ? 'Cancelling...' : 'Yes, Cancel Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fixed Bottom Trust Strip */}
       <TrustBar />
