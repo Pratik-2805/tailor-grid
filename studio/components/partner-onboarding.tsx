@@ -888,8 +888,6 @@ export function PartnerOnboarding({
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
                           maxLength={4}
                           required
                           autoFocus
@@ -1242,7 +1240,7 @@ export function PartnerOnboarding({
                       <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3">
                         <div className="flex items-center justify-between">
                           <label className="block text-xs font-bold uppercase tracking-wider text-[#0F1115]">
-                            Direct Mobile Phone *
+                            Phone Number*
                           </label>
                           {isPhoneVerified ? (
                             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-2.5 py-0.5 rounded-full">
@@ -1351,7 +1349,7 @@ export function PartnerOnboarding({
                           return
                         }
                         if (!isPhoneVerified) {
-                          const msg = 'Please verify your Direct Mobile Phone with the SMS OTP code before continuing.'
+                          const msg = 'Please verify your Phone Number with OTP.'
                           setError(msg)
                           toast.warning(msg, { position: 'top-center' })
                           return

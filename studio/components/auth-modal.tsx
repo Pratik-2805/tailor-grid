@@ -125,7 +125,7 @@ export function AuthModal({
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
-      setNotice('Direct phone number is mandatory for partner atelier dispatch and customer intake notifications.')
+      setNotice('Phone number is mandatory for partner atelier dispatch and customer intake notifications.')
       toast.warning('Please link your atelier mobile number to complete authentication.', { position: 'top-center' })
       return
     }
@@ -495,11 +495,10 @@ export function AuthModal({
                 setNotice('')
                 setMode('studio-options')
               }}
-              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                mode === 'studio-options'
-                  ? 'bg-white text-[#0F1115] shadow-xs'
-                  : 'text-[#6B7280] hover:text-[#0F1115]'
-              }`}
+              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${mode === 'studio-options'
+                ? 'bg-white text-[#0F1115] shadow-xs'
+                : 'text-[#6B7280] hover:text-[#0F1115]'
+                }`}
             >
               Sign In
             </button>
@@ -861,11 +860,10 @@ export function AuthModal({
                           key={s}
                           type="button"
                           onClick={() => toggleSpecialty(s)}
-                          className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all cursor-pointer ${
-                            on
-                              ? 'bg-[#9E593B] text-white border-[#9E593B]'
-                              : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
-                          }`}
+                          className={`rounded-full px-3 py-1 text-[11px] font-semibold border transition-all cursor-pointer ${on
+                            ? 'bg-[#9E593B] text-white border-[#9E593B]'
+                            : 'bg-white text-[#374151] border-[#D1D5DB] hover:border-[#9E593B]'
+                            }`}
                         >
                           {on && <Check size={10} className="inline mr-1" />}
                           {s}
@@ -925,11 +923,10 @@ function GoogleButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3.5 text-xs font-bold transition-all disabled:opacity-60 cursor-pointer ${
-        bordered
-          ? 'border-2 border-[#0F1115] bg-white text-[#0F1115] hover:bg-[#FAF8F5]'
-          : 'bg-white border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB]'
-      }`}
+      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3.5 text-xs font-bold transition-all disabled:opacity-60 cursor-pointer ${bordered
+        ? 'border-2 border-[#0F1115] bg-white text-[#0F1115] hover:bg-[#FAF8F5]'
+        : 'bg-white border border-[#D1D5DB] text-[#374151] hover:bg-[#F9FAFB]'
+        }`}
     >
       <GoogleLogo />
       {loading ? 'Connecting…' : label}
