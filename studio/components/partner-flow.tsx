@@ -637,10 +637,12 @@ export function PartnerFlow({
     .reduce((sum, o) => sum + (o.partnerPayout || Math.round((o.price || 35) * 0.8)), 0)
 
   const activeOnBench = orders.filter((o) => o.status === 'Work in Progress').length
-  const pendingDropOffs = orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length
+  const pendingDropOffs = orders.filter((o) => o.status === 'Accepted').length
   const readyOnRack = orders.filter((o) => o.status === 'Ready').length
 
-  const filteredOrders = orders.filter((o) => {
+  // Exclude Allocated (not yet accepted) orders from the pipeline — they only appear as incoming dispatch
+  const pipelineOrders = orders.filter((o) => o.status !== 'Allocated')
+  const filteredOrders = pipelineOrders.filter((o) => {
     const q = searchQuery.toLowerCase()
     const matchSearch =
       o.id.toLowerCase().includes(q) ||
@@ -783,7 +785,7 @@ export function PartnerFlow({
             const Icon = item.icon
             const badge =
               item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length :
-                item.id === 'pipeline' ? orders.length : null
+                item.id === 'pipeline' ? pipelineOrders.length : null
 
             return (
               <button
@@ -1656,7 +1658,7 @@ export function PartnerFlow({
                   <div className="flex gap-1.5 flex-wrap text-xs">
                     {['ALL', 'Work in Progress', 'Accepted', 'Ready', 'Closed'].map((s) => {
                       const labelMap: Record<string, string> = {
-                        ALL: `All (${orders.length})`,
+                        ALL: `All (${pipelineOrders.length})`,
                         'Work in Progress': `On Bench (${activeOnBench})`,
                         Accepted: `Drop-Offs (${pendingDropOffs})`,
                         Ready: `Ready (${readyOnRack})`,
