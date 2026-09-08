@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect } from 'react'
-import { PartnerFlow } from '@/components/partner-flow'
 import { useApp } from '@/components/app-provider'
 import { CustomLoader } from '@/components/custom-loader'
 

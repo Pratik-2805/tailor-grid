@@ -192,9 +192,9 @@ export function StudioProfileModal({
 
     const cleanPostcode = postcode.trim()
     const pinDigits = cleanPostcode.replace(/\D/g, '')
-    if (pinDigits.length < 6) {
+    if (pinDigits.length < 5 || pinDigits.length > 10) {
       setSaving(false)
-      setError('Please enter a valid 6-digit numeric PIN code (e.g. 400001).')
+      setError('Please enter a valid postal / ZIP code (5 digits for US e.g. 10001, 6 digits for India e.g. 400001).')
       return
     }
 
@@ -553,15 +553,15 @@ export function StudioProfileModal({
 
                     <div>
                       <label className="block text-[10.5px] font-bold uppercase tracking-wider text-[#766F66] mb-1.5">
-                        Postcode / 6-Digit PIN *
+                        Postcode / ZIP / PIN *
                       </label>
                       <input
                         type="text"
                         inputMode="numeric"
-                        maxLength={6}
+                        maxLength={10}
                         value={postcode}
-                        onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="400001"
+                        onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                        placeholder="10001 or 400001"
                         className="w-full rounded-xl border border-[#E0D8CB] bg-white px-3.5 py-2.5 text-xs text-[#18191B] font-mono font-bold focus:border-[#9E593B] focus:outline-none transition-colors"
                       />
                     </div>
@@ -579,7 +579,7 @@ export function StudioProfileModal({
                           required
                           value={phone}
                           onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
-                          placeholder="+91 98765 43210"
+                          placeholder="+1 (555) 019-2834 or +91 98765 43210"
                           className="w-full rounded-xl border border-[#E0D8CB] bg-white px-3.5 py-2.5 text-xs text-[#18191B] font-semibold focus:border-[#9E593B] focus:outline-none transition-colors pl-8"
                         />
                         <Phone size={13} className="absolute left-2.5 text-[#9E593B]" />

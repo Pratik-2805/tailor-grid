@@ -231,9 +231,9 @@ export function StudioProfileView({
 
     const cleanPostcode = postcode.trim()
     const pinDigits = cleanPostcode.replace(/\D/g, '')
-    if (pinDigits.length < 6) {
+    if (pinDigits.length < 5 || pinDigits.length > 10) {
       setSaving(false)
-      setError('Please enter a valid 6-digit numeric PIN code (e.g. 400001).')
+      setError('Please enter a valid postal / ZIP code. ')
       return
     }
 
@@ -346,8 +346,8 @@ export function StudioProfileView({
           type="button"
           onClick={() => setActiveSubTab('profile')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'profile'
-              ? 'border-[#9E593B] text-[#9E593B]'
-              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+            ? 'border-[#9E593B] text-[#9E593B]'
+            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
             }`}
         >
           <Store size={14} />
@@ -358,8 +358,8 @@ export function StudioProfileView({
           type="button"
           onClick={() => setActiveSubTab('capacity')}
           className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'capacity'
-              ? 'border-[#9E593B] text-[#9E593B]'
-              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+            ? 'border-[#9E593B] text-[#9E593B]'
+            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
             }`}
         >
           <Sliders size={14} />
@@ -570,16 +570,16 @@ export function StudioProfileView({
 
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Postcode / 6-Digit PIN *
+                    Postcode / ZIP / PIN *
                   </label>
                   <input
                     type="text"
                     inputMode="numeric"
-                    maxLength={6}
+                    maxLength={10}
                     required
-                    placeholder="e.g. 400001"
+                    placeholder="e.g. 10001 (US) or 400001 (IN)"
                     value={postcode}
-                    onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
                     className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
@@ -594,7 +594,7 @@ export function StudioProfileView({
                       type="tel"
                       inputMode="tel"
                       required
-                      placeholder="+91 98765 43210"
+                      placeholder="+1 (555) 019-2834 or +91 98765 43210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -664,8 +664,8 @@ export function StudioProfileView({
                     type="button"
                     onClick={() => setCapacity(preset)}
                     className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${capacity === preset
-                        ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
-                        : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-white'
+                      ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
+                      : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-white'
                       }`}
                   >
                     {preset} pcs/day
@@ -708,8 +708,8 @@ export function StudioProfileView({
                       type="button"
                       onClick={() => toggleSpecialty(spec)}
                       className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${selected
-                          ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
-                          : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
+                        ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
+                        : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
                         }`}
                     >
                       <span className="truncate">{spec}</span>

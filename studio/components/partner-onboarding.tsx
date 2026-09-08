@@ -254,7 +254,7 @@ export function PartnerOnboarding({
     const raw = sPhoneLogin.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 75584 96659).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code. '
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -338,7 +338,7 @@ export function PartnerOnboarding({
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -1074,15 +1074,15 @@ export function PartnerOnboarding({
                         </div>
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / 6-Digit PIN *
+                            Postcode / ZIP / PIN *
                           </label>
                           <input
                             type="text"
                             inputMode="numeric"
-                            maxLength={6}
+                            maxLength={10}
                             value={postcode}
-                            onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="e.g. 400001"
+                            onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                            placeholder="e.g. 10001 (US) or 400001 (IN)"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1160,7 +1160,7 @@ export function PartnerOnboarding({
                               }
                             }}
                             disabled={isPhoneVerified}
-                            placeholder="e.g. +91 98765 43210"
+                            placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
                               ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
                               : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
@@ -1240,8 +1240,8 @@ export function PartnerOnboarding({
                           return
                         }
                         const cleanPin = postcode.trim().replace(/\D/g, '')
-                        if (cleanPin.length < 6) {
-                          const msg = 'Please enter a valid 6-digit numeric PIN code (e.g. 400001).'
+                        if (cleanPin.length < 5 || cleanPin.length > 10) {
+                          const msg = 'Please enter a valid postal / ZIP code.'
                           setError(msg)
                           toast.warning(msg, { position: 'top-center' })
                           return

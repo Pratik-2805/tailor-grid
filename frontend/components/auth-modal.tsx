@@ -947,7 +947,7 @@ export function AuthModal({
                   <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
                   <div className="grid grid-cols-2 gap-2.5">
                     <Field label="Area *" required value={sArea} onChange={setSArea} placeholder="SoHo" />
-                    <Field label="Postcode / 6-Digit PIN *" required value={sPostcode} onChange={(val) => setSPostcode(val.replace(/\D/g, '').slice(0, 6))} placeholder="400001" />
+                    <Field label="Postcode / ZIP / PIN *" required value={sPostcode} onChange={(val) => setSPostcode(val.replace(/[^\d\-]/g, '').slice(0, 10))} placeholder="10001 or 400001" />
                   </div>
                   <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
 
@@ -956,8 +956,8 @@ export function AuthModal({
                     onClick={() => {
                       if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
                       const cleanPin = sPostcode.trim().replace(/\D/g, '')
-                      if (cleanPin.length < 6) {
-                        setError('Please enter a valid 6-digit numeric PIN code (e.g. 400001).')
+                      if (cleanPin.length < 5 || cleanPin.length > 10) {
+                        setError('Please enter a valid postal / ZIP code.')
                         return
                       }
                       setError('')
@@ -975,7 +975,7 @@ export function AuthModal({
                 <div className="space-y-3">
                   <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
                   <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={(val) => setSPhone(val.replace(/[^\d+ ]/g, ''))} placeholder="+91 98765 43210" />
+                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={(val) => setSPhone(val.replace(/[^\d+ ]/g, ''))} placeholder="+1 (555) 019-2834 or +91 98765 43210" />
 
                   <button
                     type="button"
@@ -983,7 +983,7 @@ export function AuthModal({
                       if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
                       const cleanDigits = sPhone.trim().replace(/\D/g, '')
                       if (cleanDigits.length < 10) {
-                        setError('Please enter a valid 10-digit mobile number (e.g. +91 98765 43210).')
+                        setError('Please enter a valid 10-digit mobile number with country code.')
                         return
                       }
                       setError('')
