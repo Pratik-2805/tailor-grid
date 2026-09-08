@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import type { FittingBooking, Screen, User as UserType } from './data'
 import { fetchOrders, updateUserProfile } from '@/lib/api'
+import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 
 interface ProfileViewProps {
   go: (s: Screen | string) => void
@@ -63,7 +64,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       setPhone(user.phone || '')
 
       if (typeof window !== 'undefined') {
-        const savedMeasure = localStorage.getItem(`tg_measurements_${user.id || user.email || 'guest'}`)
+        const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
         if (savedMeasure) {
           try {
             const parsed = JSON.parse(savedMeasure)
@@ -104,7 +105,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       })
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem(
+        setStorageCookie(
           `tg_measurements_${user.id || user.email || 'guest'}`,
           JSON.stringify({
             fit: fitPreference,
@@ -112,7 +113,8 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             inseam,
             chest,
             sleeve,
-          })
+          }),
+          60
         )
       }
 

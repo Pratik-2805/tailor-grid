@@ -23,9 +23,9 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { SewingLoader } from '@/components/sewing-loader'
-import { CustomLoader } from '@/components/custom-loader'
 import { useApp } from '@/components/app-provider'
 import { createOrder } from '@/lib/api'
+import { setStorageCookie } from '@/lib/cookies'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
@@ -642,9 +642,9 @@ export default function BookPage() {
     }
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(orderData))
-      localStorage.setItem('tg_latest_order', JSON.stringify(orderData))
-      localStorage.setItem('tg_measurement_draft', JSON.stringify(bookingPending || orderData))
+      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData), 30)
+      setStorageCookie('tg_latest_order', JSON.stringify(orderData), 30)
+      setStorageCookie('tg_measurement_draft', JSON.stringify(bookingPending || orderData), 7)
     }
 
     // Persist to backend PostgreSQL database asynchronously

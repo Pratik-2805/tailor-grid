@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { HomeView } from '@/components/home-view'
 import { useApp } from '@/components/app-provider'
 import { CustomLoader } from '@/components/custom-loader'
-import type { StoreOption } from '@/components/data'
+import type { StoreOption, User } from '@/components/data'
+import { getAuthToken, getAuthUser, getAuthRole, setStorageCookie } from '@/lib/cookies'
 
 export default function HomePage() {
   const router = useRouter()
@@ -23,15 +24,12 @@ export default function HomePage() {
 
   const [hasCustomerSession, setHasCustomerSession] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('tg_user')
+      const storedUser = getAuthUser<User>()
       if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser)
-          if (parsed.role === 'CUSTOMER') return true
-        } catch { }
+        if (storedUser.role === 'CUSTOMER') return true
       }
-      const token = localStorage.getItem('tg_token')
-      const role = localStorage.getItem('tg_user_role')
+      const token = getAuthToken()
+      const role = getAuthRole()
       return Boolean(token && (!role || role === 'CUSTOMER'))
     }
     return false
@@ -98,7 +96,7 @@ export default function HomePage() {
           : '10012'
     )
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_measurement_draft', JSON.stringify(params))
+      setStorageCookie('tg_measurement_draft', JSON.stringify(params), 7)
     }
   }
 

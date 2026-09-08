@@ -3,7 +3,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { clearAuthCookies, getCurrentUser, getStudioUrl, syncAuthCookies } from '@/lib/api'
+import { clearAuthCookies, getCurrentUser, getStudioUrl } from '@/lib/api'
+import {
+  getAuthToken,
+  getAuthUser,
+  setAuthUser,
+  setAuthRole as setCookieAuthRole,
+  clearAllAuth,
+  getStorageCookie,
+  setStorageCookie,
+  removeStorageCookie,
+} from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
 
 interface AppContextType {
@@ -77,13 +87,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
   const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('tg_prefilled_garment') || 'trousers'
+      return getStorageCookie('tg_prefilled_garment', 'trousers')
     }
     return 'trousers'
   })
   const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('tg_prefilled_service') || undefined
+      const stored = getStorageCookie('tg_prefilled_service')
+      return stored || undefined
     }
     return undefined
   })
@@ -95,15 +106,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setPrefilledGarmentId = (g: string) => {
     setPrefilledGarmentIdState(g)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_prefilled_garment', g)
+      setStorageCookie('tg_prefilled_garment', g, 30)
     }
   }
 
   const setPrefilledServiceId = (s: string | undefined) => {
     setPrefilledServiceIdState(s)
     if (typeof window !== 'undefined') {
-      if (s) localStorage.setItem('tg_prefilled_service', s)
-      else localStorage.removeItem('tg_prefilled_service')
+      if (s) setStorageCookie('tg_prefilled_service', s, 30)
+      else removeStorageCookie('tg_prefilled_service')
     }
   }
 
@@ -129,17 +140,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     images: [],
   })
 
-  // Sync current user session on mount directly from DB
+  // Sync current user session on mount directly from DB / cookies
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      const token = localStorage.getItem('tg_token')
+      const stored = getAuthUser<User>()
       if (stored) {
-        try {
-          const parsed = JSON.parse(stored)
-          setUser(parsed)
-          syncAuthCookies(token, parsed.role)
-        } catch { }
+        setUser(stored)
       }
 
       const params = new URLSearchParams(window.location.search)
@@ -153,20 +159,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then((u) => {
         if (u) {
           setUser(u)
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('tg_user', JSON.stringify(u))
-            localStorage.setItem('tg_user_role', u.role ?? 'CUSTOMER')
-            syncAuthCookies(localStorage.getItem('tg_token'), u.role)
-          }
         } else {
           setUser(null)
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('tg_user')
-            localStorage.removeItem('tg_token')
-            localStorage.removeItem('tg_user_role')
-            sessionStorage.removeItem('tg_pending_google')
-            clearAuthCookies()
-          }
         }
       })
       .finally(() => {
@@ -187,12 +181,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser)
     setIsAuthOpen(false)
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user_role', loggedUser.role ?? 'CUSTOMER')
-      localStorage.setItem('tg_user', JSON.stringify(loggedUser))
-      syncAuthCookies(localStorage.getItem('tg_token'), loggedUser.role)
-    }
+    const effectiveRole: 'CUSTOMER' | 'STUDIO' = loggedUser.role === 'STUDIO' ? 'STUDIO' : 'CUSTOMER'
+    setAuthRole(effectiveRole)
+    setCookieAuthRole(effectiveRole)
+    setAuthUser(loggedUser)
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
       position: 'top-center',
@@ -200,7 +192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })
 
     if (loggedUser.role === 'STUDIO') {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+      const token = getAuthToken()
       toast.info('Redirecting to Studio Dashboard...', { position: 'top-center', autoClose: 2000 })
       window.location.href = getStudioUrl('/', token)
     } else {
@@ -209,13 +201,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const handleSignOut = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-      localStorage.removeItem('tg_screen')
-      clearAuthCookies()
-    }
+    clearAllAuth()
     setUser(null)
     setIsAuthOpen(false)
     toast.info('Signed out successfully.', {

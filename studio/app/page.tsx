@@ -9,6 +9,7 @@ import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
+import { setAuthToken, setAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
 
 export default function StudioPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -27,7 +28,7 @@ export default function StudioPage() {
       const token = params.get('token')
       authParam = params.get('auth') || params.get('action')
       if (token) {
-        localStorage.setItem('tg_token', token)
+        setAuthToken(token)
         // Clean URL query params
         window.history.replaceState({}, '', window.location.pathname)
       }
@@ -77,10 +78,8 @@ export default function StudioPage() {
       postcode: 'W1S 3JN',
     }
     setUser(demoUser)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user_role', 'STUDIO')
-      localStorage.setItem('tg_user', JSON.stringify(demoUser))
-    }
+    setAuthRole('STUDIO')
+    setAuthUser(demoUser)
     toast.success('Workbench Demo Sandbox activated!', {
       position: 'top-center',
       autoClose: 3000,
@@ -104,10 +103,8 @@ export default function StudioPage() {
       return
     }
     setUser(loggedUser)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user_role', 'STUDIO')
-      localStorage.setItem('tg_user', JSON.stringify(loggedUser))
-    }
+    setAuthRole('STUDIO')
+    setAuthUser(loggedUser)
     toast.success(`Authenticated as ${loggedUser.name || 'Studio Partner'}!`, {
       position: 'top-center',
       autoClose: 3000,
@@ -116,9 +113,7 @@ export default function StudioPage() {
 
   const handleUpdateUser = (updated: User) => {
     setUser(updated)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user', JSON.stringify(updated))
-    }
+    setAuthUser(updated)
     toast.success('Studio profile updated successfully!', {
       position: 'top-center',
       autoClose: 3000,
@@ -126,17 +121,7 @@ export default function StudioPage() {
   }
 
   const handleSignOut = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-      // Clear onboarding session data
-      sessionStorage.removeItem('tg_pending_google')
-      sessionStorage.removeItem('tg_onboard_step')
-      sessionStorage.removeItem('tg_onboard_form')
-      sessionStorage.removeItem('tg_phone_verified')
-      sessionStorage.removeItem('tg_verified_phone')
-    }
+    clearAllAuth()
     setUser(null)
     setPartnerTab('cockpit')
     toast.info('Signed out of Studio Workshop.', {

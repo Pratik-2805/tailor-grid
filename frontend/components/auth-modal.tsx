@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Stor
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { setAuthUser, setAuthRole } from '@/lib/cookies'
 
 type AuthMode =
   | 'customer-options'
@@ -208,8 +209,8 @@ export function AuthModal({
               if (role === 'STUDIO') {
                 onClose()
                 if (typeof window !== 'undefined') {
-                  localStorage.setItem('tg_user', JSON.stringify(result.user))
-                  localStorage.setItem('tg_user_role', 'STUDIO')
+                  setAuthUser(result.user)
+                  setAuthRole('STUDIO')
                   window.location.href = getStudioUrl('/onboarding', result.token)
                 }
               } else {
