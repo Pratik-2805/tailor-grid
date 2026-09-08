@@ -1217,16 +1217,27 @@ export function PartnerFlow({
                                       </div>
                                     </div>
 
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setPinInput(o.otp)
-                                        handleLookupPin(o.otp)
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95"
-                                    >
-                                      Intake #{o.otp} →
-                                    </button>
+                                    {o.status === 'Allocated' ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAcceptAllocatedOrder(o)}
+                                        className="px-3 py-1.5 rounded-lg bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1"
+                                      >
+                                        <Zap size={12} className="fill-white" />
+                                        <span>Accept (${o.partnerPayout || Math.round((o.price || 30) * 0.75)})</span>
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPinInput(o.otp)
+                                          handleLookupPin(o.otp)
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95"
+                                      >
+                                        Intake #{o.otp} →
+                                      </button>
+                                    )}
                                   </div>
                                 ))}
                             </div>

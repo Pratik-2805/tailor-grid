@@ -120,27 +120,50 @@ export function AuthModal({
     onSuccess(user)
   }
 
-  const triggerGoogle = async () => {
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !(window as any).google?.accounts?.oauth2) {
+      const s = document.createElement('script')
+      s.src = 'https://accounts.google.com/gsi/client'
+      s.async = true
+      document.head.appendChild(s)
+    }
+  }, [])
+
+  const triggerGoogle = () => {
     setLoading(true)
     setError('')
     setNotice('')
 
-    const loadGsi = (): Promise<void> =>
-      new Promise((resolve) => {
-        if ((window as any).google?.accounts?.oauth2) return resolve()
+    if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
+      setLoading(false)
+      const msg = 'Google sign-in service is initializing. Please try again in a moment.'
+      setError(msg)
+      toast.info(msg, { position: 'top-center' })
+      if (typeof window !== 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         const s = document.createElement('script')
         s.src = 'https://accounts.google.com/gsi/client'
         s.async = true
-        s.onload = () => resolve()
         document.head.appendChild(s)
-      })
+      }
+      return
+    }
 
     try {
-      await loadGsi()
       const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: 'email profile openid',
         callback: async (tokenResponse: any) => {
+          if (tokenResponse?.error) {
+            setLoading(false)
+            if (tokenResponse.error === 'popup_closed' || tokenResponse.error === 'access_denied') {
+              setError('Google sign-in was cancelled.')
+              toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
+            } else {
+              setError(`Google sign-in error: ${tokenResponse.error}`)
+              toast.error(`Google sign-in error: ${tokenResponse.error}`, { position: 'top-center' })
+            }
+            return
+          }
           if (!tokenResponse?.access_token) {
             setLoading(false)
             setError('Google sign-in was cancelled.')
@@ -182,9 +205,10 @@ export function AuthModal({
                   return
                 }
                 setMode('studio-register')
+                setRegisterStep(1)
                 setSTailorName(result.user.name || '')
                 setSEmail(result.user.email || result.user.contact || '')
-                toast.info('Please enter your workshop location details to finish registering.', { position: 'top-center' })
+                toast.info('Google account verified! Please enter your workshop location details to complete registration.', { position: 'top-center' })
               } else {
                 finalizeAuth(result.user)
               }
@@ -200,6 +224,12 @@ export function AuthModal({
               toast.error(msg, { position: 'top-center' })
             }
           }
+        },
+        error_callback: (err: any) => {
+          setLoading(false)
+          const msg = 'Google sign-in popup was blocked by your browser. Please allow popups for this site.'
+          setError(msg)
+          toast.error(msg, { position: 'top-center' })
         },
       })
       tokenClient.requestAccessToken()

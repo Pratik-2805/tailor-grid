@@ -189,8 +189,8 @@ async function findOrLinkUser({
       postcode: postcode || resolvedStore?.postcode || user.postcode || 'W8 4EP',
       contact: normEmail || normPhone || user.email || user.phone || user.contact,
       role: role || user.role || 'CUSTOMER',
-      studioId: actualStudioId || user.studioId || null,
-      studioName: studioName || resolvedStore?.name || user.studioName || null,
+      studioId: (role === 'CUSTOMER' ? null : (actualStudioId || user.studioId || null)),
+      studioName: (role === 'CUSTOMER' ? null : (studioName || resolvedStore?.name || user.studioName || null)),
     };
 
     user = await prisma.user.update({
@@ -291,6 +291,7 @@ router.post('/send-otp', async (req, res) => {
       success: true,
       phone: cleanPhone,
       message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
+      ...(process.env.NODE_ENV !== 'production' && { devOtp: code }),
     });
   } catch (err) {
     console.error('Send OTP Error:', err);

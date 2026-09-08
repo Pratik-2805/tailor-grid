@@ -398,6 +398,17 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
   }
 }
 
+export async function deleteOrder(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    return res.ok
+  } catch (err) {
+    return false
+  }
+}
+
 export async function createOrder(orderData: any): Promise<{ success: boolean; order?: FittingBooking; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/orders`, {

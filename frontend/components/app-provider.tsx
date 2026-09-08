@@ -263,7 +263,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
-      if (user && user.role === 'CUSTOMER') {
+      if (user) {
         router.push('/book')
         return
       }

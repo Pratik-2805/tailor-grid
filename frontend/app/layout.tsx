@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import 'react-toastify/dist/ReactToastify.css'
 import './globals.css'
 import { AppProvider } from '@/components/app-provider'
@@ -51,6 +52,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} scroll-smooth`}>
+      <head>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+      </head>
       <body className="font-sans antialiased bg-[#FAF8F5] text-[#1D2024] selection:bg-[#18191B]/15 selection:text-[#18191B]">
         <AppProvider>
           <ClientLayout>{children}</ClientLayout>
@@ -60,3 +64,4 @@ export default function RootLayout({
     </html>
   )
 }
+
