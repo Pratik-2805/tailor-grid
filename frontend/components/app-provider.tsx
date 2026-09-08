@@ -200,12 +200,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       autoClose: 3000,
     })
 
-    if (loggedUser.role === 'STUDIO') {
-      const token = getAuthToken()
-      toast.info('Redirecting to Studio Dashboard...', { position: 'top-center', autoClose: 2000 })
-      window.location.href = getStudioUrl('/', token)
-    } else {
+    if (loggedUser.role === 'CUSTOMER') {
       router.push('/book')
+    } else {
+      router.push('/')
     }
   }
 
@@ -263,7 +261,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
-      if (user) {
+      if (user && user.role === 'CUSTOMER') {
         router.push('/book')
         return
       }
