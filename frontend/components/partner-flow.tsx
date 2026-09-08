@@ -2415,10 +2415,12 @@ export function PartnerFlow({
                 <div className="space-y-2">
                   <input
                     type="text"
-                    maxLength={6}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
                     value={pickupOtpInput}
-                    onChange={(e) => setPickupOtpInput(e.target.value)}
-                    placeholder="Enter pickup code (e.g. 1839)"
+                    onChange={(e) => setPickupOtpInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder="••••"
                     className="w-full text-center font-mono font-black text-2xl tracking-[0.25em] py-3.5 rounded-2xl border-2 border-[#D1D5DB] focus:border-[#0F1115] focus:outline-none"
                   />
                   {pickupOtpError && (

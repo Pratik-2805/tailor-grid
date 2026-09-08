@@ -182,15 +182,31 @@ export function StudioProfileModal({
     setError('')
     setSuccess(false)
 
+    const cleanedPhone = phone.trim()
+    const phoneDigits = cleanedPhone.replace(/\D/g, '')
+    if (phoneDigits.length < 10) {
+      setSaving(false)
+      setError('Please enter a valid 10-digit mobile number (e.g. +91 98765 43210).')
+      return
+    }
+
+    const cleanPostcode = postcode.trim()
+    const pinDigits = cleanPostcode.replace(/\D/g, '')
+    if (pinDigits.length < 6) {
+      setSaving(false)
+      setError('Please enter a valid 6-digit numeric PIN code (e.g. 400001).')
+      return
+    }
+
     try {
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
-        phone: phone.trim(),
+        phone: cleanedPhone,
         address: address.trim(),
-        postcode: postcode.trim(),
+        postcode: cleanPostcode,
         avatar: avatar || null,
       }
 
@@ -537,14 +553,16 @@ export function StudioProfileModal({
 
                     <div>
                       <label className="block text-[10.5px] font-bold uppercase tracking-wider text-[#766F66] mb-1.5">
-                        Postcode
+                        Postcode / 6-Digit PIN *
                       </label>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        maxLength={6}
                         value={postcode}
-                        onChange={(e) => setPostcode(e.target.value)}
-                        placeholder="W8 4EP"
-                        className="w-full rounded-xl border border-[#E0D8CB] bg-white px-3.5 py-2.5 text-xs text-[#18191B] font-bold uppercase focus:border-[#9E593B] focus:outline-none transition-colors"
+                        onChange={(e) => setPostcode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="400001"
+                        className="w-full rounded-xl border border-[#E0D8CB] bg-white px-3.5 py-2.5 text-xs text-[#18191B] font-mono font-bold focus:border-[#9E593B] focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
@@ -557,10 +575,11 @@ export function StudioProfileModal({
                       <div className="relative flex items-center">
                         <input
                           type="tel"
+                          inputMode="tel"
                           required
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="+44 7700 900123"
+                          onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
+                          placeholder="+91 98765 43210"
                           className="w-full rounded-xl border border-[#E0D8CB] bg-white px-3.5 py-2.5 text-xs text-[#18191B] font-semibold focus:border-[#9E593B] focus:outline-none transition-colors pl-8"
                         />
                         <Phone size={13} className="absolute left-2.5 text-[#9E593B]" />
