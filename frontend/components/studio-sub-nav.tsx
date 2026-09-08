@@ -161,43 +161,32 @@ export function StudioSubNav({
             FAQ
           </button>
 
-          {/* Action CTAs (Studio Sign In / Apply to Partner / Studio Workbench) */}
-          <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
-            {isStudioUser ? (
-              <button
-                onClick={() => handleOpenStudioPortal()}
-                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer"
-              >
-                <Store size={13} className="text-[#E7C9BA]" />
-                <span>Studio Workbench ↗</span>
-              </button>
-            ) : (
-              <>
+          {/* Action CTAs (Studio Portal button visible ONLY when logged in as Studio) */}
+          {(isStudioUser || scrolledPastHero) && (
+            <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
+              {isStudioUser ? (
                 <button
-                  onClick={() => handleOpenStudioPortal('signin')}
-                  className="flex items-center gap-1.5 rounded-full border border-[#D5CDC2] hover:border-[#0F1115] bg-white px-3 sm:px-3.5 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-[#0F1115] hover:bg-[#FAF8F5] transition-all whitespace-nowrap cursor-pointer"
-                  title="Access Studio Portal Workbench"
+                  onClick={() => handleOpenStudioPortal()}
+                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer"
+                  title="Open Studio Portal Workbench"
                 >
-                  <LogIn size={13} className="text-[#6B7280]" />
+                  <Store size={13} className="text-[#E7C9BA]" />
                   <span>Studio Portal ↗</span>
                 </button>
-
-                {/* Show Enroll Studio button in sticky nav only when scrolled past the hero */}
-                {scrolledPastHero && (
-                  <button
-                    onClick={() => {
-                      const token = isClient ? localStorage.getItem('tg_token') : null
-                      window.location.href = getStudioUrl('/', token)
-                    }}
-                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
-                  >
-                    <Sparkles size={12} className="text-[#E7C9BA]" />
-                    <span>Enroll Studio</span>
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+              ) : scrolledPastHero ? (
+                <button
+                  onClick={() => {
+                    const token = isClient ? localStorage.getItem('tg_token') : null
+                    window.location.href = getStudioUrl('/', token)
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
+                >
+                  <Sparkles size={12} className="text-[#E7C9BA]" />
+                  <span>Enroll Studio</span>
+                </button>
+              ) : null}
+            </div>
+          )}
 
         </div>
 
