@@ -1,13 +1,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getCookie, setCookie } from '../lib/cookies'
 
 const STORAGE_KEY = 'tg_selected_city'
 
 export function getStoredCity(): string {
   if (typeof window === 'undefined') return 'New York City, NY'
   try {
-    return localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || 'New York City, NY'
+    const fromCookie = getCookie(STORAGE_KEY)
+    if (fromCookie) return fromCookie
+    const legacy = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY)
+    if (legacy) {
+      setCookie(STORAGE_KEY, legacy, 30)
+      return legacy
+    }
+    return 'New York City, NY'
   } catch {
     return 'New York City, NY'
   }
@@ -16,11 +24,10 @@ export function getStoredCity(): string {
 export function setStoredCity(city: string) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(STORAGE_KEY, city)
-    sessionStorage.setItem(STORAGE_KEY, city)
+    setCookie(STORAGE_KEY, city, 30)
     window.dispatchEvent(new CustomEvent('tg_city_changed', { detail: city }))
   } catch (err) {
-    console.warn('Error saving city to storage:', err)
+    console.warn('Error saving city to cookie:', err)
   }
 }
 

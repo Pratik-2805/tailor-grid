@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import type { User as UserType } from './data'
 import { updateUserProfile } from '@/lib/api'
+import { getAuthUser, setAuthUser, getStorageCookie, setStorageCookie, removeStorageCookie } from '@/lib/cookies'
 
 interface StudioProfileViewProps {
   user: UserType
@@ -106,7 +107,7 @@ export function StudioProfileView({
         setAvatar('')
         if (typeof window !== 'undefined') {
           try {
-            localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
+            removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
           } catch {}
         }
       }
@@ -192,12 +193,11 @@ export function StudioProfileView({
 
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
-        const stored = localStorage.getItem('tg_user')
+        removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
+        const stored = getAuthUser<UserType>()
         if (stored) {
-          const parsed = JSON.parse(stored)
-          parsed.avatar = null
-          localStorage.setItem('tg_user', JSON.stringify(parsed))
+          stored.avatar = null
+          setAuthUser(stored)
         }
       } catch {}
     }
@@ -267,15 +267,14 @@ export function StudioProfileView({
       if (typeof window !== 'undefined') {
         try {
           if (avatar) {
-            localStorage.setItem(`tg_studio_avatar_${user.email || user.id}`, avatar)
+            setStorageCookie(`tg_studio_avatar_${user.email || user.id}`, avatar, 30)
           } else {
-            localStorage.removeItem(`tg_studio_avatar_${user.email || user.id}`)
+            removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
           }
-          const stored = localStorage.getItem('tg_user')
+          const stored = getAuthUser<UserType>()
           if (stored) {
-            const parsed = JSON.parse(stored)
-            parsed.avatar = avatar ? avatar.trim() : null
-            localStorage.setItem('tg_user', JSON.stringify(parsed))
+            stored.avatar = avatar ? avatar.trim() : null
+            setAuthUser(stored)
           }
         } catch { }
       }

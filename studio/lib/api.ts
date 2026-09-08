@@ -1,4 +1,16 @@
 import type { User, FittingBooking } from '../components/data'
+import {
+  getAuthToken,
+  setAuthToken,
+  removeAuthToken,
+  getAuthUser,
+  setAuthUser,
+  removeAuthUser,
+  getAuthRole,
+  setAuthRole,
+  removeAuthRole,
+  clearAllAuth,
+} from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
@@ -60,8 +72,12 @@ export async function verifyOtp(params: {
     }
 
     const data = await res.json()
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
+      if (data.user) {
+        setAuthUser(data.user)
+        setAuthRole('STUDIO')
+      }
     }
     return data
   } catch (err: any) {
@@ -74,7 +90,7 @@ export async function linkPhone(params: {
   otp?: string
   userId?: string
 }): Promise<{ success: boolean; user: User; token: string; hasPhone: boolean }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
       method: 'POST',
@@ -91,8 +107,12 @@ export async function linkPhone(params: {
     }
 
     const data = await res.json()
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
+    }
+    if (data.user) {
+      setAuthUser(data.user)
+      setAuthRole('STUDIO')
     }
     return data
   } catch (err: any) {
@@ -120,8 +140,12 @@ export async function loginWithGoogle(params: {
     }
 
     const data = await res.json()
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
+      if (data.user && !data.isNewUser) {
+        setAuthUser(data.user)
+        setAuthRole('STUDIO')
+      }
     }
     return data
   } catch (err: any) {
@@ -154,7 +178,7 @@ export async function signUpUser(data: {
   machines?: string
 }): Promise<{ token: string; user: User; needsPhone?: boolean }> {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+    const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: {
@@ -170,8 +194,12 @@ export async function signUpUser(data: {
     }
 
     const result = await res.json()
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
+    if (result.token) {
+      setAuthToken(result.token)
+      if (result.user) {
+        setAuthUser(result.user)
+        setAuthRole('STUDIO')
+      }
     }
     return result
   } catch (err: any) {
@@ -198,8 +226,12 @@ export async function loginUser(data: {
     }
 
     const result = await res.json()
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
+    if (result.token) {
+      setAuthToken(result.token)
+      if (result.user) {
+        setAuthUser(result.user)
+        setAuthRole('STUDIO')
+      }
     }
     return result
   } catch (err: any) {
@@ -208,7 +240,7 @@ export async function loginUser(data: {
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   const res = await fetch(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
     headers: {
@@ -224,29 +256,20 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
   }
 
   const data = await res.json()
-  if (typeof window !== 'undefined') {
-    try {
-      if (data.token) {
-        localStorage.setItem('tg_token', data.token)
-      }
-      if (data.user) {
-        localStorage.setItem('tg_user', JSON.stringify(data.user))
-      }
-    } catch (storageErr) {
-      console.warn('LocalStorage quota notice:', storageErr)
-    }
+  if (data.token) {
+    setAuthToken(data.token)
+  }
+  if (data.user) {
+    setAuthUser(data.user)
+    setAuthRole('STUDIO')
   }
   return data
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   if (!token) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-    }
+    clearAllAuth()
     return null
   }
 
@@ -257,26 +280,19 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(data.user))
-        }
+        setAuthUser(data.user)
+        setAuthRole('STUDIO')
         return data.user
       }
     }
 
-    // User not found in DB or token invalid -> clear stale local session
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-      sessionStorage.removeItem('tg_pending_google')
-    }
+    // User not found in DB or token invalid -> clear stale session
+    clearAllAuth()
     return null
   } catch (err) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
+    const stored = getAuthUser<User>()
+    if (stored) {
+      return stored
     }
     return null
   }

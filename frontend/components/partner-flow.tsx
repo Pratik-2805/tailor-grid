@@ -47,6 +47,7 @@ import {
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
 import { fetchStudioOrders, updateOrder } from '@/lib/api'
+import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts' | 'profile'
@@ -215,21 +216,21 @@ export function PartnerFlow({
   // Capacity & Workshop Controls State
   const [capacityLimit, setCapacityLimit] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_studio_capacity')
+      const stored = getStorageCookie('tg_studio_capacity')
       if (stored) return parseInt(stored) || 25
     }
     return 25
   })
   const [hoursWeekday, setHoursWeekday] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_wd') || '09:00 AM – 07:00 PM'
+    if (typeof window !== 'undefined') return getStorageCookie('tg_studio_hours_wd', '09:00 AM – 07:00 PM')
     return '09:00 AM – 07:00 PM'
   })
   const [hoursSaturday, setHoursSaturday] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sat') || '10:00 AM – 06:00 PM'
+    if (typeof window !== 'undefined') return getStorageCookie('tg_studio_hours_sat', '10:00 AM – 06:00 PM')
     return '10:00 AM – 06:00 PM'
   })
   const [hoursSunday, setHoursSunday] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('tg_studio_hours_sun') || 'Closed for Rest'
+    if (typeof window !== 'undefined') return getStorageCookie('tg_studio_hours_sun', 'Closed for Rest')
     return 'Closed for Rest'
   })
   const [isEditingHours, setIsEditingHours] = useState(false)
@@ -239,7 +240,7 @@ export function PartnerFlow({
 
   const [capabilities, setCapabilities] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_studio_capabilities')
+      const stored = getStorageCookie('tg_studio_capabilities')
       if (stored) {
         try { return JSON.parse(stored) } catch { }
       }
@@ -258,7 +259,7 @@ export function PartnerFlow({
   const handleSetCapacity = (val: number) => {
     setCapacityLimit(val)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_studio_capacity', val.toString())
+      setStorageCookie('tg_studio_capacity', val.toString(), 60)
     }
     setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
     setTimeout(() => setCapacityNotice(null), 3000)
@@ -270,7 +271,7 @@ export function PartnerFlow({
       : [...capabilities, cap]
     setCapabilities(updated)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+      setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
     }
     setCapacityNotice(`Updated capability: ${cap}`)
     setTimeout(() => setCapacityNotice(null), 2500)
@@ -284,7 +285,7 @@ export function PartnerFlow({
       const updated = [...capabilities, trimmed]
       setCapabilities(updated)
       if (typeof window !== 'undefined') {
-        localStorage.setItem('tg_studio_capabilities', JSON.stringify(updated))
+        setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
       }
       setCapacityNotice(`Added specialism: ${trimmed}`)
       setTimeout(() => setCapacityNotice(null), 2500)
@@ -298,9 +299,9 @@ export function PartnerFlow({
     setHoursSaturday(editHoursSat)
     setHoursSunday(editHoursSun)
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_studio_hours_wd', editHoursWd)
-      localStorage.setItem('tg_studio_hours_sat', editHoursSat)
-      localStorage.setItem('tg_studio_hours_sun', editHoursSun)
+      setStorageCookie('tg_studio_hours_wd', editHoursWd, 60)
+      setStorageCookie('tg_studio_hours_sat', editHoursSat, 60)
+      setStorageCookie('tg_studio_hours_sun', editHoursSun, 60)
     }
     setIsEditingHours(false)
     setCapacityNotice('Workshop operating schedule updated')

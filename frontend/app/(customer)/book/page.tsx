@@ -23,9 +23,9 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { SewingLoader } from '@/components/sewing-loader'
-import { CustomLoader } from '@/components/custom-loader'
 import { useApp } from '@/components/app-provider'
 import { createOrder } from '@/lib/api'
+import { setStorageCookie } from '@/lib/cookies'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
@@ -642,28 +642,9 @@ export default function BookPage() {
     }
 
     if (typeof window !== 'undefined') {
-      try {
-        // Strip heavy base64 strings before storing in localStorage to conserve quota
-        const storageOrderData = {
-          ...orderData,
-          images: uploadedImages.map((img) => (img.startsWith('data:') && img.length > 500 ? '[Image Data]' : img)),
-        }
-        localStorage.setItem(`tg_order_${newOrderId}`, JSON.stringify(storageOrderData))
-        localStorage.setItem('tg_latest_order', JSON.stringify(storageOrderData))
-        localStorage.setItem('tg_measurement_draft', JSON.stringify(storageOrderData))
-      } catch (err) {
-        console.warn('LocalStorage quota limit reached while saving order:', err)
-        try {
-          // Clear old order entries to free quota if possible
-          Object.keys(localStorage).forEach((key) => {
-            if (key.startsWith('tg_order_') || key === 'tg_measurement_draft') {
-              localStorage.removeItem(key)
-            }
-          })
-          const minimalOrderData = { ...orderData, images: [] }
-          localStorage.setItem('tg_latest_order', JSON.stringify(minimalOrderData))
-        } catch { }
-      }
+      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData), 30)
+      setStorageCookie('tg_latest_order', JSON.stringify(orderData), 30)
+      setStorageCookie('tg_measurement_draft', JSON.stringify(bookingPending || orderData), 7)
     }
 
     // Persist to backend PostgreSQL database asynchronously

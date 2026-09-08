@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { type Screen, type User } from './data'
 import { getStudioUrl } from '../lib/api'
+import { getAuthToken, getAuthRole } from '../lib/cookies'
 
 interface StudioSubNavProps {
   currentScreen: Screen
@@ -32,7 +33,7 @@ export function StudioSubNav({
 
   const isStudioUser =
     (user && user.role === 'STUDIO') ||
-    (isClient && localStorage.getItem('tg_user_role') === 'STUDIO')
+    (isClient && getAuthRole() === 'STUDIO')
 
   const scrollToSection = (id: string) => {
     if (currentScreen !== 'for-partners') {
@@ -86,7 +87,7 @@ export function StudioSubNav({
   }, [currentScreen])
 
   const handleOpenStudioPortal = (authAction?: 'signin' | 'signup') => {
-    const token = isClient ? localStorage.getItem('tg_token') : null
+    const token = isClient ? getAuthToken() : null
     if (isStudioUser && token) {
       window.location.href = getStudioUrl('/', token)
     } else if (authAction) {
@@ -173,20 +174,23 @@ export function StudioSubNav({
                   <Store size={13} className="text-[#E7C9BA]" />
                   <span>Studio Portal ↗</span>
                 </button>
-              ) : scrolledPastHero ? (
-                <button
-                  onClick={() => {
-                    const token = isClient ? localStorage.getItem('tg_token') : null
-                    window.location.href = getStudioUrl('/', token)
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
-                >
-                  <Sparkles size={12} className="text-[#E7C9BA]" />
-                  <span>Enroll Studio</span>
-                </button>
-              ) : null}
-            </div>
-          )}
+
+                {/* Show Enroll Studio button in sticky nav only when scrolled past the hero */}
+                {scrolledPastHero && (
+                  <button
+                    onClick={() => {
+                      const token = isClient ? getAuthToken() : null
+                      window.location.href = getStudioUrl('/', token)
+                    }}
+                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
+                  >
+                    <Sparkles size={12} className="text-[#E7C9BA]" />
+                    <span>Enroll Studio</span>
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
         </div>
 
