@@ -9,6 +9,7 @@ export type OrderStatus =
   | 'Ready'
   | 'Collected'
   | 'Closed'
+  | 'Cancelled'
 
 export type User = {
   id?: string

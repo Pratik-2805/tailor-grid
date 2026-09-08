@@ -336,3 +336,14 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
     return null
   }
 }
+
+export async function deleteOrder(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    return res.ok
+  } catch (err) {
+    return false
+  }
+}
