@@ -267,32 +267,68 @@ async function findOrLinkUser({
   return user;
 }
 
+// In-flight OTP dispatch tracker and cooldown registry to prevent duplicate sends
+const inFlightOtpRequests = new Map();
+const otpCooldownStore = new Map();
+
 // POST /api/auth/send-otp
 router.post('/send-otp', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, forceResend = false } = req.body;
     const phoneValidation = validateAndFormatPhone(phone);
     if (!phoneValidation.isValid) {
       return res.status(400).json({ error: phoneValidation.error });
     }
 
     const cleanPhone = phoneValidation.formatted;
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
 
-    // Persist OTP in PostgreSQL DB (and memory cache)
-    await saveOtp(cleanPhone, code);
+    // 1. If another request for this phone is currently processing, wait for it instead of duplicating
+    if (inFlightOtpRequests.has(cleanPhone)) {
+      console.log(`[AUTH-OTP] Deduplicating concurrent request for ${cleanPhone}`);
+      const inFlightResult = await inFlightOtpRequests.get(cleanPhone);
+      return res.json(inFlightResult);
+    }
 
-    console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
+    // 2. Cooldown check: if an OTP was sent within the last 25 seconds, reuse existing without spamming SMS
+    const lastSentAt = otpCooldownStore.get(cleanPhone);
+    const now = Date.now();
+    if (lastSentAt && (now - lastSentAt < 25000) && !forceResend) {
+      console.log(`[AUTH-OTP] Cooldown active for ${cleanPhone} (${Math.round((25000 - (now - lastSentAt)) / 1000)}s remaining)`);
+      return res.json({
+        success: true,
+        phone: cleanPhone,
+        message: `Verification code was already sent via SMS to ${cleanPhone}. Valid for 10 minutes.`,
+        cooldown: true,
+      });
+    }
 
-    // Send real SMS via Twilio
-    const smsResult = await sendVerificationSms(cleanPhone, code);
+    // 3. Process dispatch with in-flight lock
+    const dispatchPromise = (async () => {
+      const code = Math.floor(1000 + Math.random() * 9000).toString();
 
-    return res.json({
-      success: true,
-      phone: cleanPhone,
-      message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
-      ...(process.env.NODE_ENV !== 'production' && { devOtp: code }),
-    });
+      // Persist OTP in PostgreSQL DB (and memory cache)
+      await saveOtp(cleanPhone, code);
+      console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
+
+      // Send real SMS via Twilio
+      const smsResult = await sendVerificationSms(cleanPhone, code);
+      otpCooldownStore.set(cleanPhone, Date.now());
+
+      return {
+        success: true,
+        phone: cleanPhone,
+        message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
+      };
+    })();
+
+    inFlightOtpRequests.set(cleanPhone, dispatchPromise);
+
+    try {
+      const result = await dispatchPromise;
+      return res.json(result);
+    } finally {
+      inFlightOtpRequests.delete(cleanPhone);
+    }
   } catch (err) {
     console.error('Send OTP Error:', err);
     return res.status(500).json({ error: err.message || 'Failed to send verification code.' });
@@ -666,13 +702,16 @@ router.post('/google', async (req, res) => {
         });
       }
 
+      const isRegisteredStudio = Boolean(existingUser.role === 'STUDIO' && existingUser.studioName && existingUser.phone);
+      const isNewUser = role === 'STUDIO' ? !isRegisteredStudio : false;
+
       const token = generateToken(existingUser);
       return res.json({
         success: true,
         message: 'Authenticated with Google successfully',
         token,
         user: existingUser,
-        isNewUser: false,
+        isNewUser,
         needsPhone: !existingUser.phone,
         hasPhone: Boolean(existingUser.phone),
       });
@@ -874,10 +913,17 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Role verification
-    if (role === 'STUDIO' && user.role !== 'STUDIO') {
+    // STRICT ROLE GATE & OTP ENFORCEMENT: Studio accounts cannot bypass OTP
+    if (role === 'STUDIO') {
+      if (user.role !== 'STUDIO') {
+        return res.status(403).json({
+          error: 'Unauthorized user, access denied.',
+        });
+      }
       return res.status(403).json({
-        error: 'Unauthorized user, access denied.',
+        error: 'Studio partners must authenticate via SMS verification code.',
+        requireOtp: true,
+        phone: user.phone || null,
       });
     }
 

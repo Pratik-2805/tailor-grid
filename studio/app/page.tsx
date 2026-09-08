@@ -172,7 +172,7 @@ export default function StudioPage() {
       />
 
       <main className="flex-1 flex flex-col">
-        {user ? (
+        {user && user.role === 'STUDIO' && user.studioName && user.phone ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
             go={() => { }}
@@ -185,7 +185,7 @@ export default function StudioPage() {
             onTabChange={setPartnerTab}
           />
         ) : (
-          /* Direct Studio Login Card (No marketing landing page) */
+          /* Direct Studio Login / Onboarding Card */
           <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-16 relative overflow-hidden">
             {/* Ambient Background Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#9E593B]/8 rounded-full blur-3xl pointer-events-none" />
@@ -193,9 +193,11 @@ export default function StudioPage() {
             <div className="relative z-10 w-full flex flex-col items-center">
               {/* Direct Auth Card */}
               <PartnerOnboarding
+                user={user}
                 initialTab={authType}
                 hideHeader={true}
                 onComplete={handleAuthSuccess}
+                onSignOut={handleSignOut}
               />
 
               {/* Bottom Customer Site Return Link */}
