@@ -172,7 +172,7 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
   return defaultValue
 }
 
-export function setStorageCookie(key: string, value: string): void {
+export function setStorageCookie(key: string, value: string, _days?: number): void {
   if (typeof window === 'undefined') return
   try {
     localStorage.setItem(key, value)

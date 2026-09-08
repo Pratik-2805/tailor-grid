@@ -414,6 +414,8 @@ export default function BookPage() {
     setMeasurementDraft,
     setConfirmedMeasurements,
     setCreatedOrderId,
+    startBookingTransition,
+    stopBookingTransition,
   } = useApp()
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
@@ -439,10 +441,6 @@ export default function BookPage() {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
-
-  // Full-screen sewing tools animation loader state
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [bookingPending, setBookingPending] = useState<any>(null)
 
   // Nearby partner stores for selected city / location
   const nearbyStores = useMemo(() => {
@@ -569,11 +567,14 @@ export default function BookPage() {
   }
 
   // Complete Booking flow execution
-  const executeBooking = (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
+  const executeBooking = async (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
     if (!user || !user.phone) {
       openAuth('CUSTOMER', user ? 'signup' : 'signin')
       return
     }
+
+    // 1. Start the seamless persistent sewing animation loader immediately
+    startBookingTransition()
 
     const finalMeasurements: Record<string, string> = {}
     activeMeasurementFields.forEach((field) => {
@@ -585,37 +586,20 @@ export default function BookPage() {
       }
     })
 
-    const bookingDraft = {
-      city: selectedCity,
-      garmentId: selectedGarmentId,
-      serviceId: selectedServiceId,
-      pickupOption,
-      scheduleDate: schedDate || new Date(),
-      scheduleTime: schedTime || '03:30 PM',
-      images: uploadedImages,
-      measurements: finalMeasurements,
-    }
-
-    setBookingPending(bookingDraft)
-    setIsProcessing(true)
-  }
-
-  const handleLoaderComplete = () => {
-    setIsProcessing(false)
     const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
     const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
     const otp = String(Math.floor(1000 + Math.random() * 9000))
 
-    const schedDate = bookingPending?.scheduleDate || scheduleDateObj || new Date()
-    const schedTime = bookingPending?.scheduleTime || selectedTime || '03:30 PM'
+    const activeSchedDate = schedDate || scheduleDateObj || new Date()
+    const activeSchedTime = schedTime || selectedTime || '03:30 PM'
 
-    const formattedDateDisplay = schedDate.toLocaleDateString('en-US', {
+    const formattedDateDisplay = activeSchedDate.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     })
 
-    const measurementsData = bookingPending?.measurements || customMeasurements
+    const measurementsData = finalMeasurements
 
     const orderData = {
       id: newOrderId,
@@ -636,40 +620,16 @@ export default function BookPage() {
       images: uploadedImages,
       city: selectedCity,
       date: formattedDateDisplay,
-      timeSlot: schedTime,
+      timeSlot: activeSchedTime,
       price: currentService.customerPrice || currentCategory.startingPrice || 25,
       status: 'Allocated',
     }
 
+    // Save instant local cache
     if (typeof window !== 'undefined') {
-      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData), 30)
-      setStorageCookie('tg_latest_order', JSON.stringify(orderData), 30)
-      setStorageCookie('tg_measurement_draft', JSON.stringify(bookingPending || orderData), 7)
+      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData))
+      setStorageCookie('tg_latest_order', JSON.stringify(orderData))
     }
-
-    // Persist to backend PostgreSQL database asynchronously
-    createOrder({
-      id: newOrderId,
-      userId: user?.id,
-      customerName: user?.name,
-      customerEmail: user?.email,
-      customerPhone: user?.phone,
-      postcode: closestStore?.postcode || 'W8 4EP',
-      garmentId: selectedGarmentId,
-      garmentName: currentCategory.name,
-      serviceId: selectedServiceId,
-      serviceName: currentService.name,
-      storeId: undefined,
-      storeName: 'Awaiting Studio Acceptance',
-      price: currentService.customerPrice || currentCategory.startingPrice || 25,
-      date: formattedDateDisplay,
-      timeSlot: schedTime,
-      measurements: measurementsData,
-      imageUrl: uploadedImages[0] || null,
-      status: 'Allocated',
-    }).catch((err) => {
-      console.warn('Backend order sync notice:', err)
-    })
 
     setPrefilledGarmentId(selectedGarmentId)
     setPrefilledServiceId(selectedServiceId)
@@ -679,8 +639,37 @@ export default function BookPage() {
     }
     setCreatedOrderId(newOrderId)
 
-    toast.success('Fitting appointment & measurements confirmed!', { position: 'top-center' })
-    router.push(`/order/${newOrderId}`)
+    try {
+      // 2. Await backend database creation
+      await createOrder({
+        id: newOrderId,
+        userId: user?.id,
+        customerName: user?.name,
+        customerEmail: user?.email,
+        customerPhone: user?.phone,
+        postcode: closestStore?.postcode || 'W8 4EP',
+        garmentId: selectedGarmentId,
+        garmentName: currentCategory.name,
+        serviceId: selectedServiceId,
+        serviceName: currentService.name,
+        storeId: undefined,
+        storeName: 'Awaiting Studio Acceptance',
+        price: currentService.customerPrice || currentCategory.startingPrice || 25,
+        date: formattedDateDisplay,
+        timeSlot: activeSchedTime,
+        measurements: measurementsData,
+        imageUrl: uploadedImages[0] || null,
+        status: 'Allocated',
+      })
+
+      // 3. Navigate directly to order details while loader stays up seamlessly!
+      toast.success('Fitting appointment & measurements confirmed!', { position: 'top-center' })
+      router.push(`/order/${newOrderId}`)
+    } catch (error) {
+      console.error('Booking failed:', error)
+      toast.error('Unable to create your order. Please try again.')
+      stopBookingTransition()
+    }
   }
 
   const handleBookNow = () => {
@@ -1166,13 +1155,6 @@ export default function BookPage() {
           </div>
         </div>
       )}
-
-      {/* Full-Screen Sewing Tools Animation Loader */}
-      <SewingLoader
-        active={isProcessing}
-        durationSeconds={3}
-        onComplete={handleLoaderComplete}
-      />
     </div>
   )
 }

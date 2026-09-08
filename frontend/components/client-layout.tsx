@@ -8,6 +8,7 @@ import { Header } from './header'
 import { StudioSubNav } from './studio-sub-nav'
 import { Footer } from './footer'
 import { AuthModal } from './auth-modal'
+import { SewingLoader } from './sewing-loader'
 import type { Screen } from './data'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     navigate,
     handleAuthSuccess,
     handleSignOut,
+    isBookingTransitioning,
   } = useApp()
 
   const getScreenFromPath = (): Screen => {
@@ -96,6 +98,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         onSuccess={handleAuthSuccess}
         onSignOut={handleSignOut}
       />
+
+      {/* Global Booking Seamless Transition Loader */}
+      {isBookingTransitioning && (
+        <SewingLoader active={true} persistent={true} />
+      )}
 
       {/* React Toastify Notifications Container */}
       <ToastContainer

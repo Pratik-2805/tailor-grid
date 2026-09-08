@@ -96,7 +96,7 @@ export default function HomePage() {
           : '10012'
     )
     if (typeof window !== 'undefined') {
-      setStorageCookie('tg_measurement_draft', JSON.stringify(params), 7)
+      setStorageCookie('tg_measurement_draft', JSON.stringify(params))
     }
   }
 

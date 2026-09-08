@@ -120,8 +120,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             inseam,
             chest,
             sleeve,
-          }),
-          60
+          })
         )
       }
 
