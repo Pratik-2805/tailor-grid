@@ -105,11 +105,6 @@ export function StudioProfileView({
         setAvatar(user.avatar)
       } else {
         setAvatar('')
-        if (typeof window !== 'undefined') {
-          try {
-            removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
-          } catch {}
-        }
       }
     }
   }, [user])
@@ -191,18 +186,7 @@ export function StudioProfileView({
     setAvatar('')
     if (fileInputRef.current) fileInputRef.current.value = ''
 
-    if (typeof window !== 'undefined') {
-      try {
-        removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
-        const stored = getAuthUser<UserType>()
-        if (stored) {
-          stored.avatar = null
-          setAuthUser(stored)
-        }
-      } catch {}
-    }
-
-    // Auto-save removal to backend immediately so the cache is permanently destroyed
+    // Auto-save removal to backend immediately
     try {
       const updates: Partial<UserType> = {
         id: user.id,
@@ -237,15 +221,31 @@ export function StudioProfileView({
     setError('')
     setSuccess(false)
 
+    const cleanedPhone = phone.trim()
+    const phoneDigits = cleanedPhone.replace(/\D/g, '')
+    if (phoneDigits.length < 10) {
+      setSaving(false)
+      setError('Please enter a valid 10-digit mobile number (e.g. +91 98765 43210).')
+      return
+    }
+
+    const cleanPostcode = postcode.trim()
+    const pinDigits = cleanPostcode.replace(/\D/g, '')
+    if (pinDigits.length < 5 || pinDigits.length > 10) {
+      setSaving(false)
+      setError('Please enter a valid postal / ZIP code. ')
+      return
+    }
+
     try {
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
-        phone: phone.trim(),
+        phone: cleanedPhone,
         address: address.trim(),
-        postcode: postcode.trim(),
+        postcode: cleanPostcode,
         avatar: avatar ? avatar.trim() : null,
       }
 
@@ -262,21 +262,6 @@ export function StudioProfileView({
 
       if (onUpdateUser) {
         onUpdateUser(mergedUser)
-      }
-
-      if (typeof window !== 'undefined') {
-        try {
-          if (avatar) {
-            setStorageCookie(`tg_studio_avatar_${user.email || user.id}`, avatar, 30)
-          } else {
-            removeStorageCookie(`tg_studio_avatar_${user.email || user.id}`)
-          }
-          const stored = getAuthUser<UserType>()
-          if (stored) {
-            stored.avatar = avatar ? avatar.trim() : null
-            setAuthUser(stored)
-          }
-        } catch { }
       }
 
       setTimeout(() => {
@@ -360,11 +345,10 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('profile')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
-            activeSubTab === 'profile'
-              ? 'border-[#9E593B] text-[#9E593B]'
-              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'profile'
+            ? 'border-[#9E593B] text-[#9E593B]'
+            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+            }`}
         >
           <Store size={14} />
           <span>Atelier Profile</span>
@@ -373,11 +357,10 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('capacity')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
-            activeSubTab === 'capacity'
-              ? 'border-[#9E593B] text-[#9E593B]'
-              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'capacity'
+            ? 'border-[#9E593B] text-[#9E593B]'
+            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+            }`}
         >
           <Sliders size={14} />
           <span>Capacity & Craft</span>
@@ -587,14 +570,17 @@ export function StudioProfileView({
 
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Postcode / Postal Code *
+                    Postcode / ZIP / PIN *
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    maxLength={10}
                     required
+                    placeholder="e.g. 10001 (US) or 400001 (IN)"
                     value={postcode}
-                    onChange={(e) => setPostcode(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors uppercase"
+                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
 
@@ -606,9 +592,11 @@ export function StudioProfileView({
                     <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="tel"
+                      inputMode="tel"
                       required
+                      placeholder="+1 (555) 019-2834 or +91 98765 43210"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
                   </div>
@@ -675,11 +663,10 @@ export function StudioProfileView({
                     key={preset}
                     type="button"
                     onClick={() => setCapacity(preset)}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                      capacity === preset
-                        ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
-                        : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-white'
-                    }`}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${capacity === preset
+                      ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
+                      : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-white'
+                      }`}
                   >
                     {preset} pcs/day
                   </button>
@@ -720,11 +707,10 @@ export function StudioProfileView({
                       key={spec}
                       type="button"
                       onClick={() => toggleSpecialty(spec)}
-                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${
-                        selected
-                          ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
-                          : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
-                      }`}
+                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${selected
+                        ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
+                        : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
+                        }`}
                     >
                       <span className="truncate">{spec}</span>
                       {selected && <Check size={13} className="shrink-0" />}

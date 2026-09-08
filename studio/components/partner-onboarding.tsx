@@ -23,7 +23,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthRole, setAuthToken } from '@/lib/cookies'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -208,7 +208,6 @@ export function PartnerOnboarding({
                 return
               }
               if (typeof window !== 'undefined') {
-                setAuthUser(result.user)
                 setAuthRole('STUDIO')
                 if (result.token) setAuthToken(result.token)
                 window.location.href = '/'
@@ -255,7 +254,7 @@ export function PartnerOnboarding({
     const raw = sPhoneLogin.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 75584 96659).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code. '
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -314,7 +313,6 @@ export function PartnerOnboarding({
 
       if (res?.user) {
         if (typeof window !== 'undefined') {
-          setAuthUser(res.user)
           setAuthRole('STUDIO')
           if (res.token) setAuthToken(res.token)
         }
@@ -340,7 +338,7 @@ export function PartnerOnboarding({
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -415,7 +413,6 @@ export function PartnerOnboarding({
         setAuthLoading(false)
         if (res?.user) {
           if (typeof window !== 'undefined') {
-            setAuthUser(res.user)
             setAuthRole('STUDIO')
             if (res.token) setAuthToken(res.token)
             window.location.href = '/'
@@ -454,7 +451,6 @@ export function PartnerOnboarding({
       address: '18 Kensington Church St',
     }
     if (typeof window !== 'undefined') {
-      setAuthUser(demoUser)
       setAuthRole('STUDIO')
       window.location.href = '/'
     }
@@ -502,7 +498,6 @@ export function PartnerOnboarding({
       }
 
       if (typeof window !== 'undefined') {
-        setAuthUser(finalUser)
         setAuthRole('STUDIO')
         window.location.href = '/'
         return
@@ -766,11 +761,12 @@ export function PartnerOnboarding({
                           </label>
                           <input
                             type="tel"
+                            inputMode="tel"
                             required
                             autoFocus
                             value={sPhoneLogin}
-                            onChange={(e) => setSPhoneLogin(e.target.value)}
-                            placeholder="+91 98765 43210 or +44 7700 900000"
+                            onChange={(e) => setSPhoneLogin(e.target.value.replace(/[^\d+ ]/g, ''))}
+                            placeholder="+91 98765 43210"
                             className="w-full rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3 text-sm font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
                           />
                           <p className="text-[11px] text-[#7A7E85] mt-1.5">
@@ -789,11 +785,13 @@ export function PartnerOnboarding({
                       <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
                         <input
                           type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           maxLength={4}
                           required
                           autoFocus
                           value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value)}
+                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                           placeholder="••••"
                           className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
                         />
@@ -1076,13 +1074,15 @@ export function PartnerOnboarding({
                         </div>
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / PIN *
+                            Postcode / ZIP / PIN *
                           </label>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            maxLength={10}
                             value={postcode}
-                            onChange={(e) => setPostcode(e.target.value)}
-                            placeholder="e.g. W8 4EP"
+                            onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                            placeholder="e.g. 10001 (US) or 400001 (IN)"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1150,15 +1150,17 @@ export function PartnerOnboarding({
                         <div className="flex gap-2">
                           <input
                             type="tel"
+                            inputMode="tel"
                             value={phone}
                             onChange={(e) => {
-                              setPhone(e.target.value)
-                              if (isPhoneVerified && e.target.value.trim() !== step3VerifiedPhone) {
+                              const val = e.target.value.replace(/[^\d+ ]/g, '')
+                              setPhone(val)
+                              if (isPhoneVerified && val.trim() !== step3VerifiedPhone) {
                                 setIsPhoneVerified(false)
                               }
                             }}
                             disabled={isPhoneVerified}
-                            placeholder="e.g. +91 98765 43210"
+                            placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
                               ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
                               : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
@@ -1213,7 +1215,7 @@ export function PartnerOnboarding({
                                 maxLength={4}
                                 autoFocus
                                 value={step3Otp}
-                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, ''))}
+                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                 placeholder="• • • •"
                                 className="w-36 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
                               />
@@ -1235,6 +1237,13 @@ export function PartnerOnboarding({
                       onClick={() => {
                         if (!shopName.trim() || !shopArea.trim() || !postcode.trim() || !tailorName.trim() || !phone.trim() || !emailVal.trim()) {
                           setError('Please fill in Shop Name, Area, Postcode, Lead Tailor, Phone, and Email.')
+                          return
+                        }
+                        const cleanPin = postcode.trim().replace(/\D/g, '')
+                        if (cleanPin.length < 5 || cleanPin.length > 10) {
+                          const msg = 'Please enter a valid postal / ZIP code.'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
                           return
                         }
                         if (!isPhoneVerified) {

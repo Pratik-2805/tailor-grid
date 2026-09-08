@@ -93,6 +93,13 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const handleSaveProfile = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!user) return
+
+    const cleanPin = postcode.trim().replace(/\D/g, '')
+    if (cleanPin.length < 5 || cleanPin.length > 10) {
+      setSaveError('Please enter a valid postal / ZIP code.')
+      return
+    }
+
     setIsSaving(true)
     setSaveError('')
     setSaveSuccess(false)
@@ -101,7 +108,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       const res = await updateUserProfile({
         name: name.trim(),
         address: address.trim(),
-        postcode: postcode.trim(),
+        postcode: cleanPin,
       })
 
       if (typeof window !== 'undefined') {
@@ -314,17 +321,19 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                   )}
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Postcode</label>
+                  <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Postcode / ZIP / PIN</label>
                   {isEditingPersonal ? (
                     <input
                       type="text"
+                      inputMode="numeric"
+                      maxLength={10}
                       value={postcode}
-                      onChange={(e) => setPostcode(e.target.value)}
-                      placeholder="W8 4EP"
-                      className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
+                      onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                      placeholder="10001 or 400001"
+                      className="w-full bg-transparent font-mono font-bold border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
                     />
                   ) : (
-                    <p className="py-1.5 text-sm text-[#18191B] border-b border-transparent">{postcode || 'W8 4EP'}</p>
+                    <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">{postcode || '10001'}</p>
                   )}
                 </div>
               </div>
@@ -358,8 +367,8 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                   type="button"
                   onClick={() => setFitPreference(fit)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${fitPreference === fit
-                      ? 'bg-[#18191B] text-white'
-                      : 'bg-transparent text-[#7A7E85] hover:text-[#18191B]'
+                    ? 'bg-[#18191B] text-white'
+                    : 'bg-transparent text-[#7A7E85] hover:text-[#18191B]'
                     }`}
                 >
                   {fit}
@@ -378,9 +387,10 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                 <div key={m.label} className="border-b border-[#D5CDC2] py-1.5">
                   <span className="block text-[10px] uppercase text-[#7A7E85] font-semibold">{m.label}</span>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={m.val}
-                    onChange={(e) => m.setter(e.target.value)}
+                    onChange={(e) => m.setter(e.target.value.replace(/[^\d.]/g, ''))}
                     className="w-full bg-transparent text-sm font-bold text-[#18191B] outline-none pt-0.5"
                   />
                 </div>

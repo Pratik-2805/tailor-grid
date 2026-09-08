@@ -244,7 +244,7 @@ export function AuthModal({
     e.preventDefault()
     const cleanedDigits = sPhoneLogin.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +1 555 019 2834 or +91 98765 43210).'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -547,7 +547,7 @@ export function AuthModal({
 
             {!linkOtpSent ? (
               <form onSubmit={handleSendLinkOtp} className="space-y-3.5">
-                <Field label="Direct mobile number *" type="tel" required value={linkPhoneVal} onChange={setLinkPhoneVal} placeholder="+44 7700 900123" />
+                <Field label="Direct mobile number *" type="tel" required value={linkPhoneVal} onChange={(val) => setLinkPhoneVal(val.replace(/[^\d+ ]/g, ''))} placeholder="+91 98765 43210" />
                 <SubmitBtn loading={loading} label="Send Verification Code" />
               </form>
             ) : (
@@ -561,7 +561,7 @@ export function AuthModal({
                   required
                   autoFocus
                   value={linkOtp}
-                  onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="• • • •"
                   className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                 />
@@ -675,7 +675,7 @@ export function AuthModal({
 
             {!sOtpSent ? (
               <form onSubmit={handleStudioMobileSend} className="space-y-3.5">
-                <Field label="Registered mobile phone *" type="tel" required value={sPhoneLogin} onChange={setSPhoneLogin} placeholder="+44 7700 900123" />
+                <Field label="Registered mobile phone *" type="tel" required value={sPhoneLogin} onChange={(val) => setSPhoneLogin(val.replace(/[^\d+ ]/g, ''))} placeholder="+91 98765 43210" />
                 <SubmitBtn loading={loading} label="Send Partner Code" />
               </form>
             ) : (
@@ -688,7 +688,7 @@ export function AuthModal({
                   required
                   autoFocus
                   value={sOtp}
-                  onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => setSOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                   placeholder="• • • •"
                   className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                 />
@@ -737,7 +737,7 @@ export function AuthModal({
                 <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Area / Neighborhood *" required value={sArea} onChange={setSArea} placeholder="SoHo, Kensington" />
-                  <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="W8 4EP" />
+                  <Field label="Postcode / ZIP / PIN *" required value={sPostcode} onChange={(val) => setSPostcode(val.replace(/[^\d\-]/g, '').slice(0, 10))} placeholder="10001 or 400001" />
                 </div>
                 <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
 
@@ -745,6 +745,11 @@ export function AuthModal({
                   type="button"
                   onClick={() => {
                     if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
+                    const cleanPin = sPostcode.trim().replace(/\D/g, '')
+                    if (cleanPin.length < 5 || cleanPin.length > 10) {
+                      setError('Please enter a valid postal / ZIP code (5 digits for US e.g. 10001, 6 digits for India e.g. 400001).')
+                      return
+                    }
                     setError('')
                     setRegisterStep(2)
                   }}
@@ -760,12 +765,17 @@ export function AuthModal({
               <div className="space-y-4">
                 <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
                 <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+44 7700 900123" />
+                <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={(val) => setSPhone(val.replace(/[^\d+ ]/g, ''))} placeholder="+1 (555) 019-2834 or +91 98765 43210" />
 
                 <button
                   type="button"
                   onClick={() => {
                     if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
+                    const cleanDigits = sPhone.trim().replace(/\D/g, '')
+                    if (cleanDigits.length < 10) {
+                      setError('Please enter a valid 10-digit mobile number with country code (e.g. +1 555 019 2834 or +91 98765 43210).')
+                      return
+                    }
                     setError('')
                     setRegisterStep(3)
                   }}

@@ -613,11 +613,12 @@ export function AuthModal({
                       </label>
                       <input
                         type="tel"
+                        inputMode="tel"
                         required
                         autoFocus
                         value={linkPhoneVal}
-                        onChange={(e) => setLinkPhoneVal(e.target.value)}
-                        placeholder="+44 7700 900077"
+                        onChange={(e) => setLinkPhoneVal(e.target.value.replace(/[^\d+ ]/g, ''))}
+                        placeholder="+91 98765 43210"
                         className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2.5 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                       />
                     </div>
@@ -778,8 +779,8 @@ export function AuthModal({
                     type="tel"
                     required
                     value={cPhone}
-                    onChange={setCPhone}
-                    placeholder="+44 7700 900077"
+                    onChange={(val) => setCPhone(val.replace(/[^\d+ ]/g, ''))}
+                    placeholder="+91 98765 43210"
                   />
                   <SubmitBtn loading={loading} label="Send Verification Code" />
                 </form>
@@ -793,7 +794,7 @@ export function AuthModal({
                     required
                     autoFocus
                     value={cOtp}
-                    onChange={(e) => setCOtp(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setCOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="• • • •"
                     className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                   />
@@ -976,7 +977,7 @@ export function AuthModal({
                   <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
                   <div className="grid grid-cols-2 gap-2.5">
                     <Field label="Area *" required value={sArea} onChange={setSArea} placeholder="SoHo" />
-                    <Field label="Postcode *" required value={sPostcode} onChange={setSPostcode} placeholder="W8 4EP" />
+                    <Field label="Postcode / ZIP / PIN *" required value={sPostcode} onChange={(val) => setSPostcode(val.replace(/[^\d\-]/g, '').slice(0, 10))} placeholder="10001 or 400001" />
                   </div>
                   <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
 
@@ -984,6 +985,11 @@ export function AuthModal({
                     type="button"
                     onClick={() => {
                       if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
+                      const cleanPin = sPostcode.trim().replace(/\D/g, '')
+                      if (cleanPin.length < 5 || cleanPin.length > 10) {
+                        setError('Please enter a valid postal / ZIP code.')
+                        return
+                      }
                       setError('')
                       setRegisterStep(2)
                     }}
@@ -999,12 +1005,17 @@ export function AuthModal({
                 <div className="space-y-3">
                   <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
                   <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={setSPhone} placeholder="+44 7700 900123" />
+                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={(val) => setSPhone(val.replace(/[^\d+ ]/g, ''))} placeholder="+1 (555) 019-2834 or +91 98765 43210" />
 
                   <button
                     type="button"
                     onClick={() => {
                       if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
+                      const cleanDigits = sPhone.trim().replace(/\D/g, '')
+                      if (cleanDigits.length < 10) {
+                        setError('Please enter a valid 10-digit mobile number with country code.')
+                        return
+                      }
                       setError('')
                       setRegisterStep(3)
                     }}
