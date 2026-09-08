@@ -23,6 +23,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
+import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -207,9 +208,9 @@ export function PartnerOnboarding({
                 return
               }
               if (typeof window !== 'undefined') {
-                localStorage.setItem('tg_user', JSON.stringify(result.user))
-                localStorage.setItem('tg_user_role', 'STUDIO')
-                if (result.token) localStorage.setItem('tg_token', result.token)
+                setAuthUser(result.user)
+                setAuthRole('STUDIO')
+                if (result.token) setAuthToken(result.token)
                 window.location.href = '/'
                 return
               }
@@ -313,9 +314,9 @@ export function PartnerOnboarding({
 
       if (res?.user) {
         if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(res.user))
-          localStorage.setItem('tg_user_role', 'STUDIO')
-          if (res.token) localStorage.setItem('tg_token', res.token)
+          setAuthUser(res.user)
+          setAuthRole('STUDIO')
+          if (res.token) setAuthToken(res.token)
         }
         toast.success(`Authenticated as ${res.user.name || 'Studio Partner'}!`, {
           position: 'top-center',
@@ -414,9 +415,9 @@ export function PartnerOnboarding({
         setAuthLoading(false)
         if (res?.user) {
           if (typeof window !== 'undefined') {
-            localStorage.setItem('tg_user', JSON.stringify(res.user))
-            localStorage.setItem('tg_user_role', 'STUDIO')
-            if (res.token) localStorage.setItem('tg_token', res.token)
+            setAuthUser(res.user)
+            setAuthRole('STUDIO')
+            if (res.token) setAuthToken(res.token)
             window.location.href = '/'
           }
         }
@@ -453,8 +454,8 @@ export function PartnerOnboarding({
       address: '18 Kensington Church St',
     }
     if (typeof window !== 'undefined') {
-      localStorage.setItem('tg_user', JSON.stringify(demoUser))
-      localStorage.setItem('tg_user_role', 'STUDIO')
+      setAuthUser(demoUser)
+      setAuthRole('STUDIO')
       window.location.href = '/'
     }
   }
@@ -501,8 +502,8 @@ export function PartnerOnboarding({
       }
 
       if (typeof window !== 'undefined') {
-        localStorage.setItem('tg_user', JSON.stringify(finalUser))
-        localStorage.setItem('tg_user_role', 'STUDIO')
+        setAuthUser(finalUser)
+        setAuthRole('STUDIO')
         window.location.href = '/'
         return
       }

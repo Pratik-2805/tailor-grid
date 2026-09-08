@@ -2,10 +2,11 @@
 
 import { useEffect } from 'react'
 import { getStudioUrl } from '@/lib/api'
+import { getAuthToken } from '@/lib/cookies'
 
 export default function PartnerOnboardingPage() {
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+    const token = getAuthToken()
     window.location.href = getStudioUrl('/', token)
   }, [])
 

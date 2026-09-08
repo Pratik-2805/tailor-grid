@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { fetchOrderById, getCurrentUser } from '@/lib/api'
+import { getAuthUser, getStorageCookie } from '@/lib/cookies'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
@@ -82,13 +83,7 @@ function calculateHaversineDistanceMiles(lat1: number, lon1: number, lat2: numbe
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('tg_token')
-      const stored = localStorage.getItem('tg_user')
-      if (token && stored) {
-        try {
-          return JSON.parse(stored)
-        } catch { }
-      }
+      return getAuthUser<User>()
     }
     return null
   })
@@ -150,9 +145,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         console.warn('Backend order fetch failed:', err)
       }
 
-      // 2. Fallback to localStorage saved order or latest draft
+      // 2. Fallback to cookie saved order or latest draft
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(`tg_order_${slugId}`) || localStorage.getItem('tg_latest_order')
+        const saved = getStorageCookie(`tg_order_${slugId}`) || getStorageCookie('tg_latest_order')
         if (saved) {
           try {
             const parsed = JSON.parse(saved)

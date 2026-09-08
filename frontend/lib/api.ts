@@ -1,21 +1,28 @@
 import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES, getClosestStoreForLocation } from '../components/data'
+import {
+  getAuthToken,
+  setAuthToken,
+  removeAuthToken,
+  getAuthUser,
+  setAuthUser,
+  removeAuthUser,
+  getAuthRole,
+  setAuthRole,
+  removeAuthRole,
+  clearAllAuth,
+  setCookie,
+  deleteCookie,
+} from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 export function syncAuthCookies(token?: string | null, role?: string | null) {
-  if (typeof document === 'undefined') return
-  if (token) {
-    document.cookie = `tg_token=${encodeURIComponent(token)}; path=/; max-age=2592000; SameSite=Lax`
-  }
-  if (role) {
-    document.cookie = `tg_user_role=${encodeURIComponent(role)}; path=/; max-age=2592000; SameSite=Lax`
-  }
+  if (token) setAuthToken(token)
+  if (role) setAuthRole(role)
 }
 
 export function clearAuthCookies() {
-  if (typeof document === 'undefined') return
-  document.cookie = 'tg_token=; path=/; max-age=0; SameSite=Lax'
-  document.cookie = 'tg_user_role=; path=/; max-age=0; SameSite=Lax'
+  clearAllAuth()
 }
 
 export const STUDIO_BASE_URL =
@@ -86,13 +93,12 @@ export async function verifyOtp(params: {
     if (data.user) {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
       if (data.user) {
-        localStorage.setItem('tg_user', JSON.stringify(data.user))
-        localStorage.setItem('tg_user_role', data.user.role)
+        setAuthUser(data.user)
+        setAuthRole(data.user.role)
       }
-      syncAuthCookies(data.token, data.user?.role)
     }
     return data
   } catch (err: any) {
@@ -106,7 +112,7 @@ export async function linkPhone(params: {
   otp?: string
   userId?: string
 }): Promise<{ success: boolean; user: User; token: string; hasPhone: boolean }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
       method: 'POST',
@@ -126,14 +132,13 @@ export async function linkPhone(params: {
     if (data.user) {
       data.user.role = data.user.role ?? 'CUSTOMER'
     }
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
     }
-    if (data.user && typeof window !== 'undefined') {
-      localStorage.setItem('tg_user', JSON.stringify(data.user))
-      localStorage.setItem('tg_user_role', data.user.role)
+    if (data.user) {
+      setAuthUser(data.user)
+      setAuthRole(data.user.role)
     }
-    syncAuthCookies(data.token || token, data.user?.role)
     return data
   } catch (err: any) {
     throw err
@@ -163,13 +168,12 @@ export async function loginWithGoogle(params: {
     if (data.user) {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
-    if (data.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', data.token)
+    if (data.token) {
+      setAuthToken(data.token)
       if (data.user && !data.isNewUser) {
-        localStorage.setItem('tg_user', JSON.stringify(data.user))
-        localStorage.setItem('tg_user_role', data.user.role)
+        setAuthUser(data.user)
+        setAuthRole(data.user.role)
       }
-      syncAuthCookies(data.token, data.user?.role)
     }
     return data
   } catch (err: any) {
@@ -202,7 +206,7 @@ export async function signUpUser(data: {
   machines?: string
 }): Promise<{ token: string; user: User; needsPhone?: boolean }> {
   try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+    const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: {
@@ -221,13 +225,12 @@ export async function signUpUser(data: {
     if (result.user) {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
+    if (result.token) {
+      setAuthToken(result.token)
       if (result.user) {
-        localStorage.setItem('tg_user', JSON.stringify(result.user))
-        localStorage.setItem('tg_user_role', result.user.role)
+        setAuthUser(result.user)
+        setAuthRole(result.user.role)
       }
-      syncAuthCookies(result.token, result.user?.role)
     }
     return result
   } catch (err: any) {
@@ -257,13 +260,12 @@ export async function loginUser(data: {
     if (result.user) {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
-    if (result.token && typeof window !== 'undefined') {
-      localStorage.setItem('tg_token', result.token)
+    if (result.token) {
+      setAuthToken(result.token)
       if (result.user) {
-        localStorage.setItem('tg_user', JSON.stringify(result.user))
-        localStorage.setItem('tg_user_role', result.user.role)
+        setAuthUser(result.user)
+        setAuthRole(result.user.role)
       }
-      syncAuthCookies(result.token, result.user?.role)
     }
     return result
   } catch (err: any) {
@@ -272,7 +274,7 @@ export async function loginUser(data: {
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string }> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   const res = await fetch(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
     headers: {
@@ -288,31 +290,20 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
   }
 
   const data = await res.json()
-  if (typeof window !== 'undefined') {
-    try {
-      if (data.token) {
-        localStorage.setItem('tg_token', data.token)
-      }
-      if (data.user) {
-        localStorage.setItem('tg_user', JSON.stringify(data.user))
-      }
-      syncAuthCookies(data.token || token, data.user?.role)
-    } catch (storageErr) {
-      console.warn('LocalStorage quota notice:', storageErr)
-    }
+  if (data.token) {
+    setAuthToken(data.token)
+  }
+  if (data.user) {
+    setAuthUser(data.user)
+    if (data.user.role) setAuthRole(data.user.role)
   }
   return data
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+  const token = getAuthToken()
   if (!token) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-      clearAuthCookies()
-    }
+    clearAllAuth()
     return null
   }
 
@@ -323,32 +314,20 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('tg_user', JSON.stringify(data.user))
-          localStorage.setItem('tg_user_role', data.user.role || 'CUSTOMER')
-          syncAuthCookies(token, data.user.role)
-        }
+        setAuthUser(data.user)
+        setAuthRole(data.user.role || 'CUSTOMER')
         return data.user
       }
     }
 
-    // User not found in DB or token invalid -> clear stale local session completely
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('tg_token')
-      localStorage.removeItem('tg_user')
-      localStorage.removeItem('tg_user_role')
-      sessionStorage.removeItem('tg_pending_google')
-    }
+    // User not found in DB or token invalid -> clear stale session
+    clearAllAuth()
     return null
   } catch (err) {
-    // API offline - only fall back to cached user if network failed completely
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_user')
-      if (stored) {
-        try {
-          return JSON.parse(stored)
-        } catch { }
-      }
+    // API offline - only fall back to cached user in cookie if network failed completely
+    const stored = getAuthUser<User>()
+    if (stored) {
+      return stored
     }
     return null
   }
