@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
 
 type AuthMode =
   | 'customer-options'
@@ -69,13 +69,11 @@ export function AuthModal({
   const [cPhone, setCPhone] = useState('')
   const [cOtpSent, setCOtpSent] = useState(false)
   const [cOtp, setCOtp] = useState('')
-  const [cDemoCode, setCDemoCode] = useState('4829')
 
   // ── Mandatory Mobile Link fields ──────────────────────────────────────────
   const [linkPhoneVal, setLinkPhoneVal] = useState('')
   const [linkOtpSent, setLinkOtpSent] = useState(false)
   const [linkOtp, setLinkOtp] = useState('')
-  const [linkDemoCode, setLinkDemoCode] = useState('4829')
 
   // ── Studio Login fields ───────────────────────────────────────────────────
   const [sLoginEmail, setSLoginEmail] = useState('')
@@ -224,7 +222,7 @@ export function AuthModal({
                 if (typeof window !== 'undefined') {
                   localStorage.setItem('tg_user', JSON.stringify(result.user))
                   localStorage.setItem('tg_user_role', 'STUDIO')
-                  window.location.href = '/partner/onboarding'
+                  window.location.href = getStudioUrl('/onboarding', result.token)
                 }
               } else {
                 finalizeAuth(result.user, role)
@@ -259,8 +257,9 @@ export function AuthModal({
   // ── Customer Mobile (SMS OTP) Flow ────────────────────────────────────────
   const handleSendMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (cPhone.trim().length < 6) {
-      const msg = 'Please enter a valid mobile number.'
+    const cleanedDigits = cPhone.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -272,9 +271,8 @@ export function AuthModal({
       const res = await sendOtp(cPhone.trim())
       setLoading(false)
       setCOtpSent(true)
-      const code = res.demoCode || '4829'
-      setCDemoCode(code)
-      toast.info(`Verification code sent to ${cPhone.trim()} (Demo code: ${code})`, { position: 'top-center' })
+      if (res.phone) setCPhone(res.phone)
+      toast.success(res.message || `Verification code sent via SMS to ${res.phone || cPhone.trim()}`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -353,8 +351,9 @@ export function AuthModal({
   // ── Mandatory Mobile Link Step ────────────────────────────────────────────
   const handleSendLinkOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (linkPhoneVal.trim().length < 6) {
-      const msg = 'Please enter a valid phone number.'
+    const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -365,9 +364,8 @@ export function AuthModal({
       const res = await sendOtp(linkPhoneVal.trim())
       setLoading(false)
       setLinkOtpSent(true)
-      const code = res.demoCode || '4829'
-      setLinkDemoCode(code)
-      toast.info(`Verification code sent to ${linkPhoneVal.trim()} (Demo code: ${code})`, { position: 'top-center' })
+      if (res.phone) setLinkPhoneVal(res.phone)
+      toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -659,13 +657,15 @@ export function AuthModal({
                     <div>
                       <input
                         type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         maxLength={4}
                         required
                         autoFocus
                         value={linkOtp}
-                        onChange={(e) => setLinkOtp(e.target.value)}
-                        placeholder={linkDemoCode}
-                        className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none"
+                        onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="• • • •"
+                        className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                       />
                     </div>
                     <button
@@ -786,13 +786,15 @@ export function AuthModal({
                 <form onSubmit={handleVerifyMobileOtp} className="space-y-3 pt-1">
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={4}
                     required
                     autoFocus
                     value={cOtp}
-                    onChange={(e) => setCOtp(e.target.value)}
-                    placeholder={cDemoCode}
-                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] py-2.5 focus:border-[#9E593B] focus:outline-none"
+                    onChange={(e) => setCOtp(e.target.value.replace(/\D/g, ''))}
+                    placeholder="• • • •"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                   />
                   <SubmitBtn loading={loading} label="Verify & Sign In" />
                   <div className="flex items-center justify-between text-xs pt-0.5">
@@ -882,7 +884,7 @@ export function AuthModal({
                   onClick={() => {
                     onClose()
                     if (typeof window !== 'undefined') {
-                      window.location.href = '/partner/onboarding'
+                      window.location.href = getStudioUrl('/onboarding')
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
@@ -911,7 +913,7 @@ export function AuthModal({
                   onClick={() => {
                     onClose()
                     if (typeof window !== 'undefined') {
-                      window.location.href = '/partner/onboarding'
+                      window.location.href = getStudioUrl('/onboarding')
                     }
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"

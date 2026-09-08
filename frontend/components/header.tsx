@@ -11,11 +11,10 @@ interface HeaderProps {
   go: (s: Screen) => void
   user?: User | null
   onOpenAuth?: () => void
-  onOpenProfile?: () => void
   onSignOut?: () => void
 }
 
-export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onSignOut }: HeaderProps) {
+export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
@@ -124,19 +123,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-          <button
-            onClick={() => {
-              if (!user) {
-                onOpenAuth?.()
-              } else {
-                nav('orders')
-              }
-            }}
-            className="flex items-center gap-1.5 rounded-full px-3 lg:px-4 py-2 text-[13px] font-medium text-[#1E2229] hover:bg-[#F3EFEA] transition-colors whitespace-nowrap shrink-0"
-          >
-            <Package size={14} className="text-[#6B7280] shrink-0" />
-            <span>Track Order</span>
-          </button>
 
           {user ? (
             <div
@@ -274,7 +260,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
         <div className="flex md:hidden items-center gap-2">
           {user && (
             <button
-              onClick={() => onOpenProfile?.()}
+              onClick={() => nav('profile')}
               className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden"
               aria-label="Profile"
             >
@@ -333,7 +319,6 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
             <>
               {[
                 { label: 'How it Works', screen: 'how-it-works' as Screen },
-                { label: 'Track My Orders', screen: 'orders' as Screen },
                 { label: 'About Us', screen: 'about' as Screen },
                 { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
               ].map((item) => (
@@ -358,7 +343,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onOpenProfile, onS
                 <button
                   onClick={() => {
                     setOpen(false)
-                    onOpenProfile?.()
+                    nav('profile')
                   }}
                   className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
                 >

@@ -242,8 +242,9 @@ export function AuthModal({
 
   const handleStudioMobileSend = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (sPhoneLogin.trim().length < 6) {
-      const msg = 'Please enter a valid phone number.'
+    const cleanedDigits = sPhoneLogin.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -254,9 +255,9 @@ export function AuthModal({
       const res = await sendOtp(sPhoneLogin.trim())
       setLoading(false)
       setSOtpSent(true)
-      const code = res.demoCode || '4829'
-      setNotice(`Verification code sent! Test code: ${code}`)
-      toast.info(`Verification code sent to ${sPhoneLogin.trim()} (Demo code: ${code})`, { position: 'top-center' })
+      if (res.phone) setSPhoneLogin(res.phone)
+      setNotice(`Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
+      toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -298,8 +299,9 @@ export function AuthModal({
 
   const handleSendLinkOtp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (linkPhoneVal.trim().length < 6) {
-      const msg = 'Please enter a valid phone number.'
+    const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
+    if (cleanedDigits.length < 10) {
+      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -310,9 +312,9 @@ export function AuthModal({
       const res = await sendOtp(linkPhoneVal.trim())
       setLoading(false)
       setLinkOtpSent(true)
-      const code = res.demoCode || '4829'
-      setNotice(`Verification code sent! Test code: ${code}`)
-      toast.info(`Verification code sent to ${linkPhoneVal.trim()} (Demo code: ${code})`, { position: 'top-center' })
+      if (res.phone) setLinkPhoneVal(res.phone)
+      setNotice(`Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`)
+      toast.success(res.message || `Verification code sent via SMS to ${res.phone || linkPhoneVal.trim()}`, { position: 'top-center' })
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
@@ -457,7 +459,7 @@ export function AuthModal({
               Studio Portal
             </span>
             <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
-              Workbench Node · Port 3001
+              Workbench Node
             </span>
           </div>
         </div>
@@ -482,15 +484,9 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => {
-                setError('')
-                setNotice('')
-                setMode('studio-signup-options')
+                window.location.href = '/onboarding'
               }}
-              className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                mode === 'studio-signup-options'
-                  ? 'bg-white text-[#0F1115] shadow-xs'
-                  : 'text-[#6B7280] hover:text-[#0F1115]'
-              }`}
+              className="px-3 py-1 rounded-full font-bold transition-all cursor-pointer text-[#6B7280] hover:text-[#0F1115]"
             >
               Register
             </button>
@@ -559,13 +555,15 @@ export function AuthModal({
                 <p className="text-xs text-[#6B7280]">Enter code sent to <strong>{linkPhoneVal}</strong></p>
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={4}
                   required
                   autoFocus
                   value={linkOtp}
-                  onChange={(e) => setLinkOtp(e.target.value)}
-                  placeholder="4829"
-                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                  onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="• • • •"
+                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                 />
                 <SubmitBtn loading={loading} label="Verify & Link Phone" />
               </form>
@@ -587,15 +585,12 @@ export function AuthModal({
               <button
                 type="button"
                 onClick={() => {
-                  setError('')
-                  setNotice('')
-                  setMode('studio-register')
-                  setRegisterStep(1)
+                  window.location.href = '/onboarding'
                 }}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all shadow-xs cursor-pointer active:scale-98"
               >
                 <Store size={15} />
-                <span>Register with 3-Step Form</span>
+                <span>Enroll Studio (Onboarding Form)</span>
               </button>
               <AuthButton
                 icon={<Phone size={15} className="text-[#9E593B]" />}
@@ -658,9 +653,7 @@ export function AuthModal({
               <button
                 type="button"
                 onClick={() => {
-                  setError('')
-                  setNotice('')
-                  setMode('studio-signup-options')
+                  window.location.href = '/onboarding'
                 }}
                 className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer ml-1"
               >
@@ -689,13 +682,15 @@ export function AuthModal({
               <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
                 <input
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={4}
                   required
                   autoFocus
                   value={sOtp}
-                  onChange={(e) => setSOtp(e.target.value)}
-                  placeholder="4829"
-                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none"
+                  onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
+                  placeholder="• • • •"
+                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
                 />
                 <SubmitBtn loading={loading} label="Verify & Sign In" />
               </form>

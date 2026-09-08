@@ -186,7 +186,8 @@ export function StudioSubNav({
                 {scrolledPastHero && (
                   <button
                     onClick={() => {
-                      window.location.href = '/partner/onboarding'
+                      const token = isClient ? localStorage.getItem('tg_token') : null
+                      window.location.href = getStudioUrl('/', token)
                     }}
                     className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
                   >

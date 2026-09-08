@@ -1326,7 +1326,7 @@ export function PartnerFlow({
                                     }}
                                     className="font-mono text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg hover:bg-indigo-100 cursor-pointer"
                                   >
-                                    Test Code #{orders[0].otp} →
+                                    Ticket PIN #{orders[0].otp} →
                                   </button>
                                 </div>
                               )}

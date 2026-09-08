@@ -28,10 +28,11 @@ export default function PartnerPage() {
   }
 
   return (
-    <PartnerFlow
-      go={navigate}
-      user={user}
-      onSignOut={handleSignOut}
-    />
+    <div className="min-h-[65vh] flex flex-col items-center justify-center gap-3 bg-[#FAF8F5]">
+      <div className="size-9 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
+      <p className="text-xs font-semibold text-[#7A7E85] tracking-wider uppercase">
+        Connecting to Studio Portal Node…
+      </p>
+    </div>
   )
 }
