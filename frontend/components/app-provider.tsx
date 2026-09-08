@@ -150,7 +150,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const params = new URLSearchParams(window.location.search)
       const authParam = params.get('auth')
-      if (authParam === 'required' || authParam === 'signin') {
+      const unauthParam = params.get('unauthorized')
+
+      if (unauthParam === 'studio_access_denied') {
+        toast.error('Unauthorized access, redirecting to user portal.', {
+          position: 'top-center',
+          autoClose: 3500,
+          toastId: 'studio-access-denied-toast',
+        })
+        window.history.replaceState({}, '', window.location.pathname)
+      } else if (authParam === 'required' || authParam === 'signin') {
         openAuth('CUSTOMER', 'signin')
       }
     }

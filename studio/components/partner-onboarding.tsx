@@ -321,7 +321,7 @@ export function PartnerOnboarding({
     const raw = sPhoneLogin.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 75584 96659).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code. '
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -415,7 +415,7 @@ export function PartnerOnboarding({
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
+      const msg = 'Please enter a valid 10-digit mobile number with country code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -1177,15 +1177,15 @@ export function PartnerOnboarding({
                         </div>
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / 6-Digit PIN *
+                            Postcode / ZIP / PIN *
                           </label>
                           <input
                             type="text"
                             inputMode="numeric"
-                            maxLength={6}
+                            maxLength={10}
                             value={postcode}
-                            onChange={(e) => setPostcode(e.target.value)}
-                            placeholder="Enter your PIN or postcode"
+                            onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                            placeholder="e.g. 10001 (US) or 400001 (IN)"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
@@ -1269,7 +1269,7 @@ export function PartnerOnboarding({
                               }
                             }}
                             disabled={isPhoneVerified}
-                            placeholder="e.g. +91 98765 43210"
+                            placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
                             className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
                               ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
                               : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
@@ -1343,54 +1343,11 @@ export function PartnerOnboarding({
                           toast.warning('Shop Name is required.', { position: 'top-center' })
                           return
                         }
-                        if (shopName.trim().length < 2) {
-                          setError('Shop Name must be at least 2 characters.')
-                          return
-                        }
-                        if (!shopArea.trim()) {
-                          setError('Please enter your Area / Neighborhood.')
-                          toast.warning('Area is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (!postcode.trim()) {
-                          setError('Please enter your Postcode / PIN.')
-                          toast.warning('Postcode is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (!streetAddress.trim()) {
-                          setError('Please enter your Street Address.')
-                          toast.warning('Street Address is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (!tailorName.trim()) {
-                          setError('Please enter the Lead Master Tailor name.')
-                          toast.warning('Lead Tailor name is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (tailorName.trim().length < 2) {
-                          setError('Tailor name must be at least 2 characters.')
-                          return
-                        }
-                        if (!emailVal.trim()) {
-                          setError('Please enter your Partner Contact Email.')
-                          toast.warning('Email is required.', { position: 'top-center' })
-                          return
-                        }
-                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-                        if (!emailRegex.test(emailVal.trim())) {
-                          setError('Please enter a valid email address (e.g. name@domain.com).')
-                          toast.warning('Invalid email format.', { position: 'top-center' })
-                          return
-                        }
-                        if (!phone.trim()) {
-                          setError('Please enter your Direct Mobile Phone number.')
-                          toast.warning('Phone number is required.', { position: 'top-center' })
-                          return
-                        }
-                        const phoneDigits = phone.replace(/\D/g, '')
-                        if (phoneDigits.length < 10) {
-                          setError('Phone number must have at least 10 digits.')
-                          toast.warning('Invalid phone number.', { position: 'top-center' })
+                        const cleanPin = postcode.trim().replace(/\D/g, '')
+                        if (cleanPin.length < 5 || cleanPin.length > 10) {
+                          const msg = 'Please enter a valid postal / ZIP code.'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
                           return
                         }
                         if (!isPhoneVerified) {
