@@ -7,17 +7,7 @@ import {
   Check,
   ChevronRight,
   Edit2,
-  Lock,
-  LogOut,
-  MapPin,
-  Package,
-  Phone,
-  Ruler,
-  Save,
-  Scissors,
-  ShieldCheck,
   User as UserIcon,
-  X,
 } from 'lucide-react'
 import type { FittingBooking, Screen, User as UserType } from './data'
 import { fetchOrders, updateUserProfile } from '@/lib/api'
@@ -42,7 +32,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const [name, setName] = useState(user?.name || '')
   const [address, setAddress] = useState(user?.address || '18 Kensington Church St')
   const [postcode, setPostcode] = useState(user?.postcode || 'W8 4EP')
-  const [phone, setPhone] = useState(user?.phone || '')
 
   // Measurements
   const [fitPreference, setFitPreference] = useState<'Slim' | 'Tailored' | 'Regular' | 'Relaxed'>('Tailored')
@@ -61,7 +50,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       setName(user.name || '')
       setAddress(user.address || '18 Kensington Church St')
       setPostcode(user.postcode || 'W8 4EP')
-      setPhone(user.phone || '')
 
       if (typeof window !== 'undefined') {
         const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
