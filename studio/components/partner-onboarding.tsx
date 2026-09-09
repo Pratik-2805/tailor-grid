@@ -1462,13 +1462,13 @@ export function PartnerOnboarding({
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <div>
                       <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                        Partner Contact Verification
+                        Phone Verification
                       </span>
                       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
-                        Verify Your Mobile Number
+                        Verify Phone Number
                       </h1>
                       <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        Enter your direct contact number. We will send a 4-digit SMS verification code to verify your studio account.
+                        Enter your phone number. We will send a 4-digit SMS verification code to verify your studio account.
                       </p>
                     </div>
 
@@ -1481,7 +1481,7 @@ export function PartnerOnboarding({
                             </div>
                             <div>
                               <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                                Mobile Number Verified
+                                Phone Number Verified
                               </p>
                               <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
                                 {phone || step3VerifiedPhone}
@@ -1517,7 +1517,7 @@ export function PartnerOnboarding({
                       <div className="space-y-4 pt-1">
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                            Direct Mobile Phone Number *
+                            Phone Number *
                           </label>
                           <div className="flex gap-2">
                             <input
@@ -1663,7 +1663,7 @@ export function PartnerOnboarding({
 
                       <div className="py-3 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Verified Partner Mobile</p>
+                          <p className="text-sm font-extrabold text-[#0F1115]">Phone Number</p>
                           <p className="text-xs text-gray-500">{phone || step3VerifiedPhone || 'Verified via SMS'}</p>
                         </div>
                         <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
