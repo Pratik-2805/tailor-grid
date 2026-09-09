@@ -7,7 +7,8 @@ export default function StudioOnboardingPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/')
+    const search = typeof window !== 'undefined' ? window.location.search : ''
+    router.replace(`/${search}`)
   }, [router])
 
   return null

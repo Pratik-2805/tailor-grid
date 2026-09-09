@@ -29,8 +29,9 @@ export default function StudioPage() {
       authParam = params.get('auth') || params.get('action')
       if (token) {
         setAuthToken(token)
-        // Clean URL query params
-        window.history.replaceState({}, '', window.location.pathname)
+        const url = new URL(window.location.href)
+        url.searchParams.delete('token')
+        window.history.replaceState({}, '', url.toString())
       }
     }
 
@@ -42,10 +43,10 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u && u.role === 'STUDIO') {
+        if (u && u.role === 'STUDIO' && u.status === 'ACTIVE' && u.studioName && u.phone) {
           setUser(u)
         } else {
-          setUser(null)
+          setUser(u && u.status === 'INACTIVE' ? u : null)
           if (authParam === 'signin' || authParam === 'login') {
             setAuthType('signin')
           }
@@ -86,12 +87,14 @@ export default function StudioPage() {
     })
   }
 
-  const handleOpenAuth = (type: 'signin' | 'signup' = 'signin') => {
-    if (type === 'signup') {
-      window.location.href = '/onboarding'
-      return
+  const handleOpenAuth = (_type: 'signin' | 'signup' = 'signin') => {
+    clearAllAuth()
+    setUser(null)
+    setAuthType('signin')
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/')
+      window.location.href = '/'
     }
-    setAuthType(type)
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
@@ -124,6 +127,11 @@ export default function StudioPage() {
     clearAllAuth()
     setUser(null)
     setPartnerTab('cockpit')
+    setAuthType('signin')
+    if (typeof window !== 'undefined') {
+      window.location.href = customerSiteUrl || '/'
+      return
+    }
     toast.info('Signed out of Studio Workshop.', {
       position: 'top-center',
       autoClose: 2500,
@@ -172,7 +180,7 @@ export default function StudioPage() {
       />
 
       <main className="flex-1 flex flex-col">
-        {user && user.role === 'STUDIO' && user.studioName && user.phone ? (
+        {user && user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
             go={() => { }}
@@ -186,11 +194,8 @@ export default function StudioPage() {
           />
         ) : (
           /* Direct Studio Login / Onboarding Card */
-          <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-16 relative overflow-hidden">
-            {/* Ambient Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#9E593B]/8 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative z-10 w-full flex flex-col items-center">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-6 relative overflow-hidden">
+            <div className="relative z-10 w-full flex flex-col items-center -mt-8 sm:-mt-14">
               {/* Direct Auth Card */}
               <PartnerOnboarding
                 user={user}
@@ -201,7 +206,7 @@ export default function StudioPage() {
               />
 
               {/* Bottom Customer Site Return Link */}
-              <div className="mt-6 flex items-center gap-4 text-xs font-medium text-[#7A7E85]">
+              <div className="mt-4 flex items-center gap-4 text-xs font-medium text-[#7A7E85]">
                 <a
                   href={customerSiteUrl}
                   className="flex items-center gap-1.5 hover:text-[#0F1115] transition-colors py-1 px-3 rounded-full hover:bg-white/80 border border-transparent hover:border-[#E8E1D5]"
