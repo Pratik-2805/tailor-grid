@@ -205,7 +205,7 @@ export function PartnerFlow({
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('Accepted')
   const [refreshing, setRefreshing] = useState(false)
 
   // Full View Image Lightbox State
