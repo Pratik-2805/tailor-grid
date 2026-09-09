@@ -147,6 +147,36 @@ export function PartnerOnboarding({
   const [closeTime, setCloseTime] = useState(cachedForm?.closeTime || '20:00')
   const [operatingHours, setOperatingHours] = useState(cachedForm?.operatingHours || `${cachedForm?.openTime || '10:00'} - ${cachedForm?.closeTime || '20:00'}`)
 
+  const parseTime12 = (timeStr: string): { time12: string; period: 'AM' | 'PM' } => {
+    if (!timeStr) return { time12: '10:00', period: 'AM' }
+    const trimmed = timeStr.trim().toUpperCase()
+    if (trimmed.includes('AM') || trimmed.includes('PM')) {
+      const period: 'AM' | 'PM' = trimmed.includes('PM') ? 'PM' : 'AM'
+      const timePart = trimmed.replace(/[AP]M/, '').trim()
+      return { time12: timePart || '10:00', period }
+    }
+    const [hStr, mStr] = trimmed.split(':')
+    let h = parseInt(hStr, 10)
+    if (isNaN(h)) h = 10
+    const m = mStr || '00'
+    const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM'
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return {
+      time12: `${String(h12).padStart(2, '0')}:${m.slice(0, 2)}`,
+      period,
+    }
+  }
+
+  const to24Hour = (time12: string, period: 'AM' | 'PM'): string => {
+    const [hStr, mStr] = (time12 || '10:00').split(':')
+    let h = parseInt(hStr, 10)
+    if (isNaN(h)) h = 10
+    const m = (mStr || '00').slice(0, 2)
+    if (period === 'PM' && h < 12) h += 12
+    if (period === 'AM' && h === 12) h = 0
+    return `${String(h).padStart(2, '0')}:${m}`
+  }
+
   // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
   const [shopArea, setShopArea] = useState(cachedForm?.shopArea || '')
@@ -718,7 +748,7 @@ export function PartnerOnboarding({
 
       {/* Main Container */}
       <main className={`w-full flex flex-col items-center justify-center ${hideHeader ? 'p-0' : 'flex-1 px-4 py-8 sm:py-12 my-auto'}`}>
-        <div style={{ perspective: '1400px' }} className="w-full max-w-[480px]">
+        <div style={{ perspective: '1400px' }} className="w-full max-w-[540px]">
           {alreadyRegistered && (
             <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-xs text-left">
               <div className="flex items-start gap-3">
@@ -743,14 +773,6 @@ export function PartnerOnboarding({
             </div>
           )}
 
-          {error && (
-            <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-800 flex items-center gap-2">
-              <span className="font-bold">Error:</span> {error}
-            </div>
-          )}
-
-
-
           {/* ================================================================ */}
           {/* 3D FLIP CONTAINER: FLIPS THE ENTIRE WORKBENCH / OTP CARD        */}
           {/* ================================================================ */}
@@ -768,7 +790,7 @@ export function PartnerOnboarding({
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}
-              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col justify-between min-h-[640px] animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
               {/* Card Header with Step Badge */}
@@ -992,17 +1014,14 @@ export function PartnerOnboarding({
 
               {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
               {currentStep !== 'auth' && (
-                <div className="space-y-6">
+                <div className="flex-1 flex flex-col justify-between pt-4">
                   {/* Step 1: "Earn with Darzi" */}
                   {currentStep === 'location' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
                       <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
                           Earn with Darzi
                         </h1>
-                        <p className="text-sm text-gray-600 mt-1.5">
-                          Decide when, where and how you want to earn.
-                        </p>
                       </div>
 
                       <div className="space-y-4 pt-1">
@@ -1057,24 +1076,54 @@ export function PartnerOnboarding({
                               Operating Hours *
                             </label>
                             <div className="flex items-center gap-1.5">
-                              <div className="relative flex-1">
+                              <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
                                 <input
-                                  type="time"
-                                  value={openTime}
-                                  onChange={(e) => setOpenTime(e.target.value)}
-                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
+                                  type="text"
+                                  value={parseTime12(openTime).time12}
+                                  onChange={(e) => {
+                                    const { period } = parseTime12(openTime)
+                                    setOpenTime(to24Hour(e.target.value, period))
+                                  }}
+                                  className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                  placeholder="10:00"
                                   title="Opening Time"
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const { time12, period } = parseTime12(openTime)
+                                    setOpenTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                  }}
+                                  className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                  title="Click or touch to toggle AM/PM"
+                                >
+                                  {parseTime12(openTime).period}
+                                </button>
                               </div>
                               <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
-                              <div className="relative flex-1">
+                              <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
                                 <input
-                                  type="time"
-                                  value={closeTime}
-                                  onChange={(e) => setCloseTime(e.target.value)}
-                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
+                                  type="text"
+                                  value={parseTime12(closeTime).time12}
+                                  onChange={(e) => {
+                                    const { period } = parseTime12(closeTime)
+                                    setCloseTime(to24Hour(e.target.value, period))
+                                  }}
+                                  className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                  placeholder="08:00"
                                   title="Closing Time"
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const { time12, period } = parseTime12(closeTime)
+                                    setCloseTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                  }}
+                                  className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                  title="Click or touch to toggle AM/PM"
+                                >
+                                  {parseTime12(closeTime).period}
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1144,7 +1193,7 @@ export function PartnerOnboarding({
 
                   {/* Step 2: Shop Location & Address */}
                   {currentStep === 'shop-info' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
                       <div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
                           Studio Location & Address
@@ -1261,7 +1310,7 @@ export function PartnerOnboarding({
 
                   {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
                   {currentStep === 'phone-verify' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
                       {isPhoneVerified ? (
                         <div className="space-y-6">
                           <div>
@@ -1369,7 +1418,7 @@ export function PartnerOnboarding({
 
                   {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
                   {currentStep === 'hub' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
                       <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
                         <span>Signing up for</span>
                         <span className="font-bold text-[#0F1115]">{locationCity || 'Darzi Grid'}</span>
@@ -1468,7 +1517,7 @@ export function PartnerOnboarding({
                 WebkitBackfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)',
               }}
-              className={`absolute inset-0 bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 flex flex-col items-center justify-center ${!isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`absolute inset-0 bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 flex flex-col items-center justify-center min-h-[640px] ${!isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
               {currentStep === 'phone-verify' && (
