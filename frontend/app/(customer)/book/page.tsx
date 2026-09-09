@@ -658,7 +658,7 @@ export default function BookPage() {
         date: formattedDateDisplay,
         timeSlot: activeSchedTime,
         measurements: measurementsData,
-        imageUrl: uploadedImages[0] || null,
+        imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
         status: 'Allocated',
       })
 

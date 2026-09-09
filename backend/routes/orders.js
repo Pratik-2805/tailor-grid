@@ -51,16 +51,20 @@ router.get('/', async (req, res) => {
     const searchContact = (contact || email || phone || '').toLowerCase().trim();
 
     const where = {};
+    const orClauses = [];
     if (searchContact) {
-      where.OR = [
-        { customerEmail: { equals: searchContact, mode: 'insensitive' } },
-        { customerPhone: searchContact },
-      ];
-      if (userId) {
-        where.OR.push({ userId: userId });
-      }
-    } else if (userId) {
-      where.userId = userId;
+      orClauses.push({ customerEmail: { equals: searchContact, mode: 'insensitive' } });
+      orClauses.push({ customerPhone: searchContact });
+      orClauses.push({ userId: searchContact });
+    }
+    if (userId) {
+      orClauses.push({ userId: userId });
+    }
+    if (email) {
+      orClauses.push({ customerEmail: { equals: email.toLowerCase().trim(), mode: 'insensitive' } });
+    }
+    if (orClauses.length > 0) {
+      where.OR = orClauses;
     }
 
     if (storeId) {
@@ -101,9 +105,21 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await prisma.order.findUnique({
+    let order = await prisma.order.findUnique({
       where: { id },
     });
+
+    if (!order) {
+      const cleanDigits = id.replace(/[^0-9]/g, '');
+      const searchConditions = [{ id: { contains: id } }];
+      if (cleanDigits && cleanDigits.length >= 3) {
+        searchConditions.push({ id: { contains: cleanDigits } });
+      }
+      order = await prisma.order.findFirst({
+        where: { OR: searchConditions },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (order) return res.json({ order });
     return res.status(404).json({ error: 'Order not found' });
@@ -193,7 +209,7 @@ router.post('/', async (req, res) => {
         slaHours: 48,
         partnerPayout,
         retailSold: false,
-        intakePhotoUrl: imageUrl || null,
+        intakePhotoUrl: req.body.intakePhotoUrl || imageUrl || null,
         status: status || 'Allocated',
         price: parsedPrice,
         otp,

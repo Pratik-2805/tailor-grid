@@ -225,7 +225,7 @@ export function PartnerOnboarding({
   const [locationCity, setLocationCity] = useState(cachedForm?.locationCity || '')
   const [referralCode, setReferralCode] = useState(cachedForm?.referralCode || '')
 
-  // Step 2: Language & Capacity
+  // Step 2: Language & Equipment
   const [language, setLanguage] = useState(cachedForm?.language || 'English')
   const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
   const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')
@@ -1130,150 +1130,152 @@ export function PartnerOnboarding({
 
               {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
               {currentStep !== 'auth' && (
-                <div className="flex-1 flex flex-col justify-between pt-4">
+                <div className="flex-1 flex flex-col justify-between pt-1">
                   {/* Step 1: "Earn with Darzi" */}
                   {currentStep === 'location' && (
-                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
-                      <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Earn with Darzi
-                        </h1>
-                      </div>
-
-                      <div className="space-y-4 pt-1">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Atelier / Shop Name *
-                          </label>
-                          <input
-                            type="text"
-                            value={shopName}
-                            onChange={(e) => setShopName(e.target.value)}
-                            placeholder="e.g. Savile Row Atelier or Royal Master Tailors"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
+                          <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                            Earn with Darzi
+                          </h1>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Partner Contact Email *
-                          </label>
-                          <input
-                            type="email"
-                            value={emailVal}
-                            onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
-                            disabled={!!pendingGoogle?.email}
-                            placeholder="business@atelier.com"
-                            className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
-                          />
-                          {pendingGoogle?.email && (
-                            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                              <Lock size={10} /> Email linked via Google sign-in
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3.5">
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Lead Master Tailor *
+                              Atelier / Shop Name *
                             </label>
                             <input
                               type="text"
-                              value={tailorName}
-                              onChange={(e) => setTailorName(e.target.value)}
-                              placeholder="Full name"
+                              value={shopName}
+                              onChange={(e) => setShopName(e.target.value)}
+                              placeholder="e.g. Savile Row Atelier or Royal Master Tailors"
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
 
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Operating Hours *
+                              Partner Contact Email *
                             </label>
-                            <div className="flex items-center gap-1.5">
-                              <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
-                                <input
-                                  type="text"
-                                  value={parseTime12(openTime).time12}
-                                  onChange={(e) => {
-                                    const { period } = parseTime12(openTime)
-                                    setOpenTime(to24Hour(e.target.value, period))
-                                  }}
-                                  className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
-                                  placeholder="10:00"
-                                  title="Opening Time"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const { time12, period } = parseTime12(openTime)
-                                    setOpenTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
-                                  }}
-                                  className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
-                                  title="Click or touch to toggle AM/PM"
-                                >
-                                  {parseTime12(openTime).period}
-                                </button>
-                              </div>
-                              <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
-                              <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
-                                <input
-                                  type="text"
-                                  value={parseTime12(closeTime).time12}
-                                  onChange={(e) => {
-                                    const { period } = parseTime12(closeTime)
-                                    setCloseTime(to24Hour(e.target.value, period))
-                                  }}
-                                  className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
-                                  placeholder="08:00"
-                                  title="Closing Time"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const { time12, period } = parseTime12(closeTime)
-                                    setCloseTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
-                                  }}
-                                  className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
-                                  title="Click or touch to toggle AM/PM"
-                                >
-                                  {parseTime12(closeTime).period}
-                                </button>
+                            <input
+                              type="email"
+                              value={emailVal}
+                              onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
+                              disabled={!!pendingGoogle?.email}
+                              placeholder="business@atelier.com"
+                              className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
+                            />
+                            {pendingGoogle?.email && (
+                              <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                <Lock size={10} /> Email linked via Google sign-in
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Lead Master Tailor *
+                              </label>
+                              <input
+                                type="text"
+                                value={tailorName}
+                                onChange={(e) => setTailorName(e.target.value)}
+                                placeholder="Full name"
+                                className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Operating Hours *
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
+                                  <input
+                                    type="text"
+                                    value={parseTime12(openTime).time12}
+                                    onChange={(e) => {
+                                      const { period } = parseTime12(openTime)
+                                      setOpenTime(to24Hour(e.target.value, period))
+                                    }}
+                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                    placeholder="10:00"
+                                    title="Opening Time"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const { time12, period } = parseTime12(openTime)
+                                      setOpenTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                    }}
+                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                    title="Click or touch to toggle AM/PM"
+                                  >
+                                    {parseTime12(openTime).period}
+                                  </button>
+                                </div>
+                                <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
+                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
+                                  <input
+                                    type="text"
+                                    value={parseTime12(closeTime).time12}
+                                    onChange={(e) => {
+                                      const { period } = parseTime12(closeTime)
+                                      setCloseTime(to24Hour(e.target.value, period))
+                                    }}
+                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                    placeholder="08:00"
+                                    title="Closing Time"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const { time12, period } = parseTime12(closeTime)
+                                      setCloseTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                    }}
+                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                    title="Click or touch to toggle AM/PM"
+                                  >
+                                    {parseTime12(closeTime).period}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Sewing Machines *
-                            </label>
-                            <select
-                              value={machines}
-                              onChange={(e) => setMachines(e.target.value)}
-                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                            >
-                              <option value="2-3">2–3 machines</option>
-                              <option value="4-6">4–6 machines</option>
-                              <option value="8+">8+ machines</option>
-                            </select>
-                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Sewing Machines *
+                              </label>
+                              <select
+                                value={machines}
+                                onChange={(e) => setMachines(e.target.value)}
+                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                              >
+                                <option value="2-3">2–3 machines</option>
+                                <option value="4-6">4–6 machines</option>
+                                <option value="8+">8+ machines</option>
+                              </select>
+                            </div>
 
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Daily Order Limit *
-                            </label>
-                            <select
-                              value={dailyCapacity}
-                              onChange={(e) => setDailyCapacity(e.target.value)}
-                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                            >
-                              <option value="15">15 orders / day</option>
-                              <option value="25">25 orders / day</option>
-                              <option value="50">50 orders / day</option>
-                            </select>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Daily Order Limit *
+                              </label>
+                              <select
+                                value={dailyCapacity}
+                                onChange={(e) => setDailyCapacity(e.target.value)}
+                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                              >
+                                <option value="15">15 orders / day</option>
+                                <option value="25">25 orders / day</option>
+                                <option value="50">50 orders / day</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1299,7 +1301,7 @@ export function PartnerOnboarding({
                           setError('')
                           setCurrentStep('shop-info')
                         }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
                       >
                         <span>Continue to Workshop Address</span>
                         <ArrowRight size={16} />
@@ -1309,31 +1311,31 @@ export function PartnerOnboarding({
 
                   {/* Step 2: Shop Location & Address */}
                   {currentStep === 'shop-info' && (
-                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
-                      <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Studio Location & Address
-                        </h1>
-                        <p className="text-xs text-gray-500 mt-1.5">
-                          Enter your atelier address so clients can find your workshop and drop off garments.
-                        </p>
-                      </div>
-
-                      <div className="space-y-4 pt-1">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Street Address *
-                          </label>
-                          <input
-                            type="text"
-                            value={streetAddress}
-                            onChange={(e) => setStreetAddress(e.target.value)}
-                            placeholder="e.g. 14 Savile Row, Suite 2B"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
+                          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                            Studio Location & Address
+                          </h1>
+                          <p className="text-xs text-gray-500 mt-1.5">
+                            Enter your atelier address so clients can find your workshop and drop off garments.
+                          </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Street Address *
+                            </label>
+                            <input
+                              type="text"
+                              value={streetAddress}
+                              onChange={(e) => setStreetAddress(e.target.value)}
+                              placeholder="e.g. 14 Savile Row, Suite 2B"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                               Area / Neighborhood *
@@ -1346,6 +1348,7 @@ export function PartnerOnboarding({
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
+
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                               Postcode / ZIP / PIN *
@@ -1359,31 +1362,31 @@ export function PartnerOnboarding({
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
-                        </div>
 
-                        {/* Choose Exact Location Trigger */}
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Map Pin (Compulsory) *
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setIsMapModalOpen(true)}
-                            className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3.5 text-left transition-all cursor-pointer group"
-                          >
-                            <AnimatedLocationPin
-                              size={22}
-                              isConfirmed={Boolean(studioLat && studioLng)}
-                            />
-                            <span className="text-sm font-medium text-[#0F1115] truncate flex-1">
-                              {studioLat && studioLng
-                                ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
-                                : 'Choose Exact Location on Map'}
-                            </span>
-                            {studioLat && studioLng && (
-                              <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
-                            )}
-                          </button>
+                          {/* Choose Exact Location Trigger */}
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Map Pin (Compulsory) *
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setIsMapModalOpen(true)}
+                              className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3.5 text-left transition-all cursor-pointer group"
+                            >
+                              <AnimatedLocationPin
+                                size={22}
+                                isConfirmed={Boolean(studioLat && studioLng)}
+                              />
+                              <span className="text-sm font-medium text-[#0F1115] truncate flex-1">
+                                {studioLat && studioLng
+                                  ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
+                                  : 'Choose Exact Location on Map'}
+                              </span>
+                              {studioLat && studioLng && (
+                                <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -1416,7 +1419,7 @@ export function PartnerOnboarding({
                           setError('')
                           setCurrentStep('phone-verify')
                         }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
                       >
                         <span>Save & Continue to Phone Verification</span>
                         <ArrowRight size={16} />
@@ -1426,43 +1429,45 @@ export function PartnerOnboarding({
 
                   {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
                   {currentStep === 'phone-verify' && (
-                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
                       {isPhoneVerified ? (
-                        <div className="space-y-6">
-                          <div>
-                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                              Mobile Verified
-                            </h1>
-                            <p className="text-sm text-gray-600 mt-1.5">
-                              Your atelier phone number has been successfully verified.
-                            </p>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
-                                <CheckCircle2 size={20} />
-                              </div>
-                              <div>
-                                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                                  Verified Phone
-                                </p>
-                                <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
-                                  {phone || step3VerifiedPhone}
-                                </p>
-                              </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex-1 flex flex-col justify-center space-y-6 my-auto">
+                            <div className="bg-white pt-1">
+                              <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                                Mobile Verified
+                              </h1>
+                              <p className="text-sm text-gray-600 mt-1.5">
+                                Your atelier phone number has been successfully verified.
+                              </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsPhoneVerified(false)
-                                setStep3OtpSent(false)
-                                setStep3Otp('')
-                              }}
-                              className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
-                            >
-                              Change
-                            </button>
+
+                            <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+                                  <CheckCircle2 size={20} />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                                    Verified Phone
+                                  </p>
+                                  <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
+                                    {phone || step3VerifiedPhone}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsPhoneVerified(false)
+                                  setStep3OtpSent(false)
+                                  setStep3Otp('')
+                                }}
+                                className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
+                              >
+                                Change
+                              </button>
+                            </div>
                           </div>
 
                           <button
@@ -1471,58 +1476,60 @@ export function PartnerOnboarding({
                               setError('')
                               setCurrentStep('hub')
                             }}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-4"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-6"
                           >
                             <span>Continue to Workbench Review</span>
                             <ArrowRight size={16} />
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-6">
-                          <div>
-                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                              Verify your phone
-                            </h1>
-                            <p className="text-sm text-gray-600 mt-1.5">
-                              We&apos;ll send a 4-digit verification code to confirm your direct number.
-                            </p>
-                          </div>
-
-                          <div className="space-y-4 pt-1">
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex-1 flex flex-col justify-center space-y-6 my-auto">
                             <div>
-                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                                Phone Number *
-                              </label>
-                              <div className="relative flex items-center">
-                                <div className="absolute left-4 flex items-center pointer-events-none text-gray-400">
-                                  <Phone size={16} className="text-[#9E593B]" />
+                              <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                                Verify your phone
+                              </h1>
+                              <p className="text-sm text-gray-600 mt-1.5">
+                                We&apos;ll send a 4-digit verification code to confirm your direct number.
+                              </p>
+                            </div>
+
+                            <div className="space-y-4 pt-1">
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                  Phone Number *
+                                </label>
+                                <div className="relative flex items-center">
+                                  <div className="absolute left-4 flex items-center pointer-events-none text-gray-400">
+                                    <Phone size={16} className="text-[#9E593B]" />
+                                  </div>
+                                  <input
+                                    type="tel"
+                                    inputMode="tel"
+                                    autoFocus={!step3OtpSent}
+                                    value={phone}
+                                    onChange={(e) => {
+                                      const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                                      setPhone(cleaned)
+                                    }}
+                                    placeholder="e.g. +91 98765 43210 or +44 7700 900000"
+                                    className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                                  />
                                 </div>
-                                <input
-                                  type="tel"
-                                  inputMode="tel"
-                                  autoFocus={!step3OtpSent}
-                                  value={phone}
-                                  onChange={(e) => {
-                                    const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
-                                    setPhone(cleaned)
-                                  }}
-                                  placeholder="e.g. +91 98765 43210 or +44 7700 900000"
-                                  className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                                />
                               </div>
                             </div>
-                          </div>
 
-                          <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
-                            <Lock size={12} className="text-[#9E593B] shrink-0" />
-                            <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
-                          </p>
+                            <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
+                              <Lock size={12} className="text-[#9E593B] shrink-0" />
+                              <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
+                            </p>
+                          </div>
 
                           <button
                             type="button"
                             disabled={step3OtpLoading || !phone.trim()}
                             onClick={() => handleStep3SendOtp(false)}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
                           >
                             <span>{step3OtpLoading ? 'Sending Verification Code…' : 'Send Verification Code'}</span>
                             <ArrowRight size={16} />

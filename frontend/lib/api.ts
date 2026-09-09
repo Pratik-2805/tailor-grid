@@ -342,9 +342,12 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-export async function fetchOrders(query?: string): Promise<FittingBooking[]> {
+export async function fetchOrders(query?: string, userId?: string): Promise<FittingBooking[]> {
   try {
-    const url = query ? `${API_BASE}/orders?contact=${encodeURIComponent(query)}` : `${API_BASE}/orders`
+    const params = new URLSearchParams()
+    if (query) params.append('contact', query)
+    if (userId) params.append('userId', userId)
+    const url = params.toString() ? `${API_BASE}/orders?${params.toString()}` : `${API_BASE}/orders`
     const res = await fetch(url)
     if (!res.ok) return []
     const data = await res.json()

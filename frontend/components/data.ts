@@ -493,3 +493,73 @@ export function formatClock(totalSeconds: number) {
   const sec = s % 60
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
+
+export const GARMENT_FALLBACK_IMAGES = {
+  trousers: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=600&auto=format&fit=crop&q=80',
+  dresses: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&auto=format&fit=crop&q=80',
+  suits: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&auto=format&fit=crop&q=80',
+  denim: 'https://images.unsplash.com/photo-1542272604-780c36856d67?w=600&auto=format&fit=crop&q=80',
+  shirts: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80',
+  coats: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=600&auto=format&fit=crop&q=80',
+  skirts: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=600&auto=format&fit=crop&q=80',
+}
+
+export function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
+  const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
+  if (photo && typeof photo === 'string') {
+    if (photo.startsWith('http') || photo.startsWith('data:')) return photo
+    if (photo.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(photo)
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+          if (parsed[0].startsWith('http') || parsed[0].startsWith('data:')) {
+            return parsed[0]
+          }
+        }
+      } catch {}
+    }
+  }
+  const gid = order?.garmentId?.toLowerCase() || ''
+  const gname = order?.garmentName?.toLowerCase() || ''
+  if (gid.includes('skirt') || gname.includes('skirt')) return GARMENT_FALLBACK_IMAGES.skirts
+  if (gid.includes('dress') || gname.includes('dress') || gname.includes('gown')) return GARMENT_FALLBACK_IMAGES.dresses
+  if (gid.includes('denim') || gname.includes('denim') || gname.includes('jean')) return GARMENT_FALLBACK_IMAGES.denim
+  if (gid.includes('suit') || gname.includes('suit') || gname.includes('blazer') || gname.includes('jacket'))
+    return GARMENT_FALLBACK_IMAGES.suits
+  if (gid.includes('shirt') || gname.includes('shirt')) return GARMENT_FALLBACK_IMAGES.shirts
+  if (gid.includes('coat') || gname.includes('coat')) return GARMENT_FALLBACK_IMAGES.coats
+  return GARMENT_FALLBACK_IMAGES.trousers
+}
+
+export function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
+  if (!order) return [GARMENT_FALLBACK_IMAGES.trousers]
+  const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
+  const fallback = getGarmentPhoto(order)
+  if (!raw) return [fallback]
+
+  if (Array.isArray(raw)) {
+    const list = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+    return list.length > 0 ? list : [fallback]
+  }
+
+  if (typeof raw === 'string') {
+    if (raw.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          const list = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+          if (list.length > 0) return list
+        }
+      } catch {}
+    }
+    if (raw.includes('||')) {
+      const list = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+      if (list.length > 0) return list
+    }
+    if (raw.startsWith('http') || raw.startsWith('data:')) {
+      return [raw]
+    }
+  }
+
+  return [fallback]
+}
