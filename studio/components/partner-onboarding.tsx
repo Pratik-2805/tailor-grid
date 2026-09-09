@@ -559,13 +559,13 @@ export function PartnerOnboarding({
   }
 
   // Step 3: Verify Twilio OTP for Direct Mobile Phone
-  const handleStep3VerifyOtp = async () => {
+  const handleStep3VerifyOtp = async (): Promise<boolean> => {
     const cleanOtp = step3Otp.trim()
     if (!cleanOtp || cleanOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
-      return
+      return false
     }
     setStep3OtpLoading(true)
     setError('')
@@ -584,11 +584,13 @@ export function PartnerOnboarding({
       setStep3OtpSent(false)
       setStep3Otp('')
       toast.success('Mobile number verified successfully!', { position: 'top-center' })
+      return true
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Invalid verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+      return false
     }
   }
 
@@ -1591,8 +1593,10 @@ export function PartnerOnboarding({
                   value={step3Otp}
                   onChange={setStep3Otp}
                   onVerify={async () => {
-                    await handleStep3VerifyOtp()
-                    setCurrentStep('hub')
+                    const verified = await handleStep3VerifyOtp()
+                    if (verified) {
+                      setCurrentStep('hub')
+                    }
                   }}
                   onResend={() => handleStep3SendOtp(true)}
                   resendCountdown={step3Countdown}

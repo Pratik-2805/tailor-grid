@@ -381,12 +381,16 @@ router.post('/send-otp', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
   try {
     const { phone, otp, name, email, role = 'CUSTOMER', userId } = req.body;
+    console.log(`[AUTH-VERIFY] Request received: phone="${phone}", otp="${otp}", role="${role}", userId="${userId || ''}"`);
+
     if (!phone || !otp) {
+      console.warn(`[AUTH-VERIFY] Rejected: Missing phone or otp (phone="${phone}", otp="${otp}")`);
       return res.status(400).json({ error: 'Mobile number and verification code are required.' });
     }
 
     const phoneValidation = validateAndFormatPhone(phone);
     if (!phoneValidation.isValid) {
+      console.warn(`[AUTH-VERIFY] Rejected: Invalid phone format: ${phoneValidation.error}`);
       return res.status(400).json({ error: phoneValidation.error });
     }
 
@@ -396,10 +400,13 @@ router.post('/verify-otp', async (req, res) => {
     const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
 
     if (!isValidOtp) {
+      console.warn(`[AUTH-VERIFY] Verification failed: Code "${cleanOtp}" invalid or expired for ${cleanPhone}`);
       return res
         .status(400)
         .json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
     }
+
+    console.log(`[AUTH-VERIFY] Code "${cleanOtp}" verified successfully for ${cleanPhone}!`);
 
     let user;
     if (userId) {
