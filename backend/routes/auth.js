@@ -24,6 +24,7 @@ function generateToken(user) {
       phone: user.phone || null,
       name: user.name,
       role: user.role || 'CUSTOMER',
+      status: user.status || 'ACTIVE',
       studioId: user.studioId || null,
     },
     JWT_SECRET,
@@ -41,6 +42,7 @@ async function findOrLinkUser({
   postcode,
   method = 'email',
   role = 'CUSTOMER',
+  status,
   studioId,
   studioName,
   storeArea,
@@ -162,6 +164,8 @@ async function findOrLinkUser({
   }
 
   // 4. Update existing user or create new user
+  const resolvedRole = role || user?.role || 'CUSTOMER';
+
   if (user) {
     let updatedPhone = user.phone;
     if (normPhone) {
@@ -173,10 +177,23 @@ async function findOrLinkUser({
       }
     }
 
+    const isStudioComplete = Boolean(
+      (studioName || resolvedStore?.name || user.studioName) &&
+      (normPhone || updatedPhone || user.phone)
+    );
+    let resolvedStatus = status;
+    if (!resolvedStatus) {
+      if (resolvedRole === 'STUDIO') {
+        resolvedStatus = isStudioComplete ? 'ACTIVE' : (user.status || 'INACTIVE');
+      } else {
+        resolvedStatus = user.status || 'ACTIVE';
+      }
+    }
+
     const updatedFields = {
       email: normEmail || user.email,
       role: user.role || role,
-      email: user.email || normEmail,
+      status: resolvedStatus,
       phone: updatedPhone,
       name:
         name && name !== 'Master Tailor' && name !== 'Google User' && name !== 'Darzi Member' && name !== 'Mobile Member'
@@ -219,7 +236,7 @@ async function findOrLinkUser({
         if (!phoneTaken.role) {
           return await prisma.user.update({
             where: { id: phoneTaken.id },
-            data: { role },
+            data: { role, status: status || (role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE') },
           });
         }
         return phoneTaken;
@@ -238,12 +255,17 @@ async function findOrLinkUser({
         if (!emailTaken.role) {
           return await prisma.user.update({
             where: { id: emailTaken.id },
-            data: { role },
+            data: { role, status: status || (role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE') },
           });
         }
         return emailTaken;
       }
     }
+
+    const isStudioComplete = Boolean(
+      (studioName || resolvedStore?.name) && normPhone
+    );
+    const resolvedStatus = status || (resolvedRole === 'STUDIO' ? (isStudioComplete ? 'ACTIVE' : 'INACTIVE') : 'ACTIVE');
 
     const newUserData = {
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
@@ -261,7 +283,8 @@ async function findOrLinkUser({
       method:
         method ||
         (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
-      role,
+      role: resolvedRole,
+      status: resolvedStatus,
       studioId: actualStudioId || null,
       studioName: studioName || resolvedStore?.name || null,
     };
@@ -358,12 +381,16 @@ router.post('/send-otp', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
   try {
     const { phone, otp, name, email, role = 'CUSTOMER', userId } = req.body;
+    console.log(`[AUTH-VERIFY] Request received: phone="${phone}", otp="${otp}", role="${role}", userId="${userId || ''}"`);
+
     if (!phone || !otp) {
+      console.warn(`[AUTH-VERIFY] Rejected: Missing phone or otp (phone="${phone}", otp="${otp}")`);
       return res.status(400).json({ error: 'Mobile number and verification code are required.' });
     }
 
     const phoneValidation = validateAndFormatPhone(phone);
     if (!phoneValidation.isValid) {
+      console.warn(`[AUTH-VERIFY] Rejected: Invalid phone format: ${phoneValidation.error}`);
       return res.status(400).json({ error: phoneValidation.error });
     }
 
@@ -373,10 +400,13 @@ router.post('/verify-otp', async (req, res) => {
     const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
 
     if (!isValidOtp) {
+      console.warn(`[AUTH-VERIFY] Verification failed: Code "${cleanOtp}" invalid or expired for ${cleanPhone}`);
       return res
         .status(400)
         .json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
     }
+
+    console.log(`[AUTH-VERIFY] Code "${cleanOtp}" verified successfully for ${cleanPhone}!`);
 
     let user;
     if (userId) {
@@ -415,9 +445,18 @@ router.post('/verify-otp', async (req, res) => {
             error: 'This mobile number is registered as a Customer. Please use a different number for Studio.',
           });
         }
-        if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
+        if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
           return res.status(403).json({
-            error: 'This mobile number is registered as a Studio partner. Please sign in via the Studio portal.',
+            error: 'Unauthorized user, access denied.',
+          });
+        }
+        if (role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName)) {
+          return res.json({
+            success: true,
+            isNewUser: true,
+            phone: cleanPhone,
+            user: existingUser,
+            message: 'Mobile number verified. Please complete your studio registration.',
           });
         }
         user = existingUser;
@@ -715,13 +754,18 @@ router.post('/google', async (req, res) => {
           error: 'Unauthorized user, access denied.',
         });
       }
-      if (role === 'CUSTOMER' && existingUser.role === 'STUDIO') {
+      if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
         return res.status(403).json({
           error: 'Unauthorized user, access denied.',
         });
       }
 
-      const isRegisteredStudio = Boolean(existingUser.role === 'STUDIO' && existingUser.studioName && existingUser.phone);
+      const isRegisteredStudio = Boolean(
+        existingUser.role === 'STUDIO' &&
+        existingUser.status === 'ACTIVE' &&
+        existingUser.studioName &&
+        existingUser.phone
+      );
       const isNewUser = role === 'STUDIO' ? !isRegisteredStudio : false;
 
       const token = generateToken(existingUser);
@@ -742,6 +786,7 @@ router.post('/google', async (req, res) => {
       name: name || 'Google User',
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
+      status: role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE',
     });
 
     const token = generateToken(newUser);
@@ -871,6 +916,7 @@ router.post('/signup', async (req, res) => {
       address,
       postcode,
       role: role || cachedGoogleData?.role || 'CUSTOMER',
+      status: 'ACTIVE',
       studioName: storeName,
       storeArea,
       machines,
@@ -950,7 +996,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    if (role === 'CUSTOMER' && user.role === 'STUDIO') {
+    if (role === 'CUSTOMER' && (user.role === 'STUDIO' || user.status === 'INACTIVE')) {
       return res.status(403).json({
         error: 'Unauthorized user, access denied.',
       });
@@ -1141,6 +1187,14 @@ router.get('/me', async (req, res) => {
       user = await prisma.user.update({
         where: { id: user.id },
         data: { role: 'CUSTOMER' },
+      });
+    }
+
+    if (!user.status) {
+      const defaultStatus = (user.role === 'STUDIO' && (!user.studioName || !user.phone)) ? 'INACTIVE' : 'ACTIVE';
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { status: defaultStatus },
       });
     }
 

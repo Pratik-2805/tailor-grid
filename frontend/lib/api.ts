@@ -172,10 +172,12 @@ export async function loginWithGoogle(params: {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
     if (data.token) {
-      setAuthToken(data.token)
-      if (data.user && !data.isNewUser) {
-        setAuthUser(data.user)
-        setAuthRole(data.user.role)
+      if (data.user?.status !== 'INACTIVE') {
+        setAuthToken(data.token)
+        if (data.user && !data.isNewUser) {
+          setAuthUser(data.user)
+          setAuthRole(data.user.role)
+        }
       }
     }
     return data
@@ -317,6 +319,10 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
+        // Strict Gate: If user status is INACTIVE or incomplete studio enroll, do NOT log in on customer site
+        if (data.user.status === 'INACTIVE' || (data.user.role === 'STUDIO' && (!data.user.studioName || !data.user.phone))) {
+          return null
+        }
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'CUSTOMER')
         return data.user
@@ -329,7 +335,7 @@ export async function getCurrentUser(): Promise<User | null> {
   } catch (err) {
     // API offline - only fall back to cached user in cookie if network failed completely
     const stored = getAuthUser<User>()
-    if (stored) {
+    if (stored && stored.status !== 'INACTIVE') {
       return stored
     }
     return null

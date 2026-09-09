@@ -22,6 +22,7 @@ export type User = {
   postcode?: string | null
   method: 'google' | 'apple' | 'email' | 'mobile'
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
+  status?: 'ACTIVE' | 'INACTIVE'
   studioId?: string | null
   studioName?: string | null
 }

@@ -24,7 +24,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
@@ -38,6 +38,27 @@ interface PartnerOnboardingProps {
 }
 
 type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'phone-verify' | 'hub'
+
+const stepToUrlNum: Record<Step, string> = {
+  'auth': 'auth',
+  'location': '1',
+  'language': '2',
+  'shop-info': '3',
+  'phone-verify': '4',
+  'hub': '5',
+}
+
+const urlParamToStep = (param: string | null): Step | null => {
+  if (!param) return null
+  const p = param.toLowerCase().trim()
+  if (p === '1' || p === 'location' || p === 'step1' || p === 'step-1') return 'location'
+  if (p === '2' || p === 'language' || p === 'step2' || p === 'step-2') return 'language'
+  if (p === '3' || p === 'shop-info' || p === 'shopinfo' || p === 'step3' || p === 'step-3') return 'shop-info'
+  if (p === '4' || p === 'phone-verify' || p === 'phone' || p === 'step4' || p === 'step-4') return 'phone-verify'
+  if (p === '5' || p === 'hub' || p === 'step5' || p === 'step-5') return 'hub'
+  if (p === 'auth' || p === 'signin' || p === 'signup' || p === 'login') return 'auth'
+  return null
+}
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
@@ -72,14 +93,14 @@ export function PartnerOnboarding({
     if (typeof window !== 'undefined') try { sessionStorage.removeItem(key) } catch { }
   }
 
-  // Check if we have cached pending Google data from session
+  // Check if we have cached pending Google data from session / local storage
   const [pendingGoogle, setPendingGoogle] = useState<{
     tempSignupId?: string
     email?: string
     name?: string
     avatar?: string
   } | null>(() => {
-    const stored = ssGet('tg_pending_google')
+    const stored = ssGet('tg_pending_google') || (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_google') : null)
     return stored ? JSON.parse(stored) : null
   })
 
@@ -111,26 +132,91 @@ export function PartnerOnboarding({
   // Sign In with Email field
   const [sLoginEmail, setSLoginEmail] = useState('')
 
-  // Multi-step Flow State — restore from sessionStorage on refresh
+  // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      return 'auth'
+    }
+    if (typeof window !== 'undefined') {
+      const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
+      if (urlStep) return urlStep
+    }
     const cached = ssGet('tg_onboard_step')
     if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
       return cached as Step
     }
-    return user?.email || pendingGoogle?.email ? 'location' : 'auth'
+    return 'location'
   })
-  // Wrapper that also persists to sessionStorage
-  const setCurrentStep = (step: Step) => {
+
+  // Wrapper that also persists to storage and continuously syncs ?step=1, ?step=2, etc. in URL
+  const setCurrentStep = (step: Step, pushHistory: boolean = false) => {
     setCurrentStepRaw(step)
     ssSet('tg_onboard_step', step)
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_onboard_step', step) } catch { }
+      const url = new URL(window.location.href)
+      if (step === 'auth') {
+        url.searchParams.delete('step')
+      } else {
+        url.searchParams.set('step', stepToUrlNum[step])
+      }
+      if (pushHistory) {
+        window.history.pushState({}, '', url.toString())
+      } else {
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
   }
+
+  // Continuously sync URL query param ?step=1, ?step=2, etc.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      if (currentStep !== 'auth') {
+        setCurrentStepRaw('auth')
+        setSignInMode('options')
+      }
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('step')) {
+        url.searchParams.delete('step')
+        window.history.replaceState({}, '', url.toString())
+      }
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const stepFromUrl = urlParamToStep(params.get('step'))
+
+    if (stepFromUrl) {
+      if (stepFromUrl !== currentStep) {
+        setCurrentStepRaw(stepFromUrl)
+      }
+      ssSet('tg_onboard_step', stepFromUrl)
+    } else if (currentStep !== 'auth') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('step', stepToUrlNum[currentStep])
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const handlePopState = () => {
+      const p = new URLSearchParams(window.location.search)
+      const s = urlParamToStep(p.get('step')) || (hasAuth ? 'location' : 'auth')
+      setCurrentStepRaw(s)
+      ssSet('tg_onboard_step', s)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [user?.email, pendingGoogle?.email, currentStep])
 
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
-  // ──────── Restore cached onboarding form data from sessionStorage ────────
+  // ──────── Restore cached onboarding form data from storage (only for authenticated session) ────────
   const cachedForm = (() => {
-    const raw = ssGet('tg_onboard_form')
+    if (!user?.email && !pendingGoogle?.email) return null
+    const raw = ssGet('tg_onboard_form') || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_form') : null)
     if (!raw) return null
     try { return JSON.parse(raw) } catch { return null }
   })()
@@ -147,6 +233,36 @@ export function PartnerOnboarding({
   const [closeTime, setCloseTime] = useState(cachedForm?.closeTime || '20:00')
   const [operatingHours, setOperatingHours] = useState(cachedForm?.operatingHours || `${cachedForm?.openTime || '10:00'} - ${cachedForm?.closeTime || '20:00'}`)
 
+  const parseTime12 = (timeStr: string): { time12: string; period: 'AM' | 'PM' } => {
+    if (!timeStr) return { time12: '10:00', period: 'AM' }
+    const trimmed = timeStr.trim().toUpperCase()
+    if (trimmed.includes('AM') || trimmed.includes('PM')) {
+      const period: 'AM' | 'PM' = trimmed.includes('PM') ? 'PM' : 'AM'
+      const timePart = trimmed.replace(/[AP]M/, '').trim()
+      return { time12: timePart || '10:00', period }
+    }
+    const [hStr, mStr] = trimmed.split(':')
+    let h = parseInt(hStr, 10)
+    if (isNaN(h)) h = 10
+    const m = mStr || '00'
+    const period: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM'
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return {
+      time12: `${String(h12).padStart(2, '0')}:${m.slice(0, 2)}`,
+      period,
+    }
+  }
+
+  const to24Hour = (time12: string, period: 'AM' | 'PM'): string => {
+    const [hStr, mStr] = (time12 || '10:00').split(':')
+    let h = parseInt(hStr, 10)
+    if (isNaN(h)) h = 10
+    const m = (mStr || '00').slice(0, 2)
+    if (period === 'PM' && h < 12) h += 12
+    if (period === 'AM' && h === 12) h = 0
+    return `${String(h).padStart(2, '0')}:${m}`
+  }
+
   // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
   const [shopArea, setShopArea] = useState(cachedForm?.shopArea || '')
@@ -157,17 +273,17 @@ export function PartnerOnboarding({
   const [studioLat, setStudioLat] = useState<number | null>(cachedForm?.studioLat || null)
   const [studioLng, setStudioLng] = useState<number | null>(cachedForm?.studioLng || null)
   const [emailVal, setEmailVal] = useState(
-    cachedForm?.emailVal || pendingGoogle?.email || ''
+    cachedForm?.emailVal || pendingGoogle?.email || user?.email || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_email') : '') || ''
   )
 
   // Step 4 Direct Mobile Phone Twilio OTP Verification State
   const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
-    const cached = ssGet('tg_phone_verified')
+    const cached = ssGet('tg_phone_verified') || (typeof window !== 'undefined' ? localStorage.getItem('tg_phone_verified') : null)
     if (cached === 'true') return true
     return Boolean(user?.phone)
   })
   const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => {
-    return ssGet('tg_verified_phone') || user?.phone || ''
+    return ssGet('tg_verified_phone') || (typeof window !== 'undefined' ? localStorage.getItem('tg_verified_phone') : null) || user?.phone || ''
   })
   const [step3OtpSent, setStep3OtpSent] = useState(false)
   const [step3Otp, setStep3Otp] = useState('')
@@ -182,15 +298,19 @@ export function PartnerOnboarding({
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
 
   useEffect(() => {
-    if (pendingGoogle?.email && !emailVal) {
-      setEmailVal(pendingGoogle.email)
+    const activeEmail = user?.email || pendingGoogle?.email
+    if (activeEmail && !emailVal) {
+      setEmailVal(activeEmail)
     }
-    if (user?.email && !emailVal) {
-      setEmailVal(user.email)
-    }
-  }, [pendingGoogle, user])
+  }, [pendingGoogle, user, emailVal])
 
-  // ──────── Persist form data to sessionStorage on every change ────────
+  useEffect(() => {
+    if (emailVal && typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_onboard_email', emailVal) } catch { }
+    }
+  }, [emailVal])
+
+  // ──────── Persist form data to storage on every change ────────
   useEffect(() => {
     const formData = {
       locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, operatingHours: `${openTime} - ${closeTime}`,
@@ -203,9 +323,17 @@ export function PartnerOnboarding({
   // Persist phone verification state
   useEffect(() => {
     ssSet('tg_phone_verified', isPhoneVerified ? 'true' : 'false')
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_phone_verified', isPhoneVerified ? 'true' : 'false') } catch { }
+    }
   }, [isPhoneVerified])
   useEffect(() => {
-    if (step3VerifiedPhone) ssSet('tg_verified_phone', step3VerifiedPhone)
+    if (step3VerifiedPhone) {
+      ssSet('tg_verified_phone', step3VerifiedPhone)
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('tg_verified_phone', step3VerifiedPhone) } catch { }
+      }
+    }
   }, [step3VerifiedPhone])
 
   useEffect(() => {
@@ -269,7 +397,7 @@ export function PartnerOnboarding({
             setAuthLoading(false)
 
             // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
-            if (!result.isNewUser && result.user && result.user.studioName && result.user.phone) {
+            if (!result.isNewUser && result.user && result.user.status === 'ACTIVE' && result.user.studioName && result.user.phone) {
               if (result.user.role && result.user.role !== 'STUDIO') {
                 setError('This Google account is registered as a Customer. Please use a Studio partner account.')
                 return
@@ -461,13 +589,13 @@ export function PartnerOnboarding({
   }
 
   // Step 3: Verify Twilio OTP for Direct Mobile Phone
-  const handleStep3VerifyOtp = async () => {
+  const handleStep3VerifyOtp = async (): Promise<boolean> => {
     const cleanOtp = step3Otp.trim()
     if (!cleanOtp || cleanOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
-      return
+      return false
     }
     setStep3OtpLoading(true)
     setError('')
@@ -486,11 +614,13 @@ export function PartnerOnboarding({
       setStep3OtpSent(false)
       setStep3Otp('')
       toast.success('Mobile number verified successfully!', { position: 'top-center' })
+      return true
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Invalid verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+      return false
     }
   }
 
@@ -588,12 +718,22 @@ export function PartnerOnboarding({
         lng: studioLng || undefined,
       })
 
-      // Clear all onboarding session data on successful registration
+      // Clear all onboarding session and local data on successful registration
       ssRemove('tg_pending_google')
       ssRemove('tg_onboard_step')
       ssRemove('tg_onboard_form')
       ssRemove('tg_phone_verified')
       ssRemove('tg_verified_phone')
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('tg_pending_google')
+          localStorage.removeItem('tg_onboard_step')
+          localStorage.removeItem('tg_onboard_form')
+          localStorage.removeItem('tg_onboard_email')
+          localStorage.removeItem('tg_phone_verified')
+          localStorage.removeItem('tg_verified_phone')
+        } catch { }
+      }
 
       const finalUser: User = res?.user || {
         id: user?.id || `usr_${Date.now()}`,
@@ -603,6 +743,7 @@ export function PartnerOnboarding({
         phone: phone.trim(),
         method: 'email',
         role: 'STUDIO',
+        status: 'ACTIVE',
         studioId: 'atelier-soho',
         studioName: shopName.trim(),
         postcode: postcode.trim(),
@@ -610,6 +751,8 @@ export function PartnerOnboarding({
       }
 
       if (typeof window !== 'undefined') {
+        if (res?.token) setAuthToken(res.token)
+        setAuthUser(finalUser)
         setAuthRole('STUDIO')
         window.location.href = '/'
         return
@@ -702,8 +845,11 @@ export function PartnerOnboarding({
                   </a>
                   <button
                     onClick={() => {
+                      clearAllAuth()
                       if (onSignOut) onSignOut()
-                      window.location.href = '/'
+                      if (typeof window !== 'undefined') {
+                        window.location.href = CUSTOMER_SITE_URL || '/'
+                      }
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600 font-medium cursor-pointer"
                   >
@@ -718,9 +864,9 @@ export function PartnerOnboarding({
 
       {/* Main Container */}
       <main className={`w-full flex flex-col items-center justify-center ${hideHeader ? 'p-0' : 'flex-1 px-4 py-8 sm:py-12 my-auto'}`}>
-        <div style={{ perspective: '1400px' }} className="w-full max-w-[480px]">
+        <div style={{ perspective: '1400px' }} className="w-full max-w-[540px]">
           {alreadyRegistered && (
-            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-xs text-left">
+            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-none text-left">
               <div className="flex items-start gap-3">
                 <div className="size-8 rounded-full bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0 font-bold text-sm">
                   ✓
@@ -743,14 +889,6 @@ export function PartnerOnboarding({
             </div>
           )}
 
-          {error && (
-            <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-3.5 text-xs text-red-800 flex items-center gap-2">
-              <span className="font-bold">Error:</span> {error}
-            </div>
-          )}
-
-
-
           {/* ================================================================ */}
           {/* 3D FLIP CONTAINER: FLIPS THE ENTIRE WORKBENCH / OTP CARD        */}
           {/* ================================================================ */}
@@ -768,13 +906,30 @@ export function PartnerOnboarding({
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}
-              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 ${currentStep !== 'auth' ? 'flex flex-col justify-between min-h-[640px]' : 'space-y-6'} animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
-              {/* Card Header with Step Badge */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2.5">
-                  {currentStep !== 'auth' ? (
+              {/* Card Header */}
+              {currentStep === 'auth' ? (
+                <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
+                  <img
+                    src="/bg_logo.png"
+                    alt="Darzi Atelier"
+                    className="h-11 sm:h-12 w-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <span className="size-1.5 rounded-full bg-[#9E593B]" />
+                    <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
+                      Studio Workbench Node
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -793,27 +948,21 @@ export function PartnerOnboarding({
                     >
                       <ArrowLeft size={16} />
                     </button>
-                  ) : (
-                    <div className="size-9 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center text-[#9E593B]">
-                      <Scissors size={18} />
+                    <div>
+                      <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
+                        Studio Portal
+                      </span>
+                      <span className="text-xs font-bold text-[#0F1115] block">
+                        Workbench Node
+                      </span>
                     </div>
-                  )}
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
-                      Studio Portal
-                    </span>
-                    <span className="text-xs font-bold text-[#0F1115] block">
-                      Workbench Node
-                    </span>
                   </div>
-                </div>
 
-                {currentStep !== 'auth' && (
                   <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                     Step {currentStepNum} of 4
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
               {currentStep === 'auth' && (
@@ -992,123 +1141,152 @@ export function PartnerOnboarding({
 
               {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
               {currentStep !== 'auth' && (
-                <div className="space-y-6">
+                <div className="flex-1 flex flex-col justify-between pt-1">
                   {/* Step 1: "Earn with Darzi" */}
                   {currentStep === 'location' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
-                      <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Earn with Darzi
-                        </h1>
-                        <p className="text-sm text-gray-600 mt-1.5">
-                          Decide when, where and how you want to earn.
-                        </p>
-                      </div>
-
-                      <div className="space-y-4 pt-1">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Atelier / Shop Name *
-                          </label>
-                          <input
-                            type="text"
-                            value={shopName}
-                            onChange={(e) => setShopName(e.target.value)}
-                            placeholder="e.g. Savile Row Atelier or Royal Master Tailors"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
+                          <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                            Earn with Darzi
+                          </h1>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Partner Contact Email *
-                          </label>
-                          <input
-                            type="email"
-                            value={emailVal}
-                            onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
-                            disabled={!!pendingGoogle?.email}
-                            placeholder="business@atelier.com"
-                            className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
-                          />
-                          {pendingGoogle?.email && (
-                            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                              <Lock size={10} /> Email linked via Google sign-in
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3.5">
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Lead Master Tailor *
+                              Atelier / Shop Name *
                             </label>
                             <input
                               type="text"
-                              value={tailorName}
-                              onChange={(e) => setTailorName(e.target.value)}
-                              placeholder="Full name"
+                              value={shopName}
+                              onChange={(e) => setShopName(e.target.value)}
+                              placeholder="e.g. Savile Row Atelier or Royal Master Tailors"
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
 
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Operating Hours *
+                              Partner Contact Email *
                             </label>
-                            <div className="flex items-center gap-1.5">
-                              <div className="relative flex-1">
-                                <input
-                                  type="time"
-                                  value={openTime}
-                                  onChange={(e) => setOpenTime(e.target.value)}
-                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
-                                  title="Opening Time"
-                                />
-                              </div>
-                              <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
-                              <div className="relative flex-1">
-                                <input
-                                  type="time"
-                                  value={closeTime}
-                                  onChange={(e) => setCloseTime(e.target.value)}
-                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
-                                  title="Closing Time"
-                                />
+                            <input
+                              type="email"
+                              value={emailVal}
+                              onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
+                              disabled={!!pendingGoogle?.email}
+                              placeholder="business@atelier.com"
+                              className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
+                            />
+                            {pendingGoogle?.email && (
+                              <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                <Lock size={10} /> Email linked via Google sign-in
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Lead Master Tailor *
+                              </label>
+                              <input
+                                type="text"
+                                value={tailorName}
+                                onChange={(e) => setTailorName(e.target.value)}
+                                placeholder="Full name"
+                                className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Operating Hours *
+                              </label>
+                              <div className="flex items-center gap-1.5">
+                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
+                                  <input
+                                    type="text"
+                                    value={parseTime12(openTime).time12}
+                                    onChange={(e) => {
+                                      const { period } = parseTime12(openTime)
+                                      setOpenTime(to24Hour(e.target.value, period))
+                                    }}
+                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                    placeholder="10:00"
+                                    title="Opening Time"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const { time12, period } = parseTime12(openTime)
+                                      setOpenTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                    }}
+                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                    title="Click or touch to toggle AM/PM"
+                                  >
+                                    {parseTime12(openTime).period}
+                                  </button>
+                                </div>
+                                <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
+                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
+                                  <input
+                                    type="text"
+                                    value={parseTime12(closeTime).time12}
+                                    onChange={(e) => {
+                                      const { period } = parseTime12(closeTime)
+                                      setCloseTime(to24Hour(e.target.value, period))
+                                    }}
+                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
+                                    placeholder="08:00"
+                                    title="Closing Time"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const { time12, period } = parseTime12(closeTime)
+                                      setCloseTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
+                                    }}
+                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
+                                    title="Click or touch to toggle AM/PM"
+                                  >
+                                    {parseTime12(closeTime).period}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Sewing Machines *
-                            </label>
-                            <select
-                              value={machines}
-                              onChange={(e) => setMachines(e.target.value)}
-                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                            >
-                              <option value="2-3">2–3 machines</option>
-                              <option value="4-6">4–6 machines</option>
-                              <option value="8+">8+ machines</option>
-                            </select>
-                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Sewing Machines *
+                              </label>
+                              <select
+                                value={machines}
+                                onChange={(e) => setMachines(e.target.value)}
+                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                              >
+                                <option value="2-3">2–3 machines</option>
+                                <option value="4-6">4–6 machines</option>
+                                <option value="8+">8+ machines</option>
+                              </select>
+                            </div>
 
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Daily Order Limit *
-                            </label>
-                            <select
-                              value={dailyCapacity}
-                              onChange={(e) => setDailyCapacity(e.target.value)}
-                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                            >
-                              <option value="15">15 orders / day</option>
-                              <option value="25">25 orders / day</option>
-                              <option value="50">50 orders / day</option>
-                            </select>
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Daily Order Limit *
+                              </label>
+                              <select
+                                value={dailyCapacity}
+                                onChange={(e) => setDailyCapacity(e.target.value)}
+                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                              >
+                                <option value="15">15 orders / day</option>
+                                <option value="25">25 orders / day</option>
+                                <option value="50">50 orders / day</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1134,7 +1312,7 @@ export function PartnerOnboarding({
                           setError('')
                           setCurrentStep('shop-info')
                         }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
                       >
                         <span>Continue to Workshop Address</span>
                         <ArrowRight size={16} />
@@ -1144,31 +1322,31 @@ export function PartnerOnboarding({
 
                   {/* Step 2: Shop Location & Address */}
                   {currentStep === 'shop-info' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
-                      <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Studio Location & Address
-                        </h1>
-                        <p className="text-xs text-gray-500 mt-1.5">
-                          Enter your atelier address so clients can find your workshop and drop off garments.
-                        </p>
-                      </div>
-
-                      <div className="space-y-4 pt-1">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Street Address *
-                          </label>
-                          <input
-                            type="text"
-                            value={streetAddress}
-                            onChange={(e) => setStreetAddress(e.target.value)}
-                            placeholder="e.g. 14 Savile Row, Suite 2B"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
+                          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                            Studio Location & Address
+                          </h1>
+                          <p className="text-xs text-gray-500 mt-1.5">
+                            Enter your atelier address so clients can find your workshop and drop off garments.
+                          </p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-3.5">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Street Address *
+                            </label>
+                            <input
+                              type="text"
+                              value={streetAddress}
+                              onChange={(e) => setStreetAddress(e.target.value)}
+                              placeholder="e.g. 14 Savile Row, Suite 2B"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                               Area / Neighborhood *
@@ -1181,6 +1359,7 @@ export function PartnerOnboarding({
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
+
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                               Postcode / ZIP / PIN *
@@ -1194,31 +1373,31 @@ export function PartnerOnboarding({
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
                           </div>
-                        </div>
 
-                        {/* Choose Exact Location Trigger */}
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Map Pin (Compulsory) *
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setIsMapModalOpen(true)}
-                            className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3.5 text-left transition-all cursor-pointer group"
-                          >
-                            <AnimatedLocationPin
-                              size={22}
-                              isConfirmed={Boolean(studioLat && studioLng)}
-                            />
-                            <span className="text-sm font-medium text-[#0F1115] truncate flex-1">
-                              {studioLat && studioLng
-                                ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
-                                : 'Choose Exact Location on Map'}
-                            </span>
-                            {studioLat && studioLng && (
-                              <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
-                            )}
-                          </button>
+                          {/* Choose Exact Location Trigger */}
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Map Pin (Compulsory) *
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => setIsMapModalOpen(true)}
+                              className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3.5 text-left transition-all cursor-pointer group"
+                            >
+                              <AnimatedLocationPin
+                                size={22}
+                                isConfirmed={Boolean(studioLat && studioLng)}
+                              />
+                              <span className="text-sm font-medium text-[#0F1115] truncate flex-1">
+                                {studioLat && studioLng
+                                  ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
+                                  : 'Choose Exact Location on Map'}
+                              </span>
+                              {studioLat && studioLng && (
+                                <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -1251,7 +1430,7 @@ export function PartnerOnboarding({
                           setError('')
                           setCurrentStep('phone-verify')
                         }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
                       >
                         <span>Save & Continue to Phone Verification</span>
                         <ArrowRight size={16} />
@@ -1261,43 +1440,45 @@ export function PartnerOnboarding({
 
                   {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
                   {currentStep === 'phone-verify' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
                       {isPhoneVerified ? (
-                        <div className="space-y-6">
-                          <div>
-                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                              Mobile Verified
-                            </h1>
-                            <p className="text-sm text-gray-600 mt-1.5">
-                              Your atelier phone number has been successfully verified.
-                            </p>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
-                                <CheckCircle2 size={20} />
-                              </div>
-                              <div>
-                                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                                  Verified Phone
-                                </p>
-                                <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
-                                  {phone || step3VerifiedPhone}
-                                </p>
-                              </div>
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex-1 flex flex-col justify-center space-y-6 my-auto">
+                            <div className="bg-white pt-1">
+                              <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                                Mobile Verified
+                              </h1>
+                              <p className="text-sm text-gray-600 mt-1.5">
+                                Your atelier phone number has been successfully verified.
+                              </p>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsPhoneVerified(false)
-                                setStep3OtpSent(false)
-                                setStep3Otp('')
-                              }}
-                              className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
-                            >
-                              Change
-                            </button>
+
+                            <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+                                  <CheckCircle2 size={20} />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                                    Verified Phone
+                                  </p>
+                                  <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
+                                    {phone || step3VerifiedPhone}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsPhoneVerified(false)
+                                  setStep3OtpSent(false)
+                                  setStep3Otp('')
+                                }}
+                                className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
+                              >
+                                Change
+                              </button>
+                            </div>
                           </div>
 
                           <button
@@ -1306,58 +1487,60 @@ export function PartnerOnboarding({
                               setError('')
                               setCurrentStep('hub')
                             }}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-4"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-6"
                           >
                             <span>Continue to Workbench Review</span>
                             <ArrowRight size={16} />
                           </button>
                         </div>
                       ) : (
-                        <div className="space-y-6">
-                          <div>
-                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                              Verify your phone
-                            </h1>
-                            <p className="text-sm text-gray-600 mt-1.5">
-                              We&apos;ll send a 4-digit verification code to confirm your direct number.
-                            </p>
-                          </div>
-
-                          <div className="space-y-4 pt-1">
+                        <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex-1 flex flex-col justify-center space-y-6 my-auto">
                             <div>
-                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                                Phone Number *
-                              </label>
-                              <div className="relative flex items-center">
-                                <div className="absolute left-4 flex items-center pointer-events-none text-gray-400">
-                                  <Phone size={16} className="text-[#9E593B]" />
+                              <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                                Verify your phone
+                              </h1>
+                              <p className="text-sm text-gray-600 mt-1.5">
+                                We&apos;ll send a 4-digit verification code to confirm your direct number.
+                              </p>
+                            </div>
+
+                            <div className="space-y-4 pt-1">
+                              <div>
+                                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                  Phone Number *
+                                </label>
+                                <div className="relative flex items-center">
+                                  <div className="absolute left-4 flex items-center pointer-events-none text-gray-400">
+                                    <Phone size={16} className="text-[#9E593B]" />
+                                  </div>
+                                  <input
+                                    type="tel"
+                                    inputMode="tel"
+                                    autoFocus={!step3OtpSent}
+                                    value={phone}
+                                    onChange={(e) => {
+                                      const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                                      setPhone(cleaned)
+                                    }}
+                                    placeholder="e.g. +91 98765 43210 or +44 7700 900000"
+                                    className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                                  />
                                 </div>
-                                <input
-                                  type="tel"
-                                  inputMode="tel"
-                                  autoFocus={!step3OtpSent}
-                                  value={phone}
-                                  onChange={(e) => {
-                                    const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
-                                    setPhone(cleaned)
-                                  }}
-                                  placeholder="e.g. +91 98765 43210 or +44 7700 900000"
-                                  className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                                />
                               </div>
                             </div>
-                          </div>
 
-                          <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
-                            <Lock size={12} className="text-[#9E593B] shrink-0" />
-                            <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
-                          </p>
+                            <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
+                              <Lock size={12} className="text-[#9E593B] shrink-0" />
+                              <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
+                            </p>
+                          </div>
 
                           <button
                             type="button"
                             disabled={step3OtpLoading || !phone.trim()}
                             onClick={() => handleStep3SendOtp(false)}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
                           >
                             <span>{step3OtpLoading ? 'Sending Verification Code…' : 'Send Verification Code'}</span>
                             <ArrowRight size={16} />
@@ -1369,7 +1552,7 @@ export function PartnerOnboarding({
 
                   {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
                   {currentStep === 'hub' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
                       <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
                         <span>Signing up for</span>
                         <span className="font-bold text-[#0F1115]">{locationCity || 'Darzi Grid'}</span>
@@ -1468,7 +1651,7 @@ export function PartnerOnboarding({
                 WebkitBackfaceVisibility: 'hidden',
                 transform: 'rotateY(180deg)',
               }}
-              className={`absolute inset-0 bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 flex flex-col items-center justify-center ${!isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`absolute inset-0 bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 flex flex-col items-center justify-center min-h-[640px] ${!isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
               {currentStep === 'phone-verify' && (
@@ -1477,8 +1660,10 @@ export function PartnerOnboarding({
                   value={step3Otp}
                   onChange={setStep3Otp}
                   onVerify={async () => {
-                    await handleStep3VerifyOtp()
-                    setCurrentStep('hub')
+                    const verified = await handleStep3VerifyOtp()
+                    if (verified) {
+                      setCurrentStep('hub')
+                    }
                   }}
                   onResend={() => handleStep3SendOtp(true)}
                   resendCountdown={step3Countdown}
