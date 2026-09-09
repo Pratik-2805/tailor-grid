@@ -229,6 +229,9 @@ export function PartnerOnboarding({
   const [language, setLanguage] = useState(cachedForm?.language || 'English')
   const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
   const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')
+  const [openTime, setOpenTime] = useState(cachedForm?.openTime || '10:00')
+  const [closeTime, setCloseTime] = useState(cachedForm?.closeTime || '20:00')
+  const [operatingHours, setOperatingHours] = useState(cachedForm?.operatingHours || `${cachedForm?.openTime || '10:00'} - ${cachedForm?.closeTime || '20:00'}`)
 
   // Step 3: Shop Info — only restore from storage (user's own typed data), never prefill from user object
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
@@ -280,12 +283,12 @@ export function PartnerOnboarding({
   // ──────── Persist form data to storage on every change ────────
   useEffect(() => {
     const formData = {
-      locationCity, referralCode, language, machines, dailyCapacity,
+      locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, operatingHours: `${openTime} - ${closeTime}`,
       shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
       studioLat, studioLng,
     }
     ssSet('tg_onboard_form', JSON.stringify(formData))
-  }, [locationCity, referralCode, language, machines, dailyCapacity, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
+  }, [locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
 
   // Persist phone verification state
   useEffect(() => {
@@ -734,7 +737,7 @@ export function PartnerOnboarding({
     }
   }
 
-  const stepsList: Step[] = ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub']
+  const stepsList: Step[] = ['auth', 'location', 'shop-info', 'phone-verify', 'hub']
   const currentStepNum = stepsList.indexOf(currentStep)
 
   const handleSelectMapLocation = (loc: SelectedLocationData) => {
@@ -893,8 +896,7 @@ export function PartnerOnboarding({
                         setNotice('')
                         if (currentStep === 'hub') setCurrentStep('phone-verify')
                         else if (currentStep === 'phone-verify') setCurrentStep('shop-info')
-                        else if (currentStep === 'shop-info') setCurrentStep('language')
-                        else if (currentStep === 'language') setCurrentStep('location')
+                        else if (currentStep === 'shop-info') setCurrentStep('location')
                         else if (currentStep === 'location') {
                           setSignInMode('options')
                           setCurrentStep('auth')
@@ -922,7 +924,7 @@ export function PartnerOnboarding({
 
                 {currentStep !== 'auth' && (
                   <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    Step {currentStepNum} of 5
+                    Step {currentStepNum} of 4
                   </span>
                 )}
               </div>
@@ -1105,20 +1107,9 @@ export function PartnerOnboarding({
               {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
               {currentStep !== 'auth' && (
                 <div className="space-y-6">
-                  {/* Step 1: Image 2 — "Earn with Darzi" */}
+                  {/* Step 1: "Earn with Darzi" */}
                   {currentStep === 'location' && (
                     <div className="space-y-6 animate-in fade-in duration-200">
-                      <div className="flex items-center justify-between">
-                        <div className="w-12 h-10 rounded-xl bg-[#10B981]/15 text-[#059669] flex items-center justify-center font-bold">
-                          <Store size={22} />
-                        </div>
-                        {(pendingGoogle?.email || emailVal || phone) && (
-                          <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full truncate max-w-[220px]">
-                            {pendingGoogle?.email || emailVal || phone}
-                          </span>
-                        )}
-                      </div>
-
                       <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
                           Earn with Darzi
@@ -1131,86 +1122,82 @@ export function PartnerOnboarding({
                       <div className="space-y-4 pt-1">
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Where would you like to earn? *
+                            Atelier / Shop Name *
                           </label>
                           <input
                             type="text"
-                            value={locationCity}
-                            onChange={(e) => setLocationCity(e.target.value)}
-                            placeholder="e.g. Mumbai, London W8, Delhi..."
+                            value={shopName}
+                            onChange={(e) => setShopName(e.target.value)}
+                            placeholder="e.g. Savile Row Atelier or Royal Master Tailors"
                             className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
                         </div>
 
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Referral code (optional)
+                            Partner Contact Email *
                           </label>
                           <input
-                            type="text"
-                            value={referralCode}
-                            onChange={(e) => setReferralCode(e.target.value)}
-                            placeholder="Enter referral code"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            type="email"
+                            value={emailVal}
+                            onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
+                            disabled={!!pendingGoogle?.email}
+                            placeholder="business@atelier.com"
+                            className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
                           />
-                        </div>
-                      </div>
-
-                      <p className="text-[11px] text-gray-500 leading-relaxed pt-1">
-                        By proceeding, I agree that Darzi or its representatives may contact me by email, phone, or text message using the email address or number I provide.
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!locationCity.trim()) {
-                            setError('Please specify your city or workshop location.')
-                            return
-                          }
-                          setError('')
-                          setCurrentStep('language')
-                        }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
-                      >
-                        <span>Continue to Atelier Setup →</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Step 2: Language & Capacity */}
-                  {currentStep === 'language' && (
-                    <div className="space-y-6 animate-in fade-in duration-200">
-                      <div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Select your language & workshop capacity
-                        </h1>
-                        <p className="text-xs text-gray-500 mt-1.5">
-                          You can change your language on this screen or at any time in Help.
-                        </p>
-                      </div>
-
-                      <div className="space-y-5 pt-2">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Language
-                          </label>
-                          <select
-                            value={language}
-                            onChange={(e) => setLanguage(e.target.value)}
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                          >
-                            {LANGUAGES.map((lang) => (
-                              <option key={lang} value={lang}>
-                                {lang}
-                              </option>
-                            ))}
-                          </select>
+                          {pendingGoogle?.email && (
+                            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                              <Lock size={10} /> Email linked via Google sign-in
+                            </p>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Sewing Machines
+                              Lead Master Tailor *
+                            </label>
+                            <input
+                              type="text"
+                              value={tailorName}
+                              onChange={(e) => setTailorName(e.target.value)}
+                              placeholder="Full name"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Operating Hours *
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <div className="relative flex-1">
+                                <input
+                                  type="time"
+                                  value={openTime}
+                                  onChange={(e) => setOpenTime(e.target.value)}
+                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
+                                  title="Opening Time"
+                                />
+                              </div>
+                              <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
+                              <div className="relative flex-1">
+                                <input
+                                  type="time"
+                                  value={closeTime}
+                                  onChange={(e) => setCloseTime(e.target.value)}
+                                  className="w-full rounded-lg bg-gray-100 border-none px-2 py-3.5 text-xs font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer text-center"
+                                  title="Closing Time"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Sewing Machines *
                             </label>
                             <select
                               value={machines}
@@ -1225,7 +1212,7 @@ export function PartnerOnboarding({
 
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Daily Order Limit
+                              Daily Order Limit *
                             </label>
                             <select
                               value={dailyCapacity}
@@ -1241,150 +1228,120 @@ export function PartnerOnboarding({
                       </div>
 
                       <button
-                        onClick={() => setCurrentStep('shop-info')}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
+                        type="button"
+                        onClick={() => {
+                          if (!shopName.trim()) {
+                            setError('Please enter your Atelier / Shop Name.')
+                            toast.warning('Shop Name is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!tailorName.trim()) {
+                            setError('Please enter the Lead Master Tailor name.')
+                            toast.warning('Lead Master Tailor is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!emailVal.trim() || !emailVal.includes('@')) {
+                            setError('Please enter a valid Partner Contact Email.')
+                            toast.warning('Contact Email is required.', { position: 'top-center' })
+                            return
+                          }
+                          setError('')
+                          setCurrentStep('shop-info')
+                        }}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
                       >
-                        <span>Continue</span>
+                        <span>Continue to Workshop Address</span>
                         <ArrowRight size={16} />
                       </button>
                     </div>
                   )}
 
-                  {/* Step 3: Shop Information */}
+                  {/* Step 2: Shop Location & Address */}
                   {currentStep === 'shop-info' && (
                     <div className="space-y-6 animate-in fade-in duration-200">
                       <div>
-                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                          Studio Location & Contact
-                        </span>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
-                          Fill Your Shop&apos;s Information
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                          Studio Location & Address
                         </h1>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Enter your atelier address so customers can drop off garments and book fittings.
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          Enter your atelier address so clients can find your workshop and drop off garments.
                         </p>
                       </div>
 
                       <div className="space-y-4 pt-1">
                         <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Atelier / Shop Name *
-                          </label>
-                          <input
-                            type="text"
-                            value={shopName}
-                            onChange={(e) => setShopName(e.target.value)}
-                            placeholder="Enter your shop or atelier name"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                              Area / Neighborhood *
-                            </label>
-                            <input
-                              type="text"
-                              value={shopArea}
-                              onChange={(e) => setShopArea(e.target.value)}
-                              placeholder="Enter your area or locality"
-                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                              Postcode / ZIP / PIN *
-                            </label>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              maxLength={10}
-                              value={postcode}
-                              onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
-                              placeholder="e.g. 10001 (US) or 400001 (IN)"
-                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                             Street Address *
                           </label>
                           <input
                             type="text"
                             value={streetAddress}
                             onChange={(e) => setStreetAddress(e.target.value)}
-                            placeholder="Enter your full street address"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            placeholder="e.g. 14 Savile Row, Suite 2B"
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                           />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Area / Neighborhood *
+                            </label>
+                            <input
+                              type="text"
+                              value={shopArea}
+                              onChange={(e) => setShopArea(e.target.value)}
+                              placeholder="e.g. Mayfair, Soho, Bandra..."
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Postcode / ZIP / PIN *
+                            </label>
+                            <input
+                              type="text"
+                              maxLength={10}
+                              value={postcode}
+                              onChange={(e) => setPostcode(e.target.value.replace(/[^\d\w\s\-]/g, '').slice(0, 10))}
+                              placeholder="e.g. 10001 or W1S 3JN"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
                         </div>
 
                         {/* Choose Exact Location Trigger */}
                         <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Map Pin (Compulsory) *
+                          </label>
                           <button
                             type="button"
                             onClick={() => setIsMapModalOpen(true)}
-                            className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3 text-left transition-all cursor-pointer group"
+                            className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3.5 text-left transition-all cursor-pointer group"
                           >
                             <AnimatedLocationPin
                               size={22}
                               isConfirmed={Boolean(studioLat && studioLng)}
                             />
-                            <span className="text-sm font-semibold text-[#0F1115] truncate flex-1">
+                            <span className="text-sm font-medium text-[#0F1115] truncate flex-1">
                               {studioLat && studioLng
                                 ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
-                                : 'Choose Exact Location'}
+                                : 'Choose Exact Location on Map'}
                             </span>
                             {studioLat && studioLng && (
                               <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
                             )}
                           </button>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                              Lead Master Tailor *
-                            </label>
-                            <input
-                              type="text"
-                              value={tailorName}
-                              onChange={(e) => setTailorName(e.target.value)}
-                              placeholder="Enter lead tailor's full name"
-                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                              Partner Contact Email *
-                            </label>
-                            <input
-                              type="email"
-                              value={emailVal}
-                              onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
-                              disabled={!!pendingGoogle?.email}
-                              placeholder="Enter your business email"
-                              className={`w-full rounded-lg border-none px-4 py-3 text-sm font-semibold outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
-                            />
-                            {pendingGoogle?.email && (
-                              <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                <Lock size={10} /> Email linked via Google sign-in
-                              </p>
-                            )}
-                          </div>
-                        </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          // Field-by-field validation for Step 3
-                          if (!shopName.trim()) {
-                            setError('Please enter your Atelier / Shop Name.')
-                            toast.warning('Shop Name is required.', { position: 'top-center' })
+                          if (!streetAddress.trim()) {
+                            setError('Please enter your Street Address.')
+                            toast.warning('Street Address is required.', { position: 'top-center' })
                             return
                           }
                           if (!shopArea.trim()) {
@@ -1392,16 +1349,10 @@ export function PartnerOnboarding({
                             toast.warning('Area / Neighborhood is required.', { position: 'top-center' })
                             return
                           }
-                          const cleanPin = postcode.trim().replace(/\D/g, '')
-                          if (cleanPin.length < 4 || cleanPin.length > 10) {
+                          if (!postcode.trim() || postcode.trim().length < 3) {
                             const msg = 'Please enter a valid postal / ZIP code.'
                             setError(msg)
                             toast.warning(msg, { position: 'top-center' })
-                            return
-                          }
-                          if (!streetAddress.trim()) {
-                            setError('Please enter your Street Address.')
-                            toast.warning('Street Address is required.', { position: 'top-center' })
                             return
                           }
                           if (!studioLat || !studioLng) {
@@ -1411,15 +1362,10 @@ export function PartnerOnboarding({
                             setIsMapModalOpen(true)
                             return
                           }
-                          if (!tailorName.trim()) {
-                            setError('Please enter the Lead Master Tailor name.')
-                            toast.warning('Lead Master Tailor is required.', { position: 'top-center' })
-                            return
-                          }
                           setError('')
                           setCurrentStep('phone-verify')
                         }}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
                       >
                         <span>Save & Continue to Phone Verification</span>
                         <ArrowRight size={16} />
