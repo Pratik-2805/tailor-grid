@@ -28,8 +28,8 @@ export function AnimatedLocationPin({
 
   const confirmed = isConfirmed || isPinned
   const animationSrc = confirmed
-    ? '/animated/wired-flat-18-location-pin-in-jump-dynamic.json'
-    : '/animated/system-solid-18-location-pin-hover-pinch.json'
+    ? '/animated/dropped_location_pin.json'
+    : '/animated/spinning_location_pin.json'
 
   const lottie = useLottie({
     src: animationSrc,
