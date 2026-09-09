@@ -70,7 +70,7 @@ export function StudioProfileModal({
   onUpdateUser,
   onSignOut,
 }: StudioProfileModalProps) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'capacity'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'craft'>('profile')
 
   const [name, setName] = useState(user.name || 'Master Tailor')
   const [studioName, setStudioName] = useState(user.studioName || 'Atelier Studio')
@@ -78,7 +78,6 @@ export function StudioProfileModal({
   const [address, setAddress] = useState(user.address || '18 Kensington Church St')
   const [postcode, setPostcode] = useState(user.postcode || 'W8 4EP')
   const [area, setArea] = useState('SoHo & Central London')
-  const [capacity, setCapacity] = useState('25')
   const [avatar, setAvatar] = useState(user.avatar || '')
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
@@ -279,15 +278,15 @@ export function StudioProfileModal({
 
           <button
             type="button"
-            onClick={() => setActiveTab('capacity')}
+            onClick={() => setActiveTab('craft')}
             className={`py-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
-              activeTab === 'capacity'
+              activeTab === 'craft'
                 ? 'border-[#9E593B] text-[#9E593B]'
                 : 'border-transparent text-[#766F66] hover:text-[#18191B]'
             }`}
           >
             <Sliders size={14} />
-            <span>Capacity & Craft</span>
+            <span>Craft & Specialisms</span>
             {specialties.length > 0 && (
               <span className="size-5 rounded-full bg-[#EAE3D6] text-[#71695F] text-[10px] grid place-items-center font-bold">
                 {specialties.length}
@@ -607,45 +606,10 @@ export function StudioProfileModal({
             )}
 
             {/* ════════════════════════════════════════════════════════════════ */}
-            {/* TAB 2: CAPACITY & CRAFT                                        */}
+            {/* TAB 2: CRAFT & SPECIALISMS                                     */}
             {/* ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'capacity' && (
+            {activeTab === 'craft' && (
               <div className="space-y-6 animate-in fade-in duration-150">
-
-                {/* Daily Capacity Control */}
-                <div className="rounded-2xl bg-white p-5 border border-[#EAE3D6] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-xs font-bold text-[#18191B]">
-                        Daily Alteration Piece Limit
-                      </label>
-                      <p className="text-[11px] text-[#766F66]">Maximum garments assigned to your workbench per day.</p>
-                    </div>
-                    <span className="font-mono text-base font-extrabold text-[#9E593B] bg-[#FAF3EC] px-3 py-1 rounded-xl border border-[#F2E5D8]">
-                      {capacity} pcs/day
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {['15', '25', '40', '50'].map((val) => {
-                      const isSelected = capacity === val
-                      return (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setCapacity(val)}
-                          className={`py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
-                            isSelected
-                              ? 'bg-[#18191B] text-white border-[#18191B] shadow-xs'
-                              : 'bg-[#FAF8F5] text-[#766F66] border-[#E0D8CB] hover:border-[#9E593B]'
-                          }`}
-                        >
-                          {val} pcs
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
 
                 {/* Node Territory */}
                 <div className="rounded-2xl bg-white p-5 border border-[#EAE3D6] space-y-1.5">
@@ -753,10 +717,10 @@ export function StudioProfileModal({
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab('capacity')}
+                    onClick={() => setActiveTab('craft')}
                     className="flex-1 max-w-[240px] rounded-2xl bg-[#18191B] hover:bg-[#9E593B] py-3 text-xs font-bold text-white transition-all shadow-xs active:scale-98 cursor-pointer flex items-center justify-center gap-2 ml-auto"
                   >
-                    <span>Next: Capacity & Craft</span>
+                    <span>Next: Craft & Specialisms</span>
                     <ArrowRight size={14} />
                   </button>
                 </>

@@ -139,7 +139,7 @@ export function PartnerOnboarding({
   const [locationCity, setLocationCity] = useState(cachedForm?.locationCity || '')
   const [referralCode, setReferralCode] = useState(cachedForm?.referralCode || '')
 
-  // Step 2: Language & Capacity
+  // Step 2: Language & Equipment
   const [language, setLanguage] = useState(cachedForm?.language || 'English')
   const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
   const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')

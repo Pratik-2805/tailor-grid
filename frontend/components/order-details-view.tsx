@@ -18,12 +18,13 @@ import {
   ChevronRight,
   Lock,
   LogIn,
+  RotateCcw,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { fetchOrderById, getCurrentUser, deleteOrder } from '@/lib/api'
-import { getAuthUser, getStorageCookie } from '@/lib/cookies'
-import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
+import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
+import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { PARTNER_STORES, getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
@@ -292,34 +293,109 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
   const [isCancelling, setIsCancelling] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [isRebooking, setIsRebooking] = useState(false)
+
+  const handleRebookSameRequest = async () => {
+    if (!order) return
+    setIsRebooking(true)
+    try {
+      const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+      const newOtp = Math.floor(1000 + Math.random() * 9000).toString()
+
+      // Preserve all garment reference photos
+      const rawPhotos = order.intakePhotoUrl || order.imageUrl || order.images
+      let resolvedImageUrl: string | null = null
+      let resolvedImagesArray: string[] = []
+
+      if (rawPhotos) {
+        if (Array.isArray(rawPhotos)) {
+          resolvedImagesArray = rawPhotos
+          resolvedImageUrl = rawPhotos.length > 1 ? JSON.stringify(rawPhotos) : (rawPhotos[0] || null)
+        } else if (typeof rawPhotos === 'string') {
+          if (rawPhotos.startsWith('[')) {
+            try {
+              resolvedImagesArray = JSON.parse(rawPhotos)
+              resolvedImageUrl = rawPhotos
+            } catch {
+              resolvedImagesArray = [rawPhotos]
+              resolvedImageUrl = rawPhotos
+            }
+          } else {
+            resolvedImagesArray = [rawPhotos]
+            resolvedImageUrl = rawPhotos
+          }
+        }
+      }
+
+      const newOrderPayload = {
+        id: newOrderId,
+        otp: newOtp,
+        userId: order.userId || currentUser?.id,
+        customerName: order.customerName || currentUser?.name || 'Customer',
+        customerEmail: order.customerEmail || currentUser?.email || '',
+        customerPhone: order.customerPhone || currentUser?.phone || '',
+        postcode: order.postcode || 'W8 4EP',
+        garmentId: order.garmentId || 'trousers',
+        garmentName: order.garmentName || 'Garment Alteration',
+        serviceId: order.serviceId || 'hem',
+        serviceName: order.serviceName || 'Custom Fit & Alteration',
+        storeId: null,
+        storeName: 'Awaiting Studio Acceptance',
+        price: order.price || 25,
+        date: order.date || 'Scheduled',
+        timeSlot: order.timeSlot || 'Fitting Slot',
+        measurements: order.measurements || {},
+        imageUrl: resolvedImageUrl,
+        intakePhotoUrl: resolvedImageUrl,
+        images: resolvedImagesArray,
+        status: 'Allocated',
+        brand: order.brand || 'Levi\'s / Bespoke',
+        notes: 'Re-booked fitting request from Atelier Portal',
+      }
+
+      if (typeof window !== 'undefined') {
+        setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(newOrderPayload))
+        setStorageCookie('tg_latest_order', JSON.stringify(newOrderPayload))
+      }
+
+      await createOrder(newOrderPayload)
+
+      toast.success(`Re-submitted fitting request #${newOrderId} to nearby studios!`, { position: 'top-center' })
+
+      if (typeof window !== 'undefined') {
+        window.location.href = `/order/${newOrderId}`
+      }
+    } catch (err) {
+      console.error('Rebook failed:', err)
+      toast.error('Unable to re-book request. Please try again.')
+    } finally {
+      setIsRebooking(false)
+    }
+  }
 
   const handleCancelCurrentOrder = async () => {
     if (!order?.id) return
     setIsCancelling(true)
     try {
-      // 1. Delete order permanently from PostgreSQL database
-      await deleteOrder(order.id)
+      // 1. Update order status to 'Cancelled' in PostgreSQL database
+      await updateOrder(order.id, { status: 'Cancelled' })
 
-      // 2. Clear local storage records
+      // 2. Update local state & storage records
+      setOrder((prev: any) => ({ ...prev, status: 'Cancelled' }))
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(`tg_order_${order.id}`)
-        const latest = localStorage.getItem('tg_latest_order')
-        if (latest) {
+        const saved = localStorage.getItem(`tg_order_${order.id}`)
+        if (saved) {
           try {
-            const parsed = JSON.parse(latest)
-            if (parsed.id === order.id) {
-              localStorage.removeItem('tg_latest_order')
-            }
+            const parsed = JSON.parse(saved)
+            parsed.status = 'Cancelled'
+            localStorage.setItem(`tg_order_${order.id}`, JSON.stringify(parsed))
           } catch { }
         }
       }
 
-      toast.success(`Order #${order.id} cancelled and deleted from database`, { position: 'top-center' })
-      if (onGoOrders) onGoOrders()
-      else if (onGoHome) onGoHome()
-      else window.location.href = '/orders'
+      toast.success(`Order #${order.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {
-      toast.error('Failed to delete order. Please try again.', { position: 'top-center' })
+      toast.error('Failed to cancel order. Please try again.', { position: 'top-center' })
     } finally {
       setIsCancelling(false)
       setShowCancelModal(false)
@@ -371,6 +447,54 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         />
       </div>
     )
+  }  // Dynamic status mappings
+  const currentStatus = (order?.status || 'Accepted').toUpperCase()
+
+  const isCancelled = currentStatus === 'CANCELLED'
+  const isAllocated = currentStatus === 'ALLOCATED'
+  const isAccepted = currentStatus === 'ACCEPTED'
+  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING'
+  const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
+  const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
+
+  // Stepper index: 1 = Matched, 2 = Give PIN, 3 = Tailoring, 4 = Pickup/Completed
+  let stepIndex = 2
+  if (isAllocated) stepIndex = 1
+  else if (isAccepted) stepIndex = 2
+  else if (isInProgress) stepIndex = 3
+  else if (isReady || isCompleted) stepIndex = 4
+
+  // Dynamic Header Text
+  let headerTitle = 'Order Accepted'
+  let headerSubtitle = `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} • Order #${order?.id || slugId}`
+
+  if (isCancelled) {
+    headerTitle = 'Order Cancelled'
+    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
+  } else if (isAllocated) {
+    headerTitle = 'Request Broadcast'
+    headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
+  } else if (isInProgress) {
+    headerTitle = 'Tailoring in Progress'
+    headerSubtitle = `${storeNameDisplay} is crafting your garment • Order #${order?.id || slugId}`
+  } else if (isReady) {
+    headerTitle = 'Ready for Pickup'
+    headerSubtitle = `Alteration completed! Ready for collection at ${storeNameDisplay} • Order #${order?.id || slugId}`
+  } else if (isCompleted) {
+    headerTitle = 'Order Completed'
+    headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
+  }
+
+  // Dynamic PIN Box Label
+  let pinBoxTitle = 'GIVE PIN TO TAILOR'
+  if (pinCopied) {
+    pinBoxTitle = 'COPIED!'
+  } else if (isInProgress) {
+    pinBoxTitle = 'VERIFIED AT BENCH'
+  } else if (isReady) {
+    pinBoxTitle = 'SHOW PICKUP PIN'
+  } else if (isCompleted) {
+    pinBoxTitle = 'ORDER COMPLETED'
   }
 
   if (isLoading) {
@@ -400,27 +524,23 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] tracking-tight leading-none">
-                    {order?.status === 'Cancelled' ? 'Order Cancelled' : order?.status === 'Allocated' ? 'Request Broadcast' : 'Order Accepted'}
+                    {headerTitle}
                   </h1>
                   <span className="text-[11px] font-semibold text-gray-500 mt-1 block">
-                    {order?.status === 'Cancelled'
-                      ? `This alteration request was cancelled \u2022 Order #${order?.id || slugId}`
-                      : order?.status === 'Allocated'
-                      ? `Broadcasting request to nearby studios \u2022 Order #${order?.id || slugId}`
-                      : `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} \u2022 Order #${order?.id || slugId}`}
+                    {headerSubtitle}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                {order?.status === 'Cancelled' ? (
+                {isCancelled ? (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
                     <span className="size-2 rounded-full bg-red-500" />
                     <span className="text-xs font-bold text-red-700">
                       Cancelled
                     </span>
                   </div>
-                ) : order?.status === 'Allocated' ? (
+                ) : isAllocated ? (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-full">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -428,6 +548,33 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </span>
                     <span className="text-xs font-bold text-amber-900">
                       Awaiting Studio Acceptance
+                    </span>
+                  </div>
+                ) : isInProgress ? (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                    </span>
+                    <span className="text-xs font-bold text-blue-900">
+                      In Tailoring &bull; Atelier Active
+                    </span>
+                  </div>
+                ) : isReady ? (
+                  <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600" />
+                    </span>
+                    <span className="text-xs font-bold text-purple-900">
+                      Ready for Pickup
+                    </span>
+                  </div>
+                ) : isCompleted ? (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
+                    <span className="size-2 rounded-full bg-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-800">
+                      ✓ Completed &amp; Collected
                     </span>
                   </div>
                 ) : (
@@ -442,7 +589,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </div>
                 )}
 
-                {order?.status !== 'Cancelled' && (
+                {!isCancelled && !isCompleted && (
                   <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
@@ -459,35 +606,71 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-100">
               {/* Step 1 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-black rounded-full" />
-                <span className="text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex >= 1 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 1 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   1. Matched
                 </span>
               </div>
               {/* Step 2 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-black rounded-full animate-pulse" />
-                <span className="text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 2 ? 'bg-black animate-pulse' : stepIndex > 2 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 2 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   2. Give PIN
                 </span>
               </div>
               {/* Step 3 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-gray-200 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 3 ? 'bg-black animate-pulse' : stepIndex > 3 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 3 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   3. Tailoring
                 </span>
               </div>
               {/* Step 4 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-gray-200 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 4 ? 'bg-black animate-pulse' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 4 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   4. Pickup
                 </span>
               </div>
-            </div>
+            </div>          </div>
 
-          </div>        {/* ========================================================================= */}
+          {/* Notification Alert if Request Not Accepted / Cancelled */}
+          {isCancelled && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-2xs">
+              <div className="flex items-start gap-4">
+                <div className="size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+                  <XCircle size={22} />
+                </div>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
+                  <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
+                    No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
+                  </p>
+                  <div className="pt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={isRebooking}
+                      onClick={handleRebookSameRequest}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-5 py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      <RotateCcw size={14} className={isRebooking ? 'animate-spin' : ''} />
+                      <span>{isRebooking ? 'Re-submitting Request...' : 'Try Booking Again'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { window.location.href = '/book' }}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <span>Book Different Fitting</span> &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
           {/* 2. UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
           {/* ========================================================================= */}
           <div className="grid lg:grid-cols-12 gap-5 items-stretch">
@@ -523,7 +706,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     title="Click to copy PIN"
                   >
                     <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
-                      {pinCopied ? 'COPIED!' : 'GIVE PIN TO TAILOR'}
+                      {pinBoxTitle}
                     </span>
                     <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
                       {formattedOtp}
@@ -600,6 +783,30 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       <span className="font-bold text-black">Tailoring Notes:</span> {order.notes}
                     </p>
                   )}
+
+                  {(() => {
+                    const photos = getAllGarmentPhotos(order)
+                    return (
+                      <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
+                        <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
+                          Reference Garment Photo:
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {photos.map((url, idx) => (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt={`${order?.garmentName || 'Garment'} Reference`}
+                              className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
               </div>

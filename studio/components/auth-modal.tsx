@@ -91,7 +91,6 @@ export function AuthModal({
   const [sEmail, setSEmail] = useState('')
   const [sPhone, setSPhone] = useState('')
   const [sMachines, setSMachines] = useState('4-6')
-  const [sCapacity, setSCapacity] = useState('25')
   const [sSpecialties, setSSpecialties] = useState<string[]>(['Suit Tailoring', 'Dress Hemming'])
 
   const SPECIALTIES = [
@@ -774,7 +773,7 @@ export function AuthModal({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <p className="text-[11px] font-bold text-[#374151]">
-                  {registerStep === 1 ? '1. Studio Location' : registerStep === 2 ? '2. Lead Tailor Details' : '3. Capacity & Machines'}
+                  {registerStep === 1 ? '1. Studio Location' : registerStep === 2 ? '2. Lead Tailor Details' : '3. Equipment & Specialisms'}
                 </p>
                 <span className="text-[11px] font-bold text-[#9E593B]">Step {registerStep} of 3 ({Math.round((registerStep / 3) * 100)}%)</span>
               </div>
@@ -832,7 +831,7 @@ export function AuthModal({
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors cursor-pointer shadow-xs"
                 >
-                  <span>Next: Capacity & Equipment</span>
+                  <span>Next: Equipment & Specialisms</span>
                   <ArrowRight size={14} />
                 </button>
               </div>
@@ -840,31 +839,17 @@ export function AuthModal({
 
             {registerStep === 3 && (
               <form onSubmit={handleStudioRegister} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Machines</label>
-                    <select
-                      value={sMachines}
-                      onChange={(e) => setSMachines(e.target.value)}
-                      className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
-                    >
-                      <option value="2-3">2–3 machines</option>
-                      <option value="4-6">4–6 machines</option>
-                      <option value="8+">8+ machines</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Daily limit</label>
-                    <select
-                      value={sCapacity}
-                      onChange={(e) => setSCapacity(e.target.value)}
-                      className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
-                    >
-                      <option value="15">15 / day</option>
-                      <option value="25">25 / day</option>
-                      <option value="50">50 / day</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Sewing Machines & Equipment</label>
+                  <select
+                    value={sMachines}
+                    onChange={(e) => setSMachines(e.target.value)}
+                    className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
+                  >
+                    <option value="2-3">2–3 machines</option>
+                    <option value="4-6">4–6 machines</option>
+                    <option value="8+">8+ machines</option>
+                  </select>
                 </div>
 
                 <div>
