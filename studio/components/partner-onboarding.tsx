@@ -24,7 +24,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
@@ -38,6 +38,27 @@ interface PartnerOnboardingProps {
 }
 
 type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'phone-verify' | 'hub'
+
+const stepToUrlNum: Record<Step, string> = {
+  'auth': 'auth',
+  'location': '1',
+  'language': '2',
+  'shop-info': '3',
+  'phone-verify': '4',
+  'hub': '5',
+}
+
+const urlParamToStep = (param: string | null): Step | null => {
+  if (!param) return null
+  const p = param.toLowerCase().trim()
+  if (p === '1' || p === 'location' || p === 'step1' || p === 'step-1') return 'location'
+  if (p === '2' || p === 'language' || p === 'step2' || p === 'step-2') return 'language'
+  if (p === '3' || p === 'shop-info' || p === 'shopinfo' || p === 'step3' || p === 'step-3') return 'shop-info'
+  if (p === '4' || p === 'phone-verify' || p === 'phone' || p === 'step4' || p === 'step-4') return 'phone-verify'
+  if (p === '5' || p === 'hub' || p === 'step5' || p === 'step-5') return 'hub'
+  if (p === 'auth' || p === 'signin' || p === 'signup' || p === 'login') return 'auth'
+  return null
+}
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
@@ -72,14 +93,14 @@ export function PartnerOnboarding({
     if (typeof window !== 'undefined') try { sessionStorage.removeItem(key) } catch { }
   }
 
-  // Check if we have cached pending Google data from session
+  // Check if we have cached pending Google data from session / local storage
   const [pendingGoogle, setPendingGoogle] = useState<{
     tempSignupId?: string
     email?: string
     name?: string
     avatar?: string
   } | null>(() => {
-    const stored = ssGet('tg_pending_google')
+    const stored = ssGet('tg_pending_google') || (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_google') : null)
     return stored ? JSON.parse(stored) : null
   })
 
@@ -111,26 +132,91 @@ export function PartnerOnboarding({
   // Sign In with Email field
   const [sLoginEmail, setSLoginEmail] = useState('')
 
-  // Multi-step Flow State — restore from sessionStorage on refresh
+  // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      return 'auth'
+    }
+    if (typeof window !== 'undefined') {
+      const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
+      if (urlStep) return urlStep
+    }
     const cached = ssGet('tg_onboard_step')
     if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
       return cached as Step
     }
-    return user?.email || pendingGoogle?.email ? 'location' : 'auth'
+    return 'location'
   })
-  // Wrapper that also persists to sessionStorage
-  const setCurrentStep = (step: Step) => {
+
+  // Wrapper that also persists to storage and continuously syncs ?step=1, ?step=2, etc. in URL
+  const setCurrentStep = (step: Step, pushHistory: boolean = false) => {
     setCurrentStepRaw(step)
     ssSet('tg_onboard_step', step)
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_onboard_step', step) } catch { }
+      const url = new URL(window.location.href)
+      if (step === 'auth') {
+        url.searchParams.delete('step')
+      } else {
+        url.searchParams.set('step', stepToUrlNum[step])
+      }
+      if (pushHistory) {
+        window.history.pushState({}, '', url.toString())
+      } else {
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
   }
+
+  // Continuously sync URL query param ?step=1, ?step=2, etc.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      if (currentStep !== 'auth') {
+        setCurrentStepRaw('auth')
+        setSignInMode('options')
+      }
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('step')) {
+        url.searchParams.delete('step')
+        window.history.replaceState({}, '', url.toString())
+      }
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const stepFromUrl = urlParamToStep(params.get('step'))
+
+    if (stepFromUrl) {
+      if (stepFromUrl !== currentStep) {
+        setCurrentStepRaw(stepFromUrl)
+      }
+      ssSet('tg_onboard_step', stepFromUrl)
+    } else if (currentStep !== 'auth') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('step', stepToUrlNum[currentStep])
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const handlePopState = () => {
+      const p = new URLSearchParams(window.location.search)
+      const s = urlParamToStep(p.get('step')) || (hasAuth ? 'location' : 'auth')
+      setCurrentStepRaw(s)
+      ssSet('tg_onboard_step', s)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [user?.email, pendingGoogle?.email, currentStep])
 
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
-  // ──────── Restore cached onboarding form data from sessionStorage ────────
+  // ──────── Restore cached onboarding form data from storage (only for authenticated session) ────────
   const cachedForm = (() => {
-    const raw = ssGet('tg_onboard_form')
+    if (!user?.email && !pendingGoogle?.email) return null
+    const raw = ssGet('tg_onboard_form') || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_form') : null)
     if (!raw) return null
     try { return JSON.parse(raw) } catch { return null }
   })()
@@ -187,17 +273,17 @@ export function PartnerOnboarding({
   const [studioLat, setStudioLat] = useState<number | null>(cachedForm?.studioLat || null)
   const [studioLng, setStudioLng] = useState<number | null>(cachedForm?.studioLng || null)
   const [emailVal, setEmailVal] = useState(
-    cachedForm?.emailVal || pendingGoogle?.email || ''
+    cachedForm?.emailVal || pendingGoogle?.email || user?.email || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_email') : '') || ''
   )
 
   // Step 4 Direct Mobile Phone Twilio OTP Verification State
   const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
-    const cached = ssGet('tg_phone_verified')
+    const cached = ssGet('tg_phone_verified') || (typeof window !== 'undefined' ? localStorage.getItem('tg_phone_verified') : null)
     if (cached === 'true') return true
     return Boolean(user?.phone)
   })
   const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => {
-    return ssGet('tg_verified_phone') || user?.phone || ''
+    return ssGet('tg_verified_phone') || (typeof window !== 'undefined' ? localStorage.getItem('tg_verified_phone') : null) || user?.phone || ''
   })
   const [step3OtpSent, setStep3OtpSent] = useState(false)
   const [step3Otp, setStep3Otp] = useState('')
@@ -212,15 +298,19 @@ export function PartnerOnboarding({
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
 
   useEffect(() => {
-    if (pendingGoogle?.email && !emailVal) {
-      setEmailVal(pendingGoogle.email)
+    const activeEmail = user?.email || pendingGoogle?.email
+    if (activeEmail && !emailVal) {
+      setEmailVal(activeEmail)
     }
-    if (user?.email && !emailVal) {
-      setEmailVal(user.email)
-    }
-  }, [pendingGoogle, user])
+  }, [pendingGoogle, user, emailVal])
 
-  // ──────── Persist form data to sessionStorage on every change ────────
+  useEffect(() => {
+    if (emailVal && typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_onboard_email', emailVal) } catch { }
+    }
+  }, [emailVal])
+
+  // ──────── Persist form data to storage on every change ────────
   useEffect(() => {
     const formData = {
       locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, operatingHours: `${openTime} - ${closeTime}`,
@@ -233,9 +323,17 @@ export function PartnerOnboarding({
   // Persist phone verification state
   useEffect(() => {
     ssSet('tg_phone_verified', isPhoneVerified ? 'true' : 'false')
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_phone_verified', isPhoneVerified ? 'true' : 'false') } catch { }
+    }
   }, [isPhoneVerified])
   useEffect(() => {
-    if (step3VerifiedPhone) ssSet('tg_verified_phone', step3VerifiedPhone)
+    if (step3VerifiedPhone) {
+      ssSet('tg_verified_phone', step3VerifiedPhone)
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('tg_verified_phone', step3VerifiedPhone) } catch { }
+      }
+    }
   }, [step3VerifiedPhone])
 
   useEffect(() => {
@@ -299,7 +397,7 @@ export function PartnerOnboarding({
             setAuthLoading(false)
 
             // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
-            if (!result.isNewUser && result.user && result.user.studioName && result.user.phone) {
+            if (!result.isNewUser && result.user && result.user.status === 'ACTIVE' && result.user.studioName && result.user.phone) {
               if (result.user.role && result.user.role !== 'STUDIO') {
                 setError('This Google account is registered as a Customer. Please use a Studio partner account.')
                 return
@@ -491,13 +589,13 @@ export function PartnerOnboarding({
   }
 
   // Step 3: Verify Twilio OTP for Direct Mobile Phone
-  const handleStep3VerifyOtp = async () => {
+  const handleStep3VerifyOtp = async (): Promise<boolean> => {
     const cleanOtp = step3Otp.trim()
     if (!cleanOtp || cleanOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
-      return
+      return false
     }
     setStep3OtpLoading(true)
     setError('')
@@ -516,11 +614,13 @@ export function PartnerOnboarding({
       setStep3OtpSent(false)
       setStep3Otp('')
       toast.success('Mobile number verified successfully!', { position: 'top-center' })
+      return true
     } catch (err: any) {
       setStep3OtpLoading(false)
       const msg = err.message || 'Invalid verification code.'
       setError(msg)
       toast.error(msg, { position: 'top-center' })
+      return false
     }
   }
 
@@ -618,12 +718,22 @@ export function PartnerOnboarding({
         lng: studioLng || undefined,
       })
 
-      // Clear all onboarding session data on successful registration
+      // Clear all onboarding session and local data on successful registration
       ssRemove('tg_pending_google')
       ssRemove('tg_onboard_step')
       ssRemove('tg_onboard_form')
       ssRemove('tg_phone_verified')
       ssRemove('tg_verified_phone')
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('tg_pending_google')
+          localStorage.removeItem('tg_onboard_step')
+          localStorage.removeItem('tg_onboard_form')
+          localStorage.removeItem('tg_onboard_email')
+          localStorage.removeItem('tg_phone_verified')
+          localStorage.removeItem('tg_verified_phone')
+        } catch { }
+      }
 
       const finalUser: User = res?.user || {
         id: user?.id || `usr_${Date.now()}`,
@@ -633,6 +743,7 @@ export function PartnerOnboarding({
         phone: phone.trim(),
         method: 'email',
         role: 'STUDIO',
+        status: 'ACTIVE',
         studioId: 'atelier-soho',
         studioName: shopName.trim(),
         postcode: postcode.trim(),
@@ -640,6 +751,8 @@ export function PartnerOnboarding({
       }
 
       if (typeof window !== 'undefined') {
+        if (res?.token) setAuthToken(res.token)
+        setAuthUser(finalUser)
         setAuthRole('STUDIO')
         window.location.href = '/'
         return
@@ -732,8 +845,11 @@ export function PartnerOnboarding({
                   </a>
                   <button
                     onClick={() => {
+                      clearAllAuth()
                       if (onSignOut) onSignOut()
-                      window.location.href = '/'
+                      if (typeof window !== 'undefined') {
+                        window.location.href = CUSTOMER_SITE_URL || '/'
+                      }
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600 font-medium cursor-pointer"
                   >
@@ -750,7 +866,7 @@ export function PartnerOnboarding({
       <main className={`w-full flex flex-col items-center justify-center ${hideHeader ? 'p-0' : 'flex-1 px-4 py-8 sm:py-12 my-auto'}`}>
         <div style={{ perspective: '1400px' }} className="w-full max-w-[540px]">
           {alreadyRegistered && (
-            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-xs text-left">
+            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-none text-left">
               <div className="flex items-start gap-3">
                 <div className="size-8 rounded-full bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0 font-bold text-sm">
                   ✓
@@ -790,13 +906,30 @@ export function PartnerOnboarding({
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}
-              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col justify-between min-h-[640px] animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 ${currentStep !== 'auth' ? 'flex flex-col justify-between min-h-[640px]' : 'space-y-6'} animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
-              {/* Card Header with Step Badge */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2.5">
-                  {currentStep !== 'auth' ? (
+              {/* Card Header */}
+              {currentStep === 'auth' ? (
+                <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
+                  <img
+                    src="/bg_logo.png"
+                    alt="Darzi Atelier"
+                    className="h-11 sm:h-12 w-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <span className="size-1.5 rounded-full bg-[#9E593B]" />
+                    <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
+                      Studio Workbench Node
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -815,27 +948,21 @@ export function PartnerOnboarding({
                     >
                       <ArrowLeft size={16} />
                     </button>
-                  ) : (
-                    <div className="size-9 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center text-[#9E593B]">
-                      <Scissors size={18} />
+                    <div>
+                      <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
+                        Studio Portal
+                      </span>
+                      <span className="text-xs font-bold text-[#0F1115] block">
+                        Workbench Node
+                      </span>
                     </div>
-                  )}
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
-                      Studio Portal
-                    </span>
-                    <span className="text-xs font-bold text-[#0F1115] block">
-                      Workbench Node
-                    </span>
                   </div>
-                </div>
 
-                {currentStep !== 'auth' && (
                   <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                     Step {currentStepNum} of 4
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
               {currentStep === 'auth' && (
@@ -1533,8 +1660,10 @@ export function PartnerOnboarding({
                   value={step3Otp}
                   onChange={setStep3Otp}
                   onVerify={async () => {
-                    await handleStep3VerifyOtp()
-                    setCurrentStep('hub')
+                    const verified = await handleStep3VerifyOtp()
+                    if (verified) {
+                      setCurrentStep('hub')
+                    }
                   }}
                   onResend={() => handleStep3SendOtp(true)}
                   resendCountdown={step3Countdown}

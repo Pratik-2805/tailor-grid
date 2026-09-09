@@ -148,7 +148,13 @@ export function clearAllAuth(): void {
     localStorage.removeItem('tg_user_data')
     localStorage.removeItem('tg_user_role')
     localStorage.removeItem('tg_screen')
-    // Clear onboarding session data
+    // Clear onboarding local and session data completely
+    localStorage.removeItem('tg_pending_google')
+    localStorage.removeItem('tg_onboard_step')
+    localStorage.removeItem('tg_onboard_form')
+    localStorage.removeItem('tg_onboard_email')
+    localStorage.removeItem('tg_phone_verified')
+    localStorage.removeItem('tg_verified_phone')
     sessionStorage.removeItem('tg_pending_google')
     sessionStorage.removeItem('tg_onboard_step')
     sessionStorage.removeItem('tg_onboard_form')

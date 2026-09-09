@@ -91,7 +91,7 @@ function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
         if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
           return parsed[0]
         }
-      } catch {}
+      } catch { }
     }
   }
   const gid = order?.garmentId?.toLowerCase() || ''
@@ -124,7 +124,7 @@ function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
           const list = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
           if (list.length > 0) return list
         }
-      } catch {}
+      } catch { }
     }
     if (raw.includes('||')) {
       const list = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
@@ -238,7 +238,7 @@ export function PartnerFlow({
         setSelectedOrder((prev) => (prev ? { ...prev, intakePhotoUrl: photoPayload } : prev))
       }
 
-      await updateOrder(orderId, { intakePhotoUrl: photoPayload }).catch(() => {})
+      await updateOrder(orderId, { intakePhotoUrl: photoPayload }).catch(() => { })
       setBroadcastToast('✓ Garment reference photo added to order!')
       setTimeout(() => setBroadcastToast(null), 4000)
     }
@@ -330,15 +330,22 @@ export function PartnerFlow({
   })
   const [newCapability, setNewCapability] = useState('')
   const [showAddCap, setShowAddCap] = useState(false)
-  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
+  const [studioNotice, setStudioNotice] = useState<string | null>(null)
+  const [capacityLimit, setCapacityLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = getStorageCookie('tg_studio_capacity')
+      if (stored) return parseInt(stored) || 25
+    }
+    return 25
+  })
 
   const handleSetCapacity = (val: number) => {
     setCapacityLimit(val)
     if (typeof window !== 'undefined') {
       setStorageCookie('tg_studio_capacity', val.toString())
     }
-    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
-    setTimeout(() => setCapacityNotice(null), 3000)
+    setStudioNotice(`Daily intake limit set to ${val} garments/day`)
+    setTimeout(() => setStudioNotice(null), 3000)
   }
 
   const toggleCapability = (cap: string) => {
@@ -483,7 +490,7 @@ export function PartnerFlow({
   const handleDeclineAllocatedOrder = async (orderId: string) => {
     const updates: Partial<FittingBooking> = {
       status: 'Cancelled',
-      notes: 'Request not accepted by studio in time',
+      sewingNotes: 'Request not accepted by studio in time',
     }
     setOrders((prev) => prev.filter((o) => o.id !== orderId))
     setSkippedOrderIds((prev) => [...prev, orderId])
@@ -554,27 +561,54 @@ export function PartnerFlow({
     setTimeout(() => setBroadcastToast(null), 6000)
   }
 
-  // Intake with customer PIN
+  // Intake with customer PIN - strictly for Accepted drop-offs
   const handleLookupPin = (pin: string) => {
     setPinError('')
     const clean = pin.trim()
-    const found = orders.find((o) => o.otp === clean || o.id.toLowerCase().includes(clean.toLowerCase()))
-    if (found) {
-      setActiveIntake(found)
-      setHangTag(found.hangTagNo || `Tag #${Math.floor(Math.random() * 30 + 1)} · Rack A`)
-      setConditionNotes(found.fabricConditionNotes || 'Clean condition, pristine fabric.')
-      setMeasHem(found.measurements?.hem || found.pinnedAdjustment || '')
-      setMeasWaist(found.measurements?.waist || '')
-      setMeasSleeve(found.measurements?.sleeve || '')
-      setMeasInseam(found.measurements?.inseam || '')
-      setMeasCustom(found.measurements?.custom || '')
-      setSewNotes(found.sewingNotes || '')
+    if (!clean) return
+
+    // Strictly match an Accepted order waiting for drop-off
+    const acceptedOrder = orders.find(
+      (o) => o.status === 'Accepted' && (o.otp === clean || o.id.toLowerCase() === clean.toLowerCase())
+    )
+
+    if (acceptedOrder) {
+      setActiveIntake(acceptedOrder)
+      setHangTag(acceptedOrder.hangTagNo || `Tag #${Math.floor(Math.random() * 30 + 1)} · Rack A`)
+      setConditionNotes(acceptedOrder.fabricConditionNotes || 'Clean condition, pristine fabric.')
+      setMeasHem(acceptedOrder.measurements?.hem || acceptedOrder.pinnedAdjustment || '')
+      setMeasWaist(acceptedOrder.measurements?.waist || '')
+      setMeasSleeve(acceptedOrder.measurements?.sleeve || '')
+      setMeasInseam(acceptedOrder.measurements?.inseam || '')
+      setMeasCustom(acceptedOrder.measurements?.custom || '')
+      setSewNotes(acceptedOrder.sewingNotes || '')
       setIntakeSuccess(false)
       setPriceAdjustApproved(false)
       setShowPriceAdjust(false)
-    } else {
-      setPinError(`No order found with PIN "${clean}". Tap any customer below to auto-fill.`)
+      return
     }
+
+    // Check other statuses to give helpful feedback
+    const otherOrder = orders.find(
+      (o) => o.otp === clean || o.id.toLowerCase() === clean.toLowerCase()
+    )
+
+    if (otherOrder) {
+      if (otherOrder.status === 'Work in Progress') {
+        setPinError(`Order #${otherOrder.id} (${otherOrder.customerName}) is already on the sewing bench.`)
+      } else if (otherOrder.status === 'Ready') {
+        setPinError(`Order #${otherOrder.id} is already completed and ready on the rack for pickup.`)
+      } else if (otherOrder.status === 'Closed' || otherOrder.status === 'Collected') {
+        setPinError(`Order #${otherOrder.id} has already been completed and collected.`)
+      } else if (otherOrder.status === 'Allocated') {
+        setPinError(`Order #${otherOrder.id} is an incoming dispatch. Please accept it first.`)
+      } else {
+        setPinError(`Order #${otherOrder.id} is currently in "${otherOrder.status}" status.`)
+      }
+      return
+    }
+
+    setPinError(`No scheduled drop-off found with PIN "${clean}".`)
   }
 
   const handleConfirmIntakeAndStart = () => {
@@ -851,8 +885,8 @@ export function PartnerFlow({
             <button
               onClick={() => setOnline(!online)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer border ${online
-                  ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40 hover:bg-emerald-900/40'
-                  : 'bg-stone-900 text-stone-400 border-stone-800 hover:bg-stone-800'
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40 hover:bg-emerald-900/40'
+                : 'bg-stone-900 text-stone-400 border-stone-800 hover:bg-stone-800'
                 }`}
             >
               <div className="flex items-center gap-2">
@@ -1221,10 +1255,10 @@ export function PartnerFlow({
                                   <div
                                     key={idx}
                                     className={`size-14 sm:size-16 rounded-xl bg-white border flex items-center justify-center font-mono font-bold text-2xl sm:text-3xl transition-all shadow-2xs ${digit
-                                        ? 'border-[#1E2229] text-[#1E2229] bg-white'
-                                        : isFocused
-                                          ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
-                                          : 'border-[#E8E1D5] text-[#D1D5DB]'
+                                      ? 'border-[#1E2229] text-[#1E2229] bg-white'
+                                      : isFocused
+                                        ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
+                                        : 'border-[#E8E1D5] text-[#D1D5DB]'
                                       }`}
                                   >
                                     {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
@@ -1238,8 +1272,8 @@ export function PartnerFlow({
                               onClick={() => handleLookupPin(pinInput)}
                               disabled={pinInput.length === 0}
                               className={`w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${pinInput.length === 4
-                                  ? 'bg-[#0F1115] hover:bg-[#9E593B] text-white active:scale-95'
-                                  : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
+                                ? 'bg-[#0F1115] hover:bg-[#9E593B] text-white active:scale-95'
+                                : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
                                 }`}
                             >
                               <ShieldCheck size={15} />
@@ -1273,8 +1307,8 @@ export function PartnerFlow({
                                     type="button"
                                     onClick={() => handleKeypadPress(key)}
                                     className={`py-3 rounded-xl font-mono text-sm font-bold transition-all cursor-pointer active:scale-95 ${key === 'CLEAR' || key === 'BACK'
-                                        ? 'bg-[#E8E1D5] text-[#1E2229] hover:bg-[#DDD6CB] text-xs'
-                                        : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#1E2229] border border-[#E8E1D5] shadow-2xs'
+                                      ? 'bg-[#E8E1D5] text-[#1E2229] hover:bg-[#DDD6CB] text-xs'
+                                      : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#1E2229] border border-[#E8E1D5] shadow-2xs'
                                       }`}
                                   >
                                     {key}
@@ -1290,7 +1324,7 @@ export function PartnerFlow({
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-semibold text-[#1E2229] flex items-center gap-1.5">
                               <Clock size={13} className="text-[#9E593B]" />
-                              <span>Scheduled Customer Appointments</span>
+                              <span>Scheduled Drop-Off Appointments</span>
                             </span>
                             <span className="text-xs text-[#6B7280] font-medium">
                               {pipelineOrders.filter((o) => o.status === 'Accepted').length} in queue
@@ -1312,8 +1346,8 @@ export function PartnerFlow({
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5 mb-0.5">
-                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.2 rounded">
-                                            #{o.otp}
+                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.5 rounded">
+                                            PIN #{o.otp}
                                           </span>
                                           <span className="font-semibold text-xs text-[#1E2229] truncate">{o.customerName}</span>
                                         </div>
@@ -1323,61 +1357,26 @@ export function PartnerFlow({
                                       </div>
                                     </div>
 
-                                    {o.status === 'Allocated' ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleAcceptAllocatedOrder(o)}
-                                        className="px-3 py-1.5 rounded-lg bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1"
-                                      >
-                                        <Zap size={12} className="fill-white" />
-                                        <span>Accept (${o.partnerPayout || Math.round((o.price || 30) * 0.75)})</span>
-                                      </button>
-                                    ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setPinInput(o.otp)
-                                          handleLookupPin(o.otp)
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95"
-                                      >
-                                        Intake #{o.otp} →
-                                      </button>
-                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPinInput(o.otp)
+                                        handleLookupPin(o.otp)
+                                      }}
+                                      className="px-3.5 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1.5"
+                                    >
+                                      <ShieldCheck size={13} />
+                                      <span>Intake Drop-Off →</span>
+                                    </button>
                                   </div>
                                 ))}
                             </div>
                           ) : (
-                            /* Elegant Ready-to-Test Ingress State */
-                            <div className="p-4 rounded-xl bg-[#F3EFEA]/60 border border-[#E8E1D5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                              <div className="space-y-0.5">
-                                <div className="font-semibold text-[#1E2229] flex items-center gap-1.5">
-                                  <Sparkles size={13} className="text-[#9E593B]" />
-                                  <span>Test Ingress with Active Orders:</span>
-                                </div>
-                                <p className="text-[#6B7280] text-[11px]">
-                                  Tap any active customer ticket to auto-fill their 4-digit PIN code.
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-2 flex-wrap shrink-0">
-                                {orders.slice(0, 2).map((sample) => (
-                                  <button
-                                    key={sample.id}
-                                    type="button"
-                                    onClick={() => {
-                                      if (sample?.otp) {
-                                        setPinInput(sample.otp)
-                                        handleLookupPin(sample.otp)
-                                      }
-                                    }}
-                                    className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-[#1E2229] hover:text-black hover:border-[#9E593B] font-mono text-xs font-semibold cursor-pointer transition-all shadow-2xs flex items-center gap-1.5"
-                                  >
-                                    <span>#{sample.otp} ({sample.customerName.split(' ')[0]})</span>
-                                    <ArrowRight size={11} className="text-[#9E593B]" />
-                                  </button>
-                                ))}
-                              </div>
+                            <div className="p-5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-center text-xs text-[#6B7280]">
+                              <p className="font-semibold text-[#1E2229]">No appointments awaiting drop-off intake</p>
+                              <p className="text-[11px] mt-1 text-[#7A7E85]">
+                                When an incoming booking is accepted, the customer's drop-off appointment will appear here for quick 1-click counter intake.
+                              </p>
                             </div>
                           )}
                         </div>
@@ -2234,8 +2233,8 @@ export function PartnerFlow({
                       type="button"
                       onClick={() => setRetailAnswer('YES')}
                       className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
-                          ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                          : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
+                        ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                        : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                         }`}
                     >
                       Yes (+Add Sale)
@@ -2244,8 +2243,8 @@ export function PartnerFlow({
                       type="button"
                       onClick={() => setRetailAnswer('NO')}
                       className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
-                          ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                          : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
+                        ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                        : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                         }`}
                     >
                       No (Handover Only)
@@ -2285,8 +2284,8 @@ export function PartnerFlow({
                   onClick={handleCompletePickupAndSettlement}
                   disabled={retailAnswer === null}
                   className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${retailAnswer === null
-                      ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
-                      : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
+                    ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
+                    : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
                     }`}
                 >
                   {pickupCompleted ? '✓ Order Settled!' : 'Complete Handover & Lock Earnings →'}
@@ -2359,9 +2358,8 @@ export function PartnerFlow({
                   <button
                     key={idx}
                     onClick={() => setLightboxIndex(idx)}
-                    className={`size-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
-                      lightboxIndex === idx ? 'border-[#9E593B] scale-105 shadow-lg' : 'border-white/30 opacity-60 hover:opacity-100'
-                    }`}
+                    className={`size-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${lightboxIndex === idx ? 'border-[#9E593B] scale-105 shadow-lg' : 'border-white/30 opacity-60 hover:opacity-100'
+                      }`}
                   >
                     <img src={photo} alt="Thumbnail" className="w-full h-full object-cover" />
                   </button>

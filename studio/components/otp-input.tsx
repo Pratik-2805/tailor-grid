@@ -63,11 +63,13 @@ export function OtpVerificationCard({
 
   const handleChange = (index: number, val: string) => {
     const cleanDigit = val.replace(/\D/g, '').slice(-1)
-    const newDigits = [...digits]
-    newDigits[index] = cleanDigit
-    setDigits(newDigits)
-    const combined = newDigits.join('')
-    onChange(combined)
+    setDigits((prevDigits) => {
+      const newDigits = [...prevDigits]
+      newDigits[index] = cleanDigit
+      const combined = newDigits.join('')
+      onChange(combined)
+      return newDigits
+    })
 
     // Advance focus to next input if digit entered
     if (cleanDigit && index < length - 1) {
@@ -77,19 +79,17 @@ export function OtpVerificationCard({
 
   const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
-      if (!digits[index] && index > 0) {
-        // Move to previous input and clear
-        inputRefs.current[index - 1]?.focus()
-        const newDigits = [...digits]
-        newDigits[index - 1] = ''
-        setDigits(newDigits)
+      setDigits((prevDigits) => {
+        const newDigits = [...prevDigits]
+        if (!newDigits[index] && index > 0) {
+          inputRefs.current[index - 1]?.focus()
+          newDigits[index - 1] = ''
+        } else {
+          newDigits[index] = ''
+        }
         onChange(newDigits.join(''))
-      } else {
-        const newDigits = [...digits]
-        newDigits[index] = ''
-        setDigits(newDigits)
-        onChange(newDigits.join(''))
-      }
+        return newDigits
+      })
     } else if (e.key === 'ArrowLeft' && index > 0) {
       inputRefs.current[index - 1]?.focus()
     } else if (e.key === 'ArrowRight' && index < length - 1) {

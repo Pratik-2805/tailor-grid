@@ -29,8 +29,9 @@ export default function StudioPage() {
       authParam = params.get('auth') || params.get('action')
       if (token) {
         setAuthToken(token)
-        // Clean URL query params
-        window.history.replaceState({}, '', window.location.pathname)
+        const url = new URL(window.location.href)
+        url.searchParams.delete('token')
+        window.history.replaceState({}, '', url.toString())
       }
     }
 
@@ -42,10 +43,10 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u && u.role === 'STUDIO') {
+        if (u && u.role === 'STUDIO' && u.status === 'ACTIVE' && u.studioName && u.phone) {
           setUser(u)
         } else {
-          setUser(null)
+          setUser(u && u.status === 'INACTIVE' ? u : null)
           if (authParam === 'signin' || authParam === 'login') {
             setAuthType('signin')
           }
@@ -86,12 +87,14 @@ export default function StudioPage() {
     })
   }
 
-  const handleOpenAuth = (type: 'signin' | 'signup' = 'signin') => {
-    if (type === 'signup') {
-      window.location.href = '/onboarding'
-      return
+  const handleOpenAuth = (_type: 'signin' | 'signup' = 'signin') => {
+    clearAllAuth()
+    setUser(null)
+    setAuthType('signin')
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/')
+      window.location.href = '/'
     }
-    setAuthType(type)
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
@@ -124,6 +127,11 @@ export default function StudioPage() {
     clearAllAuth()
     setUser(null)
     setPartnerTab('cockpit')
+    setAuthType('signin')
+    if (typeof window !== 'undefined') {
+      window.location.href = customerSiteUrl || '/'
+      return
+    }
     toast.info('Signed out of Studio Workshop.', {
       position: 'top-center',
       autoClose: 2500,
@@ -172,7 +180,7 @@ export default function StudioPage() {
       />
 
       <main className="flex-1 flex flex-col">
-        {user && user.role === 'STUDIO' && user.studioName && user.phone ? (
+        {user && user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone ? (
           /* Active Studio Workbench Dashboard */
           <PartnerFlow
             go={() => { }}

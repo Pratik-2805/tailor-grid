@@ -151,8 +151,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const stored = getAuthUser<User>()
-      if (stored) {
+      if (stored && stored.status !== 'INACTIVE') {
         setUser(stored)
+      } else {
+        setUser(null)
       }
 
       const params = new URLSearchParams(window.location.search)
@@ -173,7 +175,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     getCurrentUser()
       .then((u) => {
-        if (u) {
+        if (u && u.status !== 'INACTIVE') {
           setUser(u)
         } else {
           setUser(null)
@@ -195,6 +197,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
+    if (loggedUser.status === 'INACTIVE') {
+      setUser(null)
+      setIsAuthOpen(false)
+      toast.info('Studio enrollment is incomplete. Please complete your registration in Studio Portal.', {
+        position: 'top-center',
+        autoClose: 4000,
+      })
+      return
+    }
+
     setUser(loggedUser)
     setIsAuthOpen(false)
     const effectiveRole: 'CUSTOMER' | 'STUDIO' = loggedUser.role === 'STUDIO' ? 'STUDIO' : 'CUSTOMER'

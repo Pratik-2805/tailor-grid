@@ -176,11 +176,17 @@ async function verifyOtp(phone, inputCode) {
   const cleanCode = String(inputCode).trim();
   const now = new Date();
 
+  // Normalize phone variants (+91..., without +, raw digits) so formatting discrepancies never cause verification to fail
+  const validation = validateAndFormatPhone(phone);
+  const formattedPhone = validation.isValid ? validation.formatted : phone.trim();
+  const rawDigits = phone.replace(/\D/g, '');
+  const candidatePhones = Array.from(new Set([formattedPhone, phone.trim(), rawDigits, `+${rawDigits}`])).filter(Boolean);
+
   // 1. Check PostgreSQL Database first
   try {
     const dbRecord = await prisma.otpVerification.findFirst({
       where: {
-        phone,
+        phone: { in: candidatePhones },
         code: cleanCode,
         verified: false,
         expiresAt: { gt: now },
@@ -189,8 +195,12 @@ async function verifyOtp(phone, inputCode) {
     });
 
     if (dbRecord) {
-      await prisma.otpVerification.deleteMany({ where: { phone } }).catch(() => {});
-      memoryOtpStore.delete(phone);
+      await prisma.otpVerification.deleteMany({
+        where: { phone: { in: candidatePhones } },
+      }).catch(() => {});
+      for (const p of candidatePhones) {
+        memoryOtpStore.delete(p);
+      }
       return true;
     }
   } catch (err) {
@@ -198,11 +208,17 @@ async function verifyOtp(phone, inputCode) {
   }
 
   // 2. Check in-memory store fallback
-  const mem = memoryOtpStore.get(phone);
-  if (mem && mem.code === cleanCode && Date.now() <= mem.expiresAt) {
-    memoryOtpStore.delete(phone);
-    await prisma.otpVerification.deleteMany({ where: { phone } }).catch(() => {});
-    return true;
+  for (const p of candidatePhones) {
+    const mem = memoryOtpStore.get(p);
+    if (mem && mem.code === cleanCode && Date.now() <= mem.expiresAt) {
+      for (const cand of candidatePhones) {
+        memoryOtpStore.delete(cand);
+      }
+      await prisma.otpVerification.deleteMany({
+        where: { phone: { in: candidatePhones } },
+      }).catch(() => {});
+      return true;
+    }
   }
 
   return false;
