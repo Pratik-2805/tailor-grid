@@ -24,7 +24,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 
@@ -37,6 +37,27 @@ interface PartnerOnboardingProps {
 }
 
 type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'phone-verify' | 'hub'
+
+const stepToUrlNum: Record<Step, string> = {
+  'auth': 'auth',
+  'location': '1',
+  'language': '2',
+  'shop-info': '3',
+  'phone-verify': '4',
+  'hub': '5',
+}
+
+const urlParamToStep = (param: string | null): Step | null => {
+  if (!param) return null
+  const p = param.toLowerCase().trim()
+  if (p === '1' || p === 'location' || p === 'step1' || p === 'step-1') return 'location'
+  if (p === '2' || p === 'language' || p === 'step2' || p === 'step-2') return 'language'
+  if (p === '3' || p === 'shop-info' || p === 'shopinfo' || p === 'step3' || p === 'step-3') return 'shop-info'
+  if (p === '4' || p === 'phone-verify' || p === 'phone' || p === 'step4' || p === 'step-4') return 'phone-verify'
+  if (p === '5' || p === 'hub' || p === 'step5' || p === 'step-5') return 'hub'
+  if (p === 'auth' || p === 'signin' || p === 'signup' || p === 'login') return 'auth'
+  return null
+}
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
@@ -112,6 +133,14 @@ export function PartnerOnboarding({
 
   // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      return 'auth'
+    }
+    if (typeof window !== 'undefined') {
+      const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
+      if (urlStep) return urlStep
+    }
     const cached = ssGet('tg_onboard_step')
     if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
       return cached as Step
@@ -123,7 +152,62 @@ export function PartnerOnboarding({
   const setCurrentStep = (step: Step, pushHistory: boolean = false) => {
     setCurrentStepRaw(step)
     ssSet('tg_onboard_step', step)
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('tg_onboard_step', step) } catch { }
+      const url = new URL(window.location.href)
+      if (step === 'auth') {
+        url.searchParams.delete('step')
+      } else {
+        url.searchParams.set('step', stepToUrlNum[step])
+      }
+      if (pushHistory) {
+        window.history.pushState({}, '', url.toString())
+      } else {
+        window.history.replaceState({}, '', url.toString())
+      }
+    }
   }
+
+  // Continuously sync URL query param ?step=1, ?step=2, etc.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    if (!hasAuth) {
+      if (currentStep !== 'auth') {
+        setCurrentStepRaw('auth')
+        setSignInMode('options')
+      }
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('step')) {
+        url.searchParams.delete('step')
+        window.history.replaceState({}, '', url.toString())
+      }
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const stepFromUrl = urlParamToStep(params.get('step'))
+
+    if (stepFromUrl) {
+      if (stepFromUrl !== currentStep) {
+        setCurrentStepRaw(stepFromUrl)
+      }
+      ssSet('tg_onboard_step', stepFromUrl)
+    } else if (currentStep !== 'auth') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('step', stepToUrlNum[currentStep])
+      window.history.replaceState({}, '', url.toString())
+    }
+
+    const handlePopState = () => {
+      const p = new URLSearchParams(window.location.search)
+      const s = urlParamToStep(p.get('step')) || (hasAuth ? 'location' : 'auth')
+      setCurrentStepRaw(s)
+      ssSet('tg_onboard_step', s)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [user?.email, pendingGoogle?.email, currentStep])
 
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
