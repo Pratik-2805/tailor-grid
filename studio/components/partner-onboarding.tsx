@@ -1358,7 +1358,10 @@ export function PartnerOnboarding({
                           onClick={() => setIsMapModalOpen(true)}
                           className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3 text-left transition-all cursor-pointer group"
                         >
-                          <AnimatedLocationPin size={20} />
+                          <AnimatedLocationPin
+                            size={22}
+                            isConfirmed={Boolean(studioLat && studioLng)}
+                          />
                           <span className="text-sm font-semibold text-[#0F1115] truncate flex-1">
                             {studioLat && studioLng
                               ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`

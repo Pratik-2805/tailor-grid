@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useRef, useEffect, useCallback, useState } from 'react'
@@ -9,6 +10,8 @@ interface AnimatedLocationPinProps {
   loop?: boolean
   autoplay?: boolean
   hoverTrigger?: boolean
+  isConfirmed?: boolean
+  isPinned?: boolean
 }
 
 export function AnimatedLocationPin({
@@ -17,14 +20,21 @@ export function AnimatedLocationPin({
   loop = false,
   autoplay = false,
   hoverTrigger = true,
+  isConfirmed = false,
+  isPinned = false,
 }: AnimatedLocationPinProps) {
   const [mounted, setMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
+  const confirmed = isConfirmed || isPinned
+  const animationSrc = confirmed
+    ? '/animated/wired-flat-18-location-pin-in-jump-dynamic.json'
+    : '/animated/system-solid-18-location-pin-hover-pinch.json'
+
   const lottie = useLottie({
-    src: '/animated/system-solid-18-location-pin-hover-pinch.json',
+    src: animationSrc,
     loop,
-    autoplay,
+    autoplay: confirmed ? true : autoplay,
   })
 
   const setRefs = useCallback(
@@ -38,6 +48,13 @@ export function AnimatedLocationPin({
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Auto-play once when newly confirmed
+  useEffect(() => {
+    if (confirmed && lottie.animationItem) {
+      lottie.animationItem.goToAndPlay(0, true)
+    }
+  }, [confirmed, lottie.animationItem])
 
   useEffect(() => {
     const el = containerRef.current
@@ -91,6 +108,7 @@ export function AnimatedLocationPin({
 
   return (
     <div
+      key={animationSrc}
       ref={setRefs}
       className={`inline-flex items-center justify-center shrink-0 ${className}`}
       style={{ width: size, height: size }}
