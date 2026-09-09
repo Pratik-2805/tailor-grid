@@ -68,7 +68,7 @@ export function StudioProfileView({
   onBack,
   onSignOut,
 }: StudioProfileViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'capacity'>('profile')
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
 
   const [name, setName] = useState(user.name || 'Master Tailor')
   const [studioName, setStudioName] = useState(user.studioName || 'Atelier Studio')
@@ -76,7 +76,6 @@ export function StudioProfileView({
   const [address, setAddress] = useState(user.address || '18 Kensington Church St')
   const [postcode, setPostcode] = useState(user.postcode || 'W8 4EP')
   const [area, setArea] = useState('SoHo & Central London')
-  const [capacity, setCapacity] = useState('25')
   const [avatar, setAvatar] = useState(user.avatar || '')
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
@@ -288,7 +287,7 @@ export function StudioProfileView({
             Studio Configuration
           </h1>
           <p className="text-xs sm:text-sm text-[#6B7280] mt-1">
-            Manage your atelier identity, master tailor credentials, craft capabilities, and daily capacity.
+            Manage your atelier identity, master tailor credentials, and craft capabilities.
           </p>
         </div>
 
@@ -356,14 +355,14 @@ export function StudioProfileView({
 
         <button
           type="button"
-          onClick={() => setActiveSubTab('capacity')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'capacity'
+          onClick={() => setActiveSubTab('craft')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'craft'
             ? 'border-[#9E593B] text-[#9E593B]'
             : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
             }`}
         >
           <Sliders size={14} />
-          <span>Capacity & Craft</span>
+          <span>Craft & Specialisms</span>
           <span className="size-4 rounded-full bg-[#FAF3EC] text-[#9E593B] text-[10px] font-extrabold grid place-items-center">
             {specialties.length}
           </span>
@@ -634,46 +633,20 @@ export function StudioProfileView({
 
               <button
                 type="button"
-                onClick={() => setActiveSubTab('capacity')}
+                onClick={() => setActiveSubTab('craft')}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#1E2229] hover:bg-black text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs ml-auto"
               >
-                <span>Next: Capacity & Craft</span>
+                <span>Next: Craft & Specialisms</span>
                 <ArrowRight size={14} />
               </button>
             </div>
           </div>
         ) : (
-          /* TAB 2: CAPACITY & CRAFT */
+          /* TAB 2: CRAFT & SPECIALISMS */
           <div className="space-y-6">
-            {/* Daily Capacity Section */}
+            {/* Primary Node Territory Section */}
             <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-2">
-                <div>
-                  <h3 className="font-bold text-sm text-[#1E2229]">Daily Alteration Intake Limit</h3>
-                  <p className="text-xs text-[#6B7280]">
-                    Maximum garments your atelier can receive per business day.
-                  </p>
-                </div>
-                <span className="text-sm font-bold text-[#9E593B] font-mono">{capacity} pcs/day</span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                {['15', '25', '40', '50'].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setCapacity(preset)}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${capacity === preset
-                      ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
-                      : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-white'
-                      }`}
-                  >
-                    {preset} pcs/day
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-1.5 pt-2">
+              <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
                   Primary Node Territory (Radius)
                 </label>

@@ -132,10 +132,9 @@ export function PartnerOnboarding({
   const [locationCity, setLocationCity] = useState(cachedForm?.locationCity || '')
   const [referralCode, setReferralCode] = useState(cachedForm?.referralCode || '')
 
-  // Step 2: Language & Capacity
+  // Step 2: Language & Equipment
   const [language, setLanguage] = useState(cachedForm?.language || 'English')
   const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
-  const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')
 
   // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
@@ -181,11 +180,11 @@ export function PartnerOnboarding({
   // ──────── Persist form data to sessionStorage on every change ────────
   useEffect(() => {
     const formData = {
-      locationCity, referralCode, language, machines, dailyCapacity,
+      locationCity, referralCode, language, machines,
       shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
     }
     ssSet('tg_onboard_form', JSON.stringify(formData))
-  }, [locationCity, referralCode, language, machines, dailyCapacity, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal])
+  }, [locationCity, referralCode, language, machines, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal])
 
   // Persist phone verification state
   useEffect(() => {
@@ -1058,12 +1057,12 @@ export function PartnerOnboarding({
                   </div>
                 )}
 
-                {/* Step 2: Language & Capacity */}
+                {/* Step 2: Language & Equipment */}
                 {currentStep === 'language' && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <div>
                       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                        Select your language & workshop capacity
+                        Select your language & equipment
                       </h1>
                       <p className="text-xs text-gray-500 mt-1.5">
                         You can change your language on this screen or at any time in Help.
@@ -1088,36 +1087,19 @@ export function PartnerOnboarding({
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Sewing Machines
-                          </label>
-                          <select
-                            value={machines}
-                            onChange={(e) => setMachines(e.target.value)}
-                            className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                          >
-                            <option value="2-3">2–3 machines</option>
-                            <option value="4-6">4–6 machines</option>
-                            <option value="8+">8+ machines</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Daily Order Limit
-                          </label>
-                          <select
-                            value={dailyCapacity}
-                            onChange={(e) => setDailyCapacity(e.target.value)}
-                            className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                          >
-                            <option value="15">15 orders / day</option>
-                            <option value="25">25 orders / day</option>
-                            <option value="50">50 orders / day</option>
-                          </select>
-                        </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                          Sewing Machines & Equipment
+                        </label>
+                        <select
+                          value={machines}
+                          onChange={(e) => setMachines(e.target.value)}
+                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                        >
+                          <option value="2-3">2–3 machines</option>
+                          <option value="4-6">4–6 machines</option>
+                          <option value="8+">8+ machines</option>
+                        </select>
                       </div>
                     </div>
 
@@ -1407,8 +1389,8 @@ export function PartnerOnboarding({
 
                       <div className="py-3.5 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Language & Daily Capacity</p>
-                          <p className="text-xs text-gray-500">{language} · {machines} Machines ({dailyCapacity}/day limit)</p>
+                          <p className="text-sm font-extrabold text-[#0F1115]">Language & Sewing Equipment</p>
+                          <p className="text-xs text-gray-500">{language} · {machines} Machines</p>
                         </div>
                         <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
                           <CheckCircle2 size={16} />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import {
   AlertCircle,
   ArrowRight,
@@ -51,7 +51,7 @@ import { fetchStudioOrders, updateOrder } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 
-export type StudioTab = 'cockpit' | 'pipeline' | 'capacity' | 'payouts' | 'profile'
+export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile'
 
 interface BroadcastRequest {
   id: string
@@ -178,7 +178,6 @@ function getSlaCountdown(job: FittingBooking): { text: string; urgent: boolean; 
 const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: string }[] = [
   { id: 'cockpit', label: 'Workshop Cockpit', icon: Zap, shortLabel: 'Workshop' },
   { id: 'pipeline', label: 'Alterations Pipeline', icon: Layers, shortLabel: 'Orders' },
-  { id: 'capacity', label: 'Workshop Capacity', icon: Settings, shortLabel: 'Capacity' },
   { id: 'payouts', label: 'Payouts & Escrow', icon: CreditCard, shortLabel: 'Payouts' },
   { id: 'profile', label: 'Studio Configuration', icon: Sliders, shortLabel: 'Profile' },
 ]
@@ -251,11 +250,12 @@ export function PartnerFlow({
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // desktop collapse
 
-  // ── 1. Live Broadcast Queue & 15-Second Circular Rotation ───────────────────
+  // ── 1. Live Broadcast Queue & 15-Second Countdown ───────────────────
   const [broadcastIdx, setBroadcastIdx] = useState(0)
   const [timerSecs, setTimerSecs] = useState(15)
   const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
+  const [skippedOrderIds, setSkippedOrderIds] = useState<string[]>([])
 
   // ── 2. Drop-off Intake PIN Handshake State ─────────────────────────────────
   const [pinInput, setPinInput] = useState('')
@@ -296,14 +296,7 @@ export function PartnerFlow({
   const [retailCategoryInput, setRetailCategoryInput] = useState('Accessories & Ties')
   const [pickupCompleted, setPickupCompleted] = useState(false)
 
-  // Capacity & Workshop Controls State
-  const [capacityLimit, setCapacityLimit] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = getStorageCookie('tg_studio_capacity')
-      if (stored) return parseInt(stored) || 25
-    }
-    return 25
-  })
+  // Workshop Controls State
   const [hoursWeekday, setHoursWeekday] = useState(() => {
     if (typeof window !== 'undefined') return getStorageCookie('tg_studio_hours_wd', '09:00 AM – 07:00 PM')
     return '09:00 AM – 07:00 PM'
@@ -337,16 +330,7 @@ export function PartnerFlow({
   })
   const [newCapability, setNewCapability] = useState('')
   const [showAddCap, setShowAddCap] = useState(false)
-  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
-
-  const handleSetCapacity = (val: number) => {
-    setCapacityLimit(val)
-    if (typeof window !== 'undefined') {
-      setStorageCookie('tg_studio_capacity', val.toString(), 60)
-    }
-    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
-    setTimeout(() => setCapacityNotice(null), 3000)
-  }
+  const [studioNotice, setStudioNotice] = useState<string | null>(null)
 
   const toggleCapability = (cap: string) => {
     const updated = capabilities.includes(cap)
@@ -356,8 +340,8 @@ export function PartnerFlow({
     if (typeof window !== 'undefined') {
       setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
     }
-    setCapacityNotice(`Updated capability: ${cap}`)
-    setTimeout(() => setCapacityNotice(null), 2500)
+    setStudioNotice(`Updated capability: ${cap}`)
+    setTimeout(() => setStudioNotice(null), 2500)
   }
 
   const handleAddCapability = (e: React.FormEvent) => {
@@ -370,8 +354,8 @@ export function PartnerFlow({
       if (typeof window !== 'undefined') {
         setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
       }
-      setCapacityNotice(`Added specialism: ${trimmed}`)
-      setTimeout(() => setCapacityNotice(null), 2500)
+      setStudioNotice(`Added specialism: ${trimmed}`)
+      setTimeout(() => setStudioNotice(null), 2500)
     }
     setNewCapability('')
     setShowAddCap(false)
@@ -387,8 +371,31 @@ export function PartnerFlow({
       setStorageCookie('tg_studio_hours_sun', editHoursSun, 60)
     }
     setIsEditingHours(false)
-    setCapacityNotice('Workshop operating schedule updated')
-    setTimeout(() => setCapacityNotice(null), 2500)
+    setStudioNotice('Workshop operating schedule updated')
+    setTimeout(() => setStudioNotice(null), 2500)
+  }
+
+  const selectedOrderRef = useRef<FittingBooking | null>(null)
+  selectedOrderRef.current = selectedOrder
+
+  const updateOrdersAndSelected = (fetched: FittingBooking[]) => {
+    setOrders(fetched)
+    if (fetched.length === 0) {
+      setSelectedOrder(null)
+      return
+    }
+
+    const currentSelectedId = selectedOrderRef.current?.id
+    if (currentSelectedId) {
+      const stillExists = fetched.find((o) => o.id === currentSelectedId)
+      if (stillExists) {
+        setSelectedOrder(stillExists)
+        return
+      }
+    }
+
+    const firstAccepted = fetched.find((o) => o.status !== 'Allocated') || fetched[0]
+    setSelectedOrder(firstAccepted)
   }
 
   const handleRefresh = async () => {
@@ -396,10 +403,7 @@ export function PartnerFlow({
     try {
       const fetched = await fetchStudioOrders(user?.studioId)
       if (fetched) {
-        setOrders(fetched)
-        if (fetched.length > 0 && !selectedOrder) {
-          setSelectedOrder(fetched[0])
-        }
+        updateOrdersAndSelected(fetched)
       }
     } catch { }
     setRefreshing(false)
@@ -412,10 +416,7 @@ export function PartnerFlow({
       if (online) {
         fetchStudioOrders(user?.studioId).then((fetched) => {
           if (fetched) {
-            setOrders(fetched)
-            if (fetched.length > 0 && !selectedOrder) {
-              setSelectedOrder(fetched[0])
-            }
+            updateOrdersAndSelected(fetched)
           }
         }).catch(() => { })
       }
@@ -425,7 +426,7 @@ export function PartnerFlow({
   }, [user, online])
 
   // Live incoming requests from real customer bookings (Status: Allocated)
-  const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated')
+  const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated' && !skippedOrderIds.includes(o.id))
 
   const allBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
     const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
@@ -448,21 +449,6 @@ export function PartnerFlow({
     }
   })
 
-  // Circular timer countdown (15s)
-  useEffect(() => {
-    if (!online || allBroadcasts.length === 0 || timerPaused) return
-    const interval = setInterval(() => {
-      setTimerSecs((prev) => {
-        if (prev <= 1) {
-          setBroadcastIdx((curr) => (curr + 1) % allBroadcasts.length)
-          return 15
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [online, allBroadcasts.length, timerPaused])
-
   const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
@@ -478,6 +464,7 @@ export function PartnerFlow({
     }
 
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+    setTimerSecs(15)
     await updateOrder(order.id, updates).catch(() => { })
 
     setBroadcastToast(`✓ Accepted: ${order.customerName} ($${partnerPayout}) — PIN #${order.otp}`)
@@ -486,11 +473,12 @@ export function PartnerFlow({
 
   const handleDeclineAllocatedOrder = async (orderId: string) => {
     const updates: Partial<FittingBooking> = {
-      status: 'Closed',
-      storeId: undefined,
-      storeName: undefined,
+      status: 'Cancelled',
+      notes: 'Request not accepted by studio in time',
     }
     setOrders((prev) => prev.filter((o) => o.id !== orderId))
+    setSkippedOrderIds((prev) => [...prev, orderId])
+    setTimerSecs(15)
     await updateOrder(orderId, updates).catch(() => { })
   }
 
@@ -501,16 +489,30 @@ export function PartnerFlow({
   }
 
   const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
-    if (bc?.isRealCustomerOrder && bc.realOrder) {
+    if (!bc) return
+    setSkippedOrderIds((prev) => [...prev, bc.id])
+    setTimerSecs(15)
+    if (bc.isRealCustomerOrder && bc.realOrder) {
       handleDeclineAllocatedOrder(bc.realOrder.id)
-      setTimerSecs(15)
-      return
-    }
-    if (allBroadcasts.length > 0) {
-      setBroadcastIdx((prev) => (prev + 1) % allBroadcasts.length)
-      setTimerSecs(15)
     }
   }
+
+  // 15-Second Timer Countdown & Auto-Skip on Expiry
+  useEffect(() => {
+    if (!online || allBroadcasts.length === 0 || timerPaused) return
+    const interval = setInterval(() => {
+      setTimerSecs((prev) => {
+        if (prev <= 1) {
+          if (currentBroadcast) {
+            handleSkipBroadcast(currentBroadcast)
+          }
+          return 15
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [online, allBroadcasts.length, timerPaused, currentBroadcast])
 
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
@@ -719,11 +721,13 @@ export function PartnerFlow({
     .filter((o) => o.status === 'Closed' || o.status === 'Collected')
     .reduce((sum, o) => sum + (o.partnerPayout || Math.round((o.price || 35) * 0.8)), 0)
 
-  const activeOnBench = orders.filter((o) => o.status === 'Work in Progress').length
-  const pendingDropOffs = orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length
-  const readyOnRack = orders.filter((o) => o.status === 'Ready').length
+  const pipelineOrders = orders.filter((o) => o.status !== 'Allocated')
 
-  const filteredOrders = orders.filter((o) => {
+  const activeOnBench = pipelineOrders.filter((o) => o.status === 'Work in Progress').length
+  const pendingDropOffs = pipelineOrders.filter((o) => o.status === 'Accepted').length
+  const readyOnRack = pipelineOrders.filter((o) => o.status === 'Ready').length
+
+  const filteredOrders = pipelineOrders.filter((o) => {
     const q = searchQuery.toLowerCase()
     const matchSearch =
       o.id.toLowerCase().includes(q) ||
@@ -737,7 +741,7 @@ export function PartnerFlow({
   // Timer circumference for circular progress
   const timerRadius = 22
   const timerCircumference = 2 * Math.PI * timerRadius
-  const timerStrokeDashoffset = timerCircumference - (timerSecs / 15) * timerCircumference
+  const timerStrokeDashoffset = timerCircumference - (timerSecs / 10) * timerCircumference
 
   // PIN keypad helper
   const handleKeypadPress = (val: string) => {
@@ -866,7 +870,7 @@ export function PartnerFlow({
             const Icon = item.icon
             const badge =
               item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length :
-                item.id === 'pipeline' ? orders.length : null
+                item.id === 'pipeline' ? pipelineOrders.length : null
 
             return (
               <button
@@ -1043,7 +1047,7 @@ export function PartnerFlow({
                             {currentBroadcast.garmentBrand}
                           </span>
                         )}
-                        <span className="text-xs text-stone-400">{broadcastIdx + 1} of {allBroadcasts.length}</span>
+
                       </div>
 
                       <h3 className="text-base font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
@@ -1069,12 +1073,14 @@ export function PartnerFlow({
 
                     <div className="flex items-center gap-2">
                       <button
+                        type="button"
                         onClick={() => handleSkipBroadcast(currentBroadcast)}
-                        className="px-3.5 py-2 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
+                        className="px-4 py-2 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
                       >
-                        Decline
+                        Skip
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleAcceptBroadcast(currentBroadcast)}
                         className="px-4 py-2 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
                       >
@@ -1083,6 +1089,14 @@ export function PartnerFlow({
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {/* Bottom Countdown Progress Bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
+                  <div
+                    className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
+                    style={{ width: `${(timerSecs / 15) * 100}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -1270,14 +1284,14 @@ export function PartnerFlow({
                               <span>Scheduled Customer Appointments</span>
                             </span>
                             <span className="text-xs text-[#6B7280] font-medium">
-                              {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length} in queue
+                              {pipelineOrders.filter((o) => o.status === 'Accepted').length} in queue
                             </span>
                           </div>
 
-                          {orders.filter((o) => ['Accepted', 'Allocated'].includes(o.status)).length > 0 ? (
+                          {pipelineOrders.filter((o) => o.status === 'Accepted').length > 0 ? (
                             <div className="grid sm:grid-cols-2 gap-3">
-                              {orders
-                                .filter((o) => ['Accepted', 'Allocated'].includes(o.status))
+                              {pipelineOrders
+                                .filter((o) => o.status === 'Accepted')
                                 .map((o) => (
                                   <div
                                     key={o.id}
@@ -1739,11 +1753,11 @@ export function PartnerFlow({
                   <div className="flex gap-1.5 flex-wrap text-xs">
                     {['ALL', 'Work in Progress', 'Accepted', 'Ready', 'Closed'].map((s) => {
                       const labelMap: Record<string, string> = {
-                        ALL: `All (${orders.length})`,
+                        ALL: `All (${pipelineOrders.length})`,
                         'Work in Progress': `On Bench (${activeOnBench})`,
                         Accepted: `Drop-Offs (${pendingDropOffs})`,
                         Ready: `Ready (${readyOnRack})`,
-                        Closed: `Completed (${orders.filter(o => o.status === 'Closed' || o.status === 'Collected').length})`,
+                        Closed: `Completed (${pipelineOrders.filter(o => o.status === 'Closed' || o.status === 'Collected').length})`,
                       }
                       return (
                         <button
@@ -1955,318 +1969,7 @@ export function PartnerFlow({
               </div>
             )}
 
-            {/* ════════════════════════════════════════════════════════════════ */}
-            {/* TAB 3: CAPACITY                                                */}
-            {/* ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'capacity' && (
-              <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-150">
-                {/* Notice Banner */}
-                {capacityNotice && (
-                  <div className="bg-[#0F1115] text-white px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between shadow-md border border-white/10">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
-                      <span>{capacityNotice}</span>
-                    </div>
-                    <button type="button" onClick={() => setCapacityNotice(null)} className="text-white/60 hover:text-white cursor-pointer">
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
 
-                <div className="grid sm:grid-cols-2 gap-6">
-                  {/* Daily Capacity Card */}
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-5">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold text-base text-[#1E2229]">Daily Intake Limit</h3>
-                        <p className="text-xs text-[#6B7280]">Max garments workshop accepts daily</p>
-                      </div>
-                      <span className="text-xs font-bold bg-[#FAF8F5] border border-[#E8E1D5] px-3 py-1 rounded-full text-[#9E593B]">
-                        {capacityLimit} / day
-                      </span>
-                    </div>
-
-                    {/* Progress Fill */}
-                    <div className="p-4 bg-[#F3EFEA]/80 rounded-2xl border border-[#E8E1D5] space-y-2">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-[#6B7280]">Active Bookings:</span>
-                        <span className="text-[#1E2229]">{orders.length} of {capacityLimit} slots</span>
-                      </div>
-                      <div className="h-2.5 rounded-full bg-[#E8E1D5] overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-300 ${orders.length >= capacityLimit ? 'bg-rose-500' : 'bg-[#9E593B]'}`}
-                          style={{ width: `${Math.min(100, (orders.length / capacityLimit) * 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[11px] text-[#6B7280]">
-                        <span>{orders.length >= capacityLimit ? 'Capacity reached' : 'Accepting drop-offs'}</span>
-                        <span className="font-semibold text-[#1E2229]">{Math.max(0, capacityLimit - orders.length)} slots remaining today</span>
-                      </div>
-                    </div>
-
-                    {/* Interactive Presets */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-[#1E2229] block">Quick Presets</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {[
-                          { val: 10, label: '10 Boutique' },
-                          { val: 25, label: '25 Standard' },
-                          { val: 40, label: '40 Busy' },
-                          { val: 50, label: '50 High' },
-                        ].map((p) => (
-                          <button
-                            key={p.val}
-                            type="button"
-                            onClick={() => handleSetCapacity(p.val)}
-                            className={`py-2 px-1 text-center rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              capacityLimit === p.val
-                                ? 'bg-[#9E593B] text-white border-[#9E593B] shadow-xs'
-                                : 'bg-[#FAF8F5] text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
-                            }`}
-                          >
-                            {p.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Range Slider */}
-                    <div className="space-y-1 pt-1">
-                      <div className="flex justify-between text-xs text-[#6B7280]">
-                        <span>10 pcs</span>
-                        <span className="font-bold text-[#1E2229]">{capacityLimit} pcs/day</span>
-                        <span>60 pcs</span>
-                      </div>
-                      <input
-                        type="range"
-                        min={10}
-                        max={60}
-                        step={5}
-                        value={capacityLimit}
-                        onChange={(e) => handleSetCapacity(parseInt(e.target.value))}
-                        className="w-full accent-[#9E593B] cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Operating Hours & Dispatch Status */}
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-base text-[#1E2229]">Workshop Operating Hours</h3>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditHoursWd(hoursWeekday)
-                          setEditHoursSat(hoursSaturday)
-                          setEditHoursSun(hoursSunday)
-                          setIsEditingHours(!isEditingHours)
-                        }}
-                        className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit3 size={13} />
-                        {isEditingHours ? 'Cancel' : 'Edit Schedule'}
-                      </button>
-                    </div>
-
-                    {/* Hours Editor or Display */}
-                    {isEditingHours ? (
-                      <div className="space-y-3 p-3.5 bg-[#FAF8F5] rounded-2xl border border-[#E8E1D5]">
-                        <div>
-                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Monday – Friday</label>
-                          <select
-                            value={editHoursWd}
-                            onChange={(e) => setEditHoursWd(e.target.value)}
-                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
-                          >
-                            <option value="09:00 AM – 07:00 PM">09:00 AM – 07:00 PM (Standard)</option>
-                            <option value="08:30 AM – 06:30 PM">08:30 AM – 06:30 PM (Early)</option>
-                            <option value="10:00 AM – 08:00 PM">10:00 AM – 08:00 PM (Late Evening)</option>
-                            <option value="09:00 AM – 05:00 PM">09:00 AM – 05:00 PM (Boutique)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Saturday</label>
-                          <select
-                            value={editHoursSat}
-                            onChange={(e) => setEditHoursSat(e.target.value)}
-                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
-                          >
-                            <option value="10:00 AM – 06:00 PM">10:00 AM – 06:00 PM (Full Saturday)</option>
-                            <option value="10:00 AM – 02:00 PM">10:00 AM – 02:00 PM (Half Day)</option>
-                            <option value="Closed for Rest">Closed on Saturday</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-[#6B7280] uppercase">Sunday</label>
-                          <select
-                            value={editHoursSun}
-                            onChange={(e) => setEditHoursSun(e.target.value)}
-                            className="mt-1 w-full bg-white border border-[#E8E1D5] rounded-xl px-3 py-1.5 text-xs text-[#1E2229]"
-                          >
-                            <option value="Closed for Rest">Closed for Rest</option>
-                            <option value="11:00 AM – 04:00 PM">11:00 AM – 04:00 PM (Sunday Express)</option>
-                          </select>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleSaveHours}
-                          className="w-full py-2 bg-[#9E593B] hover:bg-[#86482F] text-white font-semibold rounded-xl text-xs transition-colors cursor-pointer"
-                        >
-                          Save Operating Hours
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                          <span className="text-[#6B7280]">Monday – Friday:</span>
-                          <span className="font-semibold text-[#1E2229]">{hoursWeekday}</span>
-                        </div>
-                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                          <span className="text-[#6B7280]">Saturday:</span>
-                          <span className={`font-semibold ${hoursSaturday.includes('Closed') ? 'text-[#6B7280]' : 'text-[#1E2229]'}`}>{hoursSaturday}</span>
-                        </div>
-                        <div className="flex justify-between p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                          <span className="text-[#6B7280]">Sunday:</span>
-                          <span className={`font-semibold ${hoursSunday.includes('Closed') ? 'text-[#6B7280]' : 'text-emerald-700'}`}>{hoursSunday}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Counter Dispatch Status Toggle */}
-                    <div className="pt-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextState = !online
-                          setOnline(nextState)
-                          setCapacityNotice(nextState ? 'Studio Active - Receiving new orders' : 'Studio Inactive - Counter dispatch paused')
-                          setTimeout(() => setCapacityNotice(null), 3000)
-                        }}
-                        className={`w-full flex items-center justify-between p-3.5 rounded-2xl border text-xs transition-all cursor-pointer ${
-                          online
-                            ? 'bg-emerald-50 hover:bg-emerald-100/80 border-emerald-200 text-emerald-900'
-                            : 'bg-stone-100 hover:bg-stone-200/80 border-stone-300 text-stone-700'
-                        }`}
-                        title="Click to toggle intake dispatch status"
-                      >
-                        <div>
-                          <div className="font-bold flex items-center gap-1.5">
-                            <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
-                            {online ? 'Counter Dispatch Active' : 'Counter Dispatch Paused'}
-                          </div>
-                          <div className="text-[11px] text-[#6B7280] font-normal mt-0.5">
-                            {online ? 'Studio is accepting live booking dispatches' : 'Workshop intake temporarily paused'}
-                          </div>
-                        </div>
-                        <span className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${online ? 'bg-emerald-600 text-white' : 'bg-stone-600 text-white'}`}>
-                          {online ? 'Active' : 'Paused'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Workshop Capabilities */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-bold text-base text-[#1E2229]">Workshop Capabilities & Specialties</h3>
-                      <p className="text-xs text-[#717680]">Click any specialty to toggle active status or add custom atelier crafts.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowAddCap(!showAddCap)}
-                        className="text-xs font-semibold text-[#1E2229] hover:text-[#9E593B] flex items-center gap-1 cursor-pointer"
-                      >
-                        <Plus size={13} />
-                        Add Specialty
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('profile')}
-                        className="text-xs font-semibold text-[#9E593B] hover:underline cursor-pointer"
-                      >
-                        Edit in Profile →
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Add Specialty Form */}
-                  {showAddCap && (
-                    <form onSubmit={handleAddCapability} className="flex gap-2 p-3 bg-[#FAF8F5] rounded-xl border border-[#E8E1D5]">
-                      <input
-                        type="text"
-                        value={newCapability}
-                        onChange={(e) => setNewCapability(e.target.value)}
-                        placeholder="e.g. Leather & Suede Alterations, Bespoke Evening Gowns..."
-                        className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#E8E1D5] rounded-lg text-[#1E2229] outline-hidden focus:border-[#9E593B]"
-                      />
-                      <button
-                        type="submit"
-                        className="px-3 py-1.5 bg-[#9E593B] text-white text-xs font-semibold rounded-lg hover:bg-[#86482F] cursor-pointer"
-                      >
-                        Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddCap(false)}
-                        className="px-2.5 py-1.5 text-xs text-[#6B7280] hover:text-[#1E2229] cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </form>
-                  )}
-
-                  {/* Grid of Capabilities */}
-                  <div className="grid sm:grid-cols-2 gap-2.5 text-xs pt-1">
-                    {[
-                      'Suit Tailoring & Formalwear',
-                      'Dress Hemming & Gown Fit',
-                      'Denim Chainstitch & Alterations',
-                      'Zip Replacements & Repairs',
-                      'Leather & Suede Alterations',
-                      'Bespoke Silk & Evening Gowns',
-                      'Bridal Resizing & Bustles',
-                      'Curtain & Drapery Hemming',
-                      ...capabilities.filter(c => ![
-                        'Suit Tailoring & Formalwear',
-                        'Dress Hemming & Gown Fit',
-                        'Denim Chainstitch & Alterations',
-                        'Zip Replacements & Repairs',
-                        'Leather & Suede Alterations',
-                        'Bespoke Silk & Evening Gowns',
-                        'Bridal Resizing & Bustles',
-                        'Curtain & Drapery Hemming',
-                      ].includes(c))
-                    ].map((spec) => {
-                      const isActive = capabilities.includes(spec)
-                      return (
-                        <button
-                          key={spec}
-                          type="button"
-                          onClick={() => toggleCapability(spec)}
-                          className={`flex justify-between items-center p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                            isActive
-                              ? 'bg-[#FAF8F5] border-[#E8E1D5] hover:border-[#9E593B]'
-                              : 'bg-stone-50/50 border-stone-200 opacity-60 hover:opacity-100'
-                          }`}
-                        >
-                          <div className={`font-semibold ${isActive ? 'text-[#1E2229]' : 'text-stone-500'}`}>{spec}</div>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                            isActive
-                              ? 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                              : 'text-stone-500 bg-stone-100 border-stone-300'
-                          }`}>
-                            {isActive ? 'Active' : 'Paused'}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* TAB 4: PAYOUTS                                                 */}

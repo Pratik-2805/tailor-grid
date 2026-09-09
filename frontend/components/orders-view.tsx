@@ -42,13 +42,27 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   useEffect(() => {
     if (user) {
       setIsLoading(true)
-      fetchOrders(user.contact || user.email || user.id)
+      fetchOrders(user.email || user.contact || '', user.id)
         .then((fetched) => {
-          if (fetched && Array.isArray(fetched)) {
-            setBackendOrders(fetched)
-          } else {
-            setBackendOrders([])
+          let combined = Array.isArray(fetched) ? fetched : []
+
+          // Merge local storage cached orders if any exist
+          if (typeof window !== 'undefined') {
+            try {
+              const localKeys = Object.keys(localStorage).filter((k) => k.startsWith('tg_order_'))
+              for (const key of localKeys) {
+                const raw = localStorage.getItem(key)
+                if (raw) {
+                  const parsed = JSON.parse(raw)
+                  if (parsed && parsed.id && !combined.some((o) => o.id === parsed.id)) {
+                    combined = [parsed, ...combined]
+                  }
+                }
+              }
+            } catch { }
           }
+
+          setBackendOrders(combined)
         })
         .catch((err) => {
           console.error('Failed to load orders:', err)
@@ -259,11 +273,11 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                         <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
                         {isCompleted ? (
                           <span className="block text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full mt-1">
-                            Completed &check;
+                            ✓ Completed
                           </span>
                         ) : isCancelled ? (
                           <span className="block text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mt-1">
-                            Cancelled
+                            Not Accepted / Cancelled
                           </span>
                         ) : isReady ? (
                           <span className="block text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full mt-1">

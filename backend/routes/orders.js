@@ -51,16 +51,20 @@ router.get('/', async (req, res) => {
     const searchContact = (contact || email || phone || '').toLowerCase().trim();
 
     const where = {};
+    const orClauses = [];
     if (searchContact) {
-      where.OR = [
-        { customerEmail: { equals: searchContact, mode: 'insensitive' } },
-        { customerPhone: searchContact },
-      ];
-      if (userId) {
-        where.OR.push({ userId: userId });
-      }
-    } else if (userId) {
-      where.userId = userId;
+      orClauses.push({ customerEmail: { equals: searchContact, mode: 'insensitive' } });
+      orClauses.push({ customerPhone: searchContact });
+      orClauses.push({ userId: searchContact });
+    }
+    if (userId) {
+      orClauses.push({ userId: userId });
+    }
+    if (email) {
+      orClauses.push({ customerEmail: { equals: email.toLowerCase().trim(), mode: 'insensitive' } });
+    }
+    if (orClauses.length > 0) {
+      where.OR = orClauses;
     }
 
     if (storeId) {
@@ -205,7 +209,7 @@ router.post('/', async (req, res) => {
         slaHours: 48,
         partnerPayout,
         retailSold: false,
-        intakePhotoUrl: imageUrl || null,
+        intakePhotoUrl: req.body.intakePhotoUrl || imageUrl || null,
         status: status || 'Allocated',
         price: parsedPrice,
         otp,

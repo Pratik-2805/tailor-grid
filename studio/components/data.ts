@@ -1,4 +1,4 @@
-export type Screen = 'partner' | 'intake' | 'pipeline' | 'capacity' | 'payouts'
+export type Screen = 'partner' | 'intake' | 'pipeline' | 'payouts'
 
 export type OrderStatus =
   | 'Allocated'

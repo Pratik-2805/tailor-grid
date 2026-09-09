@@ -18,12 +18,13 @@ import {
   ChevronRight,
   Lock,
   LogIn,
+  RotateCcw,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
-import { getAuthUser, getStorageCookie } from '@/lib/cookies'
-import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
+import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
+import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { PARTNER_STORES, getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
@@ -292,6 +293,85 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
   const [isCancelling, setIsCancelling] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [isRebooking, setIsRebooking] = useState(false)
+
+  const handleRebookSameRequest = async () => {
+    if (!order) return
+    setIsRebooking(true)
+    try {
+      const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+      const newOtp = Math.floor(1000 + Math.random() * 9000).toString()
+
+      // Preserve all garment reference photos
+      const rawPhotos = order.intakePhotoUrl || order.imageUrl || order.images
+      let resolvedImageUrl: string | null = null
+      let resolvedImagesArray: string[] = []
+
+      if (rawPhotos) {
+        if (Array.isArray(rawPhotos)) {
+          resolvedImagesArray = rawPhotos
+          resolvedImageUrl = rawPhotos.length > 1 ? JSON.stringify(rawPhotos) : (rawPhotos[0] || null)
+        } else if (typeof rawPhotos === 'string') {
+          if (rawPhotos.startsWith('[')) {
+            try {
+              resolvedImagesArray = JSON.parse(rawPhotos)
+              resolvedImageUrl = rawPhotos
+            } catch {
+              resolvedImagesArray = [rawPhotos]
+              resolvedImageUrl = rawPhotos
+            }
+          } else {
+            resolvedImagesArray = [rawPhotos]
+            resolvedImageUrl = rawPhotos
+          }
+        }
+      }
+
+      const newOrderPayload = {
+        id: newOrderId,
+        otp: newOtp,
+        userId: order.userId || currentUser?.id,
+        customerName: order.customerName || currentUser?.name || 'Customer',
+        customerEmail: order.customerEmail || currentUser?.email || '',
+        customerPhone: order.customerPhone || currentUser?.phone || '',
+        postcode: order.postcode || 'W8 4EP',
+        garmentId: order.garmentId || 'trousers',
+        garmentName: order.garmentName || 'Garment Alteration',
+        serviceId: order.serviceId || 'hem',
+        serviceName: order.serviceName || 'Custom Fit & Alteration',
+        storeId: null,
+        storeName: 'Awaiting Studio Acceptance',
+        price: order.price || 25,
+        date: order.date || 'Scheduled',
+        timeSlot: order.timeSlot || 'Fitting Slot',
+        measurements: order.measurements || {},
+        imageUrl: resolvedImageUrl,
+        intakePhotoUrl: resolvedImageUrl,
+        images: resolvedImagesArray,
+        status: 'Allocated',
+        brand: order.brand || 'Levi\'s / Bespoke',
+        notes: 'Re-booked fitting request from Atelier Portal',
+      }
+
+      if (typeof window !== 'undefined') {
+        setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(newOrderPayload))
+        setStorageCookie('tg_latest_order', JSON.stringify(newOrderPayload))
+      }
+
+      await createOrder(newOrderPayload)
+
+      toast.success(`Re-submitted fitting request #${newOrderId} to nearby studios!`, { position: 'top-center' })
+
+      if (typeof window !== 'undefined') {
+        window.location.href = `/order/${newOrderId}`
+      }
+    } catch (err) {
+      console.error('Rebook failed:', err)
+      toast.error('Unable to re-book request. Please try again.')
+    } finally {
+      setIsRebooking(false)
+    }
+  }
 
   const handleCancelCurrentOrder = async () => {
     if (!order?.id) return
@@ -494,7 +574,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
                     <span className="size-2 rounded-full bg-emerald-600" />
                     <span className="text-xs font-bold text-emerald-800">
-                      &check; Completed &amp; Collected
+                      ✓ Completed &amp; Collected
                     </span>
                   </div>
                 ) : (
@@ -552,9 +632,43 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   4. Pickup
                 </span>
               </div>
-            </div>
+            </div>          </div>
 
-          </div>
+          {/* Notification Alert if Request Not Accepted / Cancelled */}
+          {isCancelled && (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-2xs">
+              <div className="flex items-start gap-4">
+                <div className="size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+                  <XCircle size={22} />
+                </div>
+                <div className="space-y-1 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
+                  <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
+                    No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
+                  </p>
+                  <div className="pt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={isRebooking}
+                      onClick={handleRebookSameRequest}
+                      className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-5 py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      <RotateCcw size={14} className={isRebooking ? 'animate-spin' : ''} />
+                      <span>{isRebooking ? 'Re-submitting Request...' : 'Try Booking Again'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => { window.location.href = '/book' }}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
+                    >
+                      <span>Book Different Fitting</span> &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ========================================================================= */}
           {/* 2. UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
@@ -670,18 +784,29 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </p>
                   )}
 
-                  {order?.intakePhotoUrl && (
-                    <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
-                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
-                        Reference Garment Photo:
-                      </span>
-                      <img
-                        src={order.intakePhotoUrl}
-                        alt="Garment Reference"
-                        className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs"
-                      />
-                    </div>
-                  )}
+                  {(() => {
+                    const photos = getAllGarmentPhotos(order)
+                    return (
+                      <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
+                        <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
+                          Reference Garment Photo:
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {photos.map((url, idx) => (
+                            <img
+                              key={idx}
+                              src={url}
+                              alt={`${order?.garmentName || 'Garment'} Reference`}
+                              className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
               </div>
