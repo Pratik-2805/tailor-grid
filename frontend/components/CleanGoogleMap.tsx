@@ -311,19 +311,19 @@ export default function CleanGoogleMap({
           }
         }
 
-        // 1. Fetch real-time live tailors from locate service API
+        // 1. Register stores passed directly via props
+        if (Array.isArray(stores) && stores.length > 0) {
+          stores.forEach((st) => registerNewTailor(st))
+        }
+
+        // 2. Fetch registered partner studios from our backend database
         try {
           fetch(`/api/tailors/nearby?lat=${lat}&lng=${lng}&radiusMiles=4.0&query=${encodeURIComponent(origin || '')}`)
             .then((r) => r.json())
             .then((data) => {
               if (data.tailors && Array.isArray(data.tailors) && data.tailors.length > 0) {
                 data.tailors.forEach((t: StoreOption) => {
-                  if (t.coords) {
-                    const dist = getDistanceInMiles(lat, lng, t.coords.lat, t.coords.lng)
-                    if (dist <= radiusMiles) {
-                      registerNewTailor(t)
-                    }
-                  }
+                  registerNewTailor(t)
                 })
               }
             })
@@ -338,95 +338,6 @@ export default function CleanGoogleMap({
                 })
                 .catch(() => {})
             })
-        } catch {}
-
-        // 2. Client-side Live OpenStreetMap Overpass query within 4.0 miles
-        try {
-          const opQuery = `[out:json][timeout:10];(node["shop"="tailor"](around:${radiusMeters},${lat},${lng});way["shop"="tailor"](around:${radiusMeters},${lat},${lng});relation["shop"="tailor"](around:${radiusMeters},${lat},${lng});node["craft"="tailor"](around:${radiusMeters},${lat},${lng});way["craft"="tailor"](around:${radiusMeters},${lat},${lng});relation["craft"="tailor"](around:${radiusMeters},${lat},${lng});node["shop"="sewing"](around:${radiusMeters},${lat},${lng}););out center 45;`
-          fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(opQuery)}`, {
-            signal: AbortSignal.timeout(6000),
-          })
-            .then((res) => res.json())
-            .then((opData) => {
-              if (opData.elements && opData.elements.length > 0) {
-                opData.elements.forEach((el: any) => {
-                  const tLat = el.lat || el.center?.lat
-                  const tLng = el.lon || el.center?.lon
-                  if (!tLat || !tLng) return
-
-                  const dist = getDistanceInMiles(lat, lng, tLat, tLng)
-                  if (dist <= radiusMiles) {
-                    const tailorName = el.tags?.name || 'Local Master Tailor'
-                    const tailorAddr =
-                      [el.tags?.['addr:street'], el.tags?.['addr:suburb'], el.tags?.['addr:city']]
-                        .filter(Boolean)
-                        .join(', ') || `${origin || 'Neighborhood'}`
-                    registerNewTailor({
-                      id: `osm-${el.id}`,
-                      name: tailorName,
-                      area: origin || 'Neighborhood',
-                      address: tailorAddr,
-                      postcode: el.tags?.['addr:postcode'] || '',
-                      distance: `${dist} mi away`,
-                      distanceMiles: dist,
-                      rating: 4.95,
-                      reviewCount: 120,
-                      openingHours: '09:30 - 20:30',
-                      dailyCapacity: 25,
-                      machines: 6,
-                      workers: 4,
-                      leadTailor: 'Master Tailor',
-                      specialties: ['Custom Alterations', 'Trouser Hemming', 'Fit Adjustments'],
-                      retailSold: true,
-                      coords: { lat: tLat, lng: tLng },
-                    })
-                  }
-                })
-              }
-            })
-            .catch(() => {})
-        } catch {}
-
-        // 3. Client-side Live Nominatim search for tailors within 4.0 miles
-        try {
-          const nomQuery = encodeURIComponent(`tailor in ${origin || `${lat},${lng}`}`)
-          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${nomQuery}&limit=20`, {
-            signal: AbortSignal.timeout(4000),
-          })
-            .then((r) => r.json())
-            .then((items) => {
-              if (Array.isArray(items) && items.length > 0) {
-                items.forEach((item) => {
-                  const itemLat = parseFloat(item.lat)
-                  const itemLng = parseFloat(item.lon)
-                  if (!isNaN(itemLat) && !isNaN(itemLng)) {
-                    const dist = getDistanceInMiles(lat, lng, itemLat, itemLng)
-                    if (dist <= radiusMiles) {
-                      registerNewTailor({
-                        id: `nom-${item.place_id}`,
-                        name: item.display_name.split(',')[0] || 'Master Tailor Studio',
-                        area: origin || 'Local Area',
-                        address: item.display_name.split(',').slice(0, 3).join(','),
-                        postcode: '',
-                        distance: `${dist} mi away`,
-                        distanceMiles: dist,
-                        rating: 4.95,
-                        reviewCount: 90,
-                        openingHours: '09:30 - 20:30',
-                        dailyCapacity: 25,
-                        machines: 6,
-                        workers: 4,
-                        leadTailor: 'Master Tailor',
-                        specialties: ['Custom Alterations', 'Trouser Hemming'],
-                        retailSold: true,
-                        coords: { lat: itemLat, lng: itemLng },
-                      })
-                    }
-                  }
-                })
-              }
-            })
-            .catch(() => {})
         } catch {}
 
         if (isMounted) {

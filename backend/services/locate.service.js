@@ -18,19 +18,18 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Locate all real-time tailor studios within a specified radius (in miles)
+ * Locate registered tailor studios from our database within a specified radius (in miles) of the customer
  * @param {Object} params
- * @param {number} params.lat - Latitude of center point
- * @param {number} params.lng - Longitude of center point
+ * @param {number} params.lat - Latitude of customer location
+ * @param {number} params.lng - Longitude of customer location
  * @param {number} [params.radiusMiles=4.0] - Radius in miles (default 4.0 miles = 8.0 miles diameter)
- * @param {string} [params.query=''] - City / locality name query
- * @returns {Promise<Array>} Array of tailor studio objects within the range
+ * @param {string} [params.query=''] - Optional city / locality query
+ * @returns {Promise<Array>} Array of registered partner studio objects within range
  */
 async function locateTailorsWithinRange({ lat, lng, radiusMiles = 4.0, query = '' }) {
   const centerLat = parseFloat(lat);
   const centerLng = parseFloat(lng);
   const maxRadius = parseFloat(radiusMiles) || 4.0;
-  const radiusMeters = Math.round(maxRadius * 1609.34);
 
   if (isNaN(centerLat) || isNaN(centerLng)) {
     throw new Error('Valid latitude and longitude coordinates are required');
@@ -38,125 +37,49 @@ async function locateTailorsWithinRange({ lat, lng, radiusMiles = 4.0, query = '
 
   const results = [];
 
-  const addTailor = (tailor) => {
-    if (!tailor.coords || typeof tailor.coords.lat !== 'number' || typeof tailor.coords.lng !== 'number') return;
-    const dist = calculateDistanceInMiles(centerLat, centerLng, tailor.coords.lat, tailor.coords.lng);
+  // Fetch all registered partner studios stored in database with their latitude and longitude
+  try {
+    const dbStores = await prisma.partnerStore.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
 
-    // Strict 4-mile radius check
-    if (dist <= maxRadius) {
-      const isDuplicate = results.some(
-        (existing) =>
-          Math.abs(existing.coords.lat - tailor.coords.lat) < 0.0012 &&
-          Math.abs(existing.coords.lng - tailor.coords.lng) < 0.0012
-      );
+    if (Array.isArray(dbStores) && dbStores.length > 0) {
+      dbStores.forEach((store) => {
+        if (typeof store.lat === 'number' && typeof store.lng === 'number') {
+          const dist = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
 
-      if (!isDuplicate) {
-        results.push({
-          ...tailor,
-          distanceMiles: dist,
-          distance: `${dist} mi away`,
-        });
-      }
-    }
-  };
-
-  const googleApiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDnSPcq2z7tmOqLkGKtBPqkq2ykG5KjgbM';
-
-  // 1. Query Google Places API (New) - High Accuracy Real-Time Tailors
-  if (googleApiKey) {
-    try {
-      const searchQueries = [
-        `tailors in ${query || `${centerLat},${centerLng}`}`,
-        `tailor alteration shop in ${query || `${centerLat},${centerLng}`}`,
-      ];
-
-      for (const tQuery of searchQueries) {
-        const placesRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': googleApiKey,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount',
-          },
-          body: JSON.stringify({
-            textQuery: tQuery,
-            locationBias: {
-              circle: {
-                center: { latitude: centerLat, longitude: centerLng },
-                radius: radiusMeters,
-              },
-            },
-            maxResultCount: 20,
-          }),
-          signal: AbortSignal.timeout(4000),
-        });
-
-        if (placesRes.ok) {
-          const placesData = await placesRes.json();
-          if (placesData.places && Array.isArray(placesData.places)) {
-            placesData.places.forEach((p) => {
-              if (p.location && typeof p.location.latitude === 'number' && typeof p.location.longitude === 'number') {
-                addTailor({
-                  id: p.id || `place-${Math.random()}`,
-                  name: p.displayName?.text || 'Master Tailor Studio',
-                  area: query || 'Neighborhood Atelier',
-                  address: p.formattedAddress || 'Local Address',
-                  postcode: '',
-                  rating: p.rating || 4.95,
-                  reviewCount: p.userRatingCount || 110,
-                  openingHours: '09:30 - 20:30',
-                  dailyCapacity: 25,
-                  machines: 6,
-                  workers: 4,
-                  leadTailor: 'Master Tailor',
-                  specialties: ['Custom Alterations', 'Trouser Hemming', 'Fit Adjustments'],
-                  retailSold: true,
-                  coords: {
-                    lat: p.location.latitude,
-                    lng: p.location.longitude,
-                  },
-                });
-              }
+          // Check if the studio is within the customer's radius
+          if (dist <= maxRadius) {
+            results.push({
+              id: store.id,
+              name: store.name || 'Darzi Partner Atelier',
+              area: store.area || query || 'Neighborhood Studio',
+              address: store.address || 'Partner Workshop',
+              postcode: store.postcode || '',
+              rating: store.rating || 4.96,
+              reviewCount: store.reviewCount || 120,
+              openingHours: store.openingHours || '09:00 - 19:00',
+              dailyCapacity: store.dailyCapacity || 25,
+              machines: store.machines || 6,
+              workers: store.workers || 4,
+              leadTailor: store.leadTailor || 'Master Tailor',
+              specialties: Array.isArray(store.specialties)
+                ? store.specialties
+                : ['Custom Alterations', 'Precision Hemming'],
+              retailSold: store.retailSold ?? true,
+              coords: { lat: store.lat, lng: store.lng },
+              distanceMiles: dist,
+              distance: `${dist} mi away`,
             });
           }
-        }
-      }
-    } catch (err) {
-      console.warn('Google Places New API query error:', err.message || err);
-    }
-  }
-
-  // 2. Fetch registered partner stores from database
-  try {
-    const dbStores = await prisma.partnerStore.findMany();
-    if (Array.isArray(dbStores)) {
-      dbStores.forEach((store) => {
-        if (store.lat && store.lng) {
-          addTailor({
-            id: store.id,
-            name: store.name || 'Darzi Partner Atelier',
-            area: store.area || query || 'Neighborhood Studio',
-            address: store.address || 'Partner Workshop',
-            postcode: store.postcode || '',
-            rating: store.rating || 4.96,
-            reviewCount: store.reviewCount || 150,
-            openingHours: store.openingHours || '09:00 - 20:00',
-            dailyCapacity: store.dailyCapacity || 25,
-            machines: store.machines || 6,
-            workers: store.workers || 4,
-            leadTailor: store.leadTailor || 'Master Tailor',
-            specialties: Array.isArray(store.specialties) ? store.specialties : ['Custom Alterations', 'Precision Hemming'],
-            retailSold: store.retailSold ?? true,
-            coords: { lat: store.lat, lng: store.lng },
-          });
         }
       });
     }
   } catch (err) {
-    // DB query fallback
+    console.warn('Error fetching registered partner studios:', err.message || err);
   }
 
-  // Sort by distance (closest first)
+  // Sort studios by distance (closest to customer first)
   results.sort((a, b) => a.distanceMiles - b.distanceMiles);
 
   return results;

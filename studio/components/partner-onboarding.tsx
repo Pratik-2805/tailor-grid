@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Lock,
   Mail,
+  MapPin,
   Phone,
   Scissors,
   Sparkles,
@@ -24,6 +25,8 @@ import {
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
 import { setAuthRole, setAuthToken } from '@/lib/cookies'
+import { UberMapModal, SelectedLocationData } from './uber-map-modal'
+import { AnimatedLocationPin } from './animated-location-pin'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -33,7 +36,7 @@ interface PartnerOnboardingProps {
   hideHeader?: boolean
 }
 
-type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'hub'
+type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'phone-verify' | 'hub'
 
 const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
@@ -110,7 +113,7 @@ export function PartnerOnboarding({
   // Multi-step Flow State — restore from sessionStorage on refresh
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
     const cached = ssGet('tg_onboard_step')
-    if (cached && ['auth', 'location', 'language', 'shop-info', 'hub'].includes(cached)) {
+    if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
       return cached as Step
     }
     return user?.email || pendingGoogle?.email ? 'location' : 'auth'
@@ -120,6 +123,9 @@ export function PartnerOnboarding({
     setCurrentStepRaw(step)
     ssSet('tg_onboard_step', step)
   }
+
+  // Map Modal State
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
   // ──────── Restore cached onboarding form data from sessionStorage ────────
   const cachedForm = (() => {
@@ -144,11 +150,13 @@ export function PartnerOnboarding({
   const [streetAddress, setStreetAddress] = useState(cachedForm?.streetAddress || '')
   const [tailorName, setTailorName] = useState(cachedForm?.tailorName || '')
   const [phone, setPhone] = useState(cachedForm?.phone || '')
+  const [studioLat, setStudioLat] = useState<number | null>(cachedForm?.studioLat || null)
+  const [studioLng, setStudioLng] = useState<number | null>(cachedForm?.studioLng || null)
   const [emailVal, setEmailVal] = useState(
     cachedForm?.emailVal || pendingGoogle?.email || ''
   )
 
-  // Step 3 Direct Mobile Phone Twilio OTP Verification State
+  // Step 4 Direct Mobile Phone Twilio OTP Verification State
   const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
     const cached = ssGet('tg_phone_verified')
     if (cached === 'true') return true
@@ -183,9 +191,10 @@ export function PartnerOnboarding({
     const formData = {
       locationCity, referralCode, language, machines, dailyCapacity,
       shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
+      studioLat, studioLng,
     }
     ssSet('tg_onboard_form', JSON.stringify(formData))
-  }, [locationCity, referralCode, language, machines, dailyCapacity, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal])
+  }, [locationCity, referralCode, language, machines, dailyCapacity, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
 
   // Persist phone verification state
   useEffect(() => {
@@ -543,6 +552,15 @@ export function PartnerOnboarding({
 
   // Final submit at step 4 (Hub)
   const handleFinishOnboarding = async () => {
+    if (!studioLat || !studioLng) {
+      const msg = 'Studio map location (Latitude & Longitude) is compulsory.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
+      setCurrentStep('shop-info')
+      setIsMapModalOpen(true)
+      return
+    }
+
     setSubmitting(true)
     setError('')
     try {
@@ -562,6 +580,8 @@ export function PartnerOnboarding({
         storeName: shopName.trim(),
         storeArea: shopArea.trim(),
         machines,
+        lat: studioLat || undefined,
+        lng: studioLng || undefined,
       })
 
       // Clear all onboarding session data on successful registration
@@ -602,8 +622,21 @@ export function PartnerOnboarding({
     }
   }
 
-  const stepsList: Step[] = ['auth', 'location', 'language', 'shop-info', 'hub']
+  const stepsList: Step[] = ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub']
   const currentStepNum = stepsList.indexOf(currentStep)
+
+  const handleSelectMapLocation = (loc: SelectedLocationData) => {
+    if (loc.area) setShopArea(loc.area)
+    if (loc.postcode) setPostcode(loc.postcode)
+    if (loc.streetAddress) setStreetAddress(loc.streetAddress)
+    if (loc.lat && loc.lng) {
+      setStudioLat(loc.lat)
+      setStudioLng(loc.lng)
+    }
+    toast.success(`Location set: ${loc.area}${loc.postcode ? ` (${loc.postcode})` : ''}`, {
+      position: 'top-center',
+    })
+  }
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#0F1115] flex flex-col font-sans">
@@ -735,7 +768,8 @@ export function PartnerOnboarding({
                     onClick={() => {
                       setError('')
                       setNotice('')
-                      if (currentStep === 'hub') setCurrentStep('shop-info')
+                      if (currentStep === 'hub') setCurrentStep('phone-verify')
+                      else if (currentStep === 'phone-verify') setCurrentStep('shop-info')
                       else if (currentStep === 'shop-info') setCurrentStep('language')
                       else if (currentStep === 'language') setCurrentStep('location')
                       else if (currentStep === 'location') {
@@ -765,7 +799,7 @@ export function PartnerOnboarding({
 
               {currentStep !== 'auth' && (
                 <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                  Step {currentStepNum} of 4
+                  Step {currentStepNum} of 5
                 </span>
               )}
             </div>
@@ -1202,6 +1236,25 @@ export function PartnerOnboarding({
                         />
                       </div>
 
+                      {/* Choose Exact Location Trigger */}
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => setIsMapModalOpen(true)}
+                          className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3 text-left transition-all cursor-pointer group"
+                        >
+                          <AnimatedLocationPin size={20} />
+                          <span className="text-sm font-semibold text-[#0F1115] truncate flex-1">
+                            {studioLat && studioLng
+                              ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
+                              : 'Choose Exact Location'}
+                          </span>
+                          {studioLat && studioLng && (
+                            <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
+                          )}
+                        </button>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
@@ -1235,68 +1288,157 @@ export function PartnerOnboarding({
                           )}
                         </div>
                       </div>
+                    </div>
 
-                      {/* Direct Mobile Phone with OTP Verification */}
-                      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3">
-                        <div className="flex items-center justify-between">
-                          <label className="block text-xs font-bold uppercase tracking-wider text-[#0F1115]">
-                            Phone Number*
-                          </label>
-                          {isPhoneVerified ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                              <CheckCircle2 size={13} className="text-emerald-600" />
-                              Verified
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] bg-[#FFF3EC] border border-[#F2D2C2] px-2 py-0.5 rounded-full">
-                              OTP Required
-                            </span>
-                          )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Field-by-field validation for Step 3
+                        if (!shopName.trim()) {
+                          setError('Please enter your Atelier / Shop Name.')
+                          toast.warning('Shop Name is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (!shopArea.trim()) {
+                          setError('Please enter your Area or Neighborhood.')
+                          toast.warning('Area / Neighborhood is required.', { position: 'top-center' })
+                          return
+                        }
+                        const cleanPin = postcode.trim().replace(/\D/g, '')
+                        if (cleanPin.length < 4 || cleanPin.length > 10) {
+                          const msg = 'Please enter a valid postal / ZIP code.'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
+                          return
+                        }
+                        if (!streetAddress.trim()) {
+                          setError('Please enter your Street Address.')
+                          toast.warning('Street Address is required.', { position: 'top-center' })
+                          return
+                        }
+                        if (!studioLat || !studioLng) {
+                          const msg = 'Please choose your exact shop location on the map. Latitude & Longitude are compulsory.'
+                          setError(msg)
+                          toast.warning(msg, { position: 'top-center' })
+                          setIsMapModalOpen(true)
+                          return
+                        }
+                        if (!tailorName.trim()) {
+                          setError('Please enter the Lead Master Tailor name.')
+                          toast.warning('Lead Master Tailor is required.', { position: 'top-center' })
+                          return
+                        }
+                        setError('')
+                        setCurrentStep('phone-verify')
+                      }}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
+                    >
+                      <span>Save & Continue to Phone Verification</span>
+                      <ArrowRight size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
+                {currentStep === 'phone-verify' && (
+                  <div className="space-y-6 animate-in fade-in duration-200">
+                    <div>
+                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
+                        Partner Contact Verification
+                      </span>
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
+                        Verify Your Mobile Number
+                      </h1>
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                        Enter your direct contact number. We will send a 4-digit SMS verification code to verify your studio account.
+                      </p>
+                    </div>
+
+                    {isPhoneVerified ? (
+                      <div className="space-y-5 pt-1">
+                        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+                              <CheckCircle2 size={20} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                                Mobile Number Verified
+                              </p>
+                              <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
+                                {phone || step3VerifiedPhone}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsPhoneVerified(false)
+                              setStep3OtpSent(false)
+                              setStep3Otp('')
+                            }}
+                            className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
+                          >
+                            Change
+                          </button>
                         </div>
 
-                        <div className="flex gap-2">
-                          <input
-                            type="tel"
-                            inputMode="tel"
-                            value={phone}
-                            onChange={(e) => {
-                              const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
-                              setPhone(cleaned)
-                              if (isPhoneVerified && cleaned.trim() !== step3VerifiedPhone) {
-                                setIsPhoneVerified(false)
-                              }
-                            }}
-                            disabled={isPhoneVerified}
-                            placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
-                            className={`flex-1 rounded-xl px-4 py-3 text-sm font-semibold text-[#0F1115] outline-none transition-all ${isPhoneVerified
-                              ? 'bg-emerald-50/70 border border-emerald-300 text-emerald-950 font-mono'
-                              : 'bg-white border border-[#DDD6CB] focus:border-[#9E593B]'
-                              }`}
-                          />
-                          {!isPhoneVerified && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError('')
+                            setCurrentStep('hub')
+                          }}
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer"
+                        >
+                          <span>Continue to Workbench Review</span>
+                          <ArrowRight size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 pt-1">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+                            Direct Mobile Phone Number *
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="tel"
+                              inputMode="tel"
+                              autoFocus
+                              value={phone}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                                setPhone(cleaned)
+                              }}
+                              placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
+                              className="flex-1 rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3.5 text-sm font-semibold text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
+                            />
                             <button
                               type="button"
                               disabled={step3OtpLoading || !phone.trim() || (step3OtpSent && step3Countdown > 0)}
                               onClick={() => handleStep3SendOtp(step3OtpSent)}
-                              className="px-4 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
+                              className="px-5 py-3.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
                             >
                               {step3OtpLoading
                                 ? 'Sending…'
                                 : step3OtpSent
                                   ? step3Countdown > 0
                                     ? `Resend in ${step3Countdown}s`
-                                    : 'Resend SMS'
+                                    : 'Resend Code'
                                   : 'Send OTP'}
                             </button>
-                          )}
+                          </div>
+                          <p className="text-[11px] text-[#7A7E85] mt-1.5">
+                            We will send a 4-digit SMS verification code to verify this phone number.
+                          </p>
                         </div>
 
-                        {/* OTP input container when code was sent */}
-                        {step3OtpSent && !isPhoneVerified && (
-                          <div className="pt-2 border-t border-[#E8E1D5] space-y-2.5 animate-in fade-in">
+                        {step3OtpSent && (
+                          <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 animate-in fade-in">
                             <div className="flex items-center justify-between text-xs text-[#7A7E85]">
                               <span>
-                                Enter 4-digit SMS code sent to <strong className="text-[#0F1115]">{phone}</strong>
+                                Enter code sent to <strong className="text-[#0F1115]">{phone}</strong>
                               </span>
                               <button
                                 type="button"
@@ -1307,7 +1449,8 @@ export function PartnerOnboarding({
                                 {step3Countdown > 0 ? `Resend (${step3Countdown}s)` : 'Resend'}
                               </button>
                             </div>
-                            <div className="flex gap-2">
+
+                            <div className="flex flex-col sm:flex-row gap-2.5">
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -1317,55 +1460,28 @@ export function PartnerOnboarding({
                                 value={step3Otp}
                                 onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                                 placeholder="• • • •"
-                                className="w-36 text-center text-xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
+                                className="flex-1 text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
                               />
                               <button
                                 type="button"
                                 disabled={step3OtpLoading || step3Otp.length < 4}
-                                onClick={handleStep3VerifyOtp}
-                                className="flex-1 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-xs"
+                                onClick={async () => {
+                                  await handleStep3VerifyOtp()
+                                  setCurrentStep('hub')
+                                }}
+                                className="sm:w-44 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-xs"
                               >
-                                {step3OtpLoading ? 'Verifying…' : 'Verify Code'}
+                                {step3OtpLoading ? 'Verifying…' : 'Verify & Continue'}
                               </button>
                             </div>
                           </div>
                         )}
                       </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        // Field-by-field validation
-                        if (!shopName.trim()) {
-                          setError('Please enter your Atelier / Shop Name.')
-                          toast.warning('Shop Name is required.', { position: 'top-center' })
-                          return
-                        }
-                        const cleanPin = postcode.trim().replace(/\D/g, '')
-                        if (cleanPin.length < 5 || cleanPin.length > 10) {
-                          const msg = 'Please enter a valid postal / ZIP code.'
-                          setError(msg)
-                          toast.warning(msg, { position: 'top-center' })
-                          return
-                        }
-                        if (!isPhoneVerified) {
-                          const msg = 'Please verify your Phone Number with OTP.'
-                          setError(msg)
-                          toast.warning(msg, { position: 'top-center' })
-                          return
-                        }
-                        setError('')
-                        setCurrentStep('hub')
-                      }}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
-                    >
-                      <span>Save & Continue</span>
-                      <ArrowRight size={16} />
-                    </button>
+                    )}
                   </div>
                 )}
 
-                {/* Step 4: Hub */}
+                {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
                 {currentStep === 'hub' && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
@@ -1379,7 +1495,7 @@ export function PartnerOnboarding({
                         Welcome, {tailorName || user?.name || 'Master Tailor'}
                       </h1>
                       <p className="text-sm text-gray-600 mt-1">
-                        Complete 3 steps to start earning.
+                        All 4 atelier steps completed. Ready to launch your workbench.
                       </p>
                     </div>
 
@@ -1394,7 +1510,7 @@ export function PartnerOnboarding({
                     </div>
 
                     <div className="divide-y divide-gray-100 border-t border-b border-gray-100 my-4">
-                      <div className="py-3.5 flex items-center justify-between">
+                      <div className="py-3 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-extrabold text-[#0F1115]">Studio Location & Shop Details</p>
                           <p className="text-xs text-gray-500">{shopName} · {shopArea} ({postcode})</p>
@@ -1405,7 +1521,7 @@ export function PartnerOnboarding({
                         </div>
                       </div>
 
-                      <div className="py-3.5 flex items-center justify-between">
+                      <div className="py-3 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-extrabold text-[#0F1115]">Language & Daily Capacity</p>
                           <p className="text-xs text-gray-500">{language} · {machines} Machines ({dailyCapacity}/day limit)</p>
@@ -1416,14 +1532,25 @@ export function PartnerOnboarding({
                         </div>
                       </div>
 
-                      <div className="py-3.5 flex items-center justify-between">
+                      <div className="py-3 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Lead Tailor Contact & Phone</p>
-                          <p className="text-xs text-gray-500">{tailorName} · {phone}</p>
+                          <p className="text-sm font-extrabold text-[#0F1115]">Lead Tailor & Contact Email</p>
+                          <p className="text-xs text-gray-500">{tailorName} · {emailVal}</p>
                         </div>
                         <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
                           <CheckCircle2 size={16} />
                           <span>Completed</span>
+                        </div>
+                      </div>
+
+                      <div className="py-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-extrabold text-[#0F1115]">Verified Partner Mobile</p>
+                          <p className="text-xs text-gray-500">{phone || step3VerifiedPhone || 'Verified via SMS'}</p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                          <CheckCircle2 size={16} />
+                          <span>Verified</span>
                         </div>
                       </div>
                     </div>
@@ -1449,6 +1576,16 @@ export function PartnerOnboarding({
           </div>
         </div>
       </main>
+
+      {/* Uber-Style Locality Picker Google Map Modal */}
+      <UberMapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        onSelectLocation={handleSelectMapLocation}
+        initialCity={locationCity}
+        initialArea={shopArea}
+        initialAddress={streetAddress}
+      />
     </div>
   )
 }
