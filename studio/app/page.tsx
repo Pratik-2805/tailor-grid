@@ -194,8 +194,11 @@ export default function StudioPage() {
           />
         ) : (
           /* Direct Studio Login / Onboarding Card */
-          <div className="flex-1 flex flex-col items-center justify-center px-4 py-3 sm:py-6 relative overflow-hidden">
-            <div className="relative z-10 w-full flex flex-col items-center -mt-8 sm:-mt-14">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 relative overflow-hidden my-auto">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#9E593B]/8 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 w-full max-w-[480px] flex flex-col items-center justify-center my-auto">
               {/* Direct Auth Card */}
               <PartnerOnboarding
                 user={user}

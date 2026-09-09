@@ -27,6 +27,7 @@ import {
 import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
+import { OtpVerificationCard } from './otp-input'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -749,8 +750,12 @@ export function PartnerOnboarding({
     })
   }
 
+  const isOtpFlipped =
+    (currentStep === 'phone-verify' && step3OtpSent && !isPhoneVerified) ||
+    (currentStep === 'auth' && signInMode === 'mobile' && sOtpSent)
+
   return (
-    <div className={`${hideHeader ? 'w-full' : 'min-h-screen'} bg-[#FAF8F5] text-[#0F1115] flex flex-col font-sans`}>
+    <div className={hideHeader ? 'w-full flex flex-col items-center justify-center text-[#0F1115] font-sans' : 'min-h-screen bg-[#FAF8F5] text-[#0F1115] flex flex-col font-sans'}>
       {/* Top Navbar */}
       {!hideHeader && (
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E1D5] px-4 sm:px-8 py-3.5 flex items-center justify-between">
@@ -769,34 +774,30 @@ export function PartnerOnboarding({
               </button>
             )}
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#0F1115] text-white flex items-center justify-center font-bold text-lg tracking-wider">
-                D
-              </div>
-              <span className="font-extrabold text-xl tracking-tight text-[#0F1115]">
-                Darzi <span className="text-xs font-semibold uppercase tracking-widest text-[#9E593B] ml-1">Studio Workbench</span>
+              <span className="font-serif text-xl font-bold tracking-tight text-[#0F1115]">Darzi</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-[#9E593B] bg-[#9E593B]/10 px-2 py-0.5 rounded-md">
+                Studio
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
-            <a
-              href={CUSTOMER_SITE_URL}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#E8E1D5] bg-white text-xs font-medium text-gray-700 hover:bg-[#FAF8F5] transition-colors"
-            >
-              <span>← Customer Site</span>
-            </a>
+          <div className="flex items-center gap-3">
+            {currentStep !== 'auth' && currentStep !== 'hub' && (
+              <span className="text-xs font-semibold text-gray-500">
+                Step {currentStepNum} of 4
+              </span>
+            )}
 
+            {/* Profile Dropdown */}
             <div className="relative">
               <button
                 onClick={() => setShowHelpDropdown(!showHelpDropdown)}
-                className="flex items-center gap-1.5 rounded-full bg-[#FAF8F5] hover:bg-gray-100 border border-[#E8E1D5] px-3.5 py-1.5 text-xs font-bold text-[#0F1115] transition-colors cursor-pointer"
+                className="size-8 rounded-full bg-[#EBDDD5] text-[#8C4A2D] font-bold text-xs flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer border border-[#DFC9BD]"
               >
-                <span>Help</span>
-                <span className="text-[10px]">▼</span>
+                {(user?.name || 'P')[0].toUpperCase()}
               </button>
-
               {showHelpDropdown && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white border border-gray-200 shadow-xl py-2 z-50 text-xs text-gray-800">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="font-bold text-[#0F1115]">{user?.name || 'Partner Account'}</p>
                     <p className="text-[11px] text-gray-500 truncate">{user?.email || 'partner@darzi.com'}</p>
@@ -827,8 +828,8 @@ export function PartnerOnboarding({
       )}
 
       {/* Main Container */}
-      <main className={`flex-1 flex flex-col items-center justify-center px-4 ${hideHeader ? 'py-1 sm:py-2' : 'py-8 sm:py-12'}`}>
-        <div className={`w-full ${currentStep === 'auth' ? 'max-w-[460px]' : 'max-w-[540px]'} transition-all`}>
+      <main className={`w-full flex flex-col items-center justify-center ${hideHeader ? 'p-0' : 'flex-1 px-4 py-8 sm:py-12 my-auto'}`}>
+        <div style={{ perspective: '1400px' }} className="w-full max-w-[480px]">
           {alreadyRegistered && (
             <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-none text-left">
               <div className="flex items-start gap-3">
@@ -859,60 +860,56 @@ export function PartnerOnboarding({
             </div>
           )}
 
-          {notice && !error && (
-            <div className="mb-6 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3 text-xs text-[#9E593B] font-medium">
-              {notice}
-            </div>
-          )}
+
 
           {/* ================================================================ */}
+          {/* 3D FLIP CONTAINER: FLIPS THE ENTIRE WORKBENCH / OTP CARD        */}
           {/* ================================================================ */}
-          {/* THIS CARD ONLY: UNIFIED STUDIO ONBOARDING & SIGN IN CARD         */}
-          {/* Header has Port 3001 and Sign In | Sign Up toggle like customer side */}
-          {/* Sign In: options as it is                                        */}
-          {/* Sign Up: opens and keeps "Earn with Darzi" form (Image 2)        */}
-          {/* ================================================================ */}
-          <div className="bg-white rounded-3xl border border-[#E8E1D5] shadow-none overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200">
-            {/* Card Header */}
-            {currentStep === 'auth' ? (
-              <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
-                <img
-                  src="/bg_logo.png"
-                  alt="Darzi Atelier"
-                  className="h-11 sm:h-12 w-auto object-contain"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                  }}
-                />
-                <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
-                  <span className="size-1.5 rounded-full bg-[#9E593B]" />
-                  <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
-                    Studio Workbench Node
-                  </span>
-                </div>
-              </div>
-            ) : (
+          <div
+            style={{
+              transformStyle: 'preserve-3d',
+              transition: 'transform 0.65s cubic-bezier(0.34, 1.3, 0.64, 1)',
+              transform: isOtpFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            }}
+            className="relative w-full"
+          >
+            {/* FRONT FACE: ENTIRE WORKBENCH CARD */}
+            <div
+              style={{
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+              }}
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 space-y-6 animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+                }`}
+            >
+              {/* Card Header with Step Badge */}
               <div className="flex items-center justify-between pb-4 border-b border-gray-100">
                 <div className="flex items-center gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setError('')
-                      setNotice('')
-                      if (currentStep === 'hub') setCurrentStep('phone-verify')
-                      else if (currentStep === 'phone-verify') setCurrentStep('shop-info')
-                      else if (currentStep === 'shop-info') setCurrentStep('language')
-                      else if (currentStep === 'language') setCurrentStep('location')
-                      else if (currentStep === 'location') {
-                        setSignInMode('options')
-                        setCurrentStep('auth')
-                      }
-                    }}
-                    className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"
-                    title="Back"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
+                  {currentStep !== 'auth' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('')
+                        setNotice('')
+                        if (currentStep === 'hub') setCurrentStep('phone-verify')
+                        else if (currentStep === 'phone-verify') setCurrentStep('shop-info')
+                        else if (currentStep === 'shop-info') setCurrentStep('language')
+                        else if (currentStep === 'language') setCurrentStep('location')
+                        else if (currentStep === 'location') {
+                          setSignInMode('options')
+                          setCurrentStep('auth')
+                        }
+                      }}
+                      className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"
+                      title="Back"
+                    >
+                      <ArrowLeft size={16} />
+                    </button>
+                  ) : (
+                    <div className="size-9 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center text-[#9E593B]">
+                      <Scissors size={18} />
+                    </div>
+                  )}
                   <div>
                     <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
                       Studio Portal
@@ -923,84 +920,83 @@ export function PartnerOnboarding({
                   </div>
                 </div>
 
-                <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                  Step {currentStepNum} of 5
-                </span>
-              </div>
-            )}
-
-            {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
-            {currentStep === 'auth' && (
-              <div className="space-y-5">
-                {/* Submode: Email Login */}
-                {signInMode === 'email' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSignInMode('options')}
-                        className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs"
-                      >
-                        <ArrowLeft size={14} />
-                      </button>
-                      <div>
-                        <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">Partner Email</p>
-                        <h2 className="font-serif text-2xl font-bold text-[#0F1115]">Access Atelier</h2>
-                      </div>
-                    </div>
-
-                    <form onSubmit={handleEmailLogin} className="space-y-3.5 pt-1">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                          Partner Email Address *
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          autoFocus
-                          value={sLoginEmail}
-                          onChange={(e) => setSLoginEmail(e.target.value)}
-                          placeholder="marco@ateliersoho.com"
-                          className="w-full rounded-xl bg-gray-100 border-none px-4 py-3 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={authLoading}
-                        className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {authLoading ? 'Verifying…' : 'Continue'}
-                      </button>
-                    </form>
-                  </div>
+                {currentStep !== 'auth' && (
+                  <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                    Step {currentStepNum} of 5
+                  </span>
                 )}
+              </div>
 
-                {/* Submode: Mobile SMS OTP with Twilio */}
-                {signInMode === 'mobile' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSignInMode('options')
-                          setError('')
-                          setNotice('')
-                          setSOtpSent(false)
-                          setSOtp('')
-                        }}
-                        className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs transition-colors"
-                      >
-                        <ArrowLeft size={14} />
-                      </button>
-                      <div>
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">SMS Verification</p>
-                        <h2 className="font-serif text-2xl font-bold text-[#0F1115]">
-                          {sOtpSent ? 'Enter Verification Code' : 'Partner Mobile Number'}
-                        </h2>
+              {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
+              {currentStep === 'auth' && (
+                <div className="space-y-5">
+                  {/* Submode: Email Login */}
+                  {signInMode === 'email' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSignInMode('options')}
+                          className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs"
+                        >
+                          <ArrowLeft size={14} />
+                        </button>
+                        <div>
+                          <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">Partner Email</p>
+                          <h2 className="font-serif text-2xl font-bold text-[#0F1115]">Access Atelier</h2>
+                        </div>
                       </div>
-                    </div>
 
-                    {!sOtpSent ? (
+                      <form onSubmit={handleEmailLogin} className="space-y-3.5 pt-1">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            Partner Email Address *
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            autoFocus
+                            value={sLoginEmail}
+                            onChange={(e) => setSLoginEmail(e.target.value)}
+                            placeholder="marco@ateliersoho.com"
+                            className="w-full rounded-xl bg-gray-100 border-none px-4 py-3 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={authLoading}
+                          className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {authLoading ? 'Verifying…' : 'Continue'}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Submode: Mobile SMS OTP with Twilio */}
+                  {signInMode === 'mobile' && (
+                    <div className="w-full space-y-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSignInMode('options')
+                            setError('')
+                            setNotice('')
+                            setSOtpSent(false)
+                            setSOtp('')
+                          }}
+                          className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs transition-colors"
+                        >
+                          <ArrowLeft size={14} />
+                        </button>
+                        <div>
+                          <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">SMS Verification</p>
+                          <h2 className="font-serif text-2xl font-bold text-[#0F1115]">
+                            Partner Mobile Number
+                          </h2>
+                        </div>
+                      </div>
                       <form onSubmit={handleSendMobileOtp} className="space-y-3.5 pt-1">
                         <div>
                           <label className="block text-xs font-semibold text-gray-700 mb-1">
@@ -1010,7 +1006,7 @@ export function PartnerOnboarding({
                             type="tel"
                             inputMode="tel"
                             required
-                            autoFocus
+                            autoFocus={!sOtpSent}
                             value={sPhoneLogin}
                             onChange={(e) => setSPhoneLogin(e.target.value.replace(/[^\d+\-\s()]/g, ''))}
                             placeholder="+91 98765 43210 or +44 7700 900000"
@@ -1028,669 +1024,657 @@ export function PartnerOnboarding({
                           {authLoading ? 'Sending SMS code…' : 'Send Verification Code'}
                         </button>
                       </form>
-                    ) : (
-                      <form onSubmit={handleVerifyMobileOtp} className="space-y-3.5 pt-1">
-                        <div className="flex items-center justify-between text-xs text-[#7A7E85]">
-                          <span>
-                            Enter code sent to <strong className="text-[#0F1115]">{sPhoneLogin}</strong>
-                          </span>
-                          <button
-                            type="button"
-                            disabled={authLoading || resendCountdown > 0}
-                            onClick={() => handleSendMobileOtp(undefined, true)}
-                            className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
-                          >
-                            {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend'}
-                          </button>
-                        </div>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          maxLength={4}
-                          required
-                          autoFocus
-                          value={sOtp}
-                          onChange={(e) => setSOtp(e.target.value.replace(/\D/g, ''))}
-                          placeholder="• • • •"
-                          className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-gray-300 py-3 focus:border-[#9E593B] focus:outline-none"
-                        />
-                        <button
-                          type="submit"
-                          disabled={authLoading || sOtp.length < 4}
-                          className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
-                        >
-                          {authLoading ? 'Verifying…' : 'Verify & Continue'}
-                        </button>
-                      </form>
-                    )}
-                  </div>
-                )}
-
-                {/* Submode: Options Menu (Single unified card) */}
-                {signInMode === 'options' && (
-                  <>
-                    <div className="text-center space-y-1.5 pt-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B] block">
-                        Partner Portal
-                      </span>
-                      <h2 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
-                        Studio Workbench Access
-                      </h2>
-                      <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
-                        Access live alteration intake, 48h timers, and atelier operations.
-                      </p>
                     </div>
+                  )}
 
-                    <div className="space-y-3 pt-3">
-                      {/* 1. Google Button */}
-                      <button
-                        type="button"
-                        disabled={authLoading}
-                        onClick={triggerGoogleAuth}
-                        className="w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-[#0F1115] bg-white hover:bg-gray-50 py-3.5 px-4 text-sm font-bold text-[#0F1115] shadow-none active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 hover:border-[#9E593B]"
-                      >
-                        <svg className="size-5 shrink-0" viewBox="0 0 24 24">
-                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                        </svg>
-                        <span>{authLoading ? 'Connecting Google…' : 'Continue with Google'}</span>
-                      </button>
-
-                      {/* 2. Mobile Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('')
-                          setNotice('')
-                          setSignInMode('mobile')
-                        }}
-                        className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
-                      >
-                        <Phone size={16} className="text-[#9E593B]" />
-                        <span>Continue with Mobile Number</span>
-                      </button>
-
-                      {/* 3. Email Button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setError('')
-                          setNotice('')
-                          setSignInMode('email')
-                        }}
-                        className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
-                      >
-                        <Mail size={16} className="text-[#9E593B]" />
-                        <span>Continue with Email</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
-            {currentStep !== 'auth' && (
-              <div className="space-y-6">
-                {/* Step 1: Image 2 — "Earn with Darzi" */}
-                {currentStep === 'location' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-10 rounded-xl bg-[#10B981]/15 text-[#059669] flex items-center justify-center font-bold">
-                        <Store size={22} />
-                      </div>
-                      {(pendingGoogle?.email || emailVal || phone) && (
-                        <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full truncate max-w-[220px]">
-                          {pendingGoogle?.email || emailVal || phone}
+                  {/* Submode: Options Menu (Single unified card) */}
+                  {signInMode === 'options' && (
+                    <>
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B] block mb-1">
+                          Partner Portal
                         </span>
-                      )}
-                    </div>
-
-                    <div>
-                      <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                        Earn with Darzi
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-1.5">
-                        Decide when, where and how you want to earn.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4 pt-1">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Where would you like to earn? *
-                        </label>
-                        <input
-                          type="text"
-                          value={locationCity}
-                          onChange={(e) => setLocationCity(e.target.value)}
-                          placeholder="e.g. Mumbai, London W8, Delhi..."
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
+                        <h2 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
+                          Studio Workbench Access
+                        </h2>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Access live alteration intake, 48h timers, and atelier operations.
+                        </p>
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Referral code (optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={referralCode}
-                          onChange={(e) => setReferralCode(e.target.value)}
-                          placeholder="Enter referral code"
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <p className="text-[11px] text-gray-500 leading-relaxed pt-1">
-                      By proceeding, I agree that Darzi or its representatives may contact me by email, phone, or text message using the email address or number I provide.
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!locationCity.trim()) {
-                          setError('Please specify your city or workshop location.')
-                          return
-                        }
-                        setError('')
-                        setCurrentStep('language')
-                      }}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
-                    >
-                      <span>Continue to Atelier Setup →</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 2: Language & Capacity */}
-                {currentStep === 'language' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div>
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                        Select your language & workshop capacity
-                      </h1>
-                      <p className="text-xs text-gray-500 mt-1.5">
-                        You can change your language on this screen or at any time in Help.
-                      </p>
-                    </div>
-
-                    <div className="space-y-5 pt-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                          Language
-                        </label>
-                        <select
-                          value={language}
-                          onChange={(e) => setLanguage(e.target.value)}
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                        >
-                          {LANGUAGES.map((lang) => (
-                            <option key={lang} value={lang}>
-                              {lang}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Sewing Machines
-                          </label>
-                          <select
-                            value={machines}
-                            onChange={(e) => setMachines(e.target.value)}
-                            className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                          >
-                            <option value="2-3">2–3 machines</option>
-                            <option value="4-6">4–6 machines</option>
-                            <option value="8+">8+ machines</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                            Daily Order Limit
-                          </label>
-                          <select
-                            value={dailyCapacity}
-                            onChange={(e) => setDailyCapacity(e.target.value)}
-                            className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                          >
-                            <option value="15">15 orders / day</option>
-                            <option value="25">25 orders / day</option>
-                            <option value="50">50 orders / day</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setCurrentStep('shop-info')}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
-                    >
-                      <span>Continue</span>
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 3: Shop Information */}
-                {currentStep === 'shop-info' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div>
-                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                        Studio Location & Contact
-                      </span>
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
-                        Fill Your Shop&apos;s Information
-                      </h1>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Enter your atelier address so customers can drop off garments and book fittings.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4 pt-1">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                          Atelier / Shop Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={shopName}
-                          onChange={(e) => setShopName(e.target.value)}
-                          placeholder="Enter your shop or atelier name"
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Area / Neighborhood *
-                          </label>
-                          <input
-                            type="text"
-                            value={shopArea}
-                            onChange={(e) => setShopArea(e.target.value)}
-                            placeholder="Enter your area or locality"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Postcode / ZIP / PIN *
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            maxLength={10}
-                            value={postcode}
-                            onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
-                            placeholder="e.g. 10001 (US) or 400001 (IN)"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                          Street Address *
-                        </label>
-                        <input
-                          type="text"
-                          value={streetAddress}
-                          onChange={(e) => setStreetAddress(e.target.value)}
-                          placeholder="Enter your full street address"
-                          className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                        />
-                      </div>
-
-                      {/* Choose Exact Location Trigger */}
-                      <div>
+                      <div className="space-y-3 pt-2">
+                        {/* 1. Google Button */}
                         <button
                           type="button"
-                          onClick={() => setIsMapModalOpen(true)}
-                          className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3 text-left transition-all cursor-pointer group"
+                          disabled={authLoading}
+                          onClick={triggerGoogleAuth}
+                          className="w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-[#0F1115] bg-white hover:bg-gray-50 py-3.5 px-4 text-sm font-bold text-[#0F1115] shadow-xs active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
                         >
-                          <AnimatedLocationPin
-                            size={22}
-                            isConfirmed={Boolean(studioLat && studioLng)}
-                          />
-                          <span className="text-sm font-semibold text-[#0F1115] truncate flex-1">
-                            {studioLat && studioLng
-                              ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
-                              : 'Choose Exact Location'}
-                          </span>
-                          {studioLat && studioLng && (
-                            <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
-                          )}
+                          <svg className="size-5 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                          </svg>
+                          <span>{authLoading ? 'Connecting Google…' : 'Continue with Google'}</span>
                         </button>
-                      </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Lead Master Tailor *
-                          </label>
-                          <input
-                            type="text"
-                            value={tailorName}
-                            onChange={(e) => setTailorName(e.target.value)}
-                            placeholder="Enter lead tailor's full name"
-                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                            Partner Contact Email *
-                          </label>
-                          <input
-                            type="email"
-                            value={emailVal}
-                            onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
-                            disabled={!!pendingGoogle?.email}
-                            placeholder="Enter your business email"
-                            className={`w-full rounded-lg border-none px-4 py-3 text-sm font-semibold outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
-                          />
-                          {pendingGoogle?.email && (
-                            <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                              <Lock size={10} /> Email linked via Google sign-in
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Field-by-field validation for Step 3
-                        if (!shopName.trim()) {
-                          setError('Please enter your Atelier / Shop Name.')
-                          toast.warning('Shop Name is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (!shopArea.trim()) {
-                          setError('Please enter your Area or Neighborhood.')
-                          toast.warning('Area / Neighborhood is required.', { position: 'top-center' })
-                          return
-                        }
-                        const cleanPin = postcode.trim().replace(/\D/g, '')
-                        if (cleanPin.length < 4 || cleanPin.length > 10) {
-                          const msg = 'Please enter a valid postal / ZIP code.'
-                          setError(msg)
-                          toast.warning(msg, { position: 'top-center' })
-                          return
-                        }
-                        if (!streetAddress.trim()) {
-                          setError('Please enter your Street Address.')
-                          toast.warning('Street Address is required.', { position: 'top-center' })
-                          return
-                        }
-                        if (!studioLat || !studioLng) {
-                          const msg = 'Please choose your exact shop location on the map. Latitude & Longitude are compulsory.'
-                          setError(msg)
-                          toast.warning(msg, { position: 'top-center' })
-                          setIsMapModalOpen(true)
-                          return
-                        }
-                        if (!tailorName.trim()) {
-                          setError('Please enter the Lead Master Tailor name.')
-                          toast.warning('Lead Master Tailor is required.', { position: 'top-center' })
-                          return
-                        }
-                        setError('')
-                        setCurrentStep('phone-verify')
-                      }}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
-                    >
-                      <span>Save & Continue to Phone Verification</span>
-                      <ArrowRight size={16} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
-                {currentStep === 'phone-verify' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div>
-                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                        Phone Verification
-                      </span>
-                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
-                        Verify Phone Number
-                      </h1>
-                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                        Enter your phone number. We will send a 4-digit SMS verification code to verify your studio account.
-                      </p>
-                    </div>
-
-                    {isPhoneVerified ? (
-                      <div className="space-y-5 pt-1">
-                        <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
-                              <CheckCircle2 size={20} />
-                            </div>
-                            <div>
-                              <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-                                Phone Number Verified
-                              </p>
-                              <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
-                                {phone || step3VerifiedPhone}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsPhoneVerified(false)
-                              setStep3OtpSent(false)
-                              setStep3Otp('')
-                            }}
-                            className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
-                          >
-                            Change
-                          </button>
-                        </div>
-
+                        {/* 2. Mobile Button */}
                         <button
                           type="button"
                           onClick={() => {
                             setError('')
-                            setCurrentStep('hub')
+                            setNotice('')
+                            setSignInMode('mobile')
                           }}
-                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer"
+                          className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
                         >
-                          <span>Continue to Workbench Review</span>
-                          <ArrowRight size={16} />
+                          <Phone size={16} className="text-[#9E593B]" />
+                          <span>Continue with Mobile Number</span>
+                        </button>
+
+                        {/* 3. Email Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setError('')
+                            setNotice('')
+                            setSignInMode('email')
+                          }}
+                          className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
+                        >
+                          <Mail size={16} className="text-[#9E593B]" />
+                          <span>Continue with Email</span>
+                        </button>
+
+                        {/* 4. Demo Sandbox Button */}
+                        <button
+                          type="button"
+                          onClick={handleDemoAccess}
+                          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#F5EBE6] hover:bg-[#EBDDD5] border border-[#DFC9BD] py-3.5 px-4 text-xs font-bold text-[#8C4A2D] transition-all cursor-pointer"
+                        >
+                          <Sparkles size={15} />
+                          <span>Launch Demo Workbench Sandbox</span>
                         </button>
                       </div>
-                    ) : (
-                      <div className="space-y-4 pt-1">
-                        <div>
-                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                            Phone Number *
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              type="tel"
-                              inputMode="tel"
-                              autoFocus
-                              value={phone}
-                              onChange={(e) => {
-                                const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
-                                setPhone(cleaned)
-                              }}
-                              placeholder="e.g. +1 555 019 2834 or +91 98765 43210"
-                              className="flex-1 rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3.5 text-sm font-semibold text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
-                            />
-                            <button
-                              type="button"
-                              disabled={step3OtpLoading || !phone.trim() || (step3OtpSent && step3Countdown > 0)}
-                              onClick={() => handleStep3SendOtp(step3OtpSent)}
-                              className="px-5 py-3.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0 disabled:opacity-50 active:scale-[0.99] shadow-xs"
-                            >
-                              {step3OtpLoading
-                                ? 'Sending…'
-                                : step3OtpSent
-                                  ? step3Countdown > 0
-                                    ? `Resend in ${step3Countdown}s`
-                                    : 'Resend Code'
-                                  : 'Send OTP'}
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-[#7A7E85] mt-1.5">
-                            We will send a 4-digit SMS verification code to verify this phone number.
-                          </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
+              {currentStep !== 'auth' && (
+                <div className="space-y-6">
+                  {/* Step 1: Image 2 — "Earn with Darzi" */}
+                  {currentStep === 'location' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      <div className="flex items-center justify-between">
+                        <div className="w-12 h-10 rounded-xl bg-[#10B981]/15 text-[#059669] flex items-center justify-center font-bold">
+                          <Store size={22} />
                         </div>
-
-                        {step3OtpSent && (
-                          <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 animate-in fade-in">
-                            <div className="flex items-center justify-between text-xs text-[#7A7E85]">
-                              <span>
-                                Enter code sent to <strong className="text-[#0F1115]">{phone}</strong>
-                              </span>
-                              <button
-                                type="button"
-                                disabled={step3OtpLoading || step3Countdown > 0}
-                                onClick={() => handleStep3SendOtp(true)}
-                                className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
-                              >
-                                {step3Countdown > 0 ? `Resend (${step3Countdown}s)` : 'Resend'}
-                              </button>
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-2.5">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                maxLength={4}
-                                autoFocus
-                                value={step3Otp}
-                                onChange={(e) => setStep3Otp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                placeholder="• • • •"
-                                className="flex-1 text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.2em]"
-                              />
-                              <button
-                                type="button"
-                                disabled={step3OtpLoading || step3Otp.length < 4}
-                                onClick={async () => {
-                                  await handleStep3VerifyOtp()
-                                  setCurrentStep('hub')
-                                }}
-                                className="sm:w-44 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-xs"
-                              >
-                                {step3OtpLoading ? 'Verifying…' : 'Verify & Continue'}
-                              </button>
-                            </div>
-                          </div>
+                        {(pendingGoogle?.email || emailVal || phone) && (
+                          <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-3 py-1 rounded-full truncate max-w-[220px]">
+                            {pendingGoogle?.email || emailVal || phone}
+                          </span>
                         )}
                       </div>
-                    )}
-                  </div>
-                )}
 
-                {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
-                {currentStep === 'hub' && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
-                      <span>Signing up for</span>
-                      <span className="font-bold text-[#0F1115]">{locationCity || 'Darzi Grid'}</span>
-                      <span>✂️</span>
-                    </div>
+                      <div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                          Earn with Darzi
+                        </h1>
+                        <p className="text-sm text-gray-600 mt-1.5">
+                          Decide when, where and how you want to earn.
+                        </p>
+                      </div>
 
-                    <div>
-                      <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                        Welcome, {tailorName || user?.name || 'Master Tailor'}
-                      </h1>
-                      <p className="text-sm text-gray-600 mt-1">
-                        All 4 atelier steps completed. Ready to launch your workbench.
+                      <div className="space-y-4 pt-1">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Where would you like to earn? *
+                          </label>
+                          <input
+                            type="text"
+                            value={locationCity}
+                            onChange={(e) => setLocationCity(e.target.value)}
+                            placeholder="e.g. Mumbai, London W8, Delhi..."
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Referral code (optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={referralCode}
+                            onChange={(e) => setReferralCode(e.target.value)}
+                            placeholder="Enter referral code"
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-gray-500 leading-relaxed pt-1">
+                        By proceeding, I agree that Darzi or its representatives may contact me by email, phone, or text message using the email address or number I provide.
                       </p>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!locationCity.trim()) {
+                            setError('Please specify your city or workshop location.')
+                            return
+                          }
+                          setError('')
+                          setCurrentStep('language')
+                        }}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer"
+                      >
+                        <span>Continue to Atelier Setup →</span>
+                      </button>
                     </div>
+                  )}
 
-                    <div className="space-y-1.5">
-                      <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden flex">
-                        <div className="h-full bg-emerald-500 w-full transition-all duration-500" />
+                  {/* Step 2: Language & Capacity */}
+                  {currentStep === 'language' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      <div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                          Select your language & workshop capacity
+                        </h1>
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          You can change your language on this screen or at any time in Help.
+                        </p>
                       </div>
-                      <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600">
-                        <span>100% Completed</span>
-                        <span>Ready to Launch</span>
+
+                      <div className="space-y-5 pt-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                            Language
+                          </label>
+                          <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                          >
+                            {LANGUAGES.map((lang) => (
+                              <option key={lang} value={lang}>
+                                {lang}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Sewing Machines
+                            </label>
+                            <select
+                              value={machines}
+                              onChange={(e) => setMachines(e.target.value)}
+                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                            >
+                              <option value="2-3">2–3 machines</option>
+                              <option value="4-6">4–6 machines</option>
+                              <option value="8+">8+ machines</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                              Daily Order Limit
+                            </label>
+                            <select
+                              value={dailyCapacity}
+                              onChange={(e) => setDailyCapacity(e.target.value)}
+                              className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
+                            >
+                              <option value="15">15 orders / day</option>
+                              <option value="25">25 orders / day</option>
+                              <option value="50">50 orders / day</option>
+                            </select>
+                          </div>
+                        </div>
                       </div>
+
+                      <button
+                        onClick={() => setCurrentStep('shop-info')}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
+                      >
+                        <span>Continue</span>
+                        <ArrowRight size={16} />
+                      </button>
                     </div>
+                  )}
 
-                    <div className="divide-y divide-gray-100 border-t border-b border-gray-100 my-4">
-                      <div className="py-3 flex items-center justify-between">
+                  {/* Step 3: Shop Information */}
+                  {currentStep === 'shop-info' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      <div>
+                        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">
+                          Studio Location & Contact
+                        </span>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115] mt-1">
+                          Fill Your Shop&apos;s Information
+                        </h1>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Enter your atelier address so customers can drop off garments and book fittings.
+                        </p>
+                      </div>
+
+                      <div className="space-y-4 pt-1">
                         <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Studio Location & Shop Details</p>
-                          <p className="text-xs text-gray-500">{shopName} · {shopArea} ({postcode})</p>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                            Atelier / Shop Name *
+                          </label>
+                          <input
+                            type="text"
+                            value={shopName}
+                            onChange={(e) => setShopName(e.target.value)}
+                            placeholder="Enter your shop or atelier name"
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                          />
                         </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                          <CheckCircle2 size={16} />
-                          <span>Completed</span>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                              Area / Neighborhood *
+                            </label>
+                            <input
+                              type="text"
+                              value={shopArea}
+                              onChange={(e) => setShopArea(e.target.value)}
+                              placeholder="Enter your area or locality"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                              Postcode / ZIP / PIN *
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              maxLength={10}
+                              value={postcode}
+                              onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                              placeholder="e.g. 10001 (US) or 400001 (IN)"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                            Street Address *
+                          </label>
+                          <input
+                            type="text"
+                            value={streetAddress}
+                            onChange={(e) => setStreetAddress(e.target.value)}
+                            placeholder="Enter your full street address"
+                            className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                          />
+                        </div>
+
+                        {/* Choose Exact Location Trigger */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setIsMapModalOpen(true)}
+                            className="w-full flex items-center gap-2.5 rounded-lg bg-gray-100 hover:bg-gray-200/70 px-4 py-3 text-left transition-all cursor-pointer group"
+                          >
+                            <AnimatedLocationPin
+                              size={22}
+                              isConfirmed={Boolean(studioLat && studioLng)}
+                            />
+                            <span className="text-sm font-semibold text-[#0F1115] truncate flex-1">
+                              {studioLat && studioLng
+                                ? `${streetAddress || shopArea || 'Location Pinned'}${postcode ? ` (${postcode})` : ''}`
+                                : 'Choose Exact Location'}
+                            </span>
+                            {studioLat && studioLng && (
+                              <span className="size-2 rounded-full bg-emerald-500 shrink-0" title="Location Pinned" />
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                              Lead Master Tailor *
+                            </label>
+                            <input
+                              type="text"
+                              value={tailorName}
+                              onChange={(e) => setTailorName(e.target.value)}
+                              placeholder="Enter lead tailor's full name"
+                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3 text-sm font-semibold text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
+                              Partner Contact Email *
+                            </label>
+                            <input
+                              type="email"
+                              value={emailVal}
+                              onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
+                              disabled={!!pendingGoogle?.email}
+                              placeholder="Enter your business email"
+                              className={`w-full rounded-lg border-none px-4 py-3 text-sm font-semibold outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
+                            />
+                            {pendingGoogle?.email && (
+                              <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
+                                <Lock size={10} /> Email linked via Google sign-in
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="py-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Language & Daily Capacity</p>
-                          <p className="text-xs text-gray-500">{language} · {machines} Machines ({dailyCapacity}/day limit)</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                          <CheckCircle2 size={16} />
-                          <span>Completed</span>
-                        </div>
-                      </div>
-
-                      <div className="py-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Lead Tailor & Contact Email</p>
-                          <p className="text-xs text-gray-500">{tailorName} · {emailVal}</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                          <CheckCircle2 size={16} />
-                          <span>Completed</span>
-                        </div>
-                      </div>
-
-                      <div className="py-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-extrabold text-[#0F1115]">Phone Number</p>
-                          <p className="text-xs text-gray-500">{phone || step3VerifiedPhone || 'Verified via SMS'}</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                          <CheckCircle2 size={16} />
-                          <span>Verified</span>
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Field-by-field validation for Step 3
+                          if (!shopName.trim()) {
+                            setError('Please enter your Atelier / Shop Name.')
+                            toast.warning('Shop Name is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!shopArea.trim()) {
+                            setError('Please enter your Area or Neighborhood.')
+                            toast.warning('Area / Neighborhood is required.', { position: 'top-center' })
+                            return
+                          }
+                          const cleanPin = postcode.trim().replace(/\D/g, '')
+                          if (cleanPin.length < 4 || cleanPin.length > 10) {
+                            const msg = 'Please enter a valid postal / ZIP code.'
+                            setError(msg)
+                            toast.warning(msg, { position: 'top-center' })
+                            return
+                          }
+                          if (!streetAddress.trim()) {
+                            setError('Please enter your Street Address.')
+                            toast.warning('Street Address is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!studioLat || !studioLng) {
+                            const msg = 'Please choose your exact shop location on the map. Latitude & Longitude are compulsory.'
+                            setError(msg)
+                            toast.warning(msg, { position: 'top-center' })
+                            setIsMapModalOpen(true)
+                            return
+                          }
+                          if (!tailorName.trim()) {
+                            setError('Please enter the Lead Master Tailor name.')
+                            toast.warning('Lead Master Tailor is required.', { position: 'top-center' })
+                            return
+                          }
+                          setError('')
+                          setCurrentStep('phone-verify')
+                        }}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer"
+                      >
+                        <span>Save & Continue to Phone Verification</span>
+                        <ArrowRight size={16} />
+                      </button>
                     </div>
+                  )}
 
-                    <button
-                      onClick={handleFinishOnboarding}
-                      disabled={submitting}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-lg active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
-                    >
-                      {submitting ? (
-                        <span>Activating Atelier Studio…</span>
+                  {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
+                  {currentStep === 'phone-verify' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      {isPhoneVerified ? (
+                        <div className="space-y-6">
+                          <div>
+                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                              Mobile Verified
+                            </h1>
+                            <p className="text-sm text-gray-600 mt-1.5">
+                              Your atelier phone number has been successfully verified.
+                            </p>
+                          </div>
+
+                          <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="size-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
+                                <CheckCircle2 size={20} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                                  Verified Phone
+                                </p>
+                                <p className="text-sm font-mono font-bold text-[#0F1115] mt-0.5">
+                                  {phone || step3VerifiedPhone}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsPhoneVerified(false)
+                                setStep3OtpSent(false)
+                                setStep3Otp('')
+                              }}
+                              className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
+                            >
+                              Change
+                            </button>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setError('')
+                              setCurrentStep('hub')
+                            }}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-4"
+                          >
+                            <span>Continue to Workbench Review</span>
+                            <ArrowRight size={16} />
+                          </button>
+                        </div>
                       ) : (
-                        <>
-                          <span>Access Studio Workbench</span>
-                          <ArrowRight size={16} />
-                        </>
+                        <div className="space-y-6">
+                          <div>
+                            <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                              Verify your phone
+                            </h1>
+                            <p className="text-sm text-gray-600 mt-1.5">
+                              We&apos;ll send a 4-digit verification code to confirm your direct number.
+                            </p>
+                          </div>
+
+                          <div className="space-y-4 pt-1">
+                            <div>
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                                Phone Number *
+                              </label>
+                              <div className="relative flex items-center">
+                                <div className="absolute left-4 flex items-center pointer-events-none text-gray-400">
+                                  <Phone size={16} className="text-[#9E593B]" />
+                                </div>
+                                <input
+                                  type="tel"
+                                  inputMode="tel"
+                                  autoFocus={!step3OtpSent}
+                                  value={phone}
+                                  onChange={(e) => {
+                                    const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
+                                    setPhone(cleaned)
+                                  }}
+                                  placeholder="e.g. +91 98765 43210 or +44 7700 900000"
+                                  className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
+                            <Lock size={12} className="text-[#9E593B] shrink-0" />
+                            <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
+                          </p>
+
+                          <button
+                            type="button"
+                            disabled={step3OtpLoading || !phone.trim()}
+                            onClick={() => handleStep3SendOtp(false)}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-4 cursor-pointer disabled:opacity-50"
+                          >
+                            <span>{step3OtpLoading ? 'Sending Verification Code…' : 'Send Verification Code'}</span>
+                            <ArrowRight size={16} />
+                          </button>
+                        </div>
                       )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+                    </div>
+                  )}
+
+                  {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
+                  {currentStep === 'hub' && (
+                    <div className="space-y-6 animate-in fade-in duration-200">
+                      <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
+                        <span>Signing up for</span>
+                        <span className="font-bold text-[#0F1115]">{locationCity || 'Darzi Grid'}</span>
+                        <span>✂️</span>
+                      </div>
+
+                      <div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                          Welcome, {tailorName || user?.name || 'Master Tailor'}
+                        </h1>
+                        <p className="text-sm text-gray-600 mt-1">
+                          All 4 atelier steps completed. Ready to launch your workbench.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden flex">
+                          <div className="h-full bg-emerald-500 w-full transition-all duration-500" />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600">
+                          <span>100% Completed</span>
+                          <span>Ready to Launch</span>
+                        </div>
+                      </div>
+
+                      <div className="divide-y divide-gray-100 border-t border-b border-gray-100 my-4">
+                        <div className="py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-extrabold text-[#0F1115]">Studio Location & Shop Details</p>
+                            <p className="text-xs text-gray-500">{shopName} · {shopArea} ({postcode})</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                            <CheckCircle2 size={16} />
+                            <span>Completed</span>
+                          </div>
+                        </div>
+
+                        <div className="py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-extrabold text-[#0F1115]">Language & Daily Capacity</p>
+                            <p className="text-xs text-gray-500">{language} · {machines} Machines ({dailyCapacity}/day limit)</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                            <CheckCircle2 size={16} />
+                            <span>Completed</span>
+                          </div>
+                        </div>
+
+                        <div className="py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-extrabold text-[#0F1115]">Lead Tailor & Contact Email</p>
+                            <p className="text-xs text-gray-500">{tailorName} · {emailVal}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                            <CheckCircle2 size={16} />
+                            <span>Completed</span>
+                          </div>
+                        </div>
+
+                        <div className="py-3 flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-extrabold text-[#0F1115]">Verified Partner Mobile</p>
+                            <p className="text-xs text-gray-500">{phone || step3VerifiedPhone || 'Verified via SMS'}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
+                            <CheckCircle2 size={16} />
+                            <span>Verified</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleFinishOnboarding}
+                        disabled={submitting}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-lg active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
+                      >
+                        {submitting ? (
+                          <span>Activating Atelier Studio…</span>
+                        ) : (
+                          <>
+                            <span>Access Studio Workbench</span>
+                            <ArrowRight size={16} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* BACK FACE: ENTIRE CARD FLIPPED TO STANDALONE OTP CARD */}
+            <div
+              style={{
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
+                transform: 'rotateY(180deg)',
+              }}
+              className={`absolute inset-0 bg-white rounded-3xl border border-gray-200 shadow-xl p-6 sm:p-8 flex flex-col items-center justify-center ${!isOtpFlipped ? 'pointer-events-none select-none' : ''
+                }`}
+            >
+              {currentStep === 'phone-verify' && (
+                <OtpVerificationCard
+                  variant="plain"
+                  value={step3Otp}
+                  onChange={setStep3Otp}
+                  onVerify={async () => {
+                    await handleStep3VerifyOtp()
+                    setCurrentStep('hub')
+                  }}
+                  onResend={() => handleStep3SendOtp(true)}
+                  resendCountdown={step3Countdown}
+                  loading={step3OtpLoading}
+                  phoneNumber={phone}
+                  onClose={() => {
+                    setStep3OtpSent(false)
+                    setStep3Otp('')
+                  }}
+                />
+              )}
+              {currentStep === 'auth' && signInMode === 'mobile' && (
+                <OtpVerificationCard
+                  variant="plain"
+                  value={sOtp}
+                  onChange={setSOtp}
+                  onVerify={() => handleVerifyMobileOtp({ preventDefault: () => { } } as any)}
+                  onResend={() => handleSendMobileOtp(undefined, true)}
+                  resendCountdown={resendCountdown}
+                  loading={authLoading}
+                  phoneNumber={sPhoneLogin}
+                  onClose={() => {
+                    setSOtpSent(false)
+                    setSOtp('')
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       </main>
