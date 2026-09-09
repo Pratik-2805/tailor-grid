@@ -47,6 +47,8 @@ async function findOrLinkUser({
   studioName,
   storeArea,
   machines,
+  lat,
+  lng,
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
   const normPhone = phone ? phone.trim() : null;
@@ -115,6 +117,9 @@ async function findOrLinkUser({
         actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
       }
 
+      const parsedLat = typeof lat === 'number' && !isNaN(lat) ? lat : (lat ? parseFloat(lat) : 40.7259);
+      const parsedLng = typeof lng === 'number' && !isNaN(lng) ? lng : (lng ? parseFloat(lng) : -74.0003);
+
       if (!existingStore) {
         resolvedStore = await prisma.partnerStore.create({
           data: {
@@ -134,8 +139,8 @@ async function findOrLinkUser({
             leadTailor: name || 'Master Tailor',
             specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
             retailSold: true,
-            lat: 40.7259,
-            lng: -74.0003,
+            lat: parsedLat,
+            lng: parsedLng,
           },
         });
       } else {
@@ -148,6 +153,8 @@ async function findOrLinkUser({
             postcode: postcode || existingStore.postcode,
             ...(storeArea ? { area: storeArea } : {}),
             ...(machines ? { machines: parseInt(machines) || existingStore.machines } : {}),
+            ...(typeof lat === 'number' && !isNaN(lat) ? { lat: parsedLat } : {}),
+            ...(typeof lng === 'number' && !isNaN(lng) ? { lng: parsedLng } : {}),
           },
         });
       }
@@ -814,6 +821,8 @@ router.post('/signup', async (req, res) => {
       storeName,
       storeArea,
       machines,
+      lat,
+      lng,
     } = req.body;
 
     // Check if there is a pending Google cache entry
@@ -904,6 +913,8 @@ router.post('/signup', async (req, res) => {
       studioName: storeName,
       storeArea,
       machines,
+      lat,
+      lng,
     });
 
     if (tempSignupId) {

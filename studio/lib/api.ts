@@ -178,6 +178,8 @@ export async function signUpUser(data: {
   storeName?: string
   storeArea?: string
   machines?: string
+  lat?: number
+  lng?: number
 }): Promise<{ token: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
