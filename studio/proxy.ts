@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
- * Next.js Proxy Gate (proxy.tsx)
+ * Next.js Proxy Gate (proxy.ts)
  * 
  * Official Next.js 16 server-level request proxy.
  * Checks request cookies on every navigation. If the user is registered as a CUSTOMER,

@@ -28,6 +28,7 @@ import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
 import { AuthModal } from './auth-modal'
+import { useApp } from './app-provider'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId?: string; className?: string }) {
   switch (categoryId) {
@@ -82,6 +83,7 @@ function calculateHaversineDistanceMiles(lat1: number, lon1: number, lat2: numbe
 }
 
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
+  const { stopBookingTransition } = useApp()
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
       return getAuthUser<User>()
@@ -139,14 +141,17 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         const fetched = await fetchOrderById(slugId)
         if (isMounted && fetched) {
           setOrder(fetched)
-          if (isInitial) setIsLoading(false)
+          if (isInitial) {
+            setIsLoading(false)
+            stopBookingTransition()
+          }
           return
         }
       } catch (err) {
         console.warn('Backend order fetch failed:', err)
       }
 
-      // 2. Fallback to cookie saved order or latest draft
+      // 2. Fallback to storage saved order or latest draft
       if (typeof window !== 'undefined') {
         const saved = getStorageCookie(`tg_order_${slugId}`) || getStorageCookie('tg_latest_order')
         if (saved) {
@@ -157,7 +162,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 ...parsed,
                 id: slugId || parsed.id || 'ORD-6154',
               })
-              if (isInitial) setIsLoading(false)
+              if (isInitial) {
+                setIsLoading(false)
+                stopBookingTransition()
+              }
               return
             }
           } catch { }
@@ -167,6 +175,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       // 3. Complete loading
       if (isMounted && isInitial) {
         setIsLoading(false)
+        stopBookingTransition()
       }
     }
 
@@ -179,6 +188,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     return () => {
       isMounted = false
       clearInterval(interval)
+      stopBookingTransition()
     }
   }, [slugId])
 

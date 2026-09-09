@@ -26,11 +26,11 @@ export default function HomePage() {
     if (typeof window !== 'undefined') {
       const storedUser = getAuthUser<User>()
       if (storedUser) {
-        if (storedUser.role === 'CUSTOMER') return true
+        return storedUser.role === 'CUSTOMER'
       }
       const token = getAuthToken()
       const role = getAuthRole()
-      return Boolean(token && (!role || role === 'CUSTOMER'))
+      return Boolean(token && role === 'CUSTOMER')
     }
     return false
   })
@@ -42,14 +42,14 @@ export default function HomePage() {
           router.replace('/book')
         }, 50)
         return () => clearTimeout(timer)
-      } else if (!user) {
+      } else {
         setHasCustomerSession(false)
       }
     }
   }, [user, isAuthLoading, router])
 
-  // While auth is initializing or if customer session exists, smoothly render the Atelier loader
-  if (isAuthLoading || hasCustomerSession || (user && user.role === 'CUSTOMER')) {
+  // Only forward customer role to /book; STUDIO role and guests access the root '/' homepage
+  if (isAuthLoading || (hasCustomerSession && (!user || user.role === 'CUSTOMER')) || (user && user.role === 'CUSTOMER')) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
         <CustomLoader
@@ -96,7 +96,7 @@ export default function HomePage() {
           : '10012'
     )
     if (typeof window !== 'undefined') {
-      setStorageCookie('tg_measurement_draft', JSON.stringify(params), 7)
+      setStorageCookie('tg_measurement_draft', JSON.stringify(params))
     }
   }
 
