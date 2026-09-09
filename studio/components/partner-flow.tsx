@@ -330,15 +330,22 @@ export function PartnerFlow({
   })
   const [newCapability, setNewCapability] = useState('')
   const [showAddCap, setShowAddCap] = useState(false)
-  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
+  const [studioNotice, setStudioNotice] = useState<string | null>(null)
+  const [capacityLimit, setCapacityLimit] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = getStorageCookie('tg_studio_capacity')
+      if (stored) return parseInt(stored) || 25
+    }
+    return 25
+  })
 
   const handleSetCapacity = (val: number) => {
     setCapacityLimit(val)
     if (typeof window !== 'undefined') {
       setStorageCookie('tg_studio_capacity', val.toString())
     }
-    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
-    setTimeout(() => setCapacityNotice(null), 3000)
+    setStudioNotice(`Daily intake limit set to ${val} garments/day`)
+    setTimeout(() => setStudioNotice(null), 3000)
   }
 
   const toggleCapability = (cap: string) => {
@@ -483,7 +490,7 @@ export function PartnerFlow({
   const handleDeclineAllocatedOrder = async (orderId: string) => {
     const updates: Partial<FittingBooking> = {
       status: 'Cancelled',
-      notes: 'Request not accepted by studio in time',
+      sewingNotes: 'Request not accepted by studio in time',
     }
     setOrders((prev) => prev.filter((o) => o.id !== orderId))
     setSkippedOrderIds((prev) => [...prev, orderId])

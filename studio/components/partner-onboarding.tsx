@@ -906,13 +906,30 @@ export function PartnerOnboarding({
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}
-              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col justify-between min-h-[640px] animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 ${currentStep !== 'auth' ? 'flex flex-col justify-between min-h-[640px]' : 'space-y-6'} animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
-              {/* Card Header with Step Badge */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                <div className="flex items-center gap-2.5">
-                  {currentStep !== 'auth' ? (
+              {/* Card Header */}
+              {currentStep === 'auth' ? (
+                <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
+                  <img
+                    src="/bg_logo.png"
+                    alt="Darzi Atelier"
+                    className="h-11 sm:h-12 w-auto object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                  <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <span className="size-1.5 rounded-full bg-[#9E593B]" />
+                    <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
+                      Studio Workbench Node
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -931,27 +948,21 @@ export function PartnerOnboarding({
                     >
                       <ArrowLeft size={16} />
                     </button>
-                  ) : (
-                    <div className="size-9 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center text-[#9E593B]">
-                      <Scissors size={18} />
+                    <div>
+                      <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
+                        Studio Portal
+                      </span>
+                      <span className="text-xs font-bold text-[#0F1115] block">
+                        Workbench Node
+                      </span>
                     </div>
-                  )}
-                  <div>
-                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
-                      Studio Portal
-                    </span>
-                    <span className="text-xs font-bold text-[#0F1115] block">
-                      Workbench Node
-                    </span>
                   </div>
-                </div>
 
-                {currentStep !== 'auth' && (
                   <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                     Step {currentStepNum} of 4
                   </span>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
               {currentStep === 'auth' && (
