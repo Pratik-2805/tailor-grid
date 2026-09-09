@@ -31,6 +31,9 @@ interface GoogleMapModalProps {
   initialCity?: string
   initialArea?: string
   initialAddress?: string
+  initialPostcode?: string
+  initialLat?: number
+  initialLng?: number
 }
 
 export function UberMapModal({
@@ -40,15 +43,18 @@ export function UberMapModal({
   initialCity = '',
   initialArea = '',
   initialAddress = '',
+  initialPostcode = '',
+  initialLat,
+  initialLng,
 }: GoogleMapModalProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
 
-  // Coordinates & Map State (Default Mumbai fallback)
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
-    lat: 19.076,
-    lng: 72.8777,
-  })
+  // Coordinates & Map State (Use provided initial coordinates or Mumbai fallback)
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>(() => ({
+    lat: initialLat && !isNaN(initialLat) ? initialLat : 19.076,
+    lng: initialLng && !isNaN(initialLng) ? initialLng : 72.8777,
+  }))
   const [isDragging, setIsDragging] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
@@ -67,11 +73,27 @@ export function UberMapModal({
 
   // Selected Address Details
   const [selectedArea, setSelectedArea] = useState(initialArea || '')
-  const [selectedPostcode, setSelectedPostcode] = useState('')
+  const [selectedPostcode, setSelectedPostcode] = useState(initialPostcode || '')
   const [selectedStreet, setSelectedStreet] = useState(initialAddress || '')
   const [selectedCity, setSelectedCity] = useState(initialCity || '')
   const [detectedCountryCode, setDetectedCountryCode] = useState<string>('in')
   const [formattedAddress, setFormattedAddress] = useState('')
+
+  // Sync state whenever modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      if (initialLat && initialLng && !isNaN(initialLat) && !isNaN(initialLng)) {
+        setCoords({ lat: initialLat, lng: initialLng })
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.setView([initialLat, initialLng], 16)
+        }
+      }
+      if (initialArea) setSelectedArea(initialArea)
+      if (initialAddress) setSelectedStreet(initialAddress)
+      if (initialPostcode) setSelectedPostcode(initialPostcode)
+      if (initialCity) setSelectedCity(initialCity)
+    }
+  }, [isOpen, initialLat, initialLng, initialArea, initialAddress, initialPostcode, initialCity])
 
   // Debounce helpers
   const reverseGeocodeTimerRef = useRef<NodeJS.Timeout | null>(null)

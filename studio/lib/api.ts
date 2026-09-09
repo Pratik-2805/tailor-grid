@@ -243,7 +243,7 @@ export async function loginUser(data: {
   }
 }
 
-export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string }> {
+export async function updateUserProfile(updates: Partial<User> & { otp?: string }): Promise<{ success: boolean; user: User; token?: string }> {
   const token = getAuthToken()
   const res = await fetch(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
