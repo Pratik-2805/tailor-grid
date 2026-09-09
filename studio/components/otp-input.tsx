@@ -17,6 +17,8 @@ interface OtpInputProps {
   subtitle?: string
   isModal?: boolean
   variant?: 'card' | 'plain'
+  theme?: 'purple' | 'studio'
+  error?: string
 }
 
 export function OtpVerificationCard({
@@ -33,6 +35,8 @@ export function OtpVerificationCard({
   subtitle = 'We have sent a verification code to your mobile number',
   isModal = false,
   variant = 'card',
+  theme = 'purple',
+  error = '',
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [digits, setDigits] = useState<string[]>(() => {
@@ -167,8 +171,12 @@ export function OtpVerificationCard({
             onPaste={handlePaste}
             className={`w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl sm:text-3xl font-bold rounded-2xl outline-none transition-all ${
               digit
-                ? 'bg-[#EEF0FF] text-[#2D2A4A] border-2 border-[#7B73FF]/40 shadow-xs'
-                : 'bg-[#F2F3F8] text-gray-800 border border-transparent focus:bg-[#EEF0FF] focus:border-2 focus:border-[#7B73FF] focus:shadow-sm'
+                ? theme === 'studio'
+                  ? 'bg-[#FAF3EC] text-[#1E2229] border-2 border-[#9E593B] shadow-xs'
+                  : 'bg-[#EEF0FF] text-[#2D2A4A] border-2 border-[#7B73FF]/40 shadow-xs'
+                : theme === 'studio'
+                  ? 'bg-[#FAF8F5] text-gray-800 border border-[#E8E1D5] focus:bg-white focus:border-2 focus:border-[#9E593B] focus:shadow-sm'
+                  : 'bg-[#F2F3F8] text-gray-800 border border-transparent focus:bg-[#EEF0FF] focus:border-2 focus:border-[#7B73FF] focus:shadow-sm'
             }`}
           />
         ))}
@@ -179,7 +187,11 @@ export function OtpVerificationCard({
         type="button"
         disabled={loading || value.length < length}
         onClick={onVerify}
-        className="w-full py-3.5 sm:py-4 rounded-2xl bg-[#7B73FF] hover:bg-[#6C63FF] active:scale-[0.99] text-white text-base font-extrabold tracking-wide shadow-md shadow-[#7B73FF]/25 hover:shadow-lg hover:shadow-[#7B73FF]/30 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className={`w-full py-3.5 sm:py-4 rounded-2xl active:scale-[0.99] text-white text-base font-extrabold tracking-wide transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+          theme === 'studio'
+            ? 'bg-[#9E593B] hover:bg-[#8A4C32] shadow-md shadow-[#9E593B]/20 hover:shadow-lg hover:shadow-[#9E593B]/25'
+            : 'bg-[#7B73FF] hover:bg-[#6C63FF] shadow-md shadow-[#7B73FF]/25 hover:shadow-lg hover:shadow-[#7B73FF]/30'
+        }`}
       >
         {loading ? (
           <>
@@ -191,6 +203,13 @@ export function OtpVerificationCard({
         )}
       </button>
 
+      {/* Error Message */}
+      {error && (
+        <div className="mt-3.5 p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-semibold w-full text-center animate-in fade-in">
+          {error}
+        </div>
+      )}
+
       {/* Resend Footer */}
       {onResend && (
         <div className="mt-6 flex flex-col items-center gap-1 text-xs sm:text-sm">
@@ -199,7 +218,9 @@ export function OtpVerificationCard({
             type="button"
             disabled={loading || resendCountdown > 0}
             onClick={onResend}
-            className="font-bold text-[#7B73FF] hover:text-[#6C63FF] hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`font-bold hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+              theme === 'studio' ? 'text-[#9E593B] hover:text-[#8A4C32]' : 'text-[#7B73FF] hover:text-[#6C63FF]'
+            }`}
           >
             {resendCountdown > 0 ? `Resend Code in ${resendCountdown}s` : 'Resend Code'}
           </button>

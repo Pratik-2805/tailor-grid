@@ -6,7 +6,9 @@ import {
   ArrowRight,
   Camera,
   Check,
+  Clock,
   CreditCard,
+  Gauge,
   Image as ImageIcon,
   Link as LinkIcon,
   Lock,
@@ -20,10 +22,14 @@ import {
   Trash2,
   Upload,
   User,
+  Wrench,
 } from 'lucide-react'
 import type { User as UserType } from './data'
-import { updateUserProfile } from '@/lib/api'
-import { getAuthUser, setAuthUser, getStorageCookie, setStorageCookie, removeStorageCookie } from '@/lib/cookies'
+import { updateUserProfile, sendOtp } from '@/lib/api'
+import { UberMapModal, SelectedLocationData } from './uber-map-modal'
+import { AnimatedLocationPin } from './animated-location-pin'
+import { OtpVerificationCard } from './otp-input'
+import { toast } from 'react-toastify'
 
 interface StudioProfileViewProps {
   user: UserType
@@ -33,6 +39,9 @@ interface StudioProfileViewProps {
 }
 
 const SPECIALTIES = [
+  'Custom Alterations',
+  'Precision Hemming',
+  'Express Tailoring',
   'Suit Tailoring',
   'Dress Hemming',
   'Denim Chainstitch',
@@ -70,22 +79,40 @@ export function StudioProfileView({
 }: StudioProfileViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
 
-  const [name, setName] = useState(user.name || 'Master Tailor')
-  const [studioName, setStudioName] = useState(user.studioName || 'Atelier Studio')
-  const [phone, setPhone] = useState(user.phone || '+44 7700 900123')
-  const [address, setAddress] = useState(user.address || '18 Kensington Church St')
-  const [postcode, setPostcode] = useState(user.postcode || 'W8 4EP')
-  const [area, setArea] = useState('SoHo & Central London')
+  const [name, setName] = useState(user.name || '')
+  const [studioName, setStudioName] = useState(user.studioName || '')
+  const [phone, setPhone] = useState(user.phone || '')
+  const [verifiedPhone, setVerifiedPhone] = useState(user.phone || '')
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false)
+  const [otpValue, setOtpValue] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpCountdown, setOtpCountdown] = useState(0)
+  const [otpError, setOtpError] = useState('')
+
+  const [address, setAddress] = useState(user.address || '')
+  const [area, setArea] = useState(user.area || '')
+  const [postcode, setPostcode] = useState(user.postcode || '')
+  const [lat, setLat] = useState<number | null>(user.lat ?? null)
+  const [lng, setLng] = useState<number | null>(user.lng ?? null)
   const [avatar, setAvatar] = useState(user.avatar || '')
+
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
-  const [specialties, setSpecialties] = useState<string[]>([
-    'Suit Tailoring',
-    'Dress Hemming',
-    'Denim Chainstitch',
-    'Silk & Gowns',
-  ])
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false)
+
+  const [specialties, setSpecialties] = useState<string[]>(() => {
+    if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
+      return user.specialties
+    }
+    return ['Custom Alterations', 'Precision Hemming', 'Express Tailoring']
+  })
+
+  const [openingHours, setOpeningHours] = useState(user.openingHours || 'Mon–Sat: 09:00 – 19:00')
+  const [dailyCapacity, setDailyCapacity] = useState(user.dailyCapacity || 25)
+  const [machines, setMachines] = useState(user.machines || 4)
+  const [workers, setWorkers] = useState(user.workers || 4)
 
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -95,11 +122,24 @@ export function StudioProfileView({
 
   useEffect(() => {
     if (user) {
-      if (user.name) setName(user.name)
-      if (user.studioName) setStudioName(user.studioName)
-      if (user.phone) setPhone(user.phone)
-      if (user.address) setAddress(user.address)
-      if (user.postcode) setPostcode(user.postcode)
+      if (user.name !== undefined) setName(user.name || '')
+      if (user.studioName !== undefined) setStudioName(user.studioName || '')
+      if (user.phone !== undefined) {
+        setPhone(user.phone || '')
+        setVerifiedPhone(user.phone || '')
+      }
+      if (user.address !== undefined) setAddress(user.address || '')
+      if (user.area !== undefined) setArea(user.area || '')
+      if (user.postcode !== undefined) setPostcode(user.postcode || '')
+      if (user.lat !== undefined) setLat(user.lat ?? null)
+      if (user.lng !== undefined) setLng(user.lng ?? null)
+      if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
+        setSpecialties(user.specialties)
+      }
+      if (user.openingHours) setOpeningHours(user.openingHours)
+      if (user.dailyCapacity) setDailyCapacity(user.dailyCapacity)
+      if (user.machines) setMachines(user.machines)
+      if (user.workers) setWorkers(user.workers)
       if (user.avatar) {
         setAvatar(user.avatar)
       } else {
@@ -108,10 +148,250 @@ export function StudioProfileView({
     }
   }, [user])
 
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [otpCountdown])
+
+  const currentDigits = (user.phone || '').replace(/\D/g, '')
+  const currentInputDigits = phone.replace(/\D/g, '')
+  const verifiedDigits = verifiedPhone.replace(/\D/g, '')
+  const isPhoneChanged = Boolean(currentDigits && currentInputDigits !== currentDigits)
+  const isNewPhoneVerified = Boolean(currentInputDigits && currentInputDigits === verifiedDigits)
+
+  const handleSendOtpToNewPhone = async (force: boolean = false) => {
+    const raw = phone.trim()
+    const digitsOnly = raw.replace(/\D/g, '')
+    if (digitsOnly.length < 10) {
+      setError('Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).')
+      return
+    }
+
+    setOtpSending(true)
+    setOtpError('')
+    setError('')
+    try {
+      const res = await sendOtp(raw, force)
+      setOtpSending(false)
+      if (res.phone) setPhone(res.phone)
+      setOtpValue('')
+      setOtpCountdown(30)
+      setIsOtpModalOpen(true)
+      toast.info(`Verification code sent via SMS to ${res.phone || raw}`, {
+        position: 'top-center',
+      })
+    } catch (err: any) {
+      setOtpSending(false)
+      const msg = err?.message || 'Failed to send verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
+    }
+  }
+
+  const handleVerifyNewPhoneOtp = async () => {
+    const cleanOtp = otpValue.trim()
+    if (!cleanOtp || cleanOtp.length < 4) {
+      setOtpError('Please enter the 4-digit verification code.')
+      return
+    }
+
+    setOtpLoading(true)
+    setOtpError('')
+    setError('')
+    try {
+      const cleanPostcode = postcode.trim()
+      const updates: Partial<UserType> & { otp: string } = {
+        id: user.id,
+        email: user.email,
+        name: name.trim(),
+        studioName: studioName.trim(),
+        phone: phone.trim(),
+        otp: cleanOtp,
+        address: address.trim(),
+        area: area.trim(),
+        postcode: cleanPostcode,
+        lat: lat,
+        lng: lng,
+        specialties: specialties,
+        openingHours: openingHours.trim(),
+        dailyCapacity: Number(dailyCapacity) || 25,
+        machines: Number(machines) || 4,
+        workers: Number(workers) || 4,
+        avatar: avatar ? avatar.trim() : null,
+      }
+
+      const res = await updateUserProfile(updates)
+      setOtpLoading(false)
+      setIsOtpModalOpen(false)
+      setVerifiedPhone(phone.trim())
+      setSuccess(true)
+
+      toast.success(`Mobile verified & updated to ${phone.trim()}!`, {
+        position: 'top-center',
+        autoClose: 4000,
+      })
+
+      const mergedUser: UserType = {
+        ...user,
+        ...updates,
+        ...(res?.user || {}),
+        phone: phone.trim(),
+        avatar: avatar ? avatar.trim() : null,
+      }
+
+      if (onUpdateUser) {
+        onUpdateUser(mergedUser)
+      }
+
+      setTimeout(() => {
+        setSuccess(false)
+      }, 3500)
+    } catch (err: any) {
+      setOtpLoading(false)
+      const msg = err?.message || 'Invalid or expired verification code.'
+      setOtpError(msg)
+      toast.error(msg, { position: 'top-center' })
+    }
+  }
+
   const toggleSpecialty = (s: string) => {
     setSpecialties((prev) =>
       prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
     )
+  }
+
+  // Handle map selection callback from UberMapModal with interactive confirmation Toastify
+  const handleSelectMapLocation = (data: SelectedLocationData) => {
+    setIsMapModalOpen(false)
+
+    const label = data.streetAddress || data.area || 'Workshop Location'
+    const newLocStr = [data.streetAddress, data.area, data.city, data.postcode ? `(${data.postcode})` : ''].filter(Boolean).join(', ') || label
+
+    // Trigger interactive react-toastify confirmation prompt
+    toast(
+      ({ closeToast }) => (
+        <div className="flex flex-col gap-2.5 py-1 px-0.5 text-[#1E2229] select-none">
+          <div className="flex items-start gap-2.5">
+            <div className="size-9 rounded-xl bg-[#FAF3EC] border border-[#E8E1D5] flex items-center justify-center text-lg shrink-0 shadow-2xs">
+              📍
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="text-xs font-bold text-[#1E2229] leading-snug">
+                Do you really want to change your workshop location?
+              </h4>
+              <p className="text-[11px] text-[#555E6D] mt-1 leading-snug break-words">
+                <span className="text-[#9E593B] font-semibold">New location:</span>{' '}
+                <span className="font-semibold text-[#1E2229]">{newLocStr}</span>
+              </p>
+              {data.lat && data.lng && (
+                <div className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-md bg-[#FAF8F5] border border-[#E8E1D5] text-[10px] font-mono text-[#6B7280]">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  <span>GPS: {data.lat.toFixed(4)}, {data.lng.toFixed(4)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-[#E8E1D5]/70 mt-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                closeToast()
+                toast.info('Location change cancelled. Kept current workshop location.', {
+                  position: 'top-center',
+                  autoClose: 2500,
+                })
+              }}
+              className="px-3 py-1.5 text-xs font-semibold text-[#6B7280] hover:text-[#1E2229] bg-[#FAF8F5] hover:bg-gray-100 border border-[#E8E1D5] rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                closeToast()
+                await applyConfirmedLocation(data, newLocStr)
+              }}
+              className="px-4 py-1.5 text-xs font-bold text-white bg-[#9E593B] hover:bg-[#8A4C32] rounded-xl shadow-xs transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+            >
+              <span>Yes, Change</span>
+            </button>
+          </div>
+        </div>
+      ),
+      {
+        position: 'top-center',
+        autoClose: false,
+        closeOnClick: false,
+        closeButton: true,
+        draggable: false,
+        className: '!bg-white !text-[#1E2229] !border !border-[#E8E1D5] !rounded-2xl !shadow-2xl !p-3.5',
+        style: {
+          backgroundColor: '#FFFFFF',
+          color: '#1E2229',
+          border: '1.5px solid #E8E1D5',
+          borderRadius: '16px',
+          boxShadow: '0 16px 36px -6px rgba(30, 34, 41, 0.18)',
+          padding: '14px 16px',
+          minWidth: '330px',
+          maxWidth: '460px',
+        },
+      }
+    )
+  }
+
+  // Apply location after user explicitly clicks "Yes, Change" in the Toastify prompt
+  const applyConfirmedLocation = async (data: SelectedLocationData, locLabel: string) => {
+    const nextAddress = data.streetAddress || address
+    const nextArea = data.area || area
+    const nextPostcode = data.postcode || postcode
+    const nextLat = data.lat ?? lat
+    const nextLng = data.lng ?? lng
+
+    if (data.streetAddress) setAddress(data.streetAddress)
+    if (data.area) setArea(data.area)
+    if (data.postcode) setPostcode(data.postcode)
+    if (data.lat) setLat(data.lat)
+    if (data.lng) setLng(data.lng)
+
+    try {
+      const updates: Partial<UserType> = {
+        id: user.id,
+        email: user.email,
+        name: name.trim(),
+        studioName: studioName.trim(),
+        phone: (verifiedPhone || user.phone || phone).trim(),
+        address: nextAddress.trim(),
+        area: nextArea.trim(),
+        postcode: nextPostcode.trim(),
+        lat: nextLat,
+        lng: nextLng,
+        specialties: specialties,
+        openingHours: openingHours.trim(),
+        dailyCapacity: Number(dailyCapacity) || 25,
+        machines: Number(machines) || 4,
+        workers: Number(workers) || 4,
+        avatar: avatar ? avatar.trim() : null,
+      }
+
+      const res = await updateUserProfile(updates)
+      if (onUpdateUser) {
+        onUpdateUser({
+          ...user,
+          ...updates,
+          ...(res?.user || {}),
+        })
+      }
+    } catch (err) {
+      console.warn('Auto-save location update error:', err)
+    }
+
+    toast.success(`Workshop location updated: ${locLabel}`, {
+      position: 'top-center',
+      autoClose: 4000,
+    })
   }
 
   // Handle local image file upload (auto-compressed via Canvas to <60KB)
@@ -192,9 +472,17 @@ export function StudioProfileView({
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
-        phone: phone.trim(),
+        phone: (verifiedPhone || user.phone || phone).trim(),
         address: address.trim(),
+        area: area.trim(),
         postcode: postcode.trim(),
+        lat: lat,
+        lng: lng,
+        specialties: specialties,
+        openingHours: openingHours.trim(),
+        dailyCapacity: Number(dailyCapacity) || 25,
+        machines: Number(machines) || 4,
+        workers: Number(workers) || 4,
         avatar: null,
       }
       const res = await updateUserProfile(updates)
@@ -230,9 +518,16 @@ export function StudioProfileView({
 
     const cleanPostcode = postcode.trim()
     const pinDigits = cleanPostcode.replace(/\D/g, '')
-    if (pinDigits.length < 5 || pinDigits.length > 10) {
+    if (pinDigits.length < 3 || pinDigits.length > 10) {
       setSaving(false)
-      setError('Please enter a valid postal / ZIP code. ')
+      setError('Please enter a valid postal / PIN code.')
+      return
+    }
+
+    // If phone number was changed and not verified via OTP yet, prompt OTP verification modal!
+    if (isPhoneChanged && !isNewPhoneVerified) {
+      setSaving(false)
+      await handleSendOtpToNewPhone()
       return
     }
 
@@ -244,13 +539,26 @@ export function StudioProfileView({
         studioName: studioName.trim(),
         phone: cleanedPhone,
         address: address.trim(),
+        area: area.trim(),
         postcode: cleanPostcode,
+        lat: lat,
+        lng: lng,
+        specialties: specialties,
+        openingHours: openingHours.trim(),
+        dailyCapacity: Number(dailyCapacity) || 25,
+        machines: Number(machines) || 4,
+        workers: Number(workers) || 4,
         avatar: avatar ? avatar.trim() : null,
       }
 
       const res = await updateUserProfile(updates)
       setSaving(false)
       setSuccess(true)
+
+      toast.success('Atelier configuration saved successfully!', {
+        position: 'top-center',
+        autoClose: 3500,
+      })
 
       const mergedUser: UserType = {
         ...user,
@@ -268,7 +576,9 @@ export function StudioProfileView({
       }, 3500)
     } catch (err: any) {
       setSaving(false)
-      setError(err?.message || 'Failed to save changes. Please try again.')
+      const msg = err?.message || 'Failed to save changes. Please try again.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -344,10 +654,11 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('profile')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'profile'
-            ? 'border-[#9E593B] text-[#9E593B]'
-            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-            }`}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'profile'
+              ? 'border-[#9E593B] text-[#9E593B]'
+              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+          }`}
         >
           <Store size={14} />
           <span>Atelier Profile</span>
@@ -356,10 +667,11 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('craft')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'craft'
-            ? 'border-[#9E593B] text-[#9E593B]'
-            : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-            }`}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'craft'
+              ? 'border-[#9E593B] text-[#9E593B]'
+              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+          }`}
         >
           <Sliders size={14} />
           <span>Craft & Specialisms</span>
@@ -401,12 +713,21 @@ export function StudioProfileView({
                     <p className="text-xs text-[#6B7280] mt-0.5">
                       Lead Craftsman: <strong className="text-[#1E2229]">{name || 'Master Tailor'}</strong>
                     </p>
-                    <div className="flex items-center gap-2 text-[11px] text-[#6B7280] mt-1">
+                    <div className="flex items-center gap-2 text-[11px] text-[#6B7280] mt-1 flex-wrap">
                       <span className="bg-[#FAF3EC] text-[#9E593B] px-1.5 py-0.5 rounded font-bold text-[10px]">
                         80% Escrow
                       </span>
                       <span>·</span>
-                      <span className="truncate max-w-[200px]">{address || 'Studio Address'}</span>
+                      <span className="truncate max-w-[200px]">{address || area || 'Studio Address'}</span>
+                      {lat && lng && (
+                        <>
+                          <span>·</span>
+                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                            <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
+                            GPS Pinned
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -519,10 +840,23 @@ export function StudioProfileView({
             </div>
 
             {/* Form Fields Grid */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
-              <h3 className="font-bold text-sm text-[#1E2229] border-b border-[#E8E1D5] pb-2">
-                Atelier & Master Tailor Details
-              </h3>
+            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-5">
+              <div className="border-b border-[#E8E1D5] pb-2.5 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-[#1E2229]">
+                    Atelier & Master Tailor Details
+                  </h3>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Update your studio identity, contact details, and workshop location.
+                  </p>
+                </div>
+                {lat && lng && (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Coordinates: {lat.toFixed(4)}, {lng.toFixed(4)}
+                  </span>
+                )}
+              </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -532,6 +866,7 @@ export function StudioProfileView({
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Mayfair Sartoria or Atelier Studio"
                     value={studioName}
                     onChange={(e) => setStudioName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -545,21 +880,24 @@ export function StudioProfileView({
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Master Tailor or Craftsman Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
 
+                {/* ── Street Address (As in enroll form) ── */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Workshop Physical Address *
+                    Street Address *
                   </label>
                   <div className="relative">
                     <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="text"
                       required
+                      placeholder="e.g. 14 Savile Row, Suite 2B"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -567,41 +905,140 @@ export function StudioProfileView({
                   </div>
                 </div>
 
+                {/* ── Area / Neighborhood (As in enroll form) ── */}
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                    Area / Neighborhood *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mayfair, Soho, Bandra, Umela..."
+                    value={area}
+                    onChange={(e) => setArea(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                  />
+                </div>
+
+                {/* ── Postcode / PIN / ZIP (As in enroll form) ── */}
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
                     Postcode / ZIP / PIN *
                   </label>
                   <input
                     type="text"
-                    inputMode="numeric"
                     maxLength={10}
                     required
-                    placeholder="e.g. 10001 (US) or 400001 (IN)"
+                    placeholder="e.g. 10001, W1S 3JN, or 401201"
                     value={postcode}
-                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
+                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\w\s\-]/g, '').slice(0, 10))}
                     className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
 
+                {/* ── Interactive Live Map Pin Trigger (Matching Enroll Form) ── */}
+                <div className="space-y-1.5 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                      Workshop Map Pin (Exact GPS Location) *
+                    </label>
+                    {lat && lng ? (
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Location Pinned
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        Pin not set
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsMapModalOpen(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] hover:bg-white hover:border-[#9E593B] text-left transition-all cursor-pointer group shadow-2xs"
+                  >
+                    <AnimatedLocationPin
+                      size={22}
+                      isConfirmed={Boolean(lat && lng)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-bold text-[#1E2229] group-hover:text-[#9E593B] transition-colors truncate">
+                        {lat && lng ? 'Workshop Location Pinned' : 'Choose Exact Location on Map'}
+                      </div>
+                      <div className="text-[11px] text-[#6B7280] truncate mt-0.5">
+                        {lat && lng
+                          ? `${address || area || 'Pinned Workshop'}${postcode ? ` (${postcode})` : ''}`
+                          : 'Tap to position your pin on the live interactive map & auto-detect coordinates'}
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-[#9E593B] bg-[#FAF3EC] border border-[#E8E1D5] px-2.5 py-1 rounded-lg shrink-0 group-hover:bg-[#9E593B] group-hover:text-white transition-colors">
+                      {lat && lng ? 'Adjust Pin' : 'Pin on Map'}
+                    </span>
+                  </button>
+                </div>
+
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    SMS Alert Phone (Dispatch) *
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                      SMS Alert Phone (Dispatch) *
+                    </label>
+                    {!isPhoneChanged ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        Verified
+                      </span>
+                    ) : isNewPhoneVerified ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-emerald-500" />
+                        New Number Verified
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        OTP Required
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="tel"
                       inputMode="tel"
                       required
-                      placeholder="+1 (555) 019-2834 or +91 98765 43210"
+                      placeholder="+91 98765 43210 or +1 (555) 019-2834"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                      onChange={(e) => {
+                        setPhone(e.target.value.replace(/[^\d+ ]/g, ''))
+                        setError('')
+                      }}
+                      className={`w-full pl-9 ${
+                        isPhoneChanged && !isNewPhoneVerified ? 'pr-24' : 'pr-3.5'
+                      } py-2.5 text-xs text-[#1E2229] bg-white border rounded-xl focus:outline-none transition-colors ${
+                        isPhoneChanged && !isNewPhoneVerified
+                          ? 'border-amber-300 focus:border-amber-500 bg-amber-50/20'
+                          : 'border-[#E8E1D5] focus:border-[#9E593B]'
+                      }`}
                     />
+                    {isPhoneChanged && !isNewPhoneVerified && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtpToNewPhone()}
+                        disabled={otpSending || currentInputDigits.length < 10}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[10px] font-extrabold text-white bg-[#9E593B] hover:bg-[#8A4C32] rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {otpSending ? 'Sending...' : 'Verify OTP'}
+                      </button>
+                    )}
                   </div>
+                  {isPhoneChanged && !isNewPhoneVerified && (
+                    <p className="text-[10px] text-amber-700 font-medium">
+                      Mobile number changed. Click <strong>Verify OTP</strong> or <strong>Save Changes</strong> to receive an SMS code.
+                    </p>
+                  )}
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
                     Partner Email (Read-Only)
                   </label>
@@ -647,29 +1084,44 @@ export function StudioProfileView({
             {/* Primary Node Territory Section */}
             <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                  Primary Node Territory (Radius)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                    Primary Node Territory (Radius)
+                  </label>
+                  {lat && lng && (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      Radius Centered on Live Pin
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                   <input
                     type="text"
                     value={area}
                     onChange={(e) => setArea(e.target.value)}
-                    placeholder="e.g. Kensington & Chelsea, London (5-mile radius)"
+                    placeholder="e.g. Vasai Road, Umela or Soho & Central London"
                     className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
+                <p className="text-[11px] text-[#6B7280]">
+                  Catchment zone for Darzi courier allocation and customer radius matching (5-mile radius).
+                </p>
               </div>
             </div>
 
             {/* Machine Specialties & Capabilities */}
             <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
-              <div className="border-b border-[#E8E1D5] pb-2">
-                <h3 className="font-bold text-sm text-[#1E2229]">Workshop Specialisms & Machinery</h3>
-                <p className="text-xs text-[#6B7280]">
-                  Select the services your sewing bench and pressers support.
-                </p>
+              <div className="border-b border-[#E8E1D5] pb-2 flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-sm text-[#1E2229]">Workshop Specialisms & Machinery</h3>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Select the alteration and bespoke services your sewing bench and pressers support.
+                  </p>
+                </div>
+                <span className="text-xs font-bold text-[#9E593B] bg-[#FAF3EC] px-2.5 py-1 rounded-lg border border-[#E8E1D5]">
+                  {specialties.length} Selected
+                </span>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -680,16 +1132,73 @@ export function StudioProfileView({
                       key={spec}
                       type="button"
                       onClick={() => toggleSpecialty(spec)}
-                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${selected
-                        ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
-                        : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
-                        }`}
+                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${
+                        selected
+                          ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
+                          : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
+                      }`}
                     >
                       <span className="truncate">{spec}</span>
                       {selected && <Check size={13} className="shrink-0" />}
                     </button>
                   )
                 })}
+              </div>
+            </div>
+
+            {/* Workshop Capacity & Bench Setup */}
+            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
+              <div className="border-b border-[#E8E1D5] pb-2">
+                <h3 className="font-bold text-sm text-[#1E2229]">Atelier Capacity & Bench Machinery</h3>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  Configure daily intake thresholds to manage customer garment queue pacing.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider flex items-center gap-1">
+                    <Gauge size={12} />
+                    Daily Capacity (Garments/Day)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={dailyCapacity}
+                    onChange={(e) => setDailyCapacity(parseInt(e.target.value, 10) || 0)}
+                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider flex items-center gap-1">
+                    <Wrench size={12} />
+                    Sewing Bench Machines
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={machines}
+                    onChange={(e) => setMachines(parseInt(e.target.value, 10) || 0)}
+                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider flex items-center gap-1">
+                    <Clock size={12} />
+                    Weekly Operating Hours
+                  </label>
+                  <input
+                    type="text"
+                    value={openingHours}
+                    onChange={(e) => setOpeningHours(e.target.value)}
+                    placeholder="e.g. Mon–Sat: 09:00 – 19:00"
+                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                  />
+                </div>
               </div>
             </div>
 
@@ -741,6 +1250,44 @@ export function StudioProfileView({
           </div>
         )}
       </form>
+
+      {/* Uber-Style Locality Picker Google Map Modal */}
+      <UberMapModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        onSelectLocation={handleSelectMapLocation}
+        initialCity={area || ''}
+        initialArea={area || ''}
+        initialAddress={address || ''}
+        initialPostcode={postcode || ''}
+        initialLat={lat ?? undefined}
+        initialLng={lng ?? undefined}
+      />
+
+      {/* Phone Change OTP Verification Modal */}
+      {isOtpModalOpen && (
+        <OtpVerificationCard
+          isModal={true}
+          theme="studio"
+          phoneNumber={phone}
+          value={otpValue}
+          onChange={(val) => {
+            setOtpValue(val)
+            setOtpError('')
+          }}
+          onVerify={handleVerifyNewPhoneOtp}
+          onResend={() => handleSendOtpToNewPhone(true)}
+          resendCountdown={otpCountdown}
+          loading={otpLoading}
+          error={otpError}
+          title="Verify New Mobile Number"
+          subtitle="We have sent a 4-digit verification code to your new dispatch mobile number."
+          onClose={() => {
+            setIsOtpModalOpen(false)
+            setOtpError('')
+          }}
+        />
+      )}
     </div>
   )
 }
