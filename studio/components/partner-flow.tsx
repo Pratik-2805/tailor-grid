@@ -330,7 +330,16 @@ export function PartnerFlow({
   })
   const [newCapability, setNewCapability] = useState('')
   const [showAddCap, setShowAddCap] = useState(false)
-  const [studioNotice, setStudioNotice] = useState<string | null>(null)
+  const [capacityNotice, setCapacityNotice] = useState<string | null>(null)
+
+  const handleSetCapacity = (val: number) => {
+    setCapacityLimit(val)
+    if (typeof window !== 'undefined') {
+      setStorageCookie('tg_studio_capacity', val.toString())
+    }
+    setCapacityNotice(`Daily intake limit set to ${val} garments/day`)
+    setTimeout(() => setCapacityNotice(null), 3000)
+  }
 
   const toggleCapability = (cap: string) => {
     const updated = capabilities.includes(cap)
@@ -338,7 +347,7 @@ export function PartnerFlow({
       : [...capabilities, cap]
     setCapabilities(updated)
     if (typeof window !== 'undefined') {
-      setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
+      setStorageCookie('tg_studio_capabilities', JSON.stringify(updated))
     }
     setStudioNotice(`Updated capability: ${cap}`)
     setTimeout(() => setStudioNotice(null), 2500)
@@ -352,7 +361,7 @@ export function PartnerFlow({
       const updated = [...capabilities, trimmed]
       setCapabilities(updated)
       if (typeof window !== 'undefined') {
-        setStorageCookie('tg_studio_capabilities', JSON.stringify(updated), 60)
+        setStorageCookie('tg_studio_capabilities', JSON.stringify(updated))
       }
       setStudioNotice(`Added specialism: ${trimmed}`)
       setTimeout(() => setStudioNotice(null), 2500)
@@ -366,9 +375,9 @@ export function PartnerFlow({
     setHoursSaturday(editHoursSat)
     setHoursSunday(editHoursSun)
     if (typeof window !== 'undefined') {
-      setStorageCookie('tg_studio_hours_wd', editHoursWd, 60)
-      setStorageCookie('tg_studio_hours_sat', editHoursSat, 60)
-      setStorageCookie('tg_studio_hours_sun', editHoursSun, 60)
+      setStorageCookie('tg_studio_hours_wd', editHoursWd)
+      setStorageCookie('tg_studio_hours_sat', editHoursSat)
+      setStorageCookie('tg_studio_hours_sun', editHoursSun)
     }
     setIsEditingHours(false)
     setStudioNotice('Workshop operating schedule updated')

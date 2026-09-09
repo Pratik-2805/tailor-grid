@@ -186,11 +186,11 @@ export default function StudioPage() {
           />
         ) : (
           /* Direct Studio Login / Onboarding Card */
-          <div className="flex-1 flex items-center justify-center px-4 py-8 sm:py-16 relative overflow-hidden">
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 relative overflow-hidden my-auto">
             {/* Ambient Background Glow */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#9E593B]/8 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="relative z-10 w-full flex flex-col items-center">
+            <div className="relative z-10 w-full max-w-[480px] flex flex-col items-center justify-center my-auto">
               {/* Direct Auth Card */}
               <PartnerOnboarding
                 user={user}
@@ -201,7 +201,7 @@ export default function StudioPage() {
               />
 
               {/* Bottom Customer Site Return Link */}
-              <div className="mt-6 flex items-center gap-4 text-xs font-medium text-[#7A7E85]">
+              <div className="mt-4 flex items-center gap-4 text-xs font-medium text-[#7A7E85]">
                 <a
                   href={customerSiteUrl}
                   className="flex items-center gap-1.5 hover:text-[#0F1115] transition-colors py-1 px-3 rounded-full hover:bg-white/80 border border-transparent hover:border-[#E8E1D5]"

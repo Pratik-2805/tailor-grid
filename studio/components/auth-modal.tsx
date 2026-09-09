@@ -17,6 +17,7 @@ import {
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists } from '@/lib/api'
+import { OtpVerificationCard } from './otp-input'
 
 type AuthMode =
   | 'studio-options'
@@ -601,22 +602,21 @@ export function AuthModal({
                 <SubmitBtn loading={loading} label="Send Verification Code" />
               </form>
             ) : (
-              <form onSubmit={handleVerifyLinkPhone} className="space-y-3.5">
-                <p className="text-xs text-[#6B7280]">Enter code sent to <strong>{linkPhoneVal}</strong></p>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  required
-                  autoFocus
+              <div className="flex justify-center pt-1">
+                <OtpVerificationCard
+                  variant="plain"
                   value={linkOtp}
-                  onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="• • • •"
-                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+                  onChange={setLinkOtp}
+                  onVerify={() => handleVerifyLinkPhone({ preventDefault: () => {} } as any)}
+                  onResend={() => handleSendLinkOtp(undefined, true)}
+                  loading={loading}
+                  phoneNumber={linkPhoneVal}
+                  onClose={() => {
+                    setLinkOtpSent(false)
+                    setLinkOtp('')
+                  }}
                 />
-                <SubmitBtn loading={loading} label="Verify & Link Phone" />
-              </form>
+              </div>
             )}
           </div>
         )}
@@ -729,34 +729,21 @@ export function AuthModal({
                 <SubmitBtn loading={loading} label="Send Partner Code" />
               </form>
             ) : (
-              <form onSubmit={handleStudioMobileVerify} className="space-y-3.5">
-                <div className="flex items-center justify-between text-xs text-[#7A7E85]">
-                  <span>
-                    Enter code sent to <strong className="text-[#0F1115]">{sPhoneLogin}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    disabled={loading || sResendCountdown > 0}
-                    onClick={() => handleStudioMobileSend(undefined, true)}
-                    className="text-[#9E593B] font-bold hover:underline cursor-pointer disabled:opacity-50"
-                  >
-                    {sResendCountdown > 0 ? `Resend (${sResendCountdown}s)` : 'Resend'}
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  required
-                  autoFocus
+              <div className="flex justify-center pt-1">
+                <OtpVerificationCard
                   value={sOtp}
-                  onChange={(e) => setSOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="• • • •"
-                  className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#D1D5DB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+                  onChange={setSOtp}
+                  onVerify={() => handleStudioMobileVerify({ preventDefault: () => {} } as any)}
+                  onResend={() => handleStudioMobileSend(undefined, true)}
+                  resendCountdown={sResendCountdown}
+                  loading={loading}
+                  phoneNumber={sPhoneLogin}
+                  onClose={() => {
+                    setSOtpSent(false)
+                    setSOtp('')
+                  }}
                 />
-                <SubmitBtn loading={loading} label="Verify & Sign In" />
-              </form>
+              </div>
             )}
           </div>
         )}
