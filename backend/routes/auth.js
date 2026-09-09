@@ -480,12 +480,17 @@ router.post('/verify-otp', async (req, res) => {
       }
     }
 
+    let returnUser = user;
+    if (user.role === 'STUDIO') {
+      returnUser = await enrichStudioUser(user);
+    }
+
     const token = generateToken(user);
     return res.json({
       success: true,
       message: 'Mobile number verified and authenticated successfully',
       token,
-      user,
+      user: returnUser,
       hasPhone: true,
     });
   } catch (err) {
@@ -1016,6 +1021,50 @@ router.post('/login', async (req, res) => {
   }
 });
 
+async function enrichStudioUser(user) {
+  if (!user || user.role !== 'STUDIO') return user;
+  try {
+    let store = null;
+    if (user.studioId) {
+      store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+    }
+    if (!store && (user.studioName || user.name)) {
+      store = await prisma.partnerStore.findFirst({
+        where: {
+          OR: [
+            ...(user.studioName ? [{ name: user.studioName }] : []),
+            { leadTailor: user.name },
+          ],
+        },
+      });
+      if (store && !user.studioId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { studioId: store.id },
+        });
+      }
+    }
+
+    if (store) {
+      return {
+        ...user,
+        area: store.area || null,
+        lat: store.lat ?? null,
+        lng: store.lng ?? null,
+        openingHours: store.openingHours || 'Mon–Sat: 09:00 – 19:00',
+        dailyCapacity: store.dailyCapacity ?? 25,
+        machines: store.machines ?? 4,
+        workers: store.workers ?? 4,
+        specialties: store.specialties || ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+        leadTailor: store.leadTailor || user.name,
+      };
+    }
+  } catch (err) {
+    console.warn('enrichStudioUser error:', err.message);
+  }
+  return user;
+}
+
 // POST /api/auth/update-profile
 router.post('/update-profile', async (req, res) => {
   try {
@@ -1028,7 +1077,26 @@ router.post('/update-profile', async (req, res) => {
       } catch (e) { }
     }
 
-    const { id, name, email, phone, address, postcode, avatar, studioName } = req.body;
+    const {
+      id,
+      name,
+      email,
+      phone,
+      otp,
+      address,
+      postcode,
+      avatar,
+      studioName,
+      area,
+      lat,
+      lng,
+      openingHours,
+      dailyCapacity,
+      machines,
+      workers,
+      specialties,
+      leadTailor,
+    } = req.body;
     let targetId = userId || id;
 
     if (!targetId && email) {
@@ -1040,6 +1108,11 @@ router.post('/update-profile', async (req, res) => {
 
     if (!targetId) {
       return res.status(401).json({ error: 'Unauthorized: missing user identity.' });
+    }
+
+    const currentUser = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!currentUser) {
+      return res.status(404).json({ error: 'User not found.' });
     }
 
     const updateData = {};
@@ -1062,6 +1135,30 @@ router.post('/update-profile', async (req, res) => {
         return res.status(400).json({ error: phoneValidation.error });
       }
       const cleanPhone = phoneValidation.formatted;
+
+      // If phone number is being changed from an existing registered phone, require OTP verification!
+      const currentDigits = (currentUser.phone || '').replace(/\D/g, '');
+      const newDigits = cleanPhone.replace(/\D/g, '');
+      const isPhoneChanged = Boolean(currentUser.phone && currentDigits !== newDigits);
+
+      if (isPhoneChanged) {
+        if (!otp) {
+          return res.status(400).json({
+            error: 'Verification code (OTP) is required to update your mobile number.',
+            requireOtp: true,
+            phone: cleanPhone,
+          });
+        }
+        const cleanOtp = String(otp).trim();
+        const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
+        if (!isValidOtp) {
+          return res.status(400).json({
+            error: 'Invalid or expired verification code for the new mobile number. Please check your SMS and try again.',
+            requireOtp: true,
+          });
+        }
+      }
+
       const phoneConflict = await prisma.user.findFirst({
         where: { phone: cleanPhone, NOT: { id: targetId } },
       });
@@ -1075,7 +1172,7 @@ router.post('/update-profile', async (req, res) => {
     if (address) updateData.address = address;
     if (postcode) updateData.postcode = postcode;
 
-    const user = await prisma.user.update({
+    let user = await prisma.user.update({
       where: { id: targetId },
       data: updateData,
     });
@@ -1098,17 +1195,28 @@ router.post('/update-profile', async (req, res) => {
           });
         }
         if (store) {
+          const storeUpdateData = {
+            ...(studioName !== undefined ? { name: studioName } : {}),
+            ...(leadTailor || name ? { leadTailor: leadTailor || name } : {}),
+            ...(address !== undefined ? { address } : {}),
+            ...(postcode !== undefined ? { postcode } : {}),
+            ...(area !== undefined ? { area } : {}),
+            ...(lat !== undefined && lat !== null && !isNaN(parseFloat(lat)) ? { lat: parseFloat(lat) } : {}),
+            ...(lng !== undefined && lng !== null && !isNaN(parseFloat(lng)) ? { lng: parseFloat(lng) } : {}),
+            ...(openingHours !== undefined ? { openingHours } : {}),
+            ...(dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10)) ? { dailyCapacity: parseInt(dailyCapacity, 10) } : {}),
+            ...(machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10)) ? { machines: parseInt(machines, 10) } : {}),
+            ...(workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10)) ? { workers: parseInt(workers, 10) } : {}),
+            ...(specialties !== undefined && Array.isArray(specialties) ? { specialties } : {}),
+          };
+
           await prisma.partnerStore.update({
             where: { id: store.id },
-            data: {
-              ...(studioName ? { name: studioName } : {}),
-              ...(name ? { leadTailor: name } : {}),
-              ...(address ? { address } : {}),
-              ...(postcode ? { postcode } : {}),
-            },
+            data: storeUpdateData,
           });
+
           if (!user.studioId) {
-            await prisma.user.update({
+            user = await prisma.user.update({
               where: { id: user.id },
               data: { studioId: store.id },
             });
@@ -1119,11 +1227,16 @@ router.post('/update-profile', async (req, res) => {
       }
     }
 
+    let enrichedUser = user;
+    if (user.role === 'STUDIO') {
+      enrichedUser = await enrichStudioUser(user);
+    }
+
     const token = generateToken(user);
     return res.json({
       success: true,
       message: 'Profile updated successfully',
-      user,
+      user: enrichedUser,
       token,
       hasPhone: Boolean(user.phone),
     });
@@ -1159,14 +1272,28 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'User profile not found' });
     }
 
-    if (user.role === 'STUDIO' && user.studioId) {
+    if (user.role === 'STUDIO') {
       try {
-        const store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+        let store = null;
+        if (user.studioId) {
+          store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+        }
+        if (!store && (user.studioName || user.name)) {
+          store = await prisma.partnerStore.findFirst({
+            where: {
+              OR: [
+                ...(user.studioName ? [{ name: user.studioName }] : []),
+                { leadTailor: user.name },
+              ],
+            },
+          });
+        }
         if (store) {
           const needsSync =
             (store.address && user.address !== store.address) ||
             (store.postcode && user.postcode !== store.postcode) ||
-            (store.name && user.studioName !== store.name);
+            (store.name && user.studioName !== store.name) ||
+            (!user.studioId);
           if (needsSync) {
             user = await prisma.user.update({
               where: { id: user.id },
@@ -1174,6 +1301,7 @@ router.get('/me', async (req, res) => {
                 address: store.address || user.address,
                 postcode: store.postcode || user.postcode,
                 studioName: store.name || user.studioName,
+                studioId: user.studioId || store.id,
               },
             });
           }
@@ -1198,8 +1326,13 @@ router.get('/me', async (req, res) => {
       });
     }
 
+    let enrichedUser = user;
+    if (user.role === 'STUDIO') {
+      enrichedUser = await enrichStudioUser(user);
+    }
+
     return res.json({
-      user,
+      user: enrichedUser,
       hasPhone: Boolean(user.phone),
     });
   } catch (err) {

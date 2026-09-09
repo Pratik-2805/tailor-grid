@@ -25,6 +25,15 @@ export type User = {
   status?: 'ACTIVE' | 'INACTIVE'
   studioId?: string | null
   studioName?: string | null
+  area?: string | null
+  lat?: number | null
+  lng?: number | null
+  openingHours?: string | null
+  dailyCapacity?: number | null
+  machines?: number | null
+  workers?: number | null
+  specialties?: string[] | null
+  leadTailor?: string | null
 }
 
 export type StoreOption = {

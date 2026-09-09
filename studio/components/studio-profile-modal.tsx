@@ -72,22 +72,22 @@ export function StudioProfileModal({
 }: StudioProfileModalProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'craft'>('profile')
 
-  const [name, setName] = useState(user.name || 'Master Tailor')
-  const [studioName, setStudioName] = useState(user.studioName || 'Atelier Studio')
-  const [phone, setPhone] = useState(user.phone || '+44 7700 900123')
-  const [address, setAddress] = useState(user.address || '18 Kensington Church St')
-  const [postcode, setPostcode] = useState(user.postcode || 'W8 4EP')
-  const [area, setArea] = useState('SoHo & Central London')
+  const [name, setName] = useState(user.name || '')
+  const [studioName, setStudioName] = useState(user.studioName || '')
+  const [phone, setPhone] = useState(user.phone || '')
+  const [address, setAddress] = useState(user.address || '')
+  const [postcode, setPostcode] = useState(user.postcode || '')
+  const [area, setArea] = useState(user.area || user.address || '')
   const [avatar, setAvatar] = useState(user.avatar || '')
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
-  const [specialties, setSpecialties] = useState<string[]>([
-    'Suit Tailoring',
-    'Dress Hemming',
-    'Denim Chainstitch',
-    'Silk & Gowns',
-  ])
+  const [specialties, setSpecialties] = useState<string[]>(() => {
+    if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
+      return user.specialties
+    }
+    return ['Custom Alterations', 'Precision Hemming', 'Express Tailoring', 'Suit Tailoring']
+  })
 
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
