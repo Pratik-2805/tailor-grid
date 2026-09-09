@@ -101,9 +101,21 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await prisma.order.findUnique({
+    let order = await prisma.order.findUnique({
       where: { id },
     });
+
+    if (!order) {
+      const cleanDigits = id.replace(/[^0-9]/g, '');
+      const searchConditions = [{ id: { contains: id } }];
+      if (cleanDigits && cleanDigits.length >= 3) {
+        searchConditions.push({ id: { contains: cleanDigits } });
+      }
+      order = await prisma.order.findFirst({
+        where: { OR: searchConditions },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
 
     if (order) return res.json({ order });
     return res.status(404).json({ error: 'Order not found' });

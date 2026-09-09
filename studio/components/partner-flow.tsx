@@ -5,6 +5,7 @@ import {
   AlertCircle,
   ArrowRight,
   Bell,
+  Camera,
   Check,
   CheckCircle,
   CheckCircle2,
@@ -81,7 +82,18 @@ const GARMENT_FALLBACK_IMAGES: Record<string, string> = {
 }
 
 function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
-  if (order?.intakePhotoUrl && order.intakePhotoUrl.startsWith('http')) return order.intakePhotoUrl
+  const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
+  if (photo && typeof photo === 'string') {
+    if (photo.startsWith('http') || photo.startsWith('data:')) return photo
+    if (photo.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(photo)
+        if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
+          return parsed[0]
+        }
+      } catch {}
+    }
+  }
   const gid = order?.garmentId?.toLowerCase() || ''
   const gname = order?.garmentName?.toLowerCase() || ''
   if (gid.includes('dress') || gname.includes('dress') || gname.includes('gown')) return GARMENT_FALLBACK_IMAGES.dresses
@@ -91,6 +103,39 @@ function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
   if (gid.includes('shirt') || gname.includes('shirt')) return GARMENT_FALLBACK_IMAGES.shirts
   if (gid.includes('coat') || gname.includes('coat')) return GARMENT_FALLBACK_IMAGES.coats
   return GARMENT_FALLBACK_IMAGES.trousers
+}
+
+function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
+  if (!order) return [GARMENT_FALLBACK_IMAGES.trousers]
+  const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
+  const fallback = getGarmentPhoto(order)
+  if (!raw) return [fallback]
+
+  if (Array.isArray(raw)) {
+    const list = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+    return list.length > 0 ? list : [fallback]
+  }
+
+  if (typeof raw === 'string') {
+    if (raw.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          const list = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+          if (list.length > 0) return list
+        }
+      } catch {}
+    }
+    if (raw.includes('||')) {
+      const list = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+      if (list.length > 0) return list
+    }
+    if (raw.startsWith('http') || raw.startsWith('data:')) {
+      return [raw]
+    }
+  }
+
+  return [fallback]
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -163,6 +208,44 @@ export function PartnerFlow({
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [refreshing, setRefreshing] = useState(false)
+
+  // Full View Image Lightbox State
+  const [lightboxPhotos, setLightboxPhotos] = useState<string[] | null>(null)
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0)
+
+  const handleOpenFullView = (photos: string[], startIndex = 0) => {
+    if (!photos || photos.length === 0) return
+    setLightboxPhotos(photos)
+    setLightboxIndex(startIndex)
+  }
+
+  const handleAddStudioPhoto = async (orderId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+    const file = files[0]
+    const reader = new FileReader()
+    reader.onload = async (evt) => {
+      const newPhoto = evt.target?.result as string
+      if (!newPhoto) return
+      const targetOrder = orders.find((o) => o.id === orderId)
+      if (!targetOrder) return
+
+      const existingPhotos = getAllGarmentPhotos(targetOrder).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+      const updatedPhotos = [...existingPhotos, newPhoto]
+      const photoPayload = JSON.stringify(updatedPhotos)
+
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, intakePhotoUrl: photoPayload } : o)))
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, intakePhotoUrl: photoPayload } : prev))
+      }
+
+      await updateOrder(orderId, { intakePhotoUrl: photoPayload }).catch(() => {})
+      setBroadcastToast('✓ Garment reference photo added to order!')
+      setTimeout(() => setBroadcastToast(null), 4000)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false) // mobile drawer
@@ -1816,6 +1899,53 @@ export function PartnerFlow({
                           <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#1E2229]">{selectedOrder.hangTagNo || 'N/A'}</span></div>
                           <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{selectedOrder.slaHours || 48}h Guaranteed</span></div>
                         </div>
+
+                        {/* Garment Reference Photos Section */}
+                        {(() => {
+                          const photos = getAllGarmentPhotos(selectedOrder)
+                          return (
+                            <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-[#1E2229] flex items-center gap-1.5">
+                                  <Camera size={13} className="text-[#9E593B]" />
+                                  Garment Photos ({photos.length})
+                                </span>
+                                <label className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-1 rounded-lg shadow-2xs transition-all active:scale-95">
+                                  <Plus size={11} /> Add Photo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleAddStudioPhoto(selectedOrder.id, e)}
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2">
+                                {photos.map((photoUrl, idx) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleOpenFullView(photos, idx)}
+                                    className="relative aspect-square rounded-xl overflow-hidden border border-[#E8E1D5] bg-stone-100 group cursor-pointer shadow-2xs hover:border-[#9E593B] transition-all"
+                                    title="Click to inspect photo in full view"
+                                  >
+                                    <img
+                                      src={photoUrl}
+                                      alt={`Garment Photo ${idx + 1}`}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                      <Eye size={16} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="text-[10px] text-[#6B7280] italic">
+                                Click any thumbnail to inspect in full view.
+                              </p>
+                            </div>
+                          )
+                        })()}
                       </>
                     ) : (
                       <div className="p-8 text-center text-[#6B7280] text-xs">Select an order to inspect docket</div>
@@ -2449,6 +2579,81 @@ export function PartnerFlow({
                 >
                   {pickupCompleted ? '✓ Order Settled!' : 'Complete Handover & Lock Earnings →'}
                 </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Full-Screen Lightbox Image Modal (Full View) */}
+      {lightboxPhotos && lightboxPhotos.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 sm:p-8 backdrop-blur-md animate-in fade-in duration-200 select-none"
+          onClick={() => setLightboxPhotos(null)}
+        >
+          <div
+            className="relative max-w-5xl w-full h-full max-h-[90vh] flex flex-col items-center justify-between"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Control Bar */}
+            <div className="w-full flex items-center justify-between text-white/90 pb-3 border-b border-white/15">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-xs bg-white/10 px-3.5 py-1.5 rounded-full border border-white/20">
+                  Reference Photo {lightboxIndex + 1} of {lightboxPhotos.length}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setLightboxPhotos(null)}
+                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer border border-white/20"
+              >
+                <span>Close Full View</span>
+                <span className="font-mono text-sm">✕</span>
+              </button>
+            </div>
+
+            {/* Main Image Display */}
+            <div className="relative flex-1 w-full my-4 flex items-center justify-center overflow-hidden">
+              <img
+                src={lightboxPhotos[lightboxIndex]}
+                alt={`Full View Photo ${lightboxIndex + 1}`}
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-300"
+              />
+
+              {/* Navigation Controls */}
+              {lightboxPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev > 0 ? prev - 1 : lightboxPhotos.length - 1))}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white p-3 rounded-full border border-white/20 transition-transform active:scale-95 shadow-xl cursor-pointer"
+                    title="Previous Photo"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    onClick={() => setLightboxIndex((prev) => (prev < lightboxPhotos.length - 1 ? prev + 1 : 0))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black text-white p-3 rounded-full border border-white/20 transition-transform active:scale-95 shadow-xl cursor-pointer"
+                    title="Next Photo"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Bottom Thumbnail Strip */}
+            {lightboxPhotos.length > 1 && (
+              <div className="flex items-center gap-2.5 overflow-x-auto max-w-full py-2 px-3 bg-black/50 rounded-2xl border border-white/15">
+                {lightboxPhotos.map((photo, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setLightboxIndex(idx)}
+                    className={`size-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${
+                      lightboxIndex === idx ? 'border-[#9E593B] scale-105 shadow-lg' : 'border-white/30 opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img src={photo} alt="Thumbnail" className="w-full h-full object-cover" />
+                  </button>
+                ))}
               </div>
             )}
           </div>

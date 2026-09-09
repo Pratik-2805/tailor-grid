@@ -22,6 +22,7 @@ import {
 import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
 import { fetchOrders, updateOrder, deleteOrder } from '@/lib/api'
+import { OrderDetailsView } from './order-details-view'
 
 interface OrdersViewProps {
   go: (s: Screen) => void
@@ -33,6 +34,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   const [activeTab, setActiveTab] = useState<'orders' | 'fit-profile'>('orders')
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<any | null>(null)
+  const [selectedDetailOrderId, setSelectedDetailOrderId] = useState<string | null>(null)
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false)
   const [backendOrders, setBackendOrders] = useState<FittingBooking[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -64,28 +66,26 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     if (!cancellingOrder) return
     setIsSubmittingCancel(true)
     try {
-      // Delete order from PostgreSQL database
-      await deleteOrder(cancellingOrder.id)
+      // Mark order as Cancelled in PostgreSQL database
+      await updateOrder(cancellingOrder.id, { status: 'Cancelled' })
       
-      // Filter out deleted order from state
-      setBackendOrders((prev) => prev.filter((o) => o.id !== cancellingOrder.id))
+      // Update order status in local state so it remains in user's order history as Cancelled
+      setBackendOrders((prev) => prev.map((o) => (o.id === cancellingOrder.id ? { ...o, status: 'Cancelled' } : o)))
       
-      // Clean up localStorage
+      // Clean up local storage cached order status
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(`tg_order_${cancellingOrder.id}`)
-        const latest = localStorage.getItem('tg_latest_order')
-        if (latest) {
+        const saved = localStorage.getItem(`tg_order_${cancellingOrder.id}`)
+        if (saved) {
           try {
-            const parsed = JSON.parse(latest)
-            if (parsed.id === cancellingOrder.id) {
-              localStorage.removeItem('tg_latest_order')
-            }
+            const parsed = JSON.parse(saved)
+            parsed.status = 'Cancelled'
+            localStorage.setItem(`tg_order_${cancellingOrder.id}`, JSON.stringify(parsed))
           } catch { }
         }
       }
-      toast.success(`Order #${cancellingOrder.id} cancelled and deleted from database`, { position: 'top-center' })
+      toast.success(`Order #${cancellingOrder.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {
-      toast.error('Failed to delete order. Please try again.', { position: 'top-center' })
+      toast.error('Failed to cancel order. Please try again.', { position: 'top-center' })
     } finally {
       setIsSubmittingCancel(false)
       setCancellingOrder(null)
@@ -226,60 +226,98 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                 </p>
               </div>
             ) : (
-              displayOrders.map((o) => (
-                <div
-                  key={o.id}
-                  className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-[#9E593B] bg-[#F4EFEA] px-2 py-0.5 rounded">
-                        {o.id}
-                      </span>
-                      <span className="text-xs font-semibold text-[#18191B]">{o.slot}</span>
+              displayOrders.map((o) => {
+                const isCompleted = ['Closed', 'Collected', 'Completed', 'CLOSED', 'COLLECTED', 'COMPLETED'].includes(o.status)
+                const isCancelled = ['Cancelled', 'CANCELLED'].includes(o.status)
+                const isReady = o.status.includes('Ready') || o.status.includes('READY')
+
+                return (
+                  <div
+                    key={o.id}
+                    onClick={() => setSelectedDetailOrderId(o.id)}
+                    className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer group"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-[#9E593B] bg-[#F4EFEA] px-2 py-0.5 rounded">
+                          {o.id}
+                        </span>
+                        <span className="text-xs font-semibold text-[#18191B]">{o.slot}</span>
+                      </div>
+
+                      <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B] group-hover:text-[#9E593B] transition-colors">{o.garment}</h3>
+                      <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
+
+                      <div className="mt-3 flex items-center gap-2 text-[11px] text-[#7A7E85]">
+                        <MapPin size={12} className="text-[#9E593B]" />
+                        <span>{o.studio} ({o.address})</span>
+                      </div>
                     </div>
 
-                    <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B]">{o.garment}</h3>
-                    <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-[#F0EBE3]">
+                      <div className="sm:text-right">
+                        <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
+                        {isCompleted ? (
+                          <span className="block text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full mt-1">
+                            Completed &check;
+                          </span>
+                        ) : isCancelled ? (
+                          <span className="block text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mt-1">
+                            Cancelled
+                          </span>
+                        ) : isReady ? (
+                          <span className="block text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full mt-1">
+                            Ready for Pickup
+                          </span>
+                        ) : (
+                          <span className="block text-[11px] font-semibold text-[#9E593B] mt-0.5">
+                            {o.status}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="mt-3 flex items-center gap-2 text-[11px] text-[#7A7E85]">
-                      <MapPin size={12} className="text-[#9E593B]" />
-                      <span>{o.studio} ({o.address})</span>
-                    </div>
-                  </div>
-
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-[#F0EBE3]">
-                    <div className="sm:text-right">
-                      <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
-                      <span className={`block text-[11px] font-semibold mt-0.5 ${o.status.includes('Ready') ? 'text-emerald-700' : 'text-[#9E593B]'
-                        }`}>
-                        {o.status}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap sm:justify-end">
-                      {o.status !== 'Cancelled' && (
+                      <div className="flex items-center gap-2 flex-wrap sm:justify-end">
                         <button
                           type="button"
-                          onClick={() => setCancellingOrder(o)}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-full transition-colors cursor-pointer active:scale-95 shadow-2xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedDetailOrderId(o.id)
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
                         >
-                          <XCircle size={13} />
-                          <span>Cancel Order</span>
+                          <span>Track &amp; Details</span>
+                          <ChevronRight size={13} />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedOrder(o)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#18191B] bg-[#FAF8F5] px-4 py-2 rounded-full border border-[#DDD6CB] hover:bg-[#F4EFEA] transition-colors cursor-pointer"
-                      >
-                        <QrCode size={13} />
-                        <span>View Pass</span>
-                      </button>
+
+                        {!isCancelled && !isCompleted && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setCancellingOrder(o)
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-full transition-colors cursor-pointer active:scale-95 shadow-2xs"
+                          >
+                            <XCircle size={13} />
+                            <span>Cancel Order</span>
+                          </button>
+                        )}
+                        {/* <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedOrder(o)
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#18191B] bg-[#FAF8F5] px-4 py-2 rounded-full border border-[#DDD6CB] hover:bg-[#F4EFEA] transition-colors cursor-pointer"
+                        >
+                          <QrCode size={13} />
+                          <span>View Pass</span>
+                        </button> */}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         )}
@@ -395,6 +433,28 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                   {isSubmittingCancel ? 'Cancelling...' : 'Yes, Cancel Order'}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Full-Screen Live Order Details Tracker Modal */}
+        {selectedDetailOrderId && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="relative min-h-screen">
+              <div className="sticky top-4 right-4 sm:right-8 z-50 flex justify-end px-4 pt-2">
+                <button
+                  onClick={() => setSelectedDetailOrderId(null)}
+                  className="flex items-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-2xl transition-all active:scale-95 cursor-pointer border border-white/20"
+                >
+                  <span>Close Tracker</span>
+                  <span className="font-mono text-sm">✕</span>
+                </button>
+              </div>
+              <OrderDetailsView
+                slugId={selectedDetailOrderId}
+                onGoHome={() => setSelectedDetailOrderId(null)}
+                onGoOrders={() => setSelectedDetailOrderId(null)}
+              />
             </div>
           </div>
         )}

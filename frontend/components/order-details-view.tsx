@@ -21,7 +21,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { fetchOrderById, getCurrentUser, deleteOrder } from '@/lib/api'
+import { fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie } from '@/lib/cookies'
 import { PARTNER_STORES, getClosestStoreForLocation, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
@@ -287,29 +287,25 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     if (!order?.id) return
     setIsCancelling(true)
     try {
-      // 1. Delete order permanently from PostgreSQL database
-      await deleteOrder(order.id)
+      // 1. Update order status to 'Cancelled' in PostgreSQL database
+      await updateOrder(order.id, { status: 'Cancelled' })
 
-      // 2. Clear local storage records
+      // 2. Update local state & storage records
+      setOrder((prev: any) => ({ ...prev, status: 'Cancelled' }))
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(`tg_order_${order.id}`)
-        const latest = localStorage.getItem('tg_latest_order')
-        if (latest) {
+        const saved = localStorage.getItem(`tg_order_${order.id}`)
+        if (saved) {
           try {
-            const parsed = JSON.parse(latest)
-            if (parsed.id === order.id) {
-              localStorage.removeItem('tg_latest_order')
-            }
+            const parsed = JSON.parse(saved)
+            parsed.status = 'Cancelled'
+            localStorage.setItem(`tg_order_${order.id}`, JSON.stringify(parsed))
           } catch { }
         }
       }
 
-      toast.success(`Order #${order.id} cancelled and deleted from database`, { position: 'top-center' })
-      if (onGoOrders) onGoOrders()
-      else if (onGoHome) onGoHome()
-      else window.location.href = '/orders'
+      toast.success(`Order #${order.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {
-      toast.error('Failed to delete order. Please try again.', { position: 'top-center' })
+      toast.error('Failed to cancel order. Please try again.', { position: 'top-center' })
     } finally {
       setIsCancelling(false)
       setShowCancelModal(false)
@@ -361,6 +357,54 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         />
       </div>
     )
+  }  // Dynamic status mappings
+  const currentStatus = (order?.status || 'Accepted').toUpperCase()
+
+  const isCancelled = currentStatus === 'CANCELLED'
+  const isAllocated = currentStatus === 'ALLOCATED'
+  const isAccepted = currentStatus === 'ACCEPTED'
+  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING'
+  const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
+  const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
+
+  // Stepper index: 1 = Matched, 2 = Give PIN, 3 = Tailoring, 4 = Pickup/Completed
+  let stepIndex = 2
+  if (isAllocated) stepIndex = 1
+  else if (isAccepted) stepIndex = 2
+  else if (isInProgress) stepIndex = 3
+  else if (isReady || isCompleted) stepIndex = 4
+
+  // Dynamic Header Text
+  let headerTitle = 'Order Accepted'
+  let headerSubtitle = `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} • Order #${order?.id || slugId}`
+
+  if (isCancelled) {
+    headerTitle = 'Order Cancelled'
+    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
+  } else if (isAllocated) {
+    headerTitle = 'Request Broadcast'
+    headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
+  } else if (isInProgress) {
+    headerTitle = 'Tailoring in Progress'
+    headerSubtitle = `${storeNameDisplay} is crafting your garment • Order #${order?.id || slugId}`
+  } else if (isReady) {
+    headerTitle = 'Ready for Pickup'
+    headerSubtitle = `Alteration completed! Ready for collection at ${storeNameDisplay} • Order #${order?.id || slugId}`
+  } else if (isCompleted) {
+    headerTitle = 'Order Completed'
+    headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
+  }
+
+  // Dynamic PIN Box Label
+  let pinBoxTitle = 'GIVE PIN TO TAILOR'
+  if (pinCopied) {
+    pinBoxTitle = 'COPIED!'
+  } else if (isInProgress) {
+    pinBoxTitle = 'VERIFIED AT BENCH'
+  } else if (isReady) {
+    pinBoxTitle = 'SHOW PICKUP PIN'
+  } else if (isCompleted) {
+    pinBoxTitle = 'ORDER COMPLETED'
   }
 
   if (isLoading) {
@@ -390,27 +434,23 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] tracking-tight leading-none">
-                    {order?.status === 'Cancelled' ? 'Order Cancelled' : order?.status === 'Allocated' ? 'Request Broadcast' : 'Order Accepted'}
+                    {headerTitle}
                   </h1>
                   <span className="text-[11px] font-semibold text-gray-500 mt-1 block">
-                    {order?.status === 'Cancelled'
-                      ? `This alteration request was cancelled \u2022 Order #${order?.id || slugId}`
-                      : order?.status === 'Allocated'
-                      ? `Broadcasting request to nearby studios \u2022 Order #${order?.id || slugId}`
-                      : `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} \u2022 Order #${order?.id || slugId}`}
+                    {headerSubtitle}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                {order?.status === 'Cancelled' ? (
+                {isCancelled ? (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
                     <span className="size-2 rounded-full bg-red-500" />
                     <span className="text-xs font-bold text-red-700">
                       Cancelled
                     </span>
                   </div>
-                ) : order?.status === 'Allocated' ? (
+                ) : isAllocated ? (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-full">
                     <span className="relative flex h-2 w-2">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -418,6 +458,33 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </span>
                     <span className="text-xs font-bold text-amber-900">
                       Awaiting Studio Acceptance
+                    </span>
+                  </div>
+                ) : isInProgress ? (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+                    </span>
+                    <span className="text-xs font-bold text-blue-900">
+                      In Tailoring &bull; Atelier Active
+                    </span>
+                  </div>
+                ) : isReady ? (
+                  <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-full">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600" />
+                    </span>
+                    <span className="text-xs font-bold text-purple-900">
+                      Ready for Pickup
+                    </span>
+                  </div>
+                ) : isCompleted ? (
+                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
+                    <span className="size-2 rounded-full bg-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-800">
+                      &check; Completed &amp; Collected
                     </span>
                   </div>
                 ) : (
@@ -432,7 +499,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </div>
                 )}
 
-                {order?.status !== 'Cancelled' && (
+                {!isCancelled && !isCompleted && (
                   <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
@@ -449,35 +516,37 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-100">
               {/* Step 1 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-black rounded-full" />
-                <span className="text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex >= 1 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 1 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   1. Matched
                 </span>
               </div>
               {/* Step 2 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-black rounded-full animate-pulse" />
-                <span className="text-[10px] font-extrabold text-black uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 2 ? 'bg-black animate-pulse' : stepIndex > 2 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 2 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   2. Give PIN
                 </span>
               </div>
               {/* Step 3 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-gray-200 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 3 ? 'bg-black animate-pulse' : stepIndex > 3 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 3 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   3. Tailoring
                 </span>
               </div>
               {/* Step 4 */}
               <div className="flex flex-col gap-1.5">
-                <div className="h-1.5 w-full bg-gray-200 rounded-full" />
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 4 ? 'bg-black animate-pulse' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 4 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   4. Pickup
                 </span>
               </div>
             </div>
 
-          </div>        {/* ========================================================================= */}
+          </div>
+
+          {/* ========================================================================= */}
           {/* 2. UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
           {/* ========================================================================= */}
           <div className="grid lg:grid-cols-12 gap-5 items-stretch">
@@ -513,7 +582,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     title="Click to copy PIN"
                   >
                     <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
-                      {pinCopied ? 'COPIED!' : 'GIVE PIN TO TAILOR'}
+                      {pinBoxTitle}
                     </span>
                     <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
                       {formattedOtp}
@@ -589,6 +658,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200/70 font-medium">
                       <span className="font-bold text-black">Tailoring Notes:</span> {order.notes}
                     </p>
+                  )}
+
+                  {order?.intakePhotoUrl && (
+                    <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
+                        Reference Garment Photo:
+                      </span>
+                      <img
+                        src={order.intakePhotoUrl}
+                        alt="Garment Reference"
+                        className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs"
+                      />
+                    </div>
                   )}
                 </div>
 

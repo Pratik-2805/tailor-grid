@@ -665,7 +665,7 @@ export default function BookPage() {
       date: formattedDateDisplay,
       timeSlot: schedTime,
       measurements: measurementsData,
-      imageUrl: uploadedImages[0] || null,
+      imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
       status: 'Allocated',
     }).catch((err) => {
       console.warn('Backend order sync notice:', err)
