@@ -9,7 +9,6 @@ import { StudioSubNav } from './studio-sub-nav'
 import { Footer } from './footer'
 import { AuthModal } from './auth-modal'
 import { SewingLoader } from './sewing-loader'
-import { getStudioUrl } from '@/lib/api'
 import type { Screen } from './data'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -67,11 +66,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         go={navigate}
         user={user}
         onOpenAuth={() => {
-          if (isStudioScreen) {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-            window.location.href = getStudioUrl('/', token)
-            return
-          }
+          // Always open the role-selection modal — never direct redirect
           openAuth('CUSTOMER')
         }}
         onSignOut={handleSignOut}
@@ -84,8 +79,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           go={navigate}
           user={user}
           onOpenAuth={() => {
-            const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-            window.location.href = getStudioUrl('/', token)
+            // Always open role-selection modal
+            openAuth('CUSTOMER')
           }}
         />
       )}

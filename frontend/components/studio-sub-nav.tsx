@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import {
   ChevronRight,
   LogIn,
-  Store,
   Sparkles,
 } from 'lucide-react'
 import { type Screen, type User } from './data'
@@ -86,17 +85,6 @@ export function StudioSubNav({
     return () => window.removeEventListener('scroll', handleScroll)
   }, [currentScreen])
 
-  const handleOpenStudioPortal = (authAction?: 'signin' | 'signup') => {
-    const token = isClient ? getAuthToken() : null
-    if (isStudioUser && token) {
-      window.location.href = getStudioUrl('/', token)
-    } else if (authAction) {
-      window.location.href = getStudioUrl(`/?auth=${authAction}`)
-    } else {
-      window.location.href = getStudioUrl('/')
-    }
-  }
-
   return (
     <div className="sticky top-[68px] z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E1D5] shadow-xs transition-all">
       <div className="mx-auto flex h-[54px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-3 sm:gap-4">
@@ -162,30 +150,19 @@ export function StudioSubNav({
             FAQ
           </button>
 
-          {/* Action CTAs (Studio Portal button visible ONLY when logged in as Studio) */}
-          {(isStudioUser || scrolledPastHero) && (
+          {/* Action CTAs */}
+          {scrolledPastHero && !isStudioUser && (
             <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
-              {isStudioUser ? (
-                <button
-                  onClick={() => handleOpenStudioPortal()}
-                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer"
-                  title="Open Studio Portal Workbench"
-                >
-                  <Store size={13} className="text-[#E7C9BA]" />
-                  <span>Studio Portal ↗</span>
-                </button>
-              ) : scrolledPastHero ? (
-                <button
-                  onClick={() => {
-                    const token = isClient ? getAuthToken() : null
-                    window.location.href = getStudioUrl('/', token)
-                  }}
-                  className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
-                >
-                  <Sparkles size={12} className="text-[#E7C9BA]" />
-                  <span>Enroll Studio</span>
-                </button>
-              ) : null}
+              <button
+                onClick={() => {
+                  const token = isClient ? getAuthToken() : null
+                  window.location.href = getStudioUrl('/', token)
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
+              >
+                <Sparkles size={12} className="text-[#E7C9BA]" />
+                <span>Enroll Studio</span>
+              </button>
             </div>
           )}
 

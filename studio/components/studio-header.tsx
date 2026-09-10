@@ -31,9 +31,10 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
         {/* Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-4 shrink-0">
           <a
-            href="/"
-            className="flex items-center gap-3 group text-left shrink-0 py-1"
-            aria-label="Darzi Studio Portal"
+            href={customerSiteUrl}
+            className="flex items-center gap-3 group text-left shrink-0 py-1 cursor-pointer hover:opacity-90 transition-opacity"
+            aria-label="Darzi Home"
+            title="Return to Darzi Home"
           >
             <img
               src="/bg_logo.png"
