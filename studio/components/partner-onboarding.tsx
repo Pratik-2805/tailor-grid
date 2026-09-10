@@ -912,14 +912,20 @@ export function PartnerOnboarding({
               {/* Card Header */}
               {currentStep === 'auth' ? (
                 <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
-                  <img
-                    src="/bg_logo.png"
-                    alt="Darzi Atelier"
-                    className="h-11 sm:h-12 w-auto object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
+                  <a
+                    href={CUSTOMER_SITE_URL}
+                    className="cursor-pointer hover:opacity-85 transition-transform hover:scale-105 inline-block"
+                    title="Return to Darzi Home"
+                  >
+                    <img
+                      src="/bg_logo.png"
+                      alt="Darzi Atelier"
+                      className="h-11 sm:h-12 w-auto object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </a>
                   <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
                     <span className="size-1.5 rounded-full bg-[#9E593B]" />
                     <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
@@ -1495,17 +1501,17 @@ export function PartnerOnboarding({
                         </div>
                       ) : (
                         <div className="flex-1 flex flex-col justify-between">
-                          <div className="flex-1 flex flex-col justify-center space-y-6 my-auto">
-                            <div>
+                          <div className="space-y-6 pt-8 sm:pt-10">
+                            <div className="text-center">
                               <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                                Verify your phone
+                                Verify your phone number
                               </h1>
-                              <p className="text-sm text-gray-600 mt-1.5">
+                              <p className="text-sm text-gray-600 mt-5.5 max-w-sm mx-auto">
                                 We&apos;ll send a 4-digit verification code to confirm your direct number.
                               </p>
                             </div>
 
-                            <div className="space-y-4 pt-1">
+                            <div className="space-y-4 pt-7">
                               <div>
                                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                   Phone Number *
@@ -1529,22 +1535,28 @@ export function PartnerOnboarding({
                                 </div>
                               </div>
                             </div>
-
-                            <p className="text-[11px] text-gray-500 leading-relaxed pt-1 flex items-center gap-1.5">
-                              <Lock size={12} className="text-[#9E593B] shrink-0" />
-                              <span>Standard carrier rates may apply. We keep your number strictly confidential.</span>
-                            </p>
                           </div>
 
-                          <button
-                            type="button"
-                            disabled={step3OtpLoading || !phone.trim()}
-                            onClick={() => handleStep3SendOtp(false)}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
-                          >
-                            <span>{step3OtpLoading ? 'Sending Verification Code…' : 'Send Verification Code'}</span>
-                            <ArrowRight size={16} />
-                          </button>
+                          <div className="mt-6 space-y-3.5">
+                            <div className="flex items-start gap-2 text-xs sm:text-[13px] text-gray-600 leading-snug px-0.5">
+                              <Lock size={14} className="text-[#9E593B] shrink-0 mt-0.5" />
+                              <p>
+                                Standard carrier rates may apply.
+                                <br />
+                                We keep your number strictly confidential.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={step3OtpLoading || !phone.trim()}
+                              onClick={() => handleStep3SendOtp(false)}
+                              className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              <span>{step3OtpLoading ? 'Sending Verification Code…' : 'Send Verification Code'}</span>
+                              <ArrowRight size={16} />
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
