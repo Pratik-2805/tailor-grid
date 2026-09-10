@@ -912,14 +912,20 @@ export function PartnerOnboarding({
               {/* Card Header */}
               {currentStep === 'auth' ? (
                 <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
-                  <img
-                    src="/bg_logo.png"
-                    alt="Darzi Atelier"
-                    className="h-11 sm:h-12 w-auto object-contain"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
-                  />
+                  <a
+                    href={CUSTOMER_SITE_URL}
+                    className="cursor-pointer hover:opacity-85 transition-transform hover:scale-105 inline-block"
+                    title="Return to Darzi Home"
+                  >
+                    <img
+                      src="/bg_logo.png"
+                      alt="Darzi Atelier"
+                      className="h-11 sm:h-12 w-auto object-contain"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </a>
                   <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
                     <span className="size-1.5 rounded-full bg-[#9E593B]" />
                     <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
