@@ -470,12 +470,14 @@ export function PartnerFlow({
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
     const assignedStudioId = user?.studioId || 'atelier-soho'
     const assignedStudioName = studioName || user?.studioName || 'Atelier SoHo'
+    const assignedStudioPhone = user?.phone || user?.contact || '+44 20 7946 0912'
     const partnerPayout = order.partnerPayout || Math.round((order.price || 30) * 0.75)
 
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
       storeId: assignedStudioId,
       storeName: assignedStudioName,
+      storePhone: assignedStudioPhone,
       partnerPayout,
     }
 

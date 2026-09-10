@@ -52,6 +52,7 @@ export type StoreOption = {
   area: string
   address: string
   postcode: string
+  phone?: string
   distance: string
   distanceMiles: number
   rating: number
@@ -92,6 +93,8 @@ export type FittingBooking = {
   storeId: string
   storeName?: string
   storeAddress?: string
+  storePhone?: string
+  store?: StoreOption
   city?: string
   date: string
   timeSlot: string

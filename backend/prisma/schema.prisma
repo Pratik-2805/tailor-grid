@@ -93,6 +93,7 @@ model PartnerStore {
   workers       Int      @default(4)
   leadTailor    String
   specialties   String[]
+  phone         String?  @default("+44 20 7946 0912")
   retailSold    Boolean  @default(true)
   lat           Float
   lng           Float
@@ -121,6 +122,7 @@ model Order {
   storeId               String?
   store                 PartnerStore? @relation(fields: [storeId], references: [id], onDelete: SetNull)
   storeName             String?
+  storePhone            String?
   date                  String
   timeSlot              String
   garmentBrand          String?

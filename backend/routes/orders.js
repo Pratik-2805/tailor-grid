@@ -85,6 +85,9 @@ router.get('/', async (req, res) => {
 
     const orders = await prisma.order.findMany({
       where,
+      include: {
+        store: true,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -107,6 +110,9 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
     let order = await prisma.order.findUnique({
       where: { id },
+      include: {
+        store: true,
+      },
     });
 
     if (!order) {
@@ -117,6 +123,9 @@ router.get('/:id', async (req, res) => {
       }
       order = await prisma.order.findFirst({
         where: { OR: searchConditions },
+        include: {
+          store: true,
+        },
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -144,6 +153,7 @@ router.post('/', async (req, res) => {
       serviceName,
       storeId,
       storeName,
+      storePhone,
       date,
       timeSlot,
       garmentBrand,
@@ -200,6 +210,7 @@ router.post('/', async (req, res) => {
         serviceName: serviceName || 'Standard Hemming',
         storeId: validStoreId,
         storeName: storeName || null,
+        storePhone: storePhone || null,
         date: date || new Date().toISOString().split('T')[0],
         timeSlot: timeSlot || '14:00 - 15:00',
         garmentBrand: garmentBrand || '',
@@ -235,6 +246,7 @@ router.put('/:id', async (req, res) => {
       status,
       storeId,
       storeName,
+      storePhone,
       otp,
       fitNotes,
       pinnedAdjustment,
@@ -258,6 +270,7 @@ router.put('/:id', async (req, res) => {
     const updateData = {};
     if (status !== undefined) updateData.status = status;
     if (storeName !== undefined) updateData.storeName = storeName;
+    if (storePhone !== undefined) updateData.storePhone = storePhone;
     if (otp !== undefined) updateData.otp = otp;
     if (fitNotes !== undefined) updateData.fitNotes = fitNotes;
     if (pinnedAdjustment !== undefined) updateData.pinnedAdjustment = pinnedAdjustment;

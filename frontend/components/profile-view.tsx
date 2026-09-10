@@ -7,6 +7,8 @@ import {
   Check,
   ChevronRight,
   Edit2,
+  MapPin,
+  Navigation,
   User as UserIcon,
 } from 'lucide-react'
 import type { FittingBooking, Screen, User as UserType } from './data'
@@ -25,13 +27,67 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
 
-  // Edit Mode toggle for Personal Details
+  const isLegacyAddress = (addr?: string | null) => !addr || addr === '18 Kensington Church St'
+  const isLegacyPin = (pin?: string | null) => !pin || pin === 'W8 4EP'
+
+  // Edit Mode toggle for Personal Details & Bespoke Fit Vault
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
+  const [isEditingVault, setIsEditingVault] = useState(false)
 
   // Profile Form States
   const [name, setName] = useState(user?.name || '')
-  const [address, setAddress] = useState(user?.address || '18 Kensington Church St')
-  const [postcode, setPostcode] = useState(user?.postcode || 'W8 4EP')
+  const [address, setAddress] = useState(isLegacyAddress(user?.address) ? '' : user!.address!)
+  const [postcode, setPostcode] = useState(isLegacyPin(user?.postcode) ? '' : user!.postcode!)
+  const [isLocating, setIsLocating] = useState(false)
+
+  const handleDetectLiveLocation = async () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'en' } }
+          )
+          if (res.ok) {
+            const data = await res.json()
+            const addr = data.address || {}
+            const road = addr.road || addr.pedestrian || addr.suburb || addr.neighbourhood || addr.residential || ''
+            const city = addr.city || addr.town || addr.village || addr.county || addr.state || ''
+            const pin = addr.postcode || ''
+            const fullAddr = [road, city].filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || ''
+
+            if (fullAddr) setAddress(fullAddr)
+            if (pin) setPostcode(pin)
+          } else {
+            throw new Error('Fallback to BigDataCloud')
+          }
+        } catch {
+          try {
+            const res2 = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+            )
+            if (res2.ok) {
+              const data2 = await res2.json()
+              const locality = data2.locality || data2.city || data2.principalSubdivision || ''
+              const pin2 = data2.postcode || ''
+              if (locality) setAddress(locality)
+              if (pin2) setPostcode(pin2)
+            }
+          } catch { }
+        } finally {
+          setIsLocating(false)
+        }
+      },
+      (err) => {
+        console.warn('Geolocation failed:', err)
+        setIsLocating(false)
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    )
+  }
 
   // Measurements
   const [fitPreference, setFitPreference] = useState<'Slim' | 'Tailored' | 'Regular' | 'Relaxed'>('Tailored')
@@ -48,8 +104,14 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   useEffect(() => {
     if (user) {
       setName(user.name || '')
-      setAddress(user.address || '18 Kensington Church St')
-      setPostcode(user.postcode || 'W8 4EP')
+      const validAddr = isLegacyAddress(user.address) ? '' : user.address!
+      const validPin = isLegacyPin(user.postcode) ? '' : user.postcode!
+      setAddress(validAddr)
+      setPostcode(validPin)
+
+      if (!validAddr || !validPin) {
+        handleDetectLiveLocation()
+      }
 
       if (typeof window !== 'undefined') {
         const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
@@ -115,6 +177,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       setIsSaving(false)
       setSaveSuccess(true)
       setIsEditingPersonal(false)
+      setIsEditingVault(false)
       if (res?.user) {
         onUpdateUser(res.user)
       } else {
@@ -133,11 +196,27 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const handleCancelEdit = () => {
     if (user) {
       setName(user.name || '')
-      setAddress(user.address || '18 Kensington Church St')
-      setPostcode(user.postcode || 'W8 4EP')
+      setAddress(isLegacyAddress(user.address) ? '' : user.address!)
+      setPostcode(isLegacyPin(user.postcode) ? '' : user.postcode!)
     }
     setIsEditingPersonal(false)
     setSaveError('')
+  }
+
+  const handleCancelVaultEdit = () => {
+    if (user && typeof window !== 'undefined') {
+      const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
+      if (savedMeasure) {
+        try {
+          const parsed = JSON.parse(savedMeasure)
+          if (parsed.waist) setWaist(parsed.waist)
+          if (parsed.inseam) setInseam(parsed.inseam)
+          if (parsed.chest) setChest(parsed.chest)
+          if (parsed.sleeve) setSleeve(parsed.sleeve)
+        } catch { }
+      }
+    }
+    setIsEditingVault(false)
   }
 
   // Guest State
@@ -240,38 +319,51 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
 
           {/* Section 1: Personal Details (Name + Address together with Edit button in front) */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Personal Details</h2>
 
-              {!isEditingPersonal ? (
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsEditingPersonal(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
+                  onClick={handleDetectLiveLocation}
+                  disabled={isLocating}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
+                  title="Detect actual street address & pincode via GPS"
                 >
-                  <Edit2 size={12} />
-                  <span>Edit</span>
+                  <Navigation size={12} className={`text-emerald-600 ${isLocating ? 'animate-spin' : ''}`} />
+                  <span>{isLocating ? 'Locating...' : 'Detect Live Location'}</span>
                 </button>
-              ) : (
-                <div className="flex items-center gap-3">
+
+                {!isEditingPersonal ? (
                   <button
                     type="button"
-                    onClick={handleCancelEdit}
-                    className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+                    onClick={() => setIsEditingPersonal(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
                   >
-                    Cancel
+                    <Edit2 size={12} />
+                    <span>Edit</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveProfile()}
-                    disabled={isSaving}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[#065F46] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                  >
-                    <Check size={12} />
-                    <span>{isSaving ? 'Saving...' : 'Save'}</span>
-                  </button>
-                </div>
-              )}
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSaveProfile()}
+                      disabled={isSaving}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-[#065F46] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                    >
+                      <Check size={12} />
+                      <span>{isSaving ? 'Saving...' : 'Save'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Full Name & Address grouped together */}
@@ -300,11 +392,13 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                       required
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="18 Kensington Church St"
+                      placeholder="Street name, area / house no."
                       className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
                     />
                   ) : (
-                    <p className="py-1.5 text-sm text-[#18191B] border-b border-transparent truncate">{address}</p>
+                    <p className="py-1.5 text-sm text-[#18191B] border-b border-transparent truncate">
+                      {address || <span className="text-gray-400 italic font-normal">Click Detect Live Location above</span>}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -316,11 +410,13 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                       maxLength={10}
                       value={postcode}
                       onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
-                      placeholder="10001 or 400001"
+                      placeholder="PIN / Postcode"
                       className="w-full bg-transparent font-mono font-bold border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
                     />
                   ) : (
-                    <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">{postcode || '10001'}</p>
+                    <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">
+                      {postcode || <span className="text-gray-400 italic font-normal font-sans">PIN Code</span>}
+                    </p>
                   )}
                 </div>
               </div>
@@ -342,25 +438,40 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           {/* Section 2: Saved Measurements Vault */}
           <div className="space-y-4 pt-4 border-t border-[#E8E1D5]">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Bespoke Fit Vault</h2>
-              <span className="text-[11px] text-[#7A7E85]">Auto-applies to bookings</span>
-            </div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Bespoke Fit Vault</h2>
+                <span className="text-[11px] text-[#7A7E85]">Auto-applies to bookings</span>
+              </div>
 
-            {/* Fit selector */}
-            <div className="flex items-center gap-2 pt-1">
-              {(['Slim', 'Tailored', 'Regular', 'Relaxed'] as const).map((fit) => (
+              {!isEditingVault ? (
                 <button
-                  key={fit}
                   type="button"
-                  onClick={() => setFitPreference(fit)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer ${fitPreference === fit
-                    ? 'bg-[#18191B] text-white'
-                    : 'bg-transparent text-[#7A7E85] hover:text-[#18191B]'
-                    }`}
+                  onClick={() => setIsEditingVault(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
                 >
-                  {fit}
+                  <Edit2 size={12} />
+                  <span>Edit</span>
                 </button>
-              ))}
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelVaultEdit}
+                    className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveProfile()}
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-[#065F46] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                  >
+                    <Check size={12} />
+                    <span>{isSaving ? 'Saving...' : 'Save'}</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Measurements row */}
@@ -373,13 +484,19 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
               ].map((m) => (
                 <div key={m.label} className="border-b border-[#D5CDC2] py-1.5">
                   <span className="block text-[10px] uppercase text-[#7A7E85] font-semibold">{m.label}</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={m.val}
-                    onChange={(e) => m.setter(e.target.value.replace(/[^\d.]/g, ''))}
-                    className="w-full bg-transparent text-sm font-bold text-[#18191B] outline-none pt-0.5"
-                  />
+                  {isEditingVault ? (
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={m.val}
+                      onChange={(e) => m.setter(e.target.value.replace(/[^\d.]/g, ''))}
+                      className="w-full bg-transparent text-sm font-bold text-[#18191B] outline-none pt-0.5"
+                    />
+                  ) : (
+                    <p className="py-0.5 text-sm font-bold text-[#18191B] border-b border-transparent">
+                      {m.val || '—'}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

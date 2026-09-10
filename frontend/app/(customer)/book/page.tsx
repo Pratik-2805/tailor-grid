@@ -23,9 +23,9 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { SewingLoader } from '@/components/sewing-loader'
-import { useApp } from '@/components/app-provider'
 import { createOrder } from '@/lib/api'
-import { setStorageCookie } from '@/lib/cookies'
+import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
@@ -286,6 +286,65 @@ function MeasurementOptionDropdown({
   )
 }
 
+function parseMeasurementsFromBooking(
+  currentCustom: Record<string, string>,
+  existingProfile: Record<string, string>
+): Record<string, string> {
+  const updated = { ...existingProfile }
+
+  for (const [key, rawVal] of Object.entries(currentCustom)) {
+    if (!rawVal || rawVal === 'To be Measured by Tailor') continue
+    const val = rawVal.trim()
+
+    if (key === 'waist' || key === 'waistSuppression') {
+      const match = val.match(/(\d+(?:\.\d+)?)/)
+      if (match) updated.waist = match[1]
+    } else if (key === 'trouserInseamWaist' || key === 'chestWaist' || key === 'jacketTorso' || key === 'waistHips') {
+      const waistMatch = val.match(/Waist\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*Waist/i)
+      if (waistMatch) updated.waist = waistMatch[1]
+    }
+
+    if (key === 'inseam') {
+      const match = val.match(/(\d+(?:\.\d+)?)/)
+      if (match) updated.inseam = match[1]
+    } else if (key === 'trouserInseamWaist') {
+      const inseamMatch = val.match(/Inseam\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*Inseam/i)
+      if (inseamMatch) updated.inseam = inseamMatch[1]
+    }
+
+    if (key === 'chestWaist' || key === 'jacketTorso' || key === 'bustBodice') {
+      const chestMatch = val.match(/Chest\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*Chest/i)
+      if (chestMatch) updated.chest = chestMatch[1]
+    }
+
+    if (key === 'sleeveLength') {
+      const match = val.match(/(\d+(?:\.\d+)?)/)
+      if (match) updated.sleeve = match[1]
+    }
+
+    if (key === 'tapering' || val.toLowerCase().includes('fit')) {
+      if (val.toLowerCase().includes('slim')) updated.fit = 'Slim'
+      else if (val.toLowerCase().includes('tailored')) updated.fit = 'Tailored'
+      else if (val.toLowerCase().includes('regular') || val.toLowerCase().includes('straight')) updated.fit = 'Regular'
+      else if (val.toLowerCase().includes('relaxed')) updated.fit = 'Relaxed'
+    }
+  }
+
+  return updated
+}
+
+function loadProfileMeasurements(user: any): Record<string, string> | null {
+  if (typeof window === 'undefined' || !user) return null
+  const key = `tg_measurements_${user.id || user.email || 'guest'}`
+  const saved = getStorageCookie(key)
+  if (!saved) return null
+  try {
+    return JSON.parse(saved)
+  } catch {
+    return null
+  }
+}
+
 interface DropdownItem {
   id: string
   label: string
@@ -483,6 +542,55 @@ export default function BookPage() {
     }
   }, [prefilledGarmentId, prefilledServiceId, prefilledStore, measurementDraft])
 
+  // Pre-fill measurements directly from user profile if available
+  useEffect(() => {
+    if (!user) return
+    const profile = loadProfileMeasurements(user)
+    if (!profile) return
+
+    setCustomMeasurements((prev) => {
+      const updated = { ...prev }
+      const isTailorMapUpdates: Record<string, boolean> = {}
+
+      if (profile.waist) {
+        if (!updated.waist) updated.waist = `${profile.waist} in`
+        if (!updated.waistSuppression) updated.waistSuppression = `Take in to ${profile.waist} in`
+      }
+      if (profile.inseam) {
+        if (!updated.inseam) updated.inseam = `${profile.inseam} in`
+      }
+      if (profile.sleeve) {
+        if (!updated.sleeveLength) updated.sleeveLength = `${profile.sleeve} in`
+      }
+      if (profile.chest) {
+        if (!updated.chestWaist) updated.chestWaist = `${profile.chest} in Chest`
+      }
+      if (profile.inseam && profile.waist) {
+        if (!updated.trouserInseamWaist) updated.trouserInseamWaist = `Inseam ${profile.inseam} in, Waist ${profile.waist} in`
+      }
+      if (profile.chest && profile.waist) {
+        if (!updated.jacketTorso) updated.jacketTorso = `Chest ${profile.chest} in, Waist ${profile.waist} in`
+      }
+      if (profile.fit) {
+        if (!updated.tapering) {
+          if (profile.fit === 'Slim') updated.tapering = 'Slim Knee-to-Ankle'
+          else if (profile.fit === 'Tailored') updated.tapering = 'Original Factory Taper'
+          else if (profile.fit === 'Regular') updated.tapering = 'Straight Leg'
+          else if (profile.fit === 'Relaxed') updated.tapering = 'Relaxed Fit'
+        }
+      }
+
+      Object.keys(updated).forEach((k) => {
+        if (updated[k] && updated[k] !== 'To be Measured by Tailor') {
+          isTailorMapUpdates[k] = false
+        }
+      })
+
+      setIsTailorMeasuredMap((prevMap) => ({ ...prevMap, ...isTailorMapUpdates }))
+      return updated
+    })
+  }, [user, selectedGarmentId])
+
   // Derive active category & service
   const currentCategory = useMemo(() => {
     return GARMENT_CATEGORIES.find((c) => c.id === selectedGarmentId) || GARMENT_CATEGORIES[0]
@@ -629,6 +737,19 @@ export default function BookPage() {
     if (typeof window !== 'undefined') {
       setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData))
       setStorageCookie('tg_latest_order', JSON.stringify(orderData))
+
+      // Auto-update profile measurements with any sizes filled or edited during booking
+      if (user) {
+        const profileKey = `tg_measurements_${user.id || user.email || 'guest'}`
+        let existingProfile: Record<string, string> = {}
+        try {
+          const raw = getStorageCookie(profileKey)
+          if (raw) existingProfile = JSON.parse(raw)
+        } catch { }
+
+        const mergedProfile = parseMeasurementsFromBooking(measurementsData, existingProfile)
+        setStorageCookie(profileKey, JSON.stringify(mergedProfile))
+      }
     }
 
     setPrefilledGarmentId(selectedGarmentId)

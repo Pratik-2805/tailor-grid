@@ -9,6 +9,7 @@ import {
   Copy,
   MapPin,
   Navigation,
+  Phone,
   Ruler,
   Scissors,
   Share2,
@@ -198,6 +199,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
   const storeNameDisplay = order?.storeName || closestStore?.name || 'Local Partner Atelier'
   const storeAddressDisplay = order?.storeAddress || (closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio')
+  const storePhoneDisplay = order?.storePhone || order?.store?.phone || closestStore?.phone || '+44 20 7946 0912'
+  const storeHoursDisplay = order?.store?.openingHours || closestStore?.openingHours || 'Mon–Sat: 09:00 – 19:00'
+  const storeTailorDisplay = order?.store?.leadTailor || closestStore?.leadTailor || 'Master Tailor'
   const cleanStudioBadgeName = storeNameDisplay
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
   const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
@@ -696,6 +700,21 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       <MapPin size={14} className="text-[#9E593B] shrink-0" />
                       <span className="truncate">{storeAddressDisplay}</span>
                     </div>
+
+                    {/* Studio Direct Contact Phone & Details */}
+                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                      <a
+                        href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition-colors text-xs font-bold cursor-pointer"
+                        title="Click to call studio"
+                      >
+                        <Phone size={13} className="text-emerald-600" />
+                        <span>{storePhoneDisplay}</span>
+                      </a>
+                      <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80">
+                        🕒 {storeHoursDisplay}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Uber-Style Black High-Visibility PIN Badge */}
@@ -882,24 +901,33 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               </div>
 
               {/* Uber-Style Action Buttons Row */}
-              <div className="grid grid-cols-2 gap-2.5 mt-5 pt-3 border-t border-gray-100 mt-auto">
+              <div className="grid grid-cols-3 gap-2 mt-5 pt-3 border-t border-gray-100 mt-auto">
+                <a
+                  href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 text-center truncate"
+                  title="Call Partner Studio"
+                >
+                  <Phone size={14} />
+                  <span className="truncate">Call Studio</span>
+                </a>
+
                 <button
                   type="button"
                   onClick={handleShareMap}
-                  className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-xs font-bold py-3 px-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                  className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95 truncate"
                 >
-                  <Share2 size={15} />
-                  <span>Share Map</span>
+                  <Share2 size={14} />
+                  <span className="truncate">Share Map</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleOpenAppMap}
-                  className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md active:scale-95"
+                  className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-md active:scale-95 truncate"
                   title="Open in Map app"
                 >
-                  <Navigation size={15} className="fill-white" />
-                  <span>Open in App</span>
+                  <Navigation size={14} className="fill-white" />
+                  <span className="truncate">Open App</span>
                 </button>
               </div>
 
