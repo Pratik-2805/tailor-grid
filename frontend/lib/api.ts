@@ -34,11 +34,11 @@ export function getStudioUrl(path: string = '', token?: string | null): string {
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
   const url = `${base}${cleanPath}`
   
-  // Strict Role Gate: Never hand over Customer tokens to the Studio domain
-  const currentRole = getAuthRole()
-  if (token && currentRole === 'STUDIO') {
+  // Hand over token to Studio domain if explicitly passed or if current user is STUDIO
+  const effectiveToken = token || (getAuthRole() === 'STUDIO' ? getAuthToken() : null)
+  if (effectiveToken) {
     const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}token=${encodeURIComponent(token)}`
+    return `${url}${separator}token=${encodeURIComponent(effectiveToken)}`
   }
   return url
 }
@@ -172,12 +172,10 @@ export async function loginWithGoogle(params: {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
     if (data.token) {
-      if (data.user?.status !== 'INACTIVE') {
-        setAuthToken(data.token)
-        if (data.user && !data.isNewUser) {
-          setAuthUser(data.user)
-          setAuthRole(data.user.role)
-        }
+      setAuthToken(data.token)
+      if (data.user) {
+        setAuthUser(data.user)
+        setAuthRole(data.user.role)
       }
     }
     return data

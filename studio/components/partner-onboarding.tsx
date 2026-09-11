@@ -24,7 +24,7 @@ import {
   checkEmailExists,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
-import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, getAuthUser } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
@@ -134,13 +134,14 @@ export function PartnerOnboarding({
 
   // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
-    const hasAuth = !!(user?.email || pendingGoogle?.email)
-    if (!hasAuth) {
-      return 'auth'
-    }
+    const cachedUser = getAuthUser<User>()
+    const hasAuth = !!(user?.email || pendingGoogle?.email || cachedUser?.email || (typeof window !== 'undefined' && getAuthToken()))
     if (typeof window !== 'undefined') {
       const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
       if (urlStep) return urlStep
+    }
+    if (!hasAuth) {
+      return 'auth'
     }
     const cached = ssGet('tg_onboard_step')
     if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
@@ -172,7 +173,8 @@ export function PartnerOnboarding({
   // Continuously sync URL query param ?step=1, ?step=2, etc.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const hasAuth = !!(user?.email || pendingGoogle?.email)
+    const cachedUser = getAuthUser<User>()
+    const hasAuth = !!(user?.email || pendingGoogle?.email || cachedUser?.email || getAuthToken())
     if (!hasAuth) {
       if (currentStep !== 'auth') {
         setCurrentStepRaw('auth')
@@ -296,13 +298,21 @@ export function PartnerOnboarding({
   const [alreadyRegistered, setAlreadyRegistered] = useState(false)
   const [alreadyRegisteredUser, setAlreadyRegisteredUser] = useState<User | null>(null)
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
+  const isGoogleAuthUser = Boolean(
+    pendingGoogle?.email ||
+    user?.email ||
+    user?.method === 'google' ||
+    (typeof window !== 'undefined' && getAuthUser<User>()?.email) ||
+    emailVal.includes('@')
+  )
+  const fixedGoogleEmail = user?.email || pendingGoogle?.email || (typeof window !== 'undefined' ? getAuthUser<User>()?.email : '') || emailVal
 
   useEffect(() => {
-    const activeEmail = user?.email || pendingGoogle?.email
-    if (activeEmail && !emailVal) {
+    const activeEmail = user?.email || pendingGoogle?.email || (typeof window !== 'undefined' ? getAuthUser<User>()?.email : '')
+    if (activeEmail && emailVal !== activeEmail) {
       setEmailVal(activeEmail)
     }
-  }, [pendingGoogle, user, emailVal])
+  }, [pendingGoogle, user])
 
   useEffect(() => {
     if (emailVal && typeof window !== 'undefined') {
@@ -337,6 +347,15 @@ export function PartnerOnboarding({
   }, [step3VerifiedPhone])
 
   useEffect(() => {
+    const cachedUser = getAuthUser<User>()
+    const email = user?.email || pendingGoogle?.email || cachedUser?.email
+    if (email && !emailVal) {
+      setEmailVal(email)
+    }
+    const name = user?.name || pendingGoogle?.name || cachedUser?.name
+    if (name && !tailorName && name !== 'Google User' && name !== 'Studio Partner') {
+      setTailorName(name)
+    }
     if (user?.email) {
       checkEmailExists(user.email, 'STUDIO').then((res) => {
         if (res.exists) {
@@ -347,7 +366,7 @@ export function PartnerOnboarding({
         }
       })
     }
-  }, [user?.email])
+  }, [user?.email, user?.name, pendingGoogle?.email, pendingGoogle?.name])
 
   // Google OAuth trigger
   const triggerGoogleAuth = async () => {
@@ -421,10 +440,14 @@ export function PartnerOnboarding({
             setPendingGoogle(pending)
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
+              if (result.token) setAuthToken(result.token)
+              if (result.user) setAuthUser(result.user)
+              setAuthRole('STUDIO')
             }
 
-            // Only set email from Google — don't prefill name or shop
+            // Set email and tailor name from Google
             if (profile.email) setEmailVal(profile.email)
+            if (profile.name && profile.name !== 'Google User') setTailorName(profile.name)
 
             // Clear stale form cache — start fresh registration
             ssRemove('tg_onboard_form')
@@ -1176,18 +1199,40 @@ export function PartnerOnboarding({
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                               Partner Contact Email *
                             </label>
-                            <input
-                              type="email"
-                              value={emailVal}
-                              onChange={(e) => { if (!pendingGoogle?.email) setEmailVal(e.target.value) }}
-                              disabled={!!pendingGoogle?.email}
-                              placeholder="business@atelier.com"
-                              className={`w-full rounded-lg border-none px-4 py-3.5 text-sm font-medium outline-none transition-all ${pendingGoogle?.email ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115]'}`}
-                            />
-                            {pendingGoogle?.email && (
-                              <p className="text-[10px] text-gray-400 mt-0.5 flex items-center gap-1">
-                                <Lock size={10} /> Email linked via Google sign-in
-                              </p>
+                            {isGoogleAuthUser ? (
+                              <div className="space-y-1">
+                                <div className="relative flex items-center">
+                                  <input
+                                    type="email"
+                                    value={fixedGoogleEmail || emailVal}
+                                    readOnly
+                                    disabled
+                                    autoComplete="off"
+                                    tabIndex={-1}
+                                    className="w-full rounded-lg bg-[#F3EFEA]/80 border border-[#E8E1D5] px-4 py-3.5 text-sm font-semibold text-[#0F1115] cursor-not-allowed select-none pr-10 outline-none shadow-xs"
+                                  />
+                                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9E593B]">
+                                    <Lock size={15} />
+                                  </div>
+                                </div>
+                                <p className="text-[11px] text-[#7A7E85] flex items-center gap-1.5 font-medium pt-0.5">
+                                  <svg className="size-3.5 shrink-0" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                                  </svg>
+                                  <span>Verified via Google account — locked &amp; cannot be changed</span>
+                                </p>
+                              </div>
+                            ) : (
+                              <input
+                                type="email"
+                                value={emailVal}
+                                onChange={(e) => setEmailVal(e.target.value)}
+                                placeholder="business@atelier.com"
+                                className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
+                              />
                             )}
                           </div>
 
