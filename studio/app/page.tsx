@@ -38,6 +38,7 @@ export default function StudioPage() {
       authParam = params.get('auth') || params.get('action')
       if (token) {
         setAuthToken(token)
+        setAuthRole('STUDIO')
         const url = new URL(window.location.href)
         url.searchParams.delete('token')
         window.history.replaceState({}, '', url.toString())
@@ -59,11 +60,11 @@ export default function StudioPage() {
 
     getCurrentUser()
       .then((u) => {
-        if (u && u.role === 'STUDIO' && u.status === 'ACTIVE' && u.studioName && u.phone) {
+        if (u && u.role === 'STUDIO') {
           setUser(u)
           setRoleSelected(true)
         } else {
-          setUser(u && u.status === 'INACTIVE' ? u : null)
+          setUser(null)
           if (authParam === 'signin' || authParam === 'login') {
             setAuthType('signin')
           }

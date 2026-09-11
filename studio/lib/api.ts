@@ -144,9 +144,7 @@ export async function loginWithGoogle(params: {
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
-        if (!data.isNewUser && data.user.status === 'ACTIVE' && data.user.studioName && data.user.phone) {
-          setAuthRole('STUDIO')
-        }
+        setAuthRole('STUDIO')
       }
     }
     return data

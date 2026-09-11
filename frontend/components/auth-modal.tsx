@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Check, Lock, LogOut, Mail, Phone, Sparkles, Stor
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
-import { setAuthUser, setAuthRole } from '@/lib/cookies'
+import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
 
 type AuthMode =
   | 'role-select'
@@ -217,9 +217,20 @@ export function AuthModal({
             if (result?.user) {
               // Close modal and redirect to studio onboarding Step 1
               onClose()
-              const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
-              const studioStep1Url = getStudioUrl('/?step=1', token)
-              window.location.href = studioStep1Url
+              const token = result.token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+              if (result.token) {
+                setAuthToken(result.token)
+              }
+              setAuthRole('STUDIO')
+              setAuthUser(result.user)
+
+              if (!result.isNewUser && result.user.studioName && result.user.phone) {
+                // Existing verified studio partner — go straight to dashboard
+                window.location.href = getStudioUrl('/', token)
+              } else {
+                // New partner or incomplete registration — direct to Step 1 form!
+                window.location.href = getStudioUrl('/?step=1', token)
+              }
             }
           } catch (err: any) {
             setLoading(false)
