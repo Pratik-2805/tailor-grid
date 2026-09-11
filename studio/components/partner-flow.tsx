@@ -191,8 +191,8 @@ export function PartnerFlow({
   activeTab: controlledTab,
   onTabChange,
 }: PartnerFlowProps) {
-  const rawStudioName = user?.studioName || ''
-  const studioName = rawStudioName.length > 2 ? rawStudioName : 'Atelier SoHo'
+  const rawStudioName = (user?.studioName || '').trim()
+  const studioName = rawStudioName.length > 0 ? rawStudioName : (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
   const tailorName = user?.name || 'Master Tailor'
 
   const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
@@ -468,16 +468,16 @@ export function PartnerFlow({
   const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
-    const assignedStudioId = user?.studioId || 'atelier-soho'
-    const assignedStudioName = studioName || user?.studioName || 'Atelier SoHo'
-    const assignedStudioPhone = user?.phone || user?.contact || '+44 20 7946 0912'
+    const assignedStudioId = user?.studioId || undefined
+    const assignedStudioName = (user?.studioName && user.studioName.trim()) || studioName || (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
+    const assignedStudioPhone = user?.phone || user?.contact || ''
     const partnerPayout = order.partnerPayout || Math.round((order.price || 30) * 0.75)
 
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
-      storeId: assignedStudioId,
+      ...(assignedStudioId ? { storeId: assignedStudioId } : {}),
       storeName: assignedStudioName,
-      storePhone: assignedStudioPhone,
+      ...(assignedStudioPhone ? { storePhone: assignedStudioPhone } : {}),
       partnerPayout,
     }
 

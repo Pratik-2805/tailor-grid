@@ -696,7 +696,7 @@ export default function BookPage() {
     })
 
     const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
-    const newOrderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+    const newOrderId = `TG-${Math.floor(100000 + Math.random() * 900000)}`
     const otp = String(Math.floor(1000 + Math.random() * 9000))
 
     const activeSchedDate = schedDate || scheduleDateObj || new Date()
@@ -716,8 +716,10 @@ export default function BookPage() {
       customerName: user?.name || 'Customer',
       customerEmail: user?.email || '',
       customerPhone: user?.phone || '',
-      storeId: null,
-      storeName: 'Awaiting Studio Acceptance',
+      userId: user?.id || null,
+      storeId: closestStore?.id || null,
+      storeName: closestStore?.name || 'Awaiting Studio Acceptance',
+      storePhone: closestStore?.phone || null,
       storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
       garmentId: selectedGarmentId,
       garmentName: currentCategory.name,
@@ -774,8 +776,9 @@ export default function BookPage() {
         garmentName: currentCategory.name,
         serviceId: selectedServiceId,
         serviceName: currentService.name,
-        storeId: undefined,
-        storeName: 'Awaiting Studio Acceptance',
+        storeId: closestStore?.id || undefined,
+        storeName: closestStore?.name || 'Awaiting Studio Acceptance',
+        storePhone: closestStore?.phone || undefined,
         price: currentService.customerPrice || currentCategory.startingPrice || 25,
         date: formattedDateDisplay,
         timeSlot: activeSchedTime,
