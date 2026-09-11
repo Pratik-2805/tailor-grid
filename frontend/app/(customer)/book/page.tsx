@@ -23,6 +23,7 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { SewingLoader } from '@/components/sewing-loader'
+import { CustomLoader } from '@/components/custom-loader'
 import { createOrder } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
@@ -800,6 +801,26 @@ export default function BookPage() {
   const handleConfirmSchedule = () => {
     setIsScheduleModalOpen(false)
     executeBooking('schedule', scheduleDateObj, selectedTime)
+  }
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      openAuth('CUSTOMER', 'signin')
+      router.replace('/?auth=required')
+    }
+  }, [isAuthLoading, user, openAuth, router])
+
+  if (isAuthLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
+        <CustomLoader
+          size="lg"
+          variant="atelier"
+          text="Accessing booking portal"
+          subtext="Verifying your member session..."
+        />
+      </div>
+    )
   }
 
   return (

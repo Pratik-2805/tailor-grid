@@ -610,27 +610,13 @@ export function AuthModal({
           <X size={14} />
         </button>
 
-        {/* Header Logo / Spacer */}
-        <div className="flex items-center justify-center px-6 pt-6 pb-2">
-          {mode === 'role-select' ? (
-            <div className="flex items-center justify-center">
-              <img
-                src="/bg_logo.png"
-                alt="Darzi"
-                className="h-10 w-auto object-contain"
-              />
-            </div>
-          ) : !isSubPage ? (
-            <div className="flex items-center justify-center">
-              <img
-                src="/bg_logo.png"
-                alt="Darzi"
-                className="h-10 w-auto object-contain"
-              />
-            </div>
-          ) : (
-            <div className="h-6" />
-          )}
+        {/* Header Logo */}
+        <div className="flex items-center justify-center px-6 pt-7 pb-3">
+          <img
+            src="/bg_logo.png"
+            alt="Darzi Logo"
+            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
+          />
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
