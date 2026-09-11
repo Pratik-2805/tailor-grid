@@ -315,6 +315,26 @@ const SEED_STORES = [
     lat: 51.5033,
     lng: -0.1925,
   },
+  {
+    id: 'atelier-mayfair',
+    name: 'Mayfair Haute Couture Works',
+    area: 'Mayfair & St James',
+    address: '22 Savile Row',
+    postcode: 'W1K 6WP',
+    distance: '0.6 mi away',
+    distanceMiles: 0.6,
+    rating: 4.97,
+    reviewCount: 184,
+    openingHours: 'Mon–Sat: 09:00 – 18:00',
+    dailyCapacity: 20,
+    machines: 6,
+    workers: 4,
+    leadTailor: 'Julian Sterling (Bespoke Cutter)',
+    specialties: ['Savile Row Suiting', 'Working Buttonholes', 'Jacket Structure'],
+    retailSold: true,
+    lat: 51.5113,
+    lng: -0.1415,
+  },
 ];
 
 const SEED_USER = {
@@ -329,7 +349,118 @@ const SEED_USER = {
   method: 'google',
 };
 
-const SEED_ORDERS = [];
+const SEED_ORDERS = [
+  {
+    id: 'TG-849201',
+    userId: 'usr_1789109785691_966',
+    customerName: 'Soham Sawalakhe',
+    customerEmail: 'robotg339@gmail.com',
+    customerPhone: '+44 7700 900123',
+    postcode: 'W8 4EP',
+    garmentId: 'trousers',
+    garmentName: 'Trousers & Jeans',
+    serviceId: 'trouser-hem-original',
+    serviceName: 'Shorten with Original Jean Hem',
+    storeId: 'kensington-atelier',
+    storeName: 'Kensington Bespoke Atelier',
+    storePhone: '+44 20 7946 0912',
+    date: '2026-09-12',
+    timeSlot: '14:00 - 15:00',
+    garmentBrand: "Levi's 501 Selvedge",
+    fitNotes: 'Preserve raw factory chainstitch lock. 1.25 inch reduction.',
+    pinnedAdjustment: JSON.stringify({ waist: '32.0 in', inseam: '30.0 in (Slight Break)', hem: '1.25 in Reduction' }),
+    sewingNotes: 'Use 40wt gold contrast thread for chainstitch hem.',
+    slaHours: 48,
+    partnerPayout: 21.0,
+    retailSold: false,
+    status: 'Accepted',
+    price: 28.0,
+    otp: '4892',
+  },
+  {
+    id: 'TG-392810',
+    userId: 'usr_1789109785691_966',
+    customerName: 'Soham Sawalakhe',
+    customerEmail: 'robotg339@gmail.com',
+    customerPhone: '+44 7700 900123',
+    postcode: 'W1K 6WP',
+    garmentId: 'jackets',
+    garmentName: 'Jackets & Blazers',
+    serviceId: 'jacket-sleeves',
+    serviceName: 'Shorten Sleeves with Working Buttonholes',
+    storeId: 'atelier-mayfair',
+    storeName: 'Mayfair Haute Couture Works',
+    storePhone: '+44 20 7946 0145',
+    date: '2026-09-10',
+    timeSlot: '11:00 - 12:00',
+    garmentBrand: 'Suitsupply Havana Blazer',
+    fitNotes: 'Shorten sleeves 1.0 in from shoulder crown to preserve functional surgeon cuffs.',
+    pinnedAdjustment: JSON.stringify({ sleeve: '23.5 in (Wrist Bone Break)', shoulder: '16.0 in Fitted', chest: '39.0 in' }),
+    sewingNotes: 'Re-align sleeve head canvas and shoulder pads.',
+    slaHours: 48,
+    partnerPayout: 33.75,
+    retailSold: false,
+    status: 'Work in Progress',
+    price: 45.0,
+    otp: '7153',
+  },
+  {
+    id: 'TG-572194',
+    userId: 'usr_1789109785691_966',
+    customerName: 'Soham Sawalakhe',
+    customerEmail: 'robotg339@gmail.com',
+    customerPhone: '+44 7700 900123',
+    postcode: 'W1F 8AA',
+    garmentId: 'shirts',
+    garmentName: 'Shirts & Tops',
+    serviceId: 'shirt-sides',
+    serviceName: 'Take In Sides & Back Darts',
+    storeId: 'atelier-soho',
+    storeName: 'Soho Master Tailors',
+    storePhone: '+44 20 7946 0831',
+    date: '2026-09-08',
+    timeSlot: '16:00 - 17:00',
+    garmentBrand: 'Thomas Pink Formal',
+    fitNotes: 'Slim fit taper through side seams and add clean back darts.',
+    pinnedAdjustment: JSON.stringify({ chest: '38.5 in Tapered', waist: '31.5 in Slim' }),
+    sewingNotes: 'Finished with single needle flat felled seams.',
+    slaHours: 48,
+    partnerPayout: 19.5,
+    retailSold: true,
+    retailValue: 12.0,
+    retailCategory: 'Garment Care Kit',
+    status: 'Ready',
+    price: 26.0,
+    otp: '9041',
+  },
+  {
+    id: 'TG-615409',
+    userId: 'usr_demo_sarah',
+    customerName: 'Sarah Jenkins',
+    customerEmail: 'sarah.jenkins@example.com',
+    customerPhone: '+44 7700 900077',
+    postcode: 'W8 4EP',
+    garmentId: 'dresses',
+    garmentName: 'Dresses & Jumpsuits',
+    serviceId: 'dress-hem',
+    serviceName: 'Shorten Dress Hem (Lined / Silk)',
+    storeId: 'kensington-atelier',
+    storeName: 'Kensington Bespoke Atelier',
+    storePhone: '+44 20 7946 0912',
+    date: '2026-09-11',
+    timeSlot: '15:00 - 16:00',
+    garmentBrand: 'Zimmermann Silk Gown',
+    fitNotes: 'Delicate hand rolled hem on pure silk georgette layer.',
+    pinnedAdjustment: JSON.stringify({ hem: 'Midi (Mid-calf 42.0 in)', waist: '27.0 in' }),
+    sewingNotes: 'Hand-sewn blind hem.',
+    slaHours: 48,
+    partnerPayout: 31.5,
+    retailSold: false,
+    status: 'Accepted',
+    price: 42.0,
+    otp: '6154',
+  }
+];
 
 async function main() {
   console.log('🌱 Starting Prisma Database Seed for Darzi...');
@@ -371,15 +502,20 @@ async function main() {
   });
   console.log(`✅ Seeded Demo User: ${SEED_USER.email}`);
 
-  // 4. Seed Demo Orders
+  // 4. Seed Demo Orders into PostgreSQL
+  const robotUser = await prisma.user.findFirst({ where: { email: 'robotg339@gmail.com' } });
   for (const order of SEED_ORDERS) {
+    const orderToInsert = { ...order };
+    if (orderToInsert.customerEmail === 'robotg339@gmail.com' && robotUser) {
+      orderToInsert.userId = robotUser.id;
+    }
     await prisma.order.upsert({
-      where: { id: order.id },
-      update: order,
-      create: order,
+      where: { id: orderToInsert.id },
+      update: orderToInsert,
+      create: orderToInsert,
     });
   }
-  console.log(`✅ Seeded ${SEED_ORDERS.length} Demo Orders`);
+  console.log(`✅ Seeded ${SEED_ORDERS.length} Real Orders into Database`);
 
   console.log('🎉 Prisma database seeding complete!');
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -45,25 +45,30 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       setIsLoading(true)
       fetchOrders(user.email || user.contact || '', user.id)
         .then((fetched) => {
-          let combined = Array.isArray(fetched) ? fetched : []
+          const ordersFromBackend = Array.isArray(fetched) ? fetched : []
 
-          // Merge local storage cached orders if any exist
+          // Purge stale dummy/mock orders from localStorage that do not exist in the database
           if (typeof window !== 'undefined') {
             try {
               const localKeys = Object.keys(localStorage).filter((k) => k.startsWith('tg_order_'))
               for (const key of localKeys) {
                 const raw = localStorage.getItem(key)
                 if (raw) {
-                  const parsed = JSON.parse(raw)
-                  if (parsed && parsed.id && !combined.some((o) => o.id === parsed.id)) {
-                    combined = [parsed, ...combined]
+                  try {
+                    const parsed = JSON.parse(raw)
+                    if (parsed?.id && !ordersFromBackend.some((o) => o.id === parsed.id)) {
+                      localStorage.removeItem(key)
+                    }
+                  } catch {
+                    localStorage.removeItem(key)
                   }
                 }
               }
-            } catch { }
+              localStorage.removeItem('tg_latest_order')
+            } catch {}
           }
 
-          setBackendOrders(combined)
+          setBackendOrders(ordersFromBackend)
         })
         .catch((err) => {
           console.error('Failed to load orders:', err)
@@ -76,6 +81,108 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       setBackendOrders([])
     }
   }, [user])
+
+  // Dynamically compute real measurements for the Digital Fit Passport from real orders and profile
+  const passportItems = useMemo(() => {
+    const items: { k: string; v: string; sourceGarment?: string }[] = []
+    const seenKeys = new Set<string>()
+
+    // 1. Extract from backend orders
+    backendOrders.forEach((bo) => {
+      // Check pinnedAdjustment
+      if (bo.pinnedAdjustment) {
+        try {
+          const parsed = typeof bo.pinnedAdjustment === 'string' ? JSON.parse(bo.pinnedAdjustment) : bo.pinnedAdjustment
+          if (parsed && typeof parsed === 'object') {
+            Object.entries(parsed).forEach(([k, val]) => {
+              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
+                const formattedKey = k
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/_/g, ' ')
+                  .replace(/^\w/, (c) => c.toUpperCase())
+                const dedupeKey = formattedKey.toLowerCase()
+                if (!seenKeys.has(dedupeKey)) {
+                  seenKeys.add(dedupeKey)
+                  items.push({
+                    k: formattedKey,
+                    v: val,
+                    sourceGarment: bo.garmentBrand || bo.garmentName,
+                  })
+                }
+              }
+            })
+          }
+        } catch {}
+      }
+
+      // Check measurements
+      if (bo.measurements) {
+        try {
+          const parsed = typeof bo.measurements === 'string' ? JSON.parse(bo.measurements) : bo.measurements
+          if (parsed && typeof parsed === 'object') {
+            Object.entries(parsed).forEach(([k, val]) => {
+              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
+                const formattedKey = k
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/_/g, ' ')
+                  .replace(/^\w/, (c) => c.toUpperCase())
+                const dedupeKey = formattedKey.toLowerCase()
+                if (!seenKeys.has(dedupeKey)) {
+                  seenKeys.add(dedupeKey)
+                  items.push({
+                    k: formattedKey,
+                    v: val,
+                    sourceGarment: bo.garmentBrand || bo.garmentName,
+                  })
+                }
+              }
+            })
+          }
+        } catch {}
+      }
+
+      // Check fitNotes
+      if (bo.fitNotes && bo.fitNotes.trim() && !seenKeys.has(`fit-${bo.id}`)) {
+        seenKeys.add(`fit-${bo.id}`)
+        items.push({
+          k: `${bo.garmentName || 'Garment'} Fit Spec`,
+          v: bo.fitNotes,
+          sourceGarment: bo.garmentBrand || bo.garmentName,
+        })
+      }
+    })
+
+    // 2. Also check user's saved profile measurements
+    if (typeof window !== 'undefined' && user) {
+      try {
+        const profileKey = `tg_measurements_${user.id || user.email}`
+        const raw = localStorage.getItem(profileKey)
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === 'object') {
+            Object.entries(parsed).forEach(([k, val]) => {
+              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
+                const formattedKey = k
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/_/g, ' ')
+                  .replace(/^\w/, (c) => c.toUpperCase())
+                const dedupeKey = formattedKey.toLowerCase()
+                if (!seenKeys.has(dedupeKey)) {
+                  seenKeys.add(dedupeKey)
+                  items.push({
+                    k: formattedKey,
+                    v: val,
+                  })
+                }
+              }
+            })
+          }
+        }
+      } catch {}
+    }
+
+    return items
+  }, [backendOrders, user])
 
   const handleConfirmCancel = async () => {
     if (!cancellingOrder) return
@@ -164,13 +271,13 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     id: bo.id,
     garment: bo.garmentBrand ? `${bo.garmentBrand} (${bo.garmentName || 'Garment'})` : (bo.garmentName || 'Custom Garment'),
     service: bo.serviceName || 'Alteration Service',
-    studio: bo.storeName || 'Partner Atelier',
-    address: bo.postcode ? `Postcode: ${bo.postcode}` : 'Local Studio Area',
-    phone: bo.storePhone || bo.store?.phone || '+44 20 7946 0912',
+    studio: bo.store?.name || (bo.storeName && bo.storeName !== 'Atelier SoHo' ? bo.storeName : null) || bo.storeName || 'Partner Atelier',
+    address: bo.postcode ? `Postcode: ${bo.postcode}` : (bo.store?.postcode ? `Postcode: ${bo.store.postcode}` : 'Partner Studio'),
+    phone: bo.storePhone || bo.store?.phone || null,
     status: bo.status || 'Allocated',
-    price: `$${bo.price || 25}.00`,
-    slot: `${bo.date || 'Scheduled'} @ ${bo.timeSlot || 'Fitting Slot'}`,
-    otp: bo.otp || '1234',
+    price: typeof bo.price === 'number' ? `$${bo.price.toFixed(2)}` : (bo.price ? `$${bo.price}` : '$25.00'),
+    slot: bo.date && bo.timeSlot ? `${bo.date} @ ${bo.timeSlot}` : (bo.date || 'Fitting Slot Scheduled'),
+    otp: bo.otp || '',
     isCurrent: idx === 0,
   }))
 
@@ -220,7 +327,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               }`}
           >
             <Sparkles size={13} className="text-[#E7C9BA]" />
-            <span>Digital Fit Passport</span>
+            <span>Digital Fit Passport ({passportItems.length})</span>
           </button>
         </div>
 
@@ -269,15 +376,17 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                           <MapPin size={12} className="text-[#9E593B]" />
                           <span>{o.studio} ({o.address})</span>
                         </span>
-                        <a
-                          href={`tel:${o.phone.replace(/\s+/g, '')}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
-                          title="Call partner studio"
-                        >
-                          <Phone size={11} className="text-emerald-600" />
-                          <span>{o.phone}</span>
-                        </a>
+                        {o.phone && (
+                          <a
+                            href={`tel:${o.phone.replace(/\s+/g, '')}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
+                            title="Call partner studio"
+                          >
+                            <Phone size={11} className="text-emerald-600" />
+                            <span>{o.phone}</span>
+                          </a>
+                        )}
                       </div>
                     </div>
 
@@ -329,17 +438,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                             <span>Cancel Order</span>
                           </button>
                         )}
-                        {/* <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedOrder(o)
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#18191B] bg-[#FAF8F5] px-4 py-2 rounded-full border border-[#DDD6CB] hover:bg-[#F4EFEA] transition-colors cursor-pointer"
-                        >
-                          <QrCode size={13} />
-                          <span>View Pass</span>
-                        </button> */}
                       </div>
                     </div>
                   </div>
@@ -369,21 +467,35 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               </span>
             </div>
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-              {[
-                { k: 'Waist Inseam', v: '29.0 inches (Slight Break)' },
-                { k: 'Waistband Stance', v: 'High-Rise (27.5 in)' },
-                { k: 'Blazer Sleeve', v: '23.0 in (Wrist Bone Break)' },
-                { k: 'Shoulder Pitch', v: '15.5 in Standard' },
-                { k: 'Dress Hem Line', v: 'Midi (Mid-calf 42.0 in)' },
-                { k: 'Preferred Denim Finish', v: 'Original Chainstitch Lock' },
-              ].map((item, idx) => (
-                <div key={idx} className="rounded-xl border border-[#E2DDD5] bg-[#FAF8F5] p-4">
-                  <span className="text-[10px] uppercase font-bold text-[#7A7E85]">{item.k}</span>
-                  <p className="font-serif text-sm font-semibold text-[#18191B] mt-1">{item.v}</p>
+            {passportItems.length === 0 ? (
+              <div className="mt-8 py-12 px-6 text-center rounded-xl border border-dashed border-[#DDD6CB] bg-[#FAF8F5]">
+                <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-[#9E593B] border border-[#DDD6CB]">
+                  <Ruler size={18} />
                 </div>
-              ))}
-            </div>
+                <h4 className="font-serif text-base font-bold text-[#18191B]">No Recorded Fit Specifications Yet</h4>
+                <p className="mt-1.5 text-xs text-[#5A5D64] max-w-[420px] mx-auto">
+                  Your Digital Fit Passport will automatically calibrate and record verified measurements, inseam breaks, and seam specifications from your studio fittings and alterations.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {passportItems.map((item, idx) => (
+                  <div key={idx} className="rounded-xl border border-[#E2DDD5] bg-[#FAF8F5] p-4 flex flex-col justify-between hover:border-[#9E593B] transition-colors">
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] uppercase font-bold text-[#7A7E85] tracking-wider">{item.k}</span>
+                        {item.sourceGarment && (
+                          <span className="text-[9px] font-mono text-[#9E593B] bg-[#F4EFEA] px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                            {item.sourceGarment}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-serif text-sm font-semibold text-[#18191B] mt-1.5 leading-snug">{item.v}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <p className="mt-6 text-xs text-[#7A7E85] text-center border-t border-[#F0EBE3] pt-4">
               Your fit passport accumulates measurements automatically during studio fittings.
@@ -410,7 +522,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               </div>
 
               <span className="text-xs text-[#7A7E85]">Fitting Counter Code</span>
-              <p className="font-mono text-3xl font-bold tracking-[0.3em] text-[#18191B] mt-1">{selectedOrder.otp}</p>
+              <p className="font-mono text-3xl font-bold tracking-[0.3em] text-[#18191B] mt-1">{selectedOrder.otp || 'PENDING'}</p>
 
               <p className="mt-4 text-xs text-[#5A5D64]">
                 Show this QR or 4-digit code upon arrival at <strong>{selectedOrder.studio}</strong>.

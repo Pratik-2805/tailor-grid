@@ -93,7 +93,14 @@ router.get('/', async (req, res) => {
       },
     });
 
-    return res.json({ orders });
+    const processedOrders = orders.map((o) => {
+      if (o.store && (!o.storeName || o.storeName === 'Atelier SoHo' || o.storeName === 'Local Partner Atelier')) {
+        return { ...o, storeName: o.store.name };
+      }
+      return o;
+    });
+
+    return res.json({ orders: processedOrders });
   } catch (err) {
     if (err.code === 'ECONNREFUSED') {
       console.warn('⚠️ [Database Notice] PostgreSQL is temporarily unreachable. Waiting for reconnect...');
@@ -130,7 +137,12 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    if (order) return res.json({ order });
+    if (order) {
+      if (order.store && (!order.storeName || order.storeName === 'Atelier SoHo' || order.storeName === 'Local Partner Atelier')) {
+        order.storeName = order.store.name;
+      }
+      return res.json({ order });
+    }
     return res.status(404).json({ error: 'Order not found' });
   } catch (err) {
     console.error('Get order error:', err);
@@ -295,6 +307,12 @@ router.put('/:id', async (req, res) => {
         const storeExists = await prisma.partnerStore.findUnique({ where: { id: storeId } });
         if (storeExists) {
           updateData.storeId = storeId;
+          if (!updateData.storeName || (updateData.storeName === 'Atelier SoHo' && storeExists.name !== 'Atelier SoHo')) {
+            updateData.storeName = storeExists.name;
+          }
+          if (!updateData.storePhone && storeExists.phone) {
+            updateData.storePhone = storeExists.phone;
+          }
         }
       } else {
         updateData.storeId = null;
@@ -304,7 +322,14 @@ router.put('/:id', async (req, res) => {
     const updated = await prisma.order.update({
       where: { id },
       data: updateData,
+      include: {
+        store: true,
+      },
     });
+
+    if (updated.store && (!updated.storeName || updated.storeName === 'Atelier SoHo' || updated.storeName === 'Local Partner Atelier')) {
+      updated.storeName = updated.store.name;
+    }
 
     return res.json({
       success: true,

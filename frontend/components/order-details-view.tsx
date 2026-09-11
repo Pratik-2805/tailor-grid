@@ -197,8 +197,18 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const closestStore = getClosestStoreForLocation(order?.city || order?.storeAddress || order?.postcode)
   const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '0000')
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
-  const storeNameDisplay = order?.storeName || closestStore?.name || 'Local Partner Atelier'
-  const storeAddressDisplay = order?.storeAddress || (closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio')
+  const storeNameDisplay =
+    order?.store?.name ||
+    (order?.storeName && order.storeName !== 'Atelier SoHo' && order.storeName !== 'Local Partner Atelier' ? order.storeName : null) ||
+    order?.storeName ||
+    closestStore?.name ||
+    'Local Partner Atelier'
+
+  const storeAddressDisplay =
+    order?.store?.address
+      ? (order.store.address + (order.store.area && order.store.area !== order.store.address ? `, ${order.store.area}` : ''))
+      : (order?.storeAddress || (closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio'))
+
   const storePhoneDisplay = order?.storePhone || order?.store?.phone || closestStore?.phone || '+44 20 7946 0912'
   const storeHoursDisplay = order?.store?.openingHours || closestStore?.openingHours || 'Mon–Sat: 09:00 – 19:00'
   const storeTailorDisplay = order?.store?.leadTailor || closestStore?.leadTailor || 'Master Tailor'
@@ -206,7 +216,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
   const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
 
-  const destinationCoords = closestStore?.coords || { lat: 19.3705, lng: 72.8228 }
+  const destinationCoords =
+    (order?.store?.lat && order?.store?.lng)
+      ? { lat: Number(order.store.lat), lng: Number(order.store.lng) }
+      : (closestStore?.coords || { lat: 19.3705, lng: 72.8228 })
   const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
   const cleanMapUrl = `https://maps.google.com/maps?q=${storeQuery}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`
 
@@ -470,7 +483,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
   // Dynamic Header Text
   let headerTitle = 'Order Accepted'
-  let headerSubtitle = `${order?.storeName ? `Accepted by ${order.storeName}` : 'Studio accepted'} • Order #${order?.id || slugId}`
+  let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
 
   if (isCancelled) {
     headerTitle = 'Order Cancelled'
