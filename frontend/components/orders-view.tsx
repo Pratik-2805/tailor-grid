@@ -11,6 +11,7 @@ import {
   LogIn,
   MapPin,
   Package,
+  Phone,
   QrCode,
   Ruler,
   Scissors,
@@ -164,7 +165,8 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     garment: bo.garmentBrand ? `${bo.garmentBrand} (${bo.garmentName || 'Garment'})` : (bo.garmentName || 'Custom Garment'),
     service: bo.serviceName || 'Alteration Service',
     studio: bo.storeName || 'Partner Atelier',
-    address: bo.postcode ? `Postcode: ${bo.postcode}` : '18 Kensington Church St',
+    address: bo.postcode ? `Postcode: ${bo.postcode}` : 'Local Studio Area',
+    phone: bo.storePhone || bo.store?.phone || '+44 20 7946 0912',
     status: bo.status || 'Allocated',
     price: `$${bo.price || 25}.00`,
     slot: `${bo.date || 'Scheduled'} @ ${bo.timeSlot || 'Fitting Slot'}`,
@@ -262,9 +264,20 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                       <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B] group-hover:text-[#9E593B] transition-colors">{o.garment}</h3>
                       <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
 
-                      <div className="mt-3 flex items-center gap-2 text-[11px] text-[#7A7E85]">
-                        <MapPin size={12} className="text-[#9E593B]" />
-                        <span>{o.studio} ({o.address})</span>
+                      <div className="mt-3 flex items-center gap-3 text-[11px] text-[#7A7E85] flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <MapPin size={12} className="text-[#9E593B]" />
+                          <span>{o.studio} ({o.address})</span>
+                        </span>
+                        <a
+                          href={`tel:${o.phone.replace(/\s+/g, '')}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
+                          title="Call partner studio"
+                        >
+                          <Phone size={11} className="text-emerald-600" />
+                          <span>{o.phone}</span>
+                        </a>
                       </div>
                     </div>
 

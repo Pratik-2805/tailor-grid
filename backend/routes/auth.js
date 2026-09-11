@@ -278,8 +278,8 @@ async function findOrLinkUser({
       avatar:
         avatar ||
         `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
-      address: address || resolvedStore?.address || '18 Kensington Church St',
-      postcode: postcode || resolvedStore?.postcode || 'W8 4EP',
+      address: address || (resolvedRole === 'STUDIO' ? (resolvedStore?.address || null) : null),
+      postcode: postcode || (resolvedRole === 'STUDIO' ? (resolvedStore?.postcode || null) : null),
       method:
         method ||
         (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),

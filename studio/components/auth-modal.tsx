@@ -497,7 +497,7 @@ export function AuthModal({
       {/* Top Header / Mode Switcher */}
       <div className="px-6 pt-5 pb-4 border-b border-[#F3EFEA] bg-[#FCFAF8] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {isSubPage ? (
+          {isSubPage && (
             <button
               onClick={goBack}
               className="size-8 rounded-xl bg-white hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center transition-colors cursor-pointer text-[#374151]"
@@ -505,19 +505,22 @@ export function AuthModal({
             >
               <ArrowLeft size={15} />
             </button>
-          ) : (
-            <div className="size-8 rounded-xl bg-[#9E593B]/10 border border-[#9E593B]/20 grid place-items-center text-[#9E593B]">
-              <Scissors size={16} />
-            </div>
           )}
 
-          <div>
-            <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
-              Studio Portal
-            </span>
-            <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
-              Workbench Node
-            </span>
+          <div className="flex items-center gap-3">
+            <img
+              src="/bg_logo.png"
+              alt="Darzi Logo"
+              className="h-12 sm:h-14 w-auto object-contain transition-all duration-200"
+            />
+            <div>
+              <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
+                Studio Portal
+              </span>
+              <span className="text-xs font-bold text-[#0F1115] block mt-0.5">
+                Workbench Node
+              </span>
+            </div>
           </div>
         </div>
 
