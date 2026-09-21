@@ -216,9 +216,8 @@ export function PartnerOnboarding({
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
-  // ──────── Restore cached onboarding form data from storage (only for authenticated session) ────────
+  // ──────── Restore cached onboarding form data from browser storage ────────
   const cachedForm = (() => {
-    if (!user?.email && !pendingGoogle?.email) return null
     const raw = ssGet('tg_onboard_form') || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_form') : null)
     if (!raw) return null
     try { return JSON.parse(raw) } catch { return null }

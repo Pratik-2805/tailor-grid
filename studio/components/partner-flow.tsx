@@ -407,7 +407,47 @@ export function PartnerFlow({
   const [timerSecs, setTimerSecs] = useState(15)
   const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
-  const [skippedOrderIds, setSkippedOrderIds] = useState<string[]>([])
+
+  // Permanently skipped order IDs for THIS studio (clicked Skip)
+  const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_permanently_skipped_orders')
+      if (stored) {
+        try { return JSON.parse(stored) } catch { }
+      }
+    }
+    return []
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tg_studio_permanently_skipped_orders', JSON.stringify(permanentlySkippedIds))
+      } catch { }
+    }
+  }, [permanentlySkippedIds])
+
+  // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
+  const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
+
+  // Clean up timed-out timestamps after 2 minutes (120,000ms) so unattended requests re-broadcast every 2 mins!
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setTimeoutTimestamps((prev) => {
+        let changed = false
+        const next = { ...prev }
+        Object.entries(next).forEach(([id, ts]) => {
+          if (now - ts >= 120000) {
+            delete next[id]
+            changed = true
+          }
+        })
+        return changed ? next : prev
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── 2. Drop-off Intake PIN Handshake State ─────────────────────────────────
   const [pinInput, setPinInput] = useState('')
@@ -589,7 +629,16 @@ export function PartnerFlow({
   }, [user, online])
 
   // Live incoming requests from real customer bookings (Status: Allocated)
-  const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated' && !skippedOrderIds.includes(o.id))
+  // Re-broadcasts every 2 minutes until accepted by a studio, UNLESS explicitly skipped by THIS studio.
+  const liveAllocatedOrders = orders.filter((o) => {
+    if (o.status !== 'Allocated') return false
+    if (permanentlySkippedIds.includes(o.id)) return false // Explicitly skipped by THIS studio -> never show again!
+    const timeoutTs = timeoutTimestamps[o.id]
+    if (timeoutTs && Date.now() - timeoutTs < 120000) {
+      return false // Unattended 15s timer expiry -> hide for 2 minutes before re-broadcasting
+    }
+    return true
+  })
 
   const allBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
     const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
@@ -636,15 +685,10 @@ export function PartnerFlow({
     setTimeout(() => setBroadcastToast(null), 5000)
   }
 
-  const handleDeclineAllocatedOrder = async (orderId: string) => {
-    const updates: Partial<FittingBooking> = {
-      status: 'Cancelled',
-      sewingNotes: 'Request not accepted by studio in time',
-    }
-    setOrders((prev) => prev.filter((o) => o.id !== orderId))
-    setSkippedOrderIds((prev) => [...prev, orderId])
+  const handleDeclineAllocatedOrder = (orderId: string) => {
+    // Explicitly skipped by studio -> permanently hide for this studio!
+    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, orderId])))
     setTimerSecs(15)
-    await updateOrder(orderId, updates).catch(() => { })
   }
 
   const handleAcceptBroadcast = (bc: BroadcastRequest) => {
@@ -655,21 +699,20 @@ export function PartnerFlow({
 
   const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
     if (!bc) return
-    setSkippedOrderIds((prev) => [...prev, bc.id])
+    // Explicitly clicked Skip -> permanently hide for THIS studio!
+    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, bc.id])))
     setTimerSecs(15)
-    if (bc.isRealCustomerOrder && bc.realOrder) {
-      handleDeclineAllocatedOrder(bc.realOrder.id)
-    }
   }
 
-  // 15-Second Timer Countdown & Auto-Skip on Expiry
+  // 15-Second Timer Countdown & Auto-Skip on Expiry (Unattended -> re-broadcasts every 2 minutes)
   useEffect(() => {
     if (!online || allBroadcasts.length === 0 || timerPaused) return
     const interval = setInterval(() => {
       setTimerSecs((prev) => {
         if (prev <= 1) {
           if (currentBroadcast) {
-            handleSkipBroadcast(currentBroadcast)
+            // Unattended timer expired -> suppress locally for 2 minutes, then repeat
+            setTimeoutTimestamps((prev) => ({ ...prev, [currentBroadcast.id]: Date.now() }))
           }
           return 15
         }
