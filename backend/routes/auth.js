@@ -799,24 +799,49 @@ router.post('/google', async (req, res) => {
       });
     }
 
-    // Persist new user directly to database
-    const newUser = await findOrLinkUser({
+    // Do NOT write to DB if user is not registered yet!
+    // Store in temporary cache / signed token until full registration completion.
+    const tempPayloadToken = jwt.sign(
+      {
+        email: cleanEmail,
+        name: name || 'Google User',
+        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        role,
+        method: 'google',
+        type: 'pending_google_signup',
+      },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    const tempSignupId = `temp_g_${tempPayloadToken}`;
+    storePendingGoogleSignup(tempSignupId, {
+      tempSignupId,
       email: cleanEmail,
       name: name || 'Google User',
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
-      status: role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE',
+      method: 'google',
     });
 
-    const token = generateToken(newUser);
+    const pendingUserObject = {
+      id: tempSignupId,
+      name: name || 'Google User',
+      email: cleanEmail,
+      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+      role,
+      status: role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE',
+      contact: cleanEmail,
+    };
+
     return res.json({
       success: true,
       isNewUser: true,
-      message: 'Google identity verified successfully.',
-      token,
-      user: newUser,
-      needsPhone: !newUser.phone,
-      hasPhone: Boolean(newUser.phone),
+      message: 'Google identity verified successfully. Complete registration to save account.',
+      tempSignupId,
+      token: tempPayloadToken,
+      user: pendingUserObject,
+      needsPhone: true,
+      hasPhone: false,
     });
   } catch (err) {
     console.error('Google Auth Route Error:', err);

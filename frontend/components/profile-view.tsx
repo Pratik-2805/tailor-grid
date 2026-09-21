@@ -91,10 +91,10 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
 
   // Measurements
   const [fitPreference, setFitPreference] = useState<'Slim' | 'Tailored' | 'Regular' | 'Relaxed'>('Tailored')
-  const [waist, setWaist] = useState('32')
-  const [inseam, setInseam] = useState('30')
-  const [chest, setChest] = useState('38')
-  const [sleeve, setSleeve] = useState('33')
+  const [waist, setWaist] = useState('')
+  const [inseam, setInseam] = useState('')
+  const [chest, setChest] = useState('')
+  const [sleeve, setSleeve] = useState('')
 
   // Feedback states
   const [isSaving, setIsSaving] = useState(false)
@@ -114,16 +114,30 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       }
 
       if (typeof window !== 'undefined') {
-        const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
-        if (savedMeasure) {
-          try {
-            const parsed = JSON.parse(savedMeasure)
-            if (parsed.fit) setFitPreference(parsed.fit)
-            if (parsed.waist) setWaist(parsed.waist)
-            if (parsed.inseam) setInseam(parsed.inseam)
-            if (parsed.chest) setChest(parsed.chest)
-            if (parsed.sleeve) setSleeve(parsed.sleeve)
-          } catch { }
+        const candidateKeys = [
+          user.id ? `tg_measurements_${user.id}` : null,
+          user.email ? `tg_measurements_${user.email}` : null,
+          `tg_measurements_${user.id || user.email || 'guest'}`,
+          'tg_measurements_guest',
+        ].filter(Boolean) as string[]
+
+        let loaded = false
+        for (const k of candidateKeys) {
+          const savedMeasure = getStorageCookie(k) || (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
+          if (savedMeasure) {
+            try {
+              const parsed = JSON.parse(savedMeasure)
+              if (parsed && typeof parsed === 'object') {
+                if (parsed.fit) setFitPreference(parsed.fit)
+                if (parsed.waist) setWaist(parsed.waist)
+                if (parsed.inseam) setInseam(parsed.inseam)
+                if (parsed.chest) setChest(parsed.chest)
+                if (parsed.sleeve) setSleeve(parsed.sleeve)
+                loaded = true
+                break
+              }
+            } catch { }
+          }
         }
       }
 
@@ -132,7 +146,56 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
         setIsLoadingOrders(true)
         fetchOrders(contactQuery)
           .then((ords) => {
-            if (ords) setOrders(ords)
+            if (ords) {
+              setOrders(ords)
+              // Auto-sync profile measurements from user's orders if vault is empty
+              const profileKey = `tg_measurements_${user.id || user.email || 'guest'}`
+              const savedMeasure = getStorageCookie(profileKey) || (typeof localStorage !== 'undefined' ? localStorage.getItem(profileKey) : null)
+              let currentVault: Record<string, string> = {}
+              try {
+                if (savedMeasure) currentVault = JSON.parse(savedMeasure)
+              } catch { }
+
+              let updatedVault = { ...currentVault }
+              ords.forEach((order) => {
+                const meas = order.measurements || order.pinnedAdjustment
+                if (meas) {
+                  let measObj: Record<string, string> = {}
+                  if (typeof meas === 'object') measObj = meas
+                  else if (typeof meas === 'string' && meas.startsWith('{')) {
+                    try { measObj = JSON.parse(meas) } catch { }
+                  }
+                  Object.entries(measObj).forEach(([k, v]) => {
+                    if (v && v !== 'To be Measured by Tailor') {
+                      const str = String(v).trim()
+                      const matchNum = str.match(/(\d+(?:\.\d+)?)/)
+                      if (k.toLowerCase().includes('waist') && matchNum && !updatedVault.waist) {
+                        updatedVault.waist = matchNum[1]
+                      }
+                      if (k.toLowerCase().includes('inseam') && matchNum && !updatedVault.inseam) {
+                        updatedVault.inseam = matchNum[1]
+                      }
+                      if ((k.toLowerCase().includes('chest') || k.toLowerCase().includes('bust')) && matchNum && !updatedVault.chest) {
+                        updatedVault.chest = matchNum[1]
+                      }
+                      if (k.toLowerCase().includes('sleeve') && matchNum && !updatedVault.sleeve) {
+                        updatedVault.sleeve = matchNum[1]
+                      }
+                    }
+                  })
+                }
+              })
+
+              if (updatedVault.waist) setWaist((prev) => prev || updatedVault.waist)
+              if (updatedVault.inseam) setInseam((prev) => prev || updatedVault.inseam)
+              if (updatedVault.chest) setChest((prev) => prev || updatedVault.chest)
+              if (updatedVault.sleeve) setSleeve((prev) => prev || updatedVault.sleeve)
+
+              if (Object.keys(updatedVault).length > 0) {
+                setStorageCookie(profileKey, JSON.stringify(updatedVault))
+                try { localStorage.setItem(profileKey, JSON.stringify(updatedVault)) } catch { }
+              }
+            }
           })
           .catch(() => { })
           .finally(() => setIsLoadingOrders(false))
@@ -162,16 +225,26 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       })
 
       if (typeof window !== 'undefined') {
-        setStorageCookie(
+        const payload = JSON.stringify({
+          fit: fitPreference,
+          waist,
+          inseam,
+          chest,
+          sleeve,
+        })
+        const keys = [
+          user.id ? `tg_measurements_${user.id}` : null,
+          user.email ? `tg_measurements_${user.email}` : null,
           `tg_measurements_${user.id || user.email || 'guest'}`,
-          JSON.stringify({
-            fit: fitPreference,
-            waist,
-            inseam,
-            chest,
-            sleeve,
-          })
-        )
+          'tg_measurements_guest',
+        ].filter(Boolean) as string[]
+
+        keys.forEach((k) => {
+          setStorageCookie(k, payload)
+          try {
+            localStorage.setItem(k, payload)
+          } catch { }
+        })
       }
 
       setIsSaving(false)

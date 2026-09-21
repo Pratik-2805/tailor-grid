@@ -248,11 +248,11 @@ function MeasurementOptionDropdown({
   }, [])
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative z-30" ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] hover:bg-neutral-100 focus:bg-white focus:border-black text-left flex items-center justify-between transition-colors cursor-pointer"
+        className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] hover:bg-neutral-100 focus:bg-white focus:border-black text-left flex items-center justify-between transition-colors cursor-pointer shadow-xs"
       >
         <span className="text-xs font-bold text-black truncate">
           {value || placeholder || 'Select option'}
@@ -261,7 +261,7 @@ function MeasurementOptionDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-1.5 w-56 bg-white rounded-xl border border-gray-200 shadow-xl p-1.5 z-40 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-full right-0 mt-1.5 w-56 sm:w-60 bg-white rounded-xl border border-gray-200 shadow-2xl p-1.5 z-50 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-52 overflow-y-auto">
           {options.map((opt) => {
             const isSelected = value === opt
             return (
@@ -286,6 +286,46 @@ function MeasurementOptionDropdown({
   )
 }
 
+function getFieldPlaceholder(placeholder: string, unit: 'in' | 'cm'): string {
+  if (unit === 'in') return placeholder
+  return placeholder
+    .replace(/30\s*in/g, '76 cm')
+    .replace(/32\s*in/g, '81 cm')
+    .replace(/33\s*in/g, '84 cm')
+    .replace(/40\s*in/g, '102 cm')
+    .replace(/31\s*in/g, '79 cm')
+    .replace(/1\.5\s*in/g, '3.8 cm')
+    .replace(/1\.25\s*in/g, '3.2 cm')
+    .replace(/1\.0\s*in/g, '2.5 cm')
+    .replace(/0\.75\s*in/g, '2.0 cm')
+    .replace(/0\.5\s*in/g, '1.3 cm')
+    .replace(/1\s*in/g, '2.5 cm')
+    .replace(/2\s*in/g, '5.0 cm')
+    .replace(/3-inch/g, '7.5 cm')
+    .replace(/\bin\b/g, 'cm')
+}
+
+function convertMeasurementUnit(val: string, targetUnit: 'in' | 'cm'): string {
+  if (!val || val === 'To be Measured by Tailor') return val
+  if (targetUnit === 'cm') {
+    return val.replace(/(\d+(?:\.\d+)?)\s*(?:in|inches|")?/gi, (match, num) => {
+      const n = parseFloat(num)
+      if (isNaN(n)) return match
+      if (n > 45 && !match.toLowerCase().includes('in')) return `${n} cm`
+      const cmVal = Math.round(n * 2.54 * 10) / 10
+      return `${cmVal} cm`
+    })
+  } else {
+    return val.replace(/(\d+(?:\.\d+)?)\s*(?:cm|cms)?/gi, (match, num) => {
+      const n = parseFloat(num)
+      if (isNaN(n)) return match
+      if (n < 45 && !match.toLowerCase().includes('cm')) return `${n} in`
+      const inVal = Math.round((n / 2.54) * 10) / 10
+      return `${inVal} in`
+    })
+  }
+}
+
 function parseMeasurementsFromBooking(
   currentCustom: Record<string, string>,
   existingProfile: Record<string, string>
@@ -296,12 +336,19 @@ function parseMeasurementsFromBooking(
     if (!rawVal || rawVal === 'To be Measured by Tailor') continue
     const val = rawVal.trim()
 
+    // Store the exact key value
+    updated[key] = val
+
     if (key === 'waist' || key === 'waistSuppression') {
       const match = val.match(/(\d+(?:\.\d+)?)/)
       if (match) updated.waist = match[1]
     } else if (key === 'trouserInseamWaist' || key === 'chestWaist' || key === 'jacketTorso' || key === 'waistHips') {
       const waistMatch = val.match(/Waist\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*Waist/i)
       if (waistMatch) updated.waist = waistMatch[1]
+      else {
+        const anyNum = val.match(/(\d+(?:\.\d+)?)/)
+        if (anyNum && key === 'waistHips') updated.waist = anyNum[1]
+      }
     }
 
     if (key === 'inseam') {
@@ -312,12 +359,16 @@ function parseMeasurementsFromBooking(
       if (inseamMatch) updated.inseam = inseamMatch[1]
     }
 
-    if (key === 'chestWaist' || key === 'jacketTorso' || key === 'bustBodice') {
-      const chestMatch = val.match(/Chest\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*Chest/i)
+    if (key === 'chestWaist' || key === 'jacketTorso' || key === 'bustBodice' || key === 'bodiceFit') {
+      const chestMatch = val.match(/(?:Chest|Bust)\s*(\d+(?:\.\d+)?)/i) || val.match(/(\d+(?:\.\d+)?)\s*(?:in|")?\s*(?:Chest|Bust)/i)
       if (chestMatch) updated.chest = chestMatch[1]
+      else {
+        const anyNum = val.match(/(\d+(?:\.\d+)?)/)
+        if (anyNum && (key === 'bustBodice' || key === 'bodiceFit')) updated.chest = anyNum[1]
+      }
     }
 
-    if (key === 'sleeveLength') {
+    if (key === 'sleeveLength' || key === 'sleeve') {
       const match = val.match(/(\d+(?:\.\d+)?)/)
       if (match) updated.sleeve = match[1]
     }
@@ -334,15 +385,44 @@ function parseMeasurementsFromBooking(
 }
 
 function loadProfileMeasurements(user: any): Record<string, string> | null {
-  if (typeof window === 'undefined' || !user) return null
-  const key = `tg_measurements_${user.id || user.email || 'guest'}`
-  const saved = getStorageCookie(key)
-  if (!saved) return null
-  try {
-    return JSON.parse(saved)
-  } catch {
-    return null
+  if (typeof window === 'undefined') return null
+  const candidateKeys = [
+    user?.id ? `tg_measurements_${user.id}` : null,
+    user?.email ? `tg_measurements_${user.email}` : null,
+    user ? `tg_measurements_${user.id || user.email || 'guest'}` : null,
+    'tg_measurements_guest',
+  ].filter(Boolean) as string[]
+
+  for (const k of candidateKeys) {
+    const saved = getStorageCookie(k) || (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed
+        }
+      } catch { }
+    }
   }
+  return null
+}
+
+function saveProfileMeasurements(user: any, measurements: Record<string, string>) {
+  if (typeof window === 'undefined') return
+  const keys = [
+    user?.id ? `tg_measurements_${user.id}` : null,
+    user?.email ? `tg_measurements_${user.email}` : null,
+    user ? `tg_measurements_${user.id || user.email || 'guest'}` : null,
+    'tg_measurements_guest',
+  ].filter(Boolean) as string[]
+
+  const json = JSON.stringify(measurements)
+  keys.forEach((k) => {
+    setStorageCookie(k, json)
+    try {
+      localStorage.setItem(k, json)
+    } catch { }
+  })
 }
 
 interface DropdownItem {
@@ -493,8 +573,21 @@ export default function BookPage() {
   // Measurement collapsible dropdown & custom edit state
   const [isMeasurementOpen, setIsMeasurementOpen] = useState(false)
   const [isEditingMeasurements, setIsEditingMeasurements] = useState(false)
+  const [measUnit, setMeasUnit] = useState<'in' | 'cm'>('in')
   const [customMeasurements, setCustomMeasurements] = useState<Record<string, string>>({})
   const [isTailorMeasuredMap, setIsTailorMeasuredMap] = useState<Record<string, boolean>>({})
+
+  const handleUnitChange = (newUnit: 'in' | 'cm') => {
+    if (newUnit === measUnit) return
+    setMeasUnit(newUnit)
+    setCustomMeasurements((prev) => {
+      const converted: Record<string, string> = {}
+      for (const [k, v] of Object.entries(prev)) {
+        converted[k] = convertMeasurementUnit(v, newUnit)
+      }
+      return converted
+    })
+  }
 
   // Schedule modal state
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
@@ -557,55 +650,6 @@ export default function BookPage() {
     }
   }, [prefilledGarmentId, prefilledServiceId, prefilledStore, measurementDraft])
 
-  // Pre-fill measurements directly from user profile if available
-  useEffect(() => {
-    if (!user) return
-    const profile = loadProfileMeasurements(user)
-    if (!profile) return
-
-    setCustomMeasurements((prev) => {
-      const updated = { ...prev }
-      const isTailorMapUpdates: Record<string, boolean> = {}
-
-      if (profile.waist) {
-        if (!updated.waist) updated.waist = `${profile.waist} in`
-        if (!updated.waistSuppression) updated.waistSuppression = `Take in to ${profile.waist} in`
-      }
-      if (profile.inseam) {
-        if (!updated.inseam) updated.inseam = `${profile.inseam} in`
-      }
-      if (profile.sleeve) {
-        if (!updated.sleeveLength) updated.sleeveLength = `${profile.sleeve} in`
-      }
-      if (profile.chest) {
-        if (!updated.chestWaist) updated.chestWaist = `${profile.chest} in Chest`
-      }
-      if (profile.inseam && profile.waist) {
-        if (!updated.trouserInseamWaist) updated.trouserInseamWaist = `Inseam ${profile.inseam} in, Waist ${profile.waist} in`
-      }
-      if (profile.chest && profile.waist) {
-        if (!updated.jacketTorso) updated.jacketTorso = `Chest ${profile.chest} in, Waist ${profile.waist} in`
-      }
-      if (profile.fit) {
-        if (!updated.tapering) {
-          if (profile.fit === 'Slim') updated.tapering = 'Slim Knee-to-Ankle'
-          else if (profile.fit === 'Tailored') updated.tapering = 'Original Factory Taper'
-          else if (profile.fit === 'Regular') updated.tapering = 'Straight Leg'
-          else if (profile.fit === 'Relaxed') updated.tapering = 'Relaxed Fit'
-        }
-      }
-
-      Object.keys(updated).forEach((k) => {
-        if (updated[k] && updated[k] !== 'To be Measured by Tailor') {
-          isTailorMapUpdates[k] = false
-        }
-      })
-
-      setIsTailorMeasuredMap((prevMap) => ({ ...prevMap, ...isTailorMapUpdates }))
-      return updated
-    })
-  }, [user, selectedGarmentId])
-
   // Derive active category & service
   const currentCategory = useMemo(() => {
     return GARMENT_CATEGORIES.find((c) => c.id === selectedGarmentId) || GARMENT_CATEGORIES[0]
@@ -622,6 +666,78 @@ export default function BookPage() {
   const activeMeasurementFields = useMemo(() => {
     return CATEGORY_MEASUREMENTS[selectedGarmentId] || CATEGORY_MEASUREMENTS.trousers
   }, [selectedGarmentId])
+
+  // Pre-fill measurements directly from user profile if available
+  useEffect(() => {
+    const profile = loadProfileMeasurements(user)
+    if (!profile || Object.keys(profile).length === 0) return
+
+    setCustomMeasurements((prev) => {
+      const updated = { ...prev }
+      const isTailorMapUpdates: Record<string, boolean> = {}
+
+      // Direct exact match
+      Object.keys(profile).forEach((pk) => {
+        if (profile[pk] && !updated[pk] && pk !== 'fit') {
+          updated[pk] = profile[pk]
+        }
+      })
+
+      // Waist mapping
+      if (profile.waist) {
+        if (!updated.waist) updated.waist = `${profile.waist} in`
+        if (!updated.waistSuppression) updated.waistSuppression = `Take in to ${profile.waist} in`
+        if (!updated.waistHips) updated.waistHips = `Waist ${profile.waist} in`
+      }
+
+      // Inseam mapping
+      if (profile.inseam) {
+        if (!updated.inseam) updated.inseam = `${profile.inseam} in`
+        if (!updated.hemLine && !profile.hemLine) updated.hemLine = `Inseam ${profile.inseam} in`
+        if (!updated.hemLength && !profile.hemLength) updated.hemLength = `Hem ${profile.inseam} in`
+        if (!updated.delicateHem && !profile.delicateHem) updated.delicateHem = `Hem ${profile.inseam} in`
+      }
+
+      // Sleeve mapping
+      if (profile.sleeve) {
+        if (!updated.sleeveLength) updated.sleeveLength = `${profile.sleeve} in`
+      }
+
+      // Chest / Bust mapping
+      if (profile.chest) {
+        if (!updated.chestWaist) updated.chestWaist = `${profile.chest} in Chest`
+        if (!updated.bodiceFit) updated.bodiceFit = `Bust ${profile.chest} in`
+        if (!updated.bustBodice) updated.bustBodice = `Bust ${profile.chest} in`
+      }
+
+      // Suits multi-part mapping
+      if (profile.inseam && profile.waist) {
+        if (!updated.trouserInseamWaist) updated.trouserInseamWaist = `Inseam ${profile.inseam} in, Waist ${profile.waist} in`
+      }
+      if (profile.chest && profile.waist) {
+        if (!updated.jacketTorso) updated.jacketTorso = `Chest ${profile.chest} in, Waist ${profile.waist} in`
+      }
+
+      // Fit / Tapering mapping
+      if (profile.fit) {
+        if (!updated.tapering) {
+          if (profile.fit === 'Slim') updated.tapering = 'Slim Knee-to-Ankle'
+          else if (profile.fit === 'Tailored') updated.tapering = 'Original Factory Taper'
+          else if (profile.fit === 'Regular') updated.tapering = 'Straight Leg'
+          else if (profile.fit === 'Relaxed') updated.tapering = 'Relaxed Fit'
+        }
+      }
+
+      activeMeasurementFields.forEach((field) => {
+        if (updated[field.key] && updated[field.key] !== 'To be Measured by Tailor') {
+          isTailorMapUpdates[field.key] = false
+        }
+      })
+
+      setIsTailorMeasuredMap((prevMap) => ({ ...prevMap, ...isTailorMapUpdates }))
+      return updated
+    })
+  }, [user, selectedGarmentId, activeMeasurementFields])
 
   // Map coordinates dynamically based on selected city
   const mapCoordinates = useMemo(() => {
@@ -678,8 +794,19 @@ export default function BookPage() {
 
   // Handle Measurements modification
   const handleMeasurementChange = (key: string, val: string) => {
-    setCustomMeasurements((prev) => ({ ...prev, [key]: val }))
-    setIsTailorMeasuredMap((prev) => ({ ...prev, [key]: false }))
+    setCustomMeasurements((prev) => {
+      const next = { ...prev, [key]: val }
+      if (typeof window !== 'undefined') {
+        const existing = loadProfileMeasurements(user) || {}
+        const merged = parseMeasurementsFromBooking({ [key]: val }, existing)
+        saveProfileMeasurements(user, merged)
+      }
+      return next
+    })
+    setIsTailorMeasuredMap((prev) => ({
+      ...prev,
+      [key]: !val || val === 'To be Measured by Tailor',
+    }))
   }
 
   const toggleTailorMeasured = (key: string) => {
@@ -701,11 +828,12 @@ export default function BookPage() {
 
     const finalMeasurements: Record<string, string> = {}
     activeMeasurementFields.forEach((field) => {
-      const isTailor = isTailorMeasuredMap[field.key] !== false
-      if (isTailor) {
+      const customVal = customMeasurements[field.key]?.trim()
+      const isTailor = isTailorMeasuredMap[field.key] === true || (!customVal && isTailorMeasuredMap[field.key] !== false)
+      if (isTailor || !customVal || customVal === 'To be Measured by Tailor') {
         finalMeasurements[field.key] = 'To be Measured by Tailor'
       } else {
-        finalMeasurements[field.key] = customMeasurements[field.key] || 'To be Measured by Tailor'
+        finalMeasurements[field.key] = customVal
       }
     })
 
@@ -756,17 +884,9 @@ export default function BookPage() {
       setStorageCookie('tg_latest_order', JSON.stringify(orderData))
 
       // Auto-update profile measurements with any sizes filled or edited during booking
-      if (user) {
-        const profileKey = `tg_measurements_${user.id || user.email || 'guest'}`
-        let existingProfile: Record<string, string> = {}
-        try {
-          const raw = getStorageCookie(profileKey)
-          if (raw) existingProfile = JSON.parse(raw)
-        } catch { }
-
-        const mergedProfile = parseMeasurementsFromBooking(measurementsData, existingProfile)
-        setStorageCookie(profileKey, JSON.stringify(mergedProfile))
-      }
+      const existingProfile = loadProfileMeasurements(user) || {}
+      const mergedProfile = parseMeasurementsFromBooking(measurementsData, existingProfile)
+      saveProfileMeasurements(user, mergedProfile)
     }
 
     setPrefilledGarmentId(selectedGarmentId)
@@ -1038,24 +1158,54 @@ export default function BookPage() {
               {/* 4. Your Measurement Collapsible Section with Smooth Slide Transition */}
               <div className="pt-3 border-t border-gray-100">
                 {/* Header Row */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setIsMeasurementOpen(!isMeasurementOpen)
                       if (isMeasurementOpen) setIsEditingMeasurements(false)
                     }}
-                    className="py-1 text-left text-neutral-500 hover:text-black transition-colors cursor-pointer group flex-1"
+                    className="py-1 text-left text-neutral-500 hover:text-black transition-colors cursor-pointer group flex-1 min-w-0"
                   >
-                    <p className="text-[11px] font-black uppercase tracking-wider text-neutral-500 group-hover:text-black transition-colors">
+                    <p className="text-[11px] font-black uppercase tracking-wider text-neutral-500 group-hover:text-black transition-colors truncate">
                       YOUR MEASUREMENT <span className="text-gray-400 font-semibold">({currentCategory.name})</span>
                     </p>
                   </button>
 
-                  {/* Right Side: Edit button & collapse arrow when open, or open chevron when closed */}
-                  <div className="flex items-center gap-1.5">
+                  {/* Right Side: Edit button & collapse chevron (Unit Toggle only visible when editing) */}
+                  <div className="flex items-center gap-2 shrink-0">
                     {isMeasurementOpen ? (
                       <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
+                        {/* Unit Switcher: only visible when clicking Edit values */}
+                        {isEditingMeasurements && (
+                          <div className="flex items-center p-0.5 bg-neutral-100 rounded-lg border border-gray-200 mr-0.5 animate-in fade-in zoom-in-95 duration-150">
+                            <button
+                              type="button"
+                              onClick={() => handleUnitChange('in')}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                                measUnit === 'in'
+                                  ? 'bg-black text-white shadow-xs'
+                                  : 'text-neutral-500 hover:text-black'
+                              }`}
+                              title="Inches"
+                            >
+                              in
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleUnitChange('cm')}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
+                                measUnit === 'cm'
+                                  ? 'bg-black text-white shadow-xs'
+                                  : 'text-neutral-500 hover:text-black'
+                              }`}
+                              title="Centimeters"
+                            >
+                              cm
+                            </button>
+                          </div>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => setIsEditingMeasurements(!isEditingMeasurements)}
@@ -1089,16 +1239,17 @@ export default function BookPage() {
                   </div>
                 </div>
 
-                {/* Smooth Animated Dropdown Body */}
+                {/* Smooth Animated Dropdown Body (overflow-visible when open so dropdown menus are never clipped) */}
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out ${isMeasurementOpen
-                    ? 'max-h-[500px] opacity-100 pt-2.5'
-                    : 'max-h-0 opacity-0 pt-0 pointer-events-none'
+                  className={`transition-all duration-300 ease-in-out ${isMeasurementOpen
+                    ? 'max-h-[900px] opacity-100 pt-2.5 overflow-visible pb-2'
+                    : 'max-h-0 opacity-0 pt-0 overflow-hidden pointer-events-none'
                     }`}
                 >
                   <div className="space-y-2">
                     {activeMeasurementFields.map((field) => {
                       const customVal = customMeasurements[field.key] || ''
+                      const fieldPlaceholder = getFieldPlaceholder(field.placeholder, measUnit)
 
                       return (
                         <div
@@ -1114,14 +1265,14 @@ export default function BookPage() {
                                 <MeasurementOptionDropdown
                                   value={customVal}
                                   options={field.options}
-                                  placeholder={field.placeholder}
+                                  placeholder={fieldPlaceholder}
                                   onChange={(val) => handleMeasurementChange(field.key, val)}
                                 />
                               ) : (
                                 <input
                                   type="text"
                                   value={customVal}
-                                  placeholder={field.placeholder}
+                                  placeholder={fieldPlaceholder}
                                   onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
                                   className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all"
                                 />

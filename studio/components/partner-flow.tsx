@@ -173,6 +173,157 @@ function getSlaCountdown(job: FittingBooking): { text: string; urgent: boolean; 
   return { text: `${Math.floor(remaining)}h left`, urgent: false, percent }
 }
 
+export function formatMeasurementKey(key: string): string {
+  const map: Record<string, string> = {
+    waistHips: 'Waist & Hips',
+    hemLine: 'Hem Line',
+    hemLength: 'Dress Hem',
+    delicateHem: 'Delicate Hem',
+    hem: 'Hem',
+    waist: 'Waist',
+    waistSuppression: 'Waist Suppression',
+    inseam: 'Inseam',
+    sleeve: 'Sleeves',
+    sleeveLength: 'Sleeves',
+    chest: 'Chest',
+    chestWaist: 'Chest & Waist',
+    shirtLength: 'Shirt Length',
+    jacketTorso: 'Jacket Torso',
+    trouserInseamWaist: 'Trouser Inseam & Waist',
+    riseSeat: 'Rise & Seat',
+    bodiceFit: 'Bodice & Bust',
+    strapsShoulders: 'Straps & Shoulders',
+    bustBodice: 'Bust & Bodice',
+    collarRoll: 'Collar Roll',
+    tapering: 'Tapering',
+    shoulder: 'Shoulder',
+    custom: 'Notes & Specs',
+    fit: 'Fit Style',
+  }
+  if (map[key]) return map[key]
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[_-]/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+    .trim()
+}
+
+export function formatCustomerFitNotes(rawNotes?: string | null): string {
+  if (!rawNotes) return ''
+  let str = rawNotes.trim()
+  if (!str) return ''
+
+  if (str.startsWith('Measurements:')) {
+    str = str.replace(/^Measurements:\s*/, '').trim()
+  }
+
+  if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
+    try {
+      const parsed = JSON.parse(str)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const parts = Object.entries(parsed)
+          .filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+          .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
+        if (parts.length > 0) {
+          return parts.join(' · ')
+        }
+      }
+    } catch { }
+  }
+
+  return str
+}
+
+export function parseOrderMeasurements(order?: Partial<FittingBooking> | null): Record<string, string> {
+  if (!order) return {}
+
+  const result: Record<string, string> = {}
+
+  // 1. Process order.measurements
+  if (order.measurements) {
+    if (typeof order.measurements === 'object' && !Array.isArray(order.measurements)) {
+      Object.entries(order.measurements).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim()) {
+          result[k] = String(v).trim()
+        }
+      })
+    } else if (typeof order.measurements === 'string') {
+      const raw = order.measurements.trim()
+      if (raw.startsWith('{') && raw.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(raw)
+          if (parsed && typeof parsed === 'object') {
+            Object.entries(parsed).forEach(([k, v]) => {
+              if (v !== undefined && v !== null && String(v).trim()) {
+                result[k] = String(v).trim()
+              }
+            })
+          }
+        } catch { }
+      }
+    }
+  }
+
+  // 2. If empty, check order.pinnedAdjustment
+  if (Object.keys(result).length === 0 && order.pinnedAdjustment) {
+    const raw = String(order.pinnedAdjustment).trim()
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && String(v).trim()) {
+              result[k] = String(v).trim()
+            }
+          })
+        }
+      } catch { }
+    } else if (raw.includes('·') || raw.includes(':')) {
+      const parts = raw.split('·').map((s) => s.trim()).filter(Boolean)
+      parts.forEach((p) => {
+        const colonIdx = p.indexOf(':')
+        if (colonIdx !== -1) {
+          const k = p.slice(0, colonIdx).trim()
+          const v = p.slice(colonIdx + 1).trim()
+          if (k && v) result[k] = v
+        }
+      })
+    }
+  }
+
+  // 3. Clean any entries whose value is serialized JSON
+  Object.entries(result).forEach(([k, v]) => {
+    if (typeof v === 'string' && v.trim().startsWith('{') && v.trim().endsWith('}')) {
+      try {
+        const inner = JSON.parse(v)
+        if (inner && typeof inner === 'object') {
+          delete result[k]
+          Object.entries(inner).forEach(([ik, iv]) => {
+            if (iv !== undefined && iv !== null && String(iv).trim()) {
+              result[ik] = String(iv).trim()
+            }
+          })
+        }
+      } catch { }
+    }
+  })
+
+  return result
+}
+
+export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null): string {
+  if (!order) return ''
+  const parsed = parseOrderMeasurements(order)
+  const entries = Object.entries(parsed)
+  if (entries.length > 0) {
+    return entries.map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`).join(' · ')
+  }
+  if (order.pinnedAdjustment && !order.pinnedAdjustment.startsWith('{')) {
+    return order.pinnedAdjustment
+  }
+  return ''
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -256,7 +407,47 @@ export function PartnerFlow({
   const [timerSecs, setTimerSecs] = useState(15)
   const [timerPaused, setTimerPaused] = useState(false)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
-  const [skippedOrderIds, setSkippedOrderIds] = useState<string[]>([])
+
+  // Permanently skipped order IDs for THIS studio (clicked Skip)
+  const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_studio_permanently_skipped_orders')
+      if (stored) {
+        try { return JSON.parse(stored) } catch { }
+      }
+    }
+    return []
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tg_studio_permanently_skipped_orders', JSON.stringify(permanentlySkippedIds))
+      } catch { }
+    }
+  }, [permanentlySkippedIds])
+
+  // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
+  const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
+
+  // Clean up timed-out timestamps after 2 minutes (120,000ms) so unattended requests re-broadcast every 2 mins!
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      setTimeoutTimestamps((prev) => {
+        let changed = false
+        const next = { ...prev }
+        Object.entries(next).forEach(([id, ts]) => {
+          if (now - ts >= 120000) {
+            delete next[id]
+            changed = true
+          }
+        })
+        return changed ? next : prev
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
 
   // ── 2. Drop-off Intake PIN Handshake State ─────────────────────────────────
   const [pinInput, setPinInput] = useState('')
@@ -279,6 +470,7 @@ export function PartnerFlow({
   // Edit Measurements Modal State
   const [isEditMeasOpen, setIsEditMeasOpen] = useState(false)
   const [editTargetOrder, setEditTargetOrder] = useState<FittingBooking | null>(null)
+  const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
 
   // Price adjustment / surcharge
   const [showPriceAdjust, setShowPriceAdjust] = useState(false)
@@ -405,14 +597,8 @@ export function PartnerFlow({
     const currentSelectedId = selectedOrderRef.current?.id
     if (currentSelectedId) {
       const stillExists = fetched.find((o) => o.id === currentSelectedId)
-      if (stillExists) {
-        setSelectedOrder(stillExists)
-        return
-      }
+      setSelectedOrder(stillExists || null)
     }
-
-    const firstAccepted = fetched.find((o) => o.status !== 'Allocated') || fetched[0]
-    setSelectedOrder(firstAccepted)
   }
 
   const handleRefresh = async () => {
@@ -443,7 +629,16 @@ export function PartnerFlow({
   }, [user, online])
 
   // Live incoming requests from real customer bookings (Status: Allocated)
-  const liveAllocatedOrders = orders.filter((o) => o.status === 'Allocated' && !skippedOrderIds.includes(o.id))
+  // Re-broadcasts every 2 minutes until accepted by a studio, UNLESS explicitly skipped by THIS studio.
+  const liveAllocatedOrders = orders.filter((o) => {
+    if (o.status !== 'Allocated') return false
+    if (permanentlySkippedIds.includes(o.id)) return false // Explicitly skipped by THIS studio -> never show again!
+    const timeoutTs = timeoutTimestamps[o.id]
+    if (timeoutTs && Date.now() - timeoutTs < 120000) {
+      return false // Unattended 15s timer expiry -> hide for 2 minutes before re-broadcasting
+    }
+    return true
+  })
 
   const allBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
     const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
@@ -490,15 +685,10 @@ export function PartnerFlow({
     setTimeout(() => setBroadcastToast(null), 5000)
   }
 
-  const handleDeclineAllocatedOrder = async (orderId: string) => {
-    const updates: Partial<FittingBooking> = {
-      status: 'Cancelled',
-      sewingNotes: 'Request not accepted by studio in time',
-    }
-    setOrders((prev) => prev.filter((o) => o.id !== orderId))
-    setSkippedOrderIds((prev) => [...prev, orderId])
+  const handleDeclineAllocatedOrder = (orderId: string) => {
+    // Explicitly skipped by studio -> permanently hide for this studio!
+    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, orderId])))
     setTimerSecs(15)
-    await updateOrder(orderId, updates).catch(() => { })
   }
 
   const handleAcceptBroadcast = (bc: BroadcastRequest) => {
@@ -509,21 +699,20 @@ export function PartnerFlow({
 
   const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
     if (!bc) return
-    setSkippedOrderIds((prev) => [...prev, bc.id])
+    // Explicitly clicked Skip -> permanently hide for THIS studio!
+    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, bc.id])))
     setTimerSecs(15)
-    if (bc.isRealCustomerOrder && bc.realOrder) {
-      handleDeclineAllocatedOrder(bc.realOrder.id)
-    }
   }
 
-  // 15-Second Timer Countdown & Auto-Skip on Expiry
+  // 15-Second Timer Countdown & Auto-Skip on Expiry (Unattended -> re-broadcasts every 2 minutes)
   useEffect(() => {
     if (!online || allBroadcasts.length === 0 || timerPaused) return
     const interval = setInterval(() => {
       setTimerSecs((prev) => {
         if (prev <= 1) {
           if (currentBroadcast) {
-            handleSkipBroadcast(currentBroadcast)
+            // Unattended timer expired -> suppress locally for 2 minutes, then repeat
+            setTimeoutTimestamps((prev) => ({ ...prev, [currentBroadcast.id]: Date.now() }))
           }
           return 15
         }
@@ -577,13 +766,14 @@ export function PartnerFlow({
 
     if (acceptedOrder) {
       setActiveIntake(acceptedOrder)
-      setHangTag(acceptedOrder.hangTagNo || `Tag #${Math.floor(Math.random() * 30 + 1)} · Rack A`)
-      setConditionNotes(acceptedOrder.fabricConditionNotes || 'Clean condition, pristine fabric.')
-      setMeasHem(acceptedOrder.measurements?.hem || acceptedOrder.pinnedAdjustment || '')
-      setMeasWaist(acceptedOrder.measurements?.waist || '')
-      setMeasSleeve(acceptedOrder.measurements?.sleeve || '')
-      setMeasInseam(acceptedOrder.measurements?.inseam || '')
-      setMeasCustom(acceptedOrder.measurements?.custom || '')
+      setHangTag(acceptedOrder.hangTagNo || '')
+      setConditionNotes(acceptedOrder.fabricConditionNotes || '')
+      const parsed = parseOrderMeasurements(acceptedOrder)
+      setMeasHem(parsed.hem || parsed.hemLine || parsed.hemLength || parsed.delicateHem || '')
+      setMeasWaist(parsed.waist || parsed.waistHips || parsed.waistSuppression || '')
+      setMeasSleeve(parsed.sleeve || parsed.sleeveLength || '')
+      setMeasInseam(parsed.inseam || parsed.trouserInseamWaist || '')
+      setMeasCustom(parsed.custom || parsed.notes || '')
       setSewNotes(acceptedOrder.sewingNotes || '')
       setIntakeSuccess(false)
       setPriceAdjustApproved(false)
@@ -616,14 +806,16 @@ export function PartnerFlow({
 
   const handleConfirmIntakeAndStart = () => {
     if (!activeIntake) return
-    const combinedSpecs = [
-      measHem ? `Hem: ${measHem}` : '',
-      measWaist ? `Waist: ${measWaist}` : '',
-      measSleeve ? `Sleeves: ${measSleeve}` : '',
-      measInseam ? `Inseam: ${measInseam}` : '',
-      measCustom ? `Notes: ${measCustom}` : '',
-    ]
-      .filter(Boolean)
+    const originalMeas = parseOrderMeasurements(activeIntake)
+    const measurementsMap: Record<string, string> = { ...originalMeas }
+    if (measHem) measurementsMap.hem = measHem
+    if (measWaist) measurementsMap.waist = measWaist
+    if (measSleeve) measurementsMap.sleeve = measSleeve
+    if (measInseam) measurementsMap.inseam = measInseam
+    if (measCustom) measurementsMap.custom = measCustom
+
+    const combinedSpecs = Object.entries(measurementsMap)
+      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
       .join(' · ')
 
     const updates: Partial<FittingBooking> = {
@@ -631,13 +823,7 @@ export function PartnerFlow({
       hangTagNo: hangTag,
       fabricConditionNotes: conditionNotes,
       pinnedAdjustment: combinedSpecs || 'Standard alteration',
-      measurements: {
-        hem: measHem,
-        waist: measWaist,
-        sleeve: measSleeve,
-        inseam: measInseam,
-        custom: measCustom,
-      },
+      measurements: measurementsMap,
       sewingNotes: sewNotes,
       assignedWorker: worker,
       machineNo: machine,
@@ -664,35 +850,43 @@ export function PartnerFlow({
   // Edit measurements
   const handleOpenEditMeasurements = (order: FittingBooking) => {
     setEditTargetOrder(order)
-    setMeasHem(order.measurements?.hem || order.pinnedAdjustment || '')
-    setMeasWaist(order.measurements?.waist || '')
-    setMeasSleeve(order.measurements?.sleeve || '')
-    setMeasInseam(order.measurements?.inseam || '')
-    setMeasCustom(order.measurements?.custom || '')
+    const parsed = parseOrderMeasurements(order)
+    const entries = Object.entries(parsed)
+    if (entries.length > 0) {
+      setEditMeasFields(
+        entries.map(([k, v]) => ({
+          key: k,
+          label: formatMeasurementKey(k),
+          value: String(v),
+        }))
+      )
+    } else {
+      setEditMeasFields([
+        { key: 'hem', label: 'Hem Adjustment', value: '' },
+        { key: 'waist', label: 'Waist / Seat', value: '' },
+        { key: 'sleeve', label: 'Sleeves / Cuffs', value: '' },
+        { key: 'inseam', label: 'Finished Inseam', value: '' },
+      ])
+    }
     setIsEditMeasOpen(true)
   }
 
   const handleSaveMeasurements = () => {
     if (!editTargetOrder) return
-    const combinedSpecs = [
-      measHem ? `Hem: ${measHem}` : '',
-      measWaist ? `Waist: ${measWaist}` : '',
-      measSleeve ? `Sleeves: ${measSleeve}` : '',
-      measInseam ? `Inseam: ${measInseam}` : '',
-      measCustom ? `Notes: ${measCustom}` : '',
-    ]
-      .filter(Boolean)
+    const updatedMap: Record<string, string> = {}
+    editMeasFields.forEach((f) => {
+      if (f.key && f.value !== undefined && f.value.trim()) {
+        updatedMap[f.key] = f.value.trim()
+      }
+    })
+
+    const combinedSpecs = Object.entries(updatedMap)
+      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
       .join(' · ')
 
     const updates: Partial<FittingBooking> = {
-      pinnedAdjustment: combinedSpecs,
-      measurements: {
-        hem: measHem,
-        waist: measWaist,
-        sleeve: measSleeve,
-        inseam: measInseam,
-        custom: measCustom,
-      },
+      pinnedAdjustment: combinedSpecs || 'Standard alteration',
+      measurements: updatedMap,
     }
 
     setOrders((prev) => prev.map((o) => (o.id === editTargetOrder.id ? { ...o, ...updates } : o)))
@@ -916,7 +1110,7 @@ export function PartnerFlow({
             const Icon = item.icon
             const badge =
               item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length :
-                item.id === 'pipeline' ? pipelineOrders.length : null
+                item.id === 'pipeline' ? pendingDropOffs : null
 
             return (
               <button
@@ -1413,23 +1607,21 @@ export function PartnerFlow({
                           </div>
 
                           <div className="text-right">
-                            <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 font-mono text-xs font-semibold">
-                              <Tag size={12} />
-                              <span>{hangTag || 'Tag Pending'}</span>
-                            </div>
-                            <div className="text-xs font-bold text-emerald-800 mt-1">
+                            <div className="text-xs font-bold text-emerald-800">
                               ${activeIntake.partnerPayout || Math.round((activeIntake.price || 35) * 0.75)} Net Payout
                             </div>
                           </div>
                         </div>
 
                         {/* Customer Fit Notes */}
-                        {activeIntake.fitNotes && (
+                        {activeIntake.fitNotes && formatCustomerFitNotes(activeIntake.fitNotes) && (
                           <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs">
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-1">
                               Customer Fit Instructions
                             </span>
-                            <p className="text-[#1E2229] italic">"{activeIntake.fitNotes}"</p>
+                            <p className="text-[#1E2229] font-medium leading-relaxed">
+                              {formatCustomerFitNotes(activeIntake.fitNotes)}
+                            </p>
                           </div>
                         )}
 
@@ -1651,11 +1843,14 @@ export function PartnerFlow({
                                   </div>
                                 </div>
 
-                                {order.pinnedAdjustment && (
-                                  <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono">
-                                    {order.pinnedAdjustment}
-                                  </div>
-                                )}
+                                {(() => {
+                                  const summary = formatOrderSpecsSummary(order)
+                                  return summary ? (
+                                    <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono">
+                                      {summary}
+                                    </div>
+                                  ) : null
+                                })()}
 
                                 {/* SLA Countdown Progress */}
                                 <div className="space-y-1">
@@ -1747,141 +1942,156 @@ export function PartnerFlow({
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* TAB 2: ORDERS PIPELINE                                         */}
             {/* ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'pipeline' && (
-              <div className="space-y-4">
-                {/* Search + Filters */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E593B]" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search customer, garment, ID, rack tag..."
-                      className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none transition-colors bg-[#FAF8F5]"
-                    />
-                  </div>
-                  <div className="flex gap-1.5 flex-wrap text-xs">
-                    {['ALL', 'Work in Progress', 'Accepted', 'Ready', 'Closed'].map((s) => {
-                      const labelMap: Record<string, string> = {
-                        ALL: `All (${pipelineOrders.length})`,
-                        'Work in Progress': `On Bench (${activeOnBench})`,
-                        Accepted: `Drop-Offs (${pendingDropOffs})`,
-                        Ready: `Ready (${readyOnRack})`,
-                        Closed: `Completed (${pipelineOrders.filter(o => o.status === 'Closed' || o.status === 'Collected').length})`,
-                      }
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => setStatusFilter(s)}
-                          className={`px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${statusFilter === s
-                            ? 'bg-[#0F1115] text-white shadow-xs'
-                            : 'bg-white border border-[#E8E1D5] text-[#1E2229] hover:border-[#9E593B] hover:bg-[#F3EFEA]'
-                            }`}
-                        >
-                          {labelMap[s] || s}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+            {activeTab === 'pipeline' && (() => {
+              const activeSelectedOrder = selectedOrder && filteredOrders.some((o) => o.id === selectedOrder.id) ? selectedOrder : null
 
-                <div className="grid lg:grid-cols-12 gap-5 items-start">
-                  {/* Order List */}
-                  <div className="lg:col-span-7 space-y-2.5">
-                    {filteredOrders.map((order) => {
-                      const isSelected = selectedOrder?.id === order.id
-                      const st = STATUS_CONFIG[order.status] || STATUS_CONFIG.Closed
-                      return (
-                        <div
-                          key={order.id}
-                          onClick={() => setSelectedOrder(order)}
-                          className={`bg-white border rounded-2xl p-4 cursor-pointer transition-all ${isSelected
-                            ? 'border-[#9E593B] shadow-xs ring-2 ring-[#9E593B]/20'
-                            : 'border-[#E8E1D5] hover:border-[#9E593B]'
-                            }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                              <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                  <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
-                                    {order.status}
-                                  </span>
-                                  {order.hangTagNo && (
-                                    <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
-                                      {order.hangTagNo}
-                                    </span>
-                                  )}
+              return (
+                <div className="space-y-4">
+                  {/* Search + Filters */}
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9E593B]" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search customer, garment, ID, rack tag..."
+                        className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none transition-colors bg-[#FAF8F5]"
+                      />
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap text-xs">
+                      {['ALL', 'Accepted', 'Work in Progress', 'Ready', 'Closed'].map((s) => {
+                        const labelMap: Record<string, string> = {
+                          ALL: `All (${pipelineOrders.length})`,
+                          Accepted: `Drop-Offs (${pendingDropOffs})`,
+                          'Work in Progress': `On Bench (${activeOnBench})`,
+                          Ready: `Ready (${readyOnRack})`,
+                          Closed: `Completed (${pipelineOrders.filter(o => o.status === 'Closed' || o.status === 'Collected').length})`,
+                        }
+                        return (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              setStatusFilter(s)
+                              setSelectedOrder(null)
+                            }}
+                            className={`px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer ${statusFilter === s
+                              ? 'bg-[#0F1115] text-white shadow-xs'
+                              : 'bg-white border border-[#E8E1D5] text-[#1E2229] hover:border-[#9E593B] hover:bg-[#F3EFEA]'
+                              }`}
+                          >
+                            {labelMap[s] || s}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid lg:grid-cols-12 gap-5 items-start">
+                    {/* Order List */}
+                    <div className={`${activeSelectedOrder ? 'lg:col-span-7' : 'lg:col-span-12'} space-y-2.5 transition-all duration-300`}>
+                      {filteredOrders.map((order) => {
+                        const isSelected = activeSelectedOrder?.id === order.id
+                        const st = STATUS_CONFIG[order.status] || STATUS_CONFIG.Closed
+                        return (
+                          <div
+                            key={order.id}
+                            onClick={() => setSelectedOrder(selectedOrder?.id === order.id ? null : order)}
+                            className={`bg-white border rounded-2xl p-4 cursor-pointer transition-all ${isSelected
+                              ? 'border-[#9E593B] shadow-xs ring-2 ring-[#9E593B]/20'
+                              : 'border-[#E8E1D5] hover:border-[#9E593B]'
+                              }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                                  <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
                                 </div>
-                                <div className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</div>
-                                <div className="text-[11px] text-[#6B7280]">{order.serviceName} · {order.customerName}</div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                    <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
+                                      {order.status}
+                                    </span>
+                                    {order.hangTagNo && (
+                                      <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
+                                        {order.hangTagNo}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</div>
+                                  <div className="text-[11px] text-[#6B7280]">{order.serviceName} · {order.customerName}</div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="font-bold text-sm text-emerald-800">${order.partnerPayout || Math.round((order.price || 35) * 0.75)}</div>
+                                <div className="text-[10px] text-[#9E593B] font-semibold">Net Payout</div>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <div className="font-bold text-sm text-emerald-800">${order.partnerPayout || Math.round((order.price || 35) * 0.75)}</div>
-                              <div className="text-[10px] text-[#9E593B] font-semibold">Net Payout</div>
+
+                            <div className="mt-3 pt-2.5 border-t border-[#E8E1D5] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => handleOpenEditMeasurements(order)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer">
+                                <Edit3 size={11} /> Edit Specs
+                              </button>
+                              <div className="flex items-center gap-2">
+                                {order.status === 'Accepted' && (
+                                  <button onClick={() => { setPinInput(order.otp); handleLookupPin(order.otp); setActiveTab('cockpit') }} className="text-xs font-semibold text-[#1E2229] bg-[#F3EFEA] hover:bg-[#E8E1D5] px-3 py-1 rounded-xl cursor-pointer border border-[#E8E1D5]">Intake Drop-Off →</button>
+                                )}
+                                {order.status === 'Work in Progress' && (
+                                  <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
+                                    <CheckCircle size={12} /> Mark Done
+                                  </button>
+                                )}
+                                {order.status === 'Ready' && (
+                                  <button onClick={() => handleOpenPickupModal(order)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
+                                    <Package size={12} /> Pickup →
+                                  </button>
+                                )}
+                                {order.status === 'Closed' && (
+                                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Completed ✓</span>
+                                )}
+                              </div>
                             </div>
                           </div>
+                        )
+                      })}
+                      {filteredOrders.length === 0 && (
+                        <div className="p-8 text-center bg-white rounded-2xl border border-[#E8E1D5] text-xs text-[#6B7280]">No orders found matching your search.</div>
+                      )}
+                    </div>
 
-                          <div className="mt-3 pt-2.5 border-t border-[#E8E1D5] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => handleOpenEditMeasurements(order)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer">
-                              <Edit3 size={11} /> Edit Specs
-                            </button>
-                            <div className="flex items-center gap-2">
-                              {order.status === 'Accepted' && (
-                                <button onClick={() => { setPinInput(order.otp); handleLookupPin(order.otp); setActiveTab('cockpit') }} className="text-xs font-semibold text-[#1E2229] bg-[#F3EFEA] hover:bg-[#E8E1D5] px-3 py-1 rounded-xl cursor-pointer border border-[#E8E1D5]">Intake Drop-Off →</button>
-                              )}
-                              {order.status === 'Work in Progress' && (
-                                <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
-                                  <CheckCircle size={12} /> Mark Done
-                                </button>
-                              )}
-                              {order.status === 'Ready' && (
-                                <button onClick={() => handleOpenPickupModal(order)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
-                                  <Package size={12} /> Pickup →
-                                </button>
-                              )}
-                              {order.status === 'Closed' && (
-                                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Completed ✓</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                    {filteredOrders.length === 0 && (
-                      <div className="p-8 text-center bg-white rounded-2xl border border-[#E8E1D5] text-xs text-[#6B7280]">No orders found matching your search.</div>
-                    )}
-                  </div>
-
-                  {/* Order Detail */}
-                  <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4">
-                    {selectedOrder ? (
-                      <>
+                    {/* Order Detail - ONLY shown when an alteration is specifically clicked */}
+                    {activeSelectedOrder && (
+                      <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                              <img src={getGarmentPhoto(selectedOrder)} alt={selectedOrder.garmentName} className="w-full h-full object-cover" />
+                              <img src={getGarmentPhoto(activeSelectedOrder)} alt={activeSelectedOrder.garmentName} className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="font-mono text-xs font-bold text-[#1E2229] bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded">#{selectedOrder.id}</span>
+                                <span className="font-mono text-xs font-bold text-[#1E2229] bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded">#{activeSelectedOrder.id}</span>
                                 <span className="text-xs font-semibold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/20 px-2 py-0.5 rounded">
-                                  PIN #{selectedOrder.otp}
+                                  PIN #{activeSelectedOrder.otp}
                                 </span>
                               </div>
-                              <h3 className="font-bold text-sm text-[#1E2229] truncate">{selectedOrder.garmentName}</h3>
-                              <p className="text-xs text-[#6B7280]">{selectedOrder.serviceName}</p>
+                              <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
+                              <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-xl font-bold text-emerald-800">${selectedOrder.partnerPayout || Math.round((selectedOrder.price || 35) * 0.8)}</div>
-                            <div className="text-[10px] text-[#9E593B] font-semibold">Net (80%)</div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <div className="text-right">
+                              <div className="text-xl font-bold text-emerald-800">${activeSelectedOrder.partnerPayout || Math.round((activeSelectedOrder.price || 35) * 0.8)}</div>
+                              <div className="text-[10px] text-[#9E593B] font-semibold">Net (80%)</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrder(null)}
+                              className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2229] hover:bg-[#FAF8F5] border border-transparent hover:border-[#E8E1D5] transition-all cursor-pointer ml-1"
+                              title="Close details"
+                            >
+                              <X size={16} />
+                            </button>
                           </div>
                         </div>
 
@@ -1889,7 +2099,7 @@ export function PartnerFlow({
                           <div className="flex items-center gap-2">
                             <ShieldCheck size={15} className="text-[#9E593B] shrink-0" />
                             <div>
-                              <div className="font-semibold text-[#1E2229]">Paid ${(selectedOrder.price || 35)} Online</div>
+                              <div className="font-semibold text-[#1E2229]">Paid ${(activeSelectedOrder.price || 35)} Online</div>
                               <div className="text-[11px] text-[#6B7280]">80% releases 15 days post-handover</div>
                             </div>
                           </div>
@@ -1899,35 +2109,47 @@ export function PartnerFlow({
                         <div className="p-3.5 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2.5">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-[#1E2229] flex items-center gap-1.5"><Ruler size={13} className="text-[#9E593B]" /> Measurements</span>
-                            <button onClick={() => handleOpenEditMeasurements(selectedOrder)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-0.5 rounded-lg">
+                            <button onClick={() => handleOpenEditMeasurements(activeSelectedOrder)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-0.5 rounded-lg">
                               <Edit3 size={11} /> Edit
                             </button>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-xs">
-                            {[
-                              { label: 'Hem', val: selectedOrder.measurements?.hem || selectedOrder.pinnedAdjustment || 'Standard' },
-                              { label: 'Waist', val: selectedOrder.measurements?.waist || 'Standard' },
-                              { label: 'Sleeves', val: selectedOrder.measurements?.sleeve || 'Standard' },
-                              { label: 'Inseam', val: selectedOrder.measurements?.inseam || 'Original' },
-                            ].map(m => (
-                              <div key={m.label} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
-                                <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{m.label}</span>
-                                <span className="font-semibold text-[#1E2229]">{m.val}</span>
-                              </div>
-                            ))}
+                            {(() => {
+                              const parsed = parseOrderMeasurements(activeSelectedOrder)
+                              const entries = Object.entries(parsed)
+                              if (entries.length === 0) {
+                                return [
+                                  { label: 'Hem', val: 'Standard' },
+                                  { label: 'Waist', val: 'Standard' },
+                                  { label: 'Sleeves', val: 'Standard' },
+                                  { label: 'Inseam', val: 'Original' },
+                                ].map((m) => (
+                                  <div key={m.label} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
+                                    <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{m.label}</span>
+                                    <span className="font-semibold text-[#1E2229]">{m.val}</span>
+                                  </div>
+                                ))
+                              }
+                              return entries.map(([k, v]) => (
+                                <div key={k} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
+                                  <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{formatMeasurementKey(k)}</span>
+                                  <span className="font-semibold text-[#1E2229] break-words">{String(v)}</span>
+                                </div>
+                              ))
+                            })()}
                           </div>
                         </div>
 
                         <div className="p-3.5 rounded-xl bg-white border border-[#E8E1D5] space-y-2 text-xs divide-y divide-[#E8E1D5]">
-                          <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-semibold text-[#1E2229]">{selectedOrder.customerName}</span></div>
-                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Phone:</span><a href={`tel:${selectedOrder.customerPhone}`} className="font-semibold text-[#9E593B] hover:underline">{selectedOrder.customerPhone || 'N/A'}</a></div>
-                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#1E2229]">{selectedOrder.hangTagNo || 'N/A'}</span></div>
-                          <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{selectedOrder.slaHours || 48}h Guaranteed</span></div>
+                          <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.customerName}</span></div>
+                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Phone:</span><a href={`tel:${activeSelectedOrder.customerPhone}`} className="font-semibold text-[#9E593B] hover:underline">{activeSelectedOrder.customerPhone || 'N/A'}</a></div>
+                          <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#1E2229]">{activeSelectedOrder.hangTagNo || 'N/A'}</span></div>
+                          <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.slaHours || 48}h Guaranteed</span></div>
                         </div>
 
                         {/* Garment Reference Photos Section */}
                         {(() => {
-                          const photos = getAllGarmentPhotos(selectedOrder)
+                          const photos = getAllGarmentPhotos(activeSelectedOrder)
                           return (
                             <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-2.5">
                               <div className="flex items-center justify-between">
@@ -1941,7 +2163,7 @@ export function PartnerFlow({
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => handleAddStudioPhoto(selectedOrder.id, e)}
+                                    onChange={(e) => handleAddStudioPhoto(activeSelectedOrder.id, e)}
                                   />
                                 </label>
                               </div>
@@ -1971,14 +2193,12 @@ export function PartnerFlow({
                             </div>
                           )
                         })()}
-                      </>
-                    ) : (
-                      <div className="p-8 text-center text-[#6B7280] text-xs">Select an order to inspect docket</div>
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
 
 
@@ -2057,6 +2277,14 @@ export function PartnerFlow({
                                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isSettled ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
                                     {isSettled ? 'Deposited' : '15-Day Escrow'}
                                   </span>
+                                  {(() => {
+                                    const summary = formatOrderSpecsSummary(o)
+                                    return summary ? (
+                                      <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono mt-1">
+                                        {summary}
+                                      </div>
+                                    ) : null
+                                  })()}
                                 </td>
                               </tr>
                             )
@@ -2130,20 +2358,20 @@ export function PartnerFlow({
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              {[
-                { label: 'Hem Adjustment', val: measHem, set: setMeasHem, ph: 'e.g. -3.5 cm' },
-                { label: 'Waist / Seat', val: measWaist, set: setMeasWaist, ph: 'e.g. Suppress 1.5 in' },
-                { label: 'Sleeves / Cuffs', val: measSleeve, set: setMeasSleeve, ph: 'e.g. -1.0 in from cuff' },
-                { label: 'Finished Inseam', val: measInseam, set: setMeasInseam, ph: 'e.g. 30.5 in' },
-              ].map((f) => (
-                <div key={f.label}>
+            <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
+              {editMeasFields.map((f, idx) => (
+                <div key={`${f.key}-${idx}`}>
                   <label className="block font-semibold text-[#1E2229] mb-1">{f.label}</label>
                   <input
                     type="text"
-                    value={f.val}
-                    onChange={(e) => f.set(e.target.value)}
-                    placeholder={f.ph}
+                    value={f.value}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setEditMeasFields((prev) =>
+                        prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
+                      )
+                    }}
+                    placeholder={`e.g. ${f.label} measurement / spec`}
                     className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white focus:border-[#9E593B] focus:outline-none"
                   />
                 </div>
