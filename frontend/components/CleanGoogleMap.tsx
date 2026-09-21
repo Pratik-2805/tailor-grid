@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
-import { Navigation, Star, MapPin, Check, Scissors } from 'lucide-react'
 import type { StoreOption } from './data'
 
 export interface CarNavigationParams {
@@ -41,16 +40,16 @@ export function openCarNavigation({
   }
 }
 
-function getDistanceInMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function calculateDistanceInMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8 // Earth's radius in miles
   const dLat = (lat2 - lat1) * (Math.PI / 180)
   const dLon = (lon2 - lon1) * (Math.PI / 180)
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
+  return Number((R * c).toFixed(2))
 }
 
 type Props = {
@@ -64,13 +63,17 @@ type Props = {
   onMapClick?: () => void
   showZoomControls?: boolean
   disableNavigation?: boolean
+  isFixed?: boolean
+  fixedBoxMiles?: number
+  showUserPin?: boolean
+  userPinLabel?: string
   stores?: StoreOption[]
   selectedStoreId?: string
+  radiusMiles?: number
+  showRadiusCircle?: boolean
   onSelectStore?: (store: StoreOption) => void
   onStoresFound?: (stores: StoreOption[]) => void
 }
-
-let isGoogleMapsOptionsConfigured = false
 
 export default function CleanGoogleMap({
   lat,
@@ -81,70 +84,27 @@ export default function CleanGoogleMap({
   userCoords,
   className = '',
   onMapClick,
-  showZoomControls = true,
+  showZoomControls = false,
   disableNavigation = false,
+  isFixed = false,
+  fixedBoxMiles = 8.0,
+  showUserPin = true,
+  userPinLabel = 'You',
   stores = [],
   selectedStoreId,
+  radiusMiles = 4.0,
+  showRadiusCircle = false,
   onSelectStore,
   onStoresFound,
 }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<any[]>([])
+
   const [loadError, setLoadError] = useState(false)
   const [isReady, setIsReady] = useState(false)
-  const [activeStore, setActiveStore] = useState<StoreOption | null>(null)
 
-  // Sync selectedStoreId with activeStore
-  useEffect(() => {
-    if (selectedStoreId && stores.length > 0) {
-      const match = stores.find((s) => s.id === selectedStoreId)
-      if (match) setActiveStore(match)
-    } else if (stores.length > 0 && !activeStore) {
-      setActiveStore(stores[0])
-    }
-  }, [selectedStoreId, stores])
-
-  const handleTriggerNavigation = () => {
-    if (disableNavigation) return
-    if (onMapClick) {
-      onMapClick()
-    } else {
-      openCarNavigation({
-        destName: activeStore?.name || storeName,
-        destAddress: activeStore?.address || storeAddress,
-        destCoords: activeStore?.coords || { lat, lng },
-        origin,
-        userCoords,
-      })
-    }
-  }
-
-  const handleZoomIn = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (mapInstanceRef.current) {
-      const currentZoom = mapInstanceRef.current.getZoom() || 14
-      mapInstanceRef.current.setZoom(currentZoom + 1)
-    }
-  }
-
-  const handleZoomOut = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (mapInstanceRef.current) {
-      const currentZoom = mapInstanceRef.current.getZoom() || 14
-      mapInstanceRef.current.setZoom(Math.max(currentZoom - 1, 1))
-    }
-  }
-
-  // Pan to new coords when lat/lng or activeStore change
-  useEffect(() => {
-    if (mapInstanceRef.current && isReady) {
-      const targetLat = activeStore?.coords?.lat || lat
-      const targetLng = activeStore?.coords?.lng || lng
-      mapInstanceRef.current.panTo({ lat: targetLat, lng: targetLng })
-    }
-  }, [lat, lng, activeStore, isReady])
-
+  // 1. Initial Google Maps Engine Mount (RUNS ONCE ONLY - prevents unneeded re-renders)
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
@@ -155,31 +115,50 @@ export default function CleanGoogleMap({
 
     let isMounted = true
 
-    async function initMap() {
+    async function initMapEngine() {
       try {
-        if (!isGoogleMapsOptionsConfigured) {
-          setOptions({
-            key: apiKey,
-            v: 'weekly',
-          })
-          isGoogleMapsOptionsConfigured = true
+        if (typeof window !== 'undefined') {
+          const w = window as any
+          if (!w.__googleMapsOptionsConfigured) {
+            try {
+              setOptions({
+                key: apiKey,
+                v: 'weekly',
+              })
+              w.__googleMapsOptionsConfigured = true
+            } catch (e) {
+              // Ignore if already configured
+            }
+          }
         }
 
         const { Map } = await importLibrary('maps')
 
         if (!isMounted || !mapRef.current) return
 
+        // Calculate 8 miles by 8 miles bounding box around center (4 miles in each cardinal direction)
+        const halfMiles = fixedBoxMiles / 2.0
+        const deltaLat = halfMiles / 69.0
+        const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+
+        const bounds8x8 = new google.maps.LatLngBounds(
+          new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
+          new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
+        )
+
+        // Create persistent clean Google Map instance
         const map = new Map(mapRef.current, {
           center: { lat, lng },
-          zoom: 12,
+          zoom: 13,
           minZoom: 10,
           maxZoom: 18,
           scrollwheel: false,
           disableDoubleClickZoom: true,
-          draggable: true,
+          draggable: !isFixed,
           keyboardShortcuts: false,
           disableDefaultUI: true,
           clickableIcons: false,
+          gestureHandling: isFixed ? 'none' : 'cooperative',
           styles: [
             {
               featureType: 'all',
@@ -202,148 +181,17 @@ export default function CleanGoogleMap({
           ],
         })
 
-        // Fit fixed 4-mile radius (8-mile diameter) bounding area
-        const deltaLat = 4.0 / 69
-        const deltaLng = 4.0 / (69 * Math.cos((lat * Math.PI) / 180))
-        const sw = new google.maps.LatLng(lat - deltaLat, lng - deltaLng)
-        const ne = new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
-        const bounds = new google.maps.LatLngBounds(sw, ne)
-        map.fitBounds(bounds, 30)
+        if (isFixed) {
+          map.fitBounds(bounds8x8, 0)
+          map.setCenter({ lat, lng })
+        }
 
         mapInstanceRef.current = map
-
-        if (!disableNavigation) {
-          map.addListener('click', () => {
-            handleTriggerNavigation()
-          })
-        }
-
-        // Clear existing markers
-        markersRef.current.forEach((m) => {
-          if (m.setMap) m.setMap(null)
-        })
-        markersRef.current = []
-
-        // Custom Darzi Logo Pin Overlay
-        class LogoMarkerOverlay extends google.maps.OverlayView {
-          private position: google.maps.LatLng
-          private div: HTMLDivElement | null = null
-          private store: StoreOption
-
-          constructor(position: google.maps.LatLng, store: StoreOption) {
-            super()
-            this.position = position
-            this.store = store
-          }
-
-          onAdd() {
-            this.div = document.createElement('div')
-            this.div.style.position = 'absolute'
-            this.div.style.cursor = 'pointer'
-            this.div.style.transform = 'translate(-50%, -100%)'
-            this.div.style.transition = 'transform 0.2s ease-out'
-            this.div.title = this.store.name
-            this.div.innerHTML = `
-              <div style="background: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.28); border: 2px solid #0F1115; padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative;">
-                <img src="/landscape_logo.JPEG" style="height: 30px; width: auto; max-width: 76px; object-fit: cover; border-radius: 8px; display: block;" alt="${this.store.name}" />
-                <div style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0F1115;"></div>
-              </div>
-            `
-
-            this.div.addEventListener('click', (e) => {
-              e.stopPropagation()
-              setActiveStore(this.store)
-              onSelectStore?.(this.store)
-              if (!disableNavigation) {
-                handleTriggerNavigation()
-              }
-            })
-
-            const panes = this.getPanes()
-            panes?.overlayMouseTarget.appendChild(this.div)
-          }
-
-          draw() {
-            const projection = this.getProjection()
-            if (!projection || !this.div) return
-            const point = projection.fromLatLngToDivPixel(this.position)
-            if (point) {
-              this.div.style.left = `${point.x}px`
-              this.div.style.top = `${point.y}px`
-            }
-          }
-
-          onRemove() {
-            if (this.div && this.div.parentNode) {
-              this.div.parentNode.removeChild(this.div)
-              this.div = null
-            }
-          }
-        }
-
-        function addMarkerForStore(st: StoreOption) {
-          const stLat = st.coords?.lat || lat
-          const stLng = st.coords?.lng || lng
-          const overlay = new LogoMarkerOverlay(new google.maps.LatLng(stLat, stLng), st)
-          overlay.setMap(map)
-          markersRef.current.push(overlay)
-        }
-
-        // Real-time live tailor searching in 4.0 miles radius
-        const radiusMiles = 4.0
-        const radiusMeters = Math.round(radiusMiles * 1609.34)
-        const discoveredTailors: StoreOption[] = []
-
-        function registerNewTailor(tailor: StoreOption) {
-          if (!tailor.coords) return
-          const isDuplicate = discoveredTailors.some(
-            (t) =>
-              t.coords &&
-              Math.abs(t.coords.lat - tailor.coords!.lat) < 0.0015 &&
-              Math.abs(t.coords.lng - tailor.coords!.lng) < 0.0015
-          )
-          if (!isDuplicate) {
-            discoveredTailors.push(tailor)
-            addMarkerForStore(tailor)
-            if (onStoresFound) {
-              onStoresFound([...discoveredTailors])
-            }
-          }
-        }
-
-        // 1. Register stores passed directly via props
-        if (Array.isArray(stores) && stores.length > 0) {
-          stores.forEach((st) => registerNewTailor(st))
-        }
-
-        // 2. Fetch registered partner studios from our backend database
-        try {
-          fetch(`/api/tailors/nearby?lat=${lat}&lng=${lng}&radiusMiles=4.0&query=${encodeURIComponent(origin || '')}`)
-            .then((r) => r.json())
-            .then((data) => {
-              if (data.tailors && Array.isArray(data.tailors) && data.tailors.length > 0) {
-                data.tailors.forEach((t: StoreOption) => {
-                  registerNewTailor(t)
-                })
-              }
-            })
-            .catch(() => {
-              // Try backend directly if relative path fails
-              fetch(`http://localhost:5000/api/tailors/nearby?lat=${lat}&lng=${lng}&radiusMiles=4.0&query=${encodeURIComponent(origin || '')}`)
-                .then((r) => r.json())
-                .then((data) => {
-                  if (data.tailors && Array.isArray(data.tailors)) {
-                    data.tailors.forEach((t: StoreOption) => registerNewTailor(t))
-                  }
-                })
-                .catch(() => {})
-            })
-        } catch {}
 
         if (isMounted) {
           setIsReady(true)
         }
-      } catch (err: unknown) {
+      } catch (err) {
         console.warn('Google Maps JS API load failed, falling back to embed:', err)
         if (isMounted) {
           setLoadError(true)
@@ -351,25 +199,243 @@ export default function CleanGoogleMap({
       }
     }
 
-    initMap()
+    initMapEngine()
 
     return () => {
       isMounted = false
+      markersRef.current.forEach((m) => {
+        if (m && m.setMap) m.setMap(null)
+      })
+      markersRef.current = []
     }
-  }, [lat, lng, storeName, storeAddress, origin, userCoords, stores, activeStore?.id, disableNavigation])
+  }, [])
 
-  const targetLat = activeStore?.coords?.lat || lat
-  const targetLng = activeStore?.coords?.lng || lng
-  const query = encodeURIComponent(`tailors in ${origin || `${targetLat},${targetLng}`}`)
+  // 2. Pan or Lock center coordinates when lat/lng change
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map || !isReady) return
+
+    if (isFixed) {
+      const halfMiles = fixedBoxMiles / 2.0
+      const deltaLat = halfMiles / 69.0
+      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+
+      const bounds8x8 = new google.maps.LatLngBounds(
+        new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
+        new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
+      )
+      map.fitBounds(bounds8x8, 0)
+      map.setCenter({ lat, lng })
+    } else {
+      map.panTo({ lat, lng })
+    }
+  }, [lat, lng, isReady, isFixed, fixedBoxMiles])
+
+  // 3. Filter stores strictly within radius and render pins
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map || !isReady) return
+
+    // Clear existing partner pins & overlays
+    markersRef.current.forEach((m) => {
+      if (m && m.setMap) m.setMap(null)
+    })
+    markersRef.current = []
+
+    // Filter stores strictly to those within the service radius (or 8x8 box)
+    const validStoresInRadius = stores.filter((st) => {
+      const stLat = st.coords?.lat
+      const stLng = st.coords?.lng
+      if (typeof stLat !== 'number' || typeof stLng !== 'number') return false
+      const dist = calculateDistanceInMiles(lat, lng, stLat, stLng)
+      return dist <= (radiusMiles || fixedBoxMiles / 2.0)
+    })
+
+    if (onStoresFound && validStoresInRadius.length !== stores.length) {
+      onStoresFound(validStoresInRadius)
+    }
+
+    // A. Custom Center Marker: Customer Location Pin ("You")
+    if (showUserPin) {
+      class CustomerLocationMarkerOverlay extends google.maps.OverlayView {
+        private position: google.maps.LatLng
+        private div: HTMLDivElement | null = null
+
+        constructor(position: google.maps.LatLng) {
+          super()
+          this.position = position
+        }
+
+        onAdd() {
+          this.div = document.createElement('div')
+          this.div.style.position = 'absolute'
+          this.div.style.transform = 'translate(-50%, -50%)'
+          this.div.style.zIndex = '50'
+          this.div.style.pointerEvents = 'none'
+
+          this.div.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
+              <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 0, 0, 0.12); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+              <div style="width: 18px; height: 18px; border-radius: 50%; background: #0F1115; border: 3px solid #FFFFFF; box-shadow: 0 2px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 2;">
+                <div style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></div>
+              </div>
+              <div style="margin-top: 3px; background: #0F1115; color: #FFFFFF; font-size: 8px; font-weight: 800; padding: 1.5px 5px; border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase;">
+                ${userPinLabel}
+              </div>
+            </div>
+          `
+
+          const panes = this.getPanes()
+          panes?.overlayMouseTarget.appendChild(this.div)
+        }
+
+        draw() {
+          const projection = this.getProjection()
+          if (!projection || !this.div) return
+          const point = projection.fromLatLngToDivPixel(this.position)
+          if (point) {
+            this.div.style.left = `${point.x}px`
+            this.div.style.top = `${point.y}px`
+          }
+        }
+
+        onRemove() {
+          if (this.div && this.div.parentNode) {
+            this.div.parentNode.removeChild(this.div)
+            this.div = null
+          }
+        }
+      }
+
+      const userMarker = new CustomerLocationMarkerOverlay(new google.maps.LatLng(lat, lng))
+      userMarker.setMap(map)
+      markersRef.current.push(userMarker)
+    }
+
+    // B. Custom Tailor Studio Pin Overlay
+    class CustomStudioMarkerOverlay extends google.maps.OverlayView {
+      private position: google.maps.LatLng
+      private div: HTMLDivElement | null = null
+      private store: StoreOption
+      private isSelected: boolean
+
+      constructor(position: google.maps.LatLng, store: StoreOption, isSelected: boolean) {
+        super()
+        this.position = position
+        this.store = store
+        this.isSelected = isSelected
+      }
+
+      onAdd() {
+        this.div = document.createElement('div')
+        this.div.style.position = 'absolute'
+        this.div.style.cursor = 'pointer'
+        this.div.style.transform = 'translate(-50%, -100%)'
+        this.div.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+        this.div.style.zIndex = this.isSelected ? '999' : '100'
+        this.div.title = `${this.store.name} (${this.store.distance || 'Near you'})`
+
+        const activeBorder = this.isSelected
+          ? 'border: 2.5px solid #000000; box-shadow: 0 8px 24px rgba(0,0,0,0.35);'
+          : 'border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22);'
+        const badgeScale = this.isSelected ? 'scale(1.12)' : 'scale(1.0)'
+
+        this.div.innerHTML = `
+          <div style="transform: ${badgeScale}; transition: transform 0.2s ease; background: #FFFFFF; border-radius: 12px; ${activeBorder} padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative;">
+            <div style="display: flex; align-items: center; justify-content: center; padding: 1px;">
+              <img src="/landscape_logo.JPEG" style="height: 24px; width: auto; max-width: 60px; object-fit: cover; border-radius: 6px; display: block;" alt="${this.store.name}" />
+            </div>
+            <div style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0F1115;"></div>
+          </div>
+        `
+
+        this.div.addEventListener('click', (e) => {
+          e.stopPropagation()
+          if (onSelectStore) {
+            onSelectStore(this.store)
+          }
+          if (!disableNavigation) {
+            openCarNavigation({
+              destName: this.store.name,
+              destAddress: this.store.address,
+              destCoords: this.store.coords,
+              origin,
+              userCoords,
+            })
+          }
+        })
+
+        const panes = this.getPanes()
+        panes?.overlayMouseTarget.appendChild(this.div)
+      }
+
+      draw() {
+        const projection = this.getProjection()
+        if (!projection || !this.div) return
+        const point = projection.fromLatLngToDivPixel(this.position)
+        if (point) {
+          this.div.style.left = `${point.x}px`
+          this.div.style.top = `${point.y}px`
+        }
+      }
+
+      onRemove() {
+        if (this.div && this.div.parentNode) {
+          this.div.parentNode.removeChild(this.div)
+          this.div = null
+        }
+      }
+    }
+
+    // Render pins for each store inside the radius
+    validStoresInRadius.forEach((st) => {
+      const isSelected = st.id === selectedStoreId
+      const overlay = new CustomStudioMarkerOverlay(
+        new google.maps.LatLng(st.coords.lat, st.coords.lng),
+        st,
+        isSelected
+      )
+      overlay.setMap(map)
+      markersRef.current.push(overlay)
+    })
+
+    // If map is NOT fixed and stores exist, fit bounds to show all pins; when fixed, maintain exact 8x8 box centered at user
+    if (!isFixed && validStoresInRadius.length > 1) {
+      const bounds = new google.maps.LatLngBounds()
+      bounds.extend(new google.maps.LatLng(lat, lng))
+      validStoresInRadius.forEach((st) => {
+        bounds.extend(new google.maps.LatLng(st.coords.lat, st.coords.lng))
+      })
+      map.fitBounds(bounds, 36)
+    }
+  }, [stores, selectedStoreId, lat, lng, radiusMiles, disableNavigation, isReady, origin, userCoords, isFixed, fixedBoxMiles, showUserPin, userPinLabel, onSelectStore, onStoresFound])
+
+  const handleZoomIn = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom() || 13
+      mapInstanceRef.current.setZoom(currentZoom + 1)
+    }
+  }
+
+  const handleZoomOut = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom() || 13
+      mapInstanceRef.current.setZoom(Math.max(currentZoom - 1, 1))
+    }
+  }
+
+  const query = encodeURIComponent(`tailor in ${origin || `${lat},${lng}`}`)
 
   return (
     <div
-      onClick={!disableNavigation ? handleTriggerNavigation : undefined}
-      className={`w-full h-full relative overflow-hidden rounded-[28px] ${disableNavigation ? 'cursor-default' : 'cursor-pointer'
-        } ${className}`}
-      title={disableNavigation ? undefined : 'Click to start car navigation'}
+      onClick={!disableNavigation && onMapClick ? onMapClick : undefined}
+      className={`w-full h-full relative overflow-hidden rounded-[28px] ${
+        disableNavigation ? 'cursor-default' : 'cursor-pointer'
+      } ${className}`}
     >
-      {/* Fallback Embed or Interactive Map Instance */}
+      {/* Fallback Embed or Dynamic Map Instance */}
       {loadError ? (
         <iframe
           title="Clean Map Embed"
@@ -379,6 +445,28 @@ export default function CleanGoogleMap({
         />
       ) : (
         <div ref={mapRef} className="w-full h-full rounded-[28px]" />
+      )}
+
+      {/* Optional Zoom Controls */}
+      {showZoomControls && isReady && !loadError && (
+        <div className="absolute top-3 right-3 z-20 flex flex-col gap-1 shadow-sm">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="size-8 rounded-lg bg-white hover:bg-neutral-100 text-black font-bold flex items-center justify-center border border-gray-200 shadow-xs active:scale-95 transition-all cursor-pointer"
+            title="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="size-8 rounded-lg bg-white hover:bg-neutral-100 text-black font-bold flex items-center justify-center border border-gray-200 shadow-xs active:scale-95 transition-all cursor-pointer"
+            title="Zoom out"
+          >
+            &minus;
+          </button>
+        </div>
       )}
 
       {!isReady && !loadError && (

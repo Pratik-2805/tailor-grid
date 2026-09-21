@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { ArrowRight, Check, MapPin, Scissors, Star } from 'lucide-react'
-import { PARTNER_STORES, type Screen, type StoreOption } from './data'
+import { ArrowRight, MapPin, Scissors, Star } from 'lucide-react'
+import { type Screen, type StoreOption } from './data'
 import { fetchStores } from '@/lib/api'
 
 interface StudiosPreviewProps {

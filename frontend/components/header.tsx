@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Building2, ChevronDown, LogOut, MapPin, Menu, Package, Phone, Scissors, ShieldCheck, User as UserIcon, X } from 'lucide-react'
+import { Building2, LogOut, Menu, Package, Phone, User as UserIcon, X } from 'lucide-react'
 import { getStudioUrl } from '@/lib/api'
 import { type Screen, type User } from './data'
 

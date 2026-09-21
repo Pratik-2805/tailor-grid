@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, Banknote, Calendar, CheckCircle2, Scissors, ShieldCheck, ShoppingBag, Store, TrendingUp } from 'lucide-react'
+import { ArrowRight, Banknote, Calendar, CheckCircle2, ShoppingBag, Store } from 'lucide-react'
 import { type Screen } from './data'
 
 export function PartnerBanner({ go }: { go: (s: Screen) => void }) {

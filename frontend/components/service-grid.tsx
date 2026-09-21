@@ -1,7 +1,6 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, Clock, Sparkles, Zap } from 'lucide-react'
 import { type Screen } from './data'
 
 interface ServiceGridProps {

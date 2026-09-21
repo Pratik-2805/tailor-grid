@@ -38,25 +38,21 @@ interface PartnerOnboardingProps {
   hideHeader?: boolean
 }
 
-type Step = 'auth' | 'location' | 'language' | 'shop-info' | 'phone-verify' | 'hub'
+type Step = 'auth' | 'location' | 'shop-info' | 'phone-verify'
 
 const stepToUrlNum: Record<Step, string> = {
   'auth': 'auth',
   'location': '1',
-  'language': '2',
-  'shop-info': '3',
-  'phone-verify': '4',
-  'hub': '5',
+  'shop-info': '2',
+  'phone-verify': '3',
 }
 
 const urlParamToStep = (param: string | null): Step | null => {
   if (!param) return null
   const p = param.toLowerCase().trim()
   if (p === '1' || p === 'location' || p === 'step1' || p === 'step-1') return 'location'
-  if (p === '2' || p === 'language' || p === 'step2' || p === 'step-2') return 'language'
-  if (p === '3' || p === 'shop-info' || p === 'shopinfo' || p === 'step3' || p === 'step-3') return 'shop-info'
-  if (p === '4' || p === 'phone-verify' || p === 'phone' || p === 'step4' || p === 'step-4') return 'phone-verify'
-  if (p === '5' || p === 'hub' || p === 'step5' || p === 'step-5') return 'hub'
+  if (p === '2' || p === 'shop-info' || p === 'shopinfo' || p === 'step2' || p === 'step-2') return 'shop-info'
+  if (p === '3' || p === 'phone-verify' || p === 'phone' || p === 'step3' || p === 'step-3') return 'phone-verify'
   if (p === 'auth' || p === 'signin' || p === 'signup' || p === 'login') return 'auth'
   return null
 }
@@ -145,7 +141,7 @@ export function PartnerOnboarding({
       return 'auth'
     }
     const cached = ssGet('tg_onboard_step')
-    if (cached && ['auth', 'location', 'language', 'shop-info', 'phone-verify', 'hub'].includes(cached)) {
+    if (cached && ['auth', 'location', 'shop-info', 'phone-verify'].includes(cached)) {
       return cached as Step
     }
     return 'location'
@@ -637,7 +633,8 @@ export function PartnerOnboarding({
       setStep3VerifiedPhone(validatedPhone)
       setStep3OtpSent(false)
       setStep3Otp('')
-      toast.success('Mobile number verified successfully!', { position: 'top-center' })
+      toast.success('Mobile number verified! Activating studio...', { position: 'top-center' })
+      await handleFinishOnboarding(validatedPhone)
       return true
     } catch (err: any) {
       setStep3OtpLoading(false)
@@ -708,8 +705,10 @@ export function PartnerOnboarding({
     }
   }
 
-  // Final submit at step 4 (Hub)
-  const handleFinishOnboarding = async () => {
+  // Final submit & Studio Activation upon verification
+  const handleFinishOnboarding = async (overridePhone?: string) => {
+    const effectivePhone = overridePhone || phone.trim() || user?.phone
+
     if (!studioLat || !studioLng) {
       const msg = 'Studio map location (Latitude & Longitude) is compulsory.'
       setError(msg)
@@ -731,7 +730,7 @@ export function PartnerOnboarding({
         tempSignupId: resolvedTempId,
         name: tailorName.trim() || user?.name || pendingGoogle?.name || 'Master Tailor',
         email: emailToSubmit || undefined,
-        phone: phone.trim() || user?.phone || undefined,
+        phone: effectivePhone || undefined,
         address: streetAddress.trim(),
         postcode: postcode.trim(),
         role: 'STUDIO',
@@ -762,9 +761,9 @@ export function PartnerOnboarding({
       const finalUser: User = res?.user || {
         id: user?.id || `usr_${Date.now()}`,
         name: tailorName.trim(),
-        contact: phone.trim() || emailToSubmit || 'partner@darzi.com',
+        contact: effectivePhone || emailToSubmit || 'partner@darzi.com',
         email: emailToSubmit || 'partner@darzi.com',
-        phone: phone.trim(),
+        phone: effectivePhone || '',
         method: 'email',
         role: 'STUDIO',
         status: 'ACTIVE',
@@ -793,7 +792,7 @@ export function PartnerOnboarding({
     }
   }
 
-  const stepsList: Step[] = ['auth', 'location', 'shop-info', 'phone-verify', 'hub']
+  const stepsList: Step[] = ['auth', 'location', 'shop-info', 'phone-verify']
   const currentStepNum = stepsList.indexOf(currentStep)
 
   const handleSelectMapLocation = (loc: SelectedLocationData) => {
@@ -819,7 +818,7 @@ export function PartnerOnboarding({
       {!hideHeader && (
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E1D5] px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {currentStepNum > 0 && currentStep !== 'hub' && (
+            {currentStepNum > 0 && (
               <button
                 onClick={() => {
                   setError('')
@@ -841,9 +840,9 @@ export function PartnerOnboarding({
           </div>
 
           <div className="flex items-center gap-3">
-            {currentStep !== 'auth' && currentStep !== 'hub' && (
+            {currentStep !== 'auth' && (
               <span className="text-xs font-semibold text-gray-500">
-                Step {currentStepNum} of 4
+                Step {currentStepNum} of 3
               </span>
             )}
 
@@ -965,8 +964,7 @@ export function PartnerOnboarding({
                       onClick={() => {
                         setError('')
                         setNotice('')
-                        if (currentStep === 'hub') setCurrentStep('phone-verify')
-                        else if (currentStep === 'phone-verify') setCurrentStep('shop-info')
+                        if (currentStep === 'phone-verify') setCurrentStep('shop-info')
                         else if (currentStep === 'shop-info') setCurrentStep('location')
                         else if (currentStep === 'location') {
                           setSignInMode('options')
@@ -989,7 +987,7 @@ export function PartnerOnboarding({
                   </div>
 
                   <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    Step {currentStepNum} of 4
+                    Step {currentStepNum} of 3
                   </span>
                 </div>
               )}
@@ -1504,7 +1502,7 @@ export function PartnerOnboarding({
                     </div>
                   )}
 
-                  {/* Step 4: Phone Number Verification (Dedicated 4th Step) */}
+                  {/* Step 3: Phone Number Verification */}
                   {currentStep === 'phone-verify' && (
                     <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
                       {isPhoneVerified ? (
@@ -1549,14 +1547,18 @@ export function PartnerOnboarding({
 
                           <button
                             type="button"
-                            onClick={() => {
-                              setError('')
-                              setCurrentStep('hub')
-                            }}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-6"
+                            disabled={submitting}
+                            onClick={() => handleFinishOnboarding()}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-md active:scale-[0.99] transition-all cursor-pointer mt-6 disabled:opacity-50"
                           >
-                            <span>Continue to Workbench Review</span>
-                            <ArrowRight size={16} />
+                            {submitting ? (
+                              <span>Activating Atelier Studio…</span>
+                            ) : (
+                              <>
+                                <span>Access Studio Workbench</span>
+                                <ArrowRight size={16} />
+                              </>
+                            )}
                           </button>
                         </div>
                       ) : (
@@ -1621,97 +1623,6 @@ export function PartnerOnboarding({
                       )}
                     </div>
                   )}
-
-                  {/* Step 5: Hub (Shifted from 4th to 5th Step) */}
-                  {currentStep === 'hub' && (
-                    <div className="flex-1 flex flex-col justify-between space-y-6 animate-in fade-in duration-200">
-                      <div className="inline-flex items-center gap-1.5 text-xs text-gray-500 font-semibold">
-                        <span>Signing up for</span>
-                        <span className="font-bold text-[#0F1115]">{locationCity || 'Darzi Grid'}</span>
-                        <span>✂️</span>
-                      </div>
-
-                      <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                          Welcome, {tailorName || user?.name || 'Master Tailor'}
-                        </h1>
-                        <p className="text-sm text-gray-600 mt-1">
-                          All 4 atelier steps completed. Ready to launch your workbench.
-                        </p>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden flex">
-                          <div className="h-full bg-emerald-500 w-full transition-all duration-500" />
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] font-bold text-emerald-600">
-                          <span>100% Completed</span>
-                          <span>Ready to Launch</span>
-                        </div>
-                      </div>
-
-                      <div className="divide-y divide-gray-100 border-t border-b border-gray-100 my-4">
-                        <div className="py-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-extrabold text-[#0F1115]">Studio Location & Shop Details</p>
-                            <p className="text-xs text-gray-500">{shopName} · {shopArea} ({postcode})</p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                            <CheckCircle2 size={16} />
-                            <span>Completed</span>
-                          </div>
-                        </div>
-
-                        <div className="py-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-extrabold text-[#0F1115]">Language & Daily Capacity</p>
-                            <p className="text-xs text-gray-500">{language} · {machines} Machines ({dailyCapacity}/day limit)</p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                            <CheckCircle2 size={16} />
-                            <span>Completed</span>
-                          </div>
-                        </div>
-
-                        <div className="py-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-extrabold text-[#0F1115]">Lead Tailor & Contact Email</p>
-                            <p className="text-xs text-gray-500">{tailorName} · {emailVal}</p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                            <CheckCircle2 size={16} />
-                            <span>Completed</span>
-                          </div>
-                        </div>
-
-                        <div className="py-3 flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-extrabold text-[#0F1115]">Verified Partner Mobile</p>
-                            <p className="text-xs text-gray-500">{phone || step3VerifiedPhone || 'Verified via SMS'}</p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs font-bold text-emerald-600">
-                            <CheckCircle2 size={16} />
-                            <span>Verified</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handleFinishOnboarding}
-                        disabled={submitting}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-black py-4 text-sm font-extrabold text-white shadow-lg active:scale-[0.99] transition-all mt-6 cursor-pointer disabled:opacity-50"
-                      >
-                        {submitting ? (
-                          <span>Activating Atelier Studio…</span>
-                        ) : (
-                          <>
-                            <span>Access Studio Workbench</span>
-                            <ArrowRight size={16} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -1732,10 +1643,7 @@ export function PartnerOnboarding({
                   value={step3Otp}
                   onChange={setStep3Otp}
                   onVerify={async () => {
-                    const verified = await handleStep3VerifyOtp()
-                    if (verified) {
-                      setCurrentStep('hub')
-                    }
+                    await handleStep3VerifyOtp()
                   }}
                   onResend={() => handleStep3SendOtp(true)}
                   resendCountdown={step3Countdown}

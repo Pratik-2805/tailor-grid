@@ -25,7 +25,7 @@ import {
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
-import { PARTNER_STORES, getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User } from './data'
+import { getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User, type StoreOption } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
@@ -283,38 +283,59 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }, [slugId])
 
-  const closestStore = getClosestStoreForLocation(order?.city || order?.storeAddress || order?.postcode)
   const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '0000')
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
+
   const storeNameDisplay =
     order?.store?.name ||
     (order?.storeName && order.storeName !== 'Atelier SoHo' && order.storeName !== 'Local Partner Atelier' ? order.storeName : null) ||
     order?.storeName ||
-    closestStore?.name ||
-    'Local Partner Atelier'
+    (order?.status === 'Allocated' ? 'Awaiting Studio Acceptance' : 'Assigned Partner Studio')
 
   const storeAddressDisplay =
     order?.store?.address
       ? (order.store.address + (order.store.area && order.store.area !== order.store.address ? `, ${order.store.area}` : ''))
-      : (order?.storeAddress || (closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio'))
+      : (order?.storeAddress || (order?.city ? `Central Atelier Workshop, ${order.city}` : 'Local Partner Studio'))
 
-  const storePhoneDisplay = order?.storePhone || order?.store?.phone || closestStore?.phone || '+44 20 7946 0912'
-  const storeHoursDisplay = order?.store?.openingHours || closestStore?.openingHours || 'Mon–Sat: 09:00 – 19:00'
-  const storeTailorDisplay = order?.store?.leadTailor || closestStore?.leadTailor || 'Master Tailor'
+  const storePhoneDisplay = order?.storePhone || order?.store?.phone || '+44 20 7946 0912'
+  const storeHoursDisplay = order?.store?.openingHours || 'Mon–Sat: 09:00 – 19:00'
+  const storeTailorDisplay = order?.store?.leadTailor || 'Master Tailor'
   const cleanStudioBadgeName = storeNameDisplay
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
   const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
 
-  const destinationCoords =
-    (order?.store?.lat && order?.store?.lng)
-      ? { lat: Number(order.store.lat), lng: Number(order.store.lng) }
-      : (closestStore?.coords || { lat: 19.3705, lng: 72.8228 })
+  const destinationCoords = {
+    lat: order?.store?.lat ? Number(order.store.lat) : (order?.store?.coords?.lat || 19.3919),
+    lng: order?.store?.lng ? Number(order.store.lng) : (order?.store?.coords?.lng || 72.8397),
+  }
+
+  const assignedStoreOption: StoreOption = {
+    id: order?.storeId || order?.store?.id || 'assigned-studio',
+    name: storeNameDisplay,
+    area: order?.store?.area || order?.city || '',
+    address: storeAddressDisplay,
+    postcode: order?.store?.postcode || order?.postcode || '',
+    phone: storePhoneDisplay,
+    distance: distanceBadge,
+    distanceMiles: 0.3,
+    rating: order?.store?.rating || 5.0,
+    reviewCount: order?.store?.reviewCount || 120,
+    openingHours: storeHoursDisplay,
+    dailyCapacity: order?.store?.dailyCapacity || 25,
+    machines: order?.store?.machines || 6,
+    workers: order?.store?.workers || 4,
+    leadTailor: storeTailorDisplay,
+    specialties: order?.store?.specialties || ['Custom Alterations', 'Precision Hemming'],
+    retailSold: true,
+    coords: destinationCoords,
+  }
+
   const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
   const cleanMapUrl = `https://maps.google.com/maps?q=${storeQuery}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`
 
-  // Calculate real accurate distance and walking/driving ETA
+  // Calculate real accurate distance and walking/driving ETA to the assigned studio
   useEffect(() => {
-    let distanceMiles = closestStore?.distanceMiles || 0.3
+    let distanceMiles = 0.4
     if (userCoords && destinationCoords) {
       const computed = calculateHaversineDistanceMiles(
         userCoords.lat,
@@ -331,7 +352,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     const walkMins = Math.max(1, Math.round(distanceMiles * 19.3))
     const walkLabel = walkMins === 1 ? '1 min walk' : `${walkMins} mins walk`
     setDistanceBadge(`${distanceMiles.toFixed(1)} mi • ~${walkLabel}`)
-  }, [userCoords, destinationCoords, closestStore])
+  }, [userCoords, destinationCoords.lat, destinationCoords.lng])
 
   const handleCopyPin = () => {
     if (typeof window !== 'undefined') {
@@ -347,14 +368,14 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       const shareUrl = window.location.href
       if (navigator.share) {
         navigator.share({
-          title: `Darzi Order #${order?.id || slugId}`,
-          text: `Tailor Studio Location: ${storeNameDisplay} - ${storeAddressDisplay}`,
+          title: `Fitting Appointment: ${storeNameDisplay}`,
+          text: `Here are my fitting drop-off details at ${storeNameDisplay} (${storeAddressDisplay}). PIN: ${formattedOtp}`,
           url: shareUrl,
         }).catch(() => { })
       } else {
         navigator.clipboard.writeText(shareUrl)
         setCopiedToast(true)
-        toast.info('Studio location link copied to clipboard!', { position: 'top-center', autoClose: 2500 })
+        toast.success('Live Tracking link copied!', { position: 'top-center', autoClose: 2000 })
         setTimeout(() => setCopiedToast(false), 2500)
       }
     }
@@ -370,6 +391,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     })
   }
 
+  // GPS target button updates user's own location relative to the assigned tailor studio
   const handleFetchCurrentLocation = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       setIsLocating(true)
@@ -377,16 +399,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         (pos) => {
           const { latitude, longitude } = pos.coords
           setUserCoords({ lat: latitude, lng: longitude })
-          const store = getClosestStoreForLocation(`${latitude},${longitude}`)
-          if (store) {
-            setOrder((prev: any) => ({
-              ...prev,
-              storeName: store.name,
-              storeAddress: store.address + (store.area ? `, ${store.area}` : ''),
-              city: store.area || 'Current Spot',
-            }))
-          }
           setIsLocating(false)
+          toast.info('Updated distance to your assigned tailor studio', { position: 'top-center', autoClose: 2000 })
         },
         (err) => {
           console.warn('Geolocation failed:', err)
@@ -982,6 +996,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     storeAddress={storeAddressDisplay}
                     origin={order?.customerAddress || order?.address || order?.city}
                     userCoords={userCoords}
+                    stores={[assignedStoreOption]}
+                    selectedStoreId={assignedStoreOption.id}
+                    showRadiusCircle={false}
                     onMapClick={handleOpenAppMap}
                   />
 

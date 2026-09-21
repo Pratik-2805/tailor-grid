@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES, getClosestStoreForLocation } from '../components/data'
+import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES } from '../components/data'
 import {
   getAuthToken,
   setAuthToken,

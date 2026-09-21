@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, CheckCircle2, Clock, MapPin, Scissors, ShieldCheck, Sparkles, Store } from 'lucide-react'
+import { ArrowRight, CheckCircle2, MapPin, Scissors, ShieldCheck, Sparkles, Store } from 'lucide-react'
 import { type Screen } from './data'
 
 export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {

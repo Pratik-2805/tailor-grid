@@ -80,9 +80,13 @@ async function findOrLinkUser({
     });
   }
 
-  // STRICT ROLE GATE: If user exists with a different role, REJECT immediately!
+  // STRICT ROLE GATE: Reject any cross-role switching or reuse
   if (user && user.role && user.role !== role) {
-    const roleErr = new Error('Unauthorized user, access denied.');
+    const currentRoleName = user.role === 'CUSTOMER' ? 'Customer' : user.role === 'STUDIO' ? 'Studio partner' : user.role;
+    const requestedRoleName = role === 'CUSTOMER' ? 'Customer' : role === 'STUDIO' ? 'Studio partner' : role;
+    const roleErr = new Error(
+      `This account is registered as a ${currentRoleName}. It cannot be switched or used as a ${requestedRoleName} account. Please use a different phone or email.`
+    );
     roleErr.statusCode = 403;
     throw roleErr;
   }
@@ -229,7 +233,8 @@ async function findOrLinkUser({
       });
       if (phoneTaken) {
         if (phoneTaken.role && phoneTaken.role !== role) {
-          const roleErr = new Error('Unauthorized user, access denied.');
+          const roleName = phoneTaken.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+          const roleErr = new Error(`This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`);
           roleErr.statusCode = 403;
           throw roleErr;
         }
@@ -248,7 +253,8 @@ async function findOrLinkUser({
       });
       if (emailTaken) {
         if (emailTaken.role && emailTaken.role !== role) {
-          const roleErr = new Error('Unauthorized user, access denied.');
+          const roleName = emailTaken.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+          const roleErr = new Error(`This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email address.`);
           roleErr.statusCode = 403;
           throw roleErr;
         }
@@ -442,12 +448,12 @@ router.post('/verify-otp', async (req, res) => {
         // Strict role validation
         if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
           return res.status(403).json({
-            error: 'This mobile number is registered as a Customer. Please use a different number for Studio.',
+            error: 'This mobile number is already registered as a Customer account. Please use a different number to register as a Studio partner.',
           });
         }
         if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
           return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+            error: 'This mobile number is registered as a Studio partner account. Please use a different number or sign in to Darzi Studio.',
           });
         }
         if (role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName)) {
@@ -622,7 +628,15 @@ router.get('/check-email', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
-    if (existingUser && existingUser.studioName) {
+    if (existingUser) {
+      if (existingUser.role && existingUser.role !== role) {
+        const roleName = existingUser.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+        return res.json({
+          exists: true,
+          user: existingUser,
+          error: `This email is already registered as a ${roleName} account. Please use a different email.`,
+        });
+      }
       return res.json({
         exists: true,
         user: existingUser,
@@ -756,12 +770,12 @@ router.post('/google', async (req, res) => {
     if (existingUser) {
       if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
         return res.status(403).json({
-          error: 'Unauthorized user, access denied.',
+          error: 'This Google account is already registered as a Customer account. Please use a different account to register as a Studio partner.',
         });
       }
       if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
         return res.status(403).json({
-          error: 'Unauthorized user, access denied.',
+          error: 'This Google account is registered as a Studio partner account. Please sign in to Darzi Studio.',
         });
       }
 
@@ -902,8 +916,9 @@ router.post('/signup', async (req, res) => {
       });
       if (existingEmail) {
         if (existingEmail.role !== role) {
+          const roleName = existingEmail.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
           return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+            error: `This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email.`,
           });
         }
         // If Customer role, prevent duplicate registration
@@ -924,8 +939,9 @@ router.post('/signup', async (req, res) => {
       });
       if (existingPhone) {
         if (existingPhone.role !== role) {
+          const roleName = existingPhone.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
           return res.status(403).json({
-            error: 'Unauthorized user, access denied.',
+            error: `This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`,
           });
         }
         if (existingPhone.email && finalEmail && existingPhone.email !== finalEmail) {
@@ -1016,7 +1032,7 @@ router.post('/login', async (req, res) => {
     if (role === 'STUDIO') {
       if (user.role !== 'STUDIO') {
         return res.status(403).json({
-          error: 'Unauthorized user, access denied.',
+          error: 'This account is registered as a Customer account. It cannot be used to log in to Darzi Studio.',
         });
       }
       return res.status(403).json({
@@ -1028,7 +1044,7 @@ router.post('/login', async (req, res) => {
 
     if (role === 'CUSTOMER' && (user.role === 'STUDIO' || user.status === 'INACTIVE')) {
       return res.status(403).json({
-        error: 'Unauthorized user, access denied.',
+        error: 'This account is registered as a Studio partner account. Please sign in to Darzi Studio.',
       });
     }
 

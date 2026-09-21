@@ -31,24 +31,53 @@ router.get('/services', async (req, res) => {
   }
 });
 
-// GET /api/stores - Partner studio locations & live capacity
+// Helper for GPS distance calculation purely by lat/lng
+function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
+  const R = 3958.8;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
+}
+
+// GET /api/stores - Partner studio locations & live capacity (filtered purely by lat/lng or search)
 router.get('/stores', async (req, res) => {
   try {
     const { search, area } = req.query;
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radiusMiles = parseFloat(req.query.radiusMiles || '8.0') || 8.0;
+
     const where = {};
 
-    if (area) {
-      where.area = { contains: area, mode: 'insensitive' };
-    }
+    // Only apply text filtering if explicit search or area is provided without lat/lng
+    if (isNaN(lat) || isNaN(lng)) {
+      if (area) {
+        const cityKeyword = area.split(',')[0].trim();
+        where.OR = [
+          { area: { contains: area, mode: 'insensitive' } },
+          { area: { contains: cityKeyword, mode: 'insensitive' } },
+          { address: { contains: cityKeyword, mode: 'insensitive' } },
+          { name: { contains: cityKeyword, mode: 'insensitive' } },
+        ];
+      }
 
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { area: { contains: search, mode: 'insensitive' } },
-        { address: { contains: search, mode: 'insensitive' } },
-        { postcode: { contains: search, mode: 'insensitive' } },
-        { leadTailor: { contains: search, mode: 'insensitive' } },
-      ];
+      if (search) {
+        const cleanSearch = search.trim();
+        where.OR = [
+          { name: { contains: cleanSearch, mode: 'insensitive' } },
+          { area: { contains: cleanSearch, mode: 'insensitive' } },
+          { address: { contains: cleanSearch, mode: 'insensitive' } },
+          { postcode: { contains: cleanSearch, mode: 'insensitive' } },
+          { leadTailor: { contains: cleanSearch, mode: 'insensitive' } },
+        ];
+      }
     }
 
     const prismaStores = await prisma.partnerStore.findMany({
@@ -73,7 +102,7 @@ router.get('/stores', async (req, res) => {
 
     // Deduplicate stores by slug/name/leadTailor
     const seenKeys = new Set();
-    const stores = [];
+    let stores = [];
 
     for (const s of prismaStores) {
       // Find matching studio user
@@ -92,14 +121,26 @@ router.get('/stores', async (req, res) => {
       }
       seenKeys.add(key);
 
+      const storeLat = s.lat || 19.3568;
+      const storeLng = s.lng || 72.8395;
+
+      let calculatedDist = s.distanceMiles || 0.4;
+      if (!isNaN(lat) && !isNaN(lng)) {
+        calculatedDist = calculateDistanceInMiles(lat, lng, storeLat, storeLng);
+        // Purely lat/lng filtering: ignore stores beyond radiusMiles
+        if (calculatedDist > radiusMiles) {
+          continue;
+        }
+      }
+
       stores.push({
         id: s.id,
         name: storeName,
         area: s.area,
         address: (matchingUser && matchingUser.address) ? matchingUser.address : s.address,
         postcode: (matchingUser && matchingUser.postcode) ? matchingUser.postcode : s.postcode,
-        distance: s.distance || `${s.distanceMiles || 0.4} mi away`,
-        distanceMiles: s.distanceMiles || 0.4,
+        distance: `${calculatedDist} mi away`,
+        distanceMiles: calculatedDist,
         rating: s.rating || 5.0,
         reviewCount: s.reviewCount || 1,
         openingHours: s.openingHours || 'Mon–Sat: 09:00 – 19:00',
@@ -111,9 +152,13 @@ router.get('/stores', async (req, res) => {
           ? s.specialties
           : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
         retailSold: s.retailSold ?? true,
-        coords: { lat: s.lat || 40.7259, lng: s.lng || -74.0003 },
+        coords: { lat: storeLat, lng: storeLng },
         image: matchingUser?.avatar || null,
       });
+    }
+
+    if (!isNaN(lat) && !isNaN(lng)) {
+      stores.sort((a, b) => a.distanceMiles - b.distanceMiles);
     }
 
     return res.json({ stores, total: stores.length });
