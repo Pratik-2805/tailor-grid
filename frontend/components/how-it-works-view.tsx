@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +18,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { FaqAccordion } from './faq-accordion'
-import { GARMENT_CATEGORIES, type Screen } from './data'
+import { type Screen } from './data'
 import {
   HeroTailoringIllustration,
   Step1Illustration,

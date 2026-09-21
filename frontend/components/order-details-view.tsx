@@ -25,7 +25,7 @@ import {
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
-import { PARTNER_STORES, getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User } from './data'
+import { getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User } from './data'
 import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
-import { fetchOrders, updateOrder, deleteOrder } from '@/lib/api'
+import { fetchOrders, updateOrder } from '@/lib/api'
 import { OrderDetailsView } from './order-details-view'
 
 interface OrdersViewProps {

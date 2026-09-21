@@ -1,7 +1,5 @@
 'use client'
 
-import React from 'react'
-
 /**
  * High-end, bespoke vector illustrations crafted in pure SVG with the exact Darzi palette:
  * Obsidian (#0F1115), Charcoal (#1E2229), Terracotta (#9E593B), Warm Sand (#FAF8F5),

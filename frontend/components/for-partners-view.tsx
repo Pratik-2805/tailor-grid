@@ -27,8 +27,7 @@ import {
   Users
 } from 'lucide-react'
 import { type Screen } from './data'
-import { toast } from 'react-toastify'
-import { signUpUser, getStudioUrl } from '@/lib/api'
+import { getStudioUrl } from '@/lib/api'
 import { getAuthToken, getAuthRole } from '@/lib/cookies'
 
 interface ForPartnersViewProps {

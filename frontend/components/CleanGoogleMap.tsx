@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
-import { Navigation, Star, MapPin, Check, Scissors } from 'lucide-react'
 import type { StoreOption } from './data'
 
 export interface CarNavigationParams {

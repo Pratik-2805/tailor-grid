@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { clearAuthCookies, getCurrentUser, getStudioUrl } from '@/lib/api'
+import { getCurrentUser } from '@/lib/api'
 import {
   getAuthToken,
   getAuthUser,

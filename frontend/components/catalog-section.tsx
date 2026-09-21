@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, Check, Clock, Sparkles } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { GARMENT_CATEGORIES, type GarmentCategory, type Screen } from './data'
 import { fetchServices } from '@/lib/api'
 
