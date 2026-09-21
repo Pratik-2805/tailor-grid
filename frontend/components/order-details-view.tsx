@@ -567,11 +567,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         />
       </div>
     )
-  }  // Dynamic status mappings
-  const currentStatus = (order?.status || 'Accepted').toUpperCase()
+  }
+
+  // Dynamic status mappings
+  const currentStatus = (order?.status || 'Allocated').toUpperCase()
 
   const isCancelled = currentStatus === 'CANCELLED'
-  const isAllocated = currentStatus === 'ALLOCATED'
+  const isAllocated = currentStatus === 'ALLOCATED' || currentStatus === 'SEARCHING' || currentStatus === 'PENDING'
   const isAccepted = currentStatus === 'ACCEPTED'
   const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING'
   const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
@@ -617,8 +619,16 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     pinBoxTitle = 'ORDER COMPLETED'
   }
 
-  if (isLoading) {
-    return <SewingLoader active={true} onComplete={() => setIsLoading(false)} />
+  // Show continuous SewingLoader while searching for a tailor / awaiting studio acceptance
+  if ((isLoading && !order) || (isAllocated && !isCancelled)) {
+    return (
+      <SewingLoader
+        active={true}
+        persistent={true}
+        title="Finding"
+        onCancel={handleCancelCurrentOrder}
+      />
+    )
   }
 
   return (
