@@ -44,6 +44,41 @@ router.get('/studio/stats', async (req, res) => {
   }
 });
 
+function parseOrderMeasurements(pinnedAdjustment) {
+  if (!pinnedAdjustment) return {};
+  if (typeof pinnedAdjustment === 'object') return pinnedAdjustment;
+  const raw = String(pinnedAdjustment).trim();
+  if (raw.startsWith('{') && raw.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch { }
+  } else if (raw.includes('·') || raw.includes(':')) {
+    const result = {};
+    const parts = raw.split('·').map((s) => s.trim()).filter(Boolean);
+    parts.forEach((p) => {
+      const colonIdx = p.indexOf(':');
+      if (colonIdx !== -1) {
+        const k = p.slice(0, colonIdx).trim();
+        const v = p.slice(colonIdx + 1).trim();
+        if (k && v) result[k] = v;
+      }
+    });
+    if (Object.keys(result).length > 0) return result;
+  }
+  return {};
+}
+
+function formatOrderOutput(o) {
+  if (!o) return o;
+  const measurements = parseOrderMeasurements(o.pinnedAdjustment);
+  const updated = { ...o, measurements };
+  if (o.store && (!o.storeName || o.storeName === 'Atelier SoHo' || o.storeName === 'Local Partner Atelier')) {
+    updated.storeName = o.store.name;
+  }
+  return updated;
+}
+
 // GET /api/orders - Fetch orders list with flexible filters
 router.get('/', async (req, res) => {
   try {
@@ -93,12 +128,7 @@ router.get('/', async (req, res) => {
       },
     });
 
-    const processedOrders = orders.map((o) => {
-      if (o.store && (!o.storeName || o.storeName === 'Atelier SoHo' || o.storeName === 'Local Partner Atelier')) {
-        return { ...o, storeName: o.store.name };
-      }
-      return o;
-    });
+    const processedOrders = orders.map(formatOrderOutput);
 
     return res.json({ orders: processedOrders });
   } catch (err) {
@@ -138,10 +168,7 @@ router.get('/:id', async (req, res) => {
     }
 
     if (order) {
-      if (order.store && (!order.storeName || order.storeName === 'Atelier SoHo' || order.storeName === 'Local Partner Atelier')) {
-        order.storeName = order.store.name;
-      }
-      return res.json({ order });
+      return res.json({ order: formatOrderOutput(order) });
     }
     return res.status(404).json({ error: 'Order not found' });
   } catch (err) {
@@ -226,7 +253,23 @@ router.post('/', async (req, res) => {
         date: date || new Date().toISOString().split('T')[0],
         timeSlot: timeSlot || '14:00 - 15:00',
         garmentBrand: garmentBrand || '',
-        fitNotes: fitNotes || (measurementsStr ? `Measurements: ${measurementsStr}` : ''),
+        fitNotes: (() => {
+          if (fitNotes) return fitNotes;
+          if (!measurementsStr) return '';
+          try {
+            const parsed = JSON.parse(measurementsStr);
+            if (parsed && typeof parsed === 'object') {
+              const parts = Object.entries(parsed)
+                .filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+                .map(([k, v]) => {
+                  const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase());
+                  return `${label}: ${v}`;
+                });
+              if (parts.length > 0) return parts.join(' · ');
+            }
+          } catch { }
+          return measurementsStr;
+        })(),
         pinnedAdjustment: measurementsStr || '',
         sewingNotes: '',
         slaHours: 48,
@@ -242,7 +285,7 @@ router.post('/', async (req, res) => {
     return res.status(201).json({
       success: true,
       message: 'Order created and saved successfully',
-      order: newOrder,
+      order: formatOrderOutput(newOrder),
     });
   } catch (err) {
     console.error('Create order error:', err);
@@ -261,6 +304,7 @@ router.put('/:id', async (req, res) => {
       storePhone,
       otp,
       fitNotes,
+      measurements,
       pinnedAdjustment,
       sewingNotes,
       assignedWorker,
@@ -285,7 +329,11 @@ router.put('/:id', async (req, res) => {
     if (storePhone !== undefined) updateData.storePhone = storePhone;
     if (otp !== undefined) updateData.otp = otp;
     if (fitNotes !== undefined) updateData.fitNotes = fitNotes;
-    if (pinnedAdjustment !== undefined) updateData.pinnedAdjustment = pinnedAdjustment;
+    if (pinnedAdjustment !== undefined) {
+      updateData.pinnedAdjustment = typeof pinnedAdjustment === 'object' ? JSON.stringify(pinnedAdjustment) : pinnedAdjustment;
+    } else if (measurements !== undefined) {
+      updateData.pinnedAdjustment = typeof measurements === 'object' ? JSON.stringify(measurements) : measurements;
+    }
     if (sewingNotes !== undefined) updateData.sewingNotes = sewingNotes;
     if (assignedWorker !== undefined) updateData.assignedWorker = assignedWorker;
     if (machineNo !== undefined) updateData.machineNo = machineNo;
@@ -327,13 +375,9 @@ router.put('/:id', async (req, res) => {
       },
     });
 
-    if (updated.store && (!updated.storeName || updated.storeName === 'Atelier SoHo' || updated.storeName === 'Local Partner Atelier')) {
-      updated.storeName = updated.store.name;
-    }
-
     return res.json({
       success: true,
-      order: updated,
+      order: formatOrderOutput(updated),
     });
   } catch (err) {
     console.error('Update order error:', err);

@@ -84,6 +84,95 @@ function calculateHaversineDistanceMiles(lat1: number, lon1: number, lat2: numbe
   return R * c
 }
 
+function formatMeasurementKey(key: string): string {
+  const map: Record<string, string> = {
+    waistHips: 'Waist & Hips',
+    hemLine: 'Hem Line',
+    hemLength: 'Dress Hem',
+    delicateHem: 'Delicate Hem',
+    hem: 'Hem',
+    waist: 'Waist',
+    waistSuppression: 'Waist Suppression',
+    inseam: 'Inseam',
+    sleeve: 'Sleeves',
+    sleeveLength: 'Sleeves',
+    chest: 'Chest',
+    chestWaist: 'Chest & Waist',
+    shirtLength: 'Shirt Length',
+    jacketTorso: 'Jacket Torso',
+    trouserInseamWaist: 'Trouser Inseam & Waist',
+    riseSeat: 'Rise & Seat',
+    bodiceFit: 'Bodice & Bust',
+    strapsShoulders: 'Straps & Shoulders',
+    bustBodice: 'Bust & Bodice',
+    collarRoll: 'Collar Roll',
+    tapering: 'Tapering',
+    shoulder: 'Shoulder',
+    custom: 'Notes & Specs',
+    fit: 'Fit Style',
+  }
+  if (map[key]) return map[key]
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/[_-]/g, ' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+    .trim()
+}
+
+function parseOrderMeasurements(order?: any): Record<string, string> {
+  if (!order) return {}
+  const result: Record<string, string> = {}
+
+  if (order.measurements) {
+    if (typeof order.measurements === 'object' && !Array.isArray(order.measurements)) {
+      Object.entries(order.measurements).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && String(v).trim()) {
+          result[k] = String(v).trim()
+        }
+      })
+    } else if (typeof order.measurements === 'string') {
+      try {
+        const parsed = JSON.parse(order.measurements)
+        if (parsed && typeof parsed === 'object') {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && String(v).trim()) {
+              result[k] = String(v).trim()
+            }
+          })
+        }
+      } catch { }
+    }
+  }
+
+  if (Object.keys(result).length === 0 && order.pinnedAdjustment) {
+    const raw = String(order.pinnedAdjustment).trim()
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          Object.entries(parsed).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && String(v).trim()) {
+              result[k] = String(v).trim()
+            }
+          })
+        }
+      } catch { }
+    } else if (raw.includes('·') || raw.includes(':')) {
+      const parts = raw.split('·').map((s: string) => s.trim()).filter(Boolean)
+      parts.forEach((p: string) => {
+        const colonIdx = p.indexOf(':')
+        if (colonIdx !== -1) {
+          const k = p.slice(0, colonIdx).trim()
+          const v = p.slice(colonIdx + 1).trim()
+          if (k && v) result[k] = v
+        }
+      })
+    }
+  }
+
+  return result
+}
+
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
   const { stopBookingTransition } = useApp()
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -789,26 +878,33 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </div>
                   </div>
 
-                  {order?.measurements && Object.keys(order.measurements).length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(order.measurements).map(([key, val]) => (
-                        <span
-                          key={key}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F8F8] border border-gray-200/90 text-xs font-bold text-black"
-                        >
-                          <span className="capitalize text-gray-500 font-semibold">{key}:</span>
-                          <span>{String(val)}</span>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
-                      <Scissors size={14} className="text-amber-700 shrink-0" />
-                      <p className="text-xs text-amber-900 font-medium">
-                        In-Studio Precision Pinning &bull; Tailor will measure your fit upon drop-off.
-                      </p>
-                    </div>
-                  )}
+                  {(() => {
+                    const parsed = parseOrderMeasurements(order)
+                    const entries = Object.entries(parsed)
+                    if (entries.length > 0) {
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {entries.map(([key, val]) => (
+                            <span
+                              key={key}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F8F8] border border-gray-200/90 text-xs font-bold text-black"
+                            >
+                              <span className="capitalize text-gray-500 font-semibold">{formatMeasurementKey(key)}:</span>
+                              <span>{String(val)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
+                        <Scissors size={14} className="text-amber-700 shrink-0" />
+                        <p className="text-xs text-amber-900 font-medium">
+                          In-Studio Precision Pinning &bull; Tailor will measure your fit upon drop-off.
+                        </p>
+                      </div>
+                    )
+                  })()}
 
                   {order?.notes && (
                     <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200/70 font-medium">
