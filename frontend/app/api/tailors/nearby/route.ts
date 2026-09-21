@@ -14,113 +14,55 @@ function calculateDistanceInMiles(lat1: number, lon1: number, lat2: number, lon2
   return Number((R * c).toFixed(2))
 }
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const lat = parseFloat(searchParams.get('lat') || '')
   const lng = parseFloat(searchParams.get('lng') || '')
-  const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '4.0') || 4.0
-  const query = searchParams.get('query') || ''
+  const radiusMiles = parseFloat(searchParams.get('radiusMiles') || '8.0') || 8.0
 
   if (isNaN(lat) || isNaN(lng)) {
     return NextResponse.json({ error: 'Valid lat and lng query parameters are required' }, { status: 400 })
   }
 
-  const radiusMeters = Math.round(radiusMiles * 1609.34)
   const results: any[] = []
 
-  const addTailor = (tailor: any) => {
-    if (!tailor.coords || typeof tailor.coords.lat !== 'number' || typeof tailor.coords.lng !== 'number') return
-    const dist = calculateDistanceInMiles(lat, lng, tailor.coords.lat, tailor.coords.lng)
+  // Fetch partner studios and filter strictly by latitude and longitude distance (8 miles)
+  try {
+    const res = await fetch(`${BACKEND_URL}/stores?lat=${lat}&lng=${lng}&radiusMiles=${radiusMiles}`, {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    })
 
-    if (dist <= radiusMiles) {
-      const isDuplicate = results.some(
-        (existing) =>
-          Math.abs(existing.coords.lat - tailor.coords.lat) < 0.0012 &&
-          Math.abs(existing.coords.lng - tailor.coords.lng) < 0.0012
-      )
+    if (res.ok) {
+      const data = await res.json()
+      const allStores = Array.isArray(data.stores) ? data.stores : []
 
-      if (!isDuplicate) {
-        results.push({
-          ...tailor,
-          distanceMiles: dist,
-          distance: `${dist} mi away`,
-        })
-      }
-    }
-  }
+      allStores.forEach((store: any) => {
+        const storeLat = store.coords?.lat ?? store.lat
+        const storeLng = store.coords?.lng ?? store.lng
 
-  const googleApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDnSPcq2z7tmOqLkGKtBPqkq2ykG5KjgbM'
+        if (typeof storeLat === 'number' && typeof storeLng === 'number') {
+          const dist = calculateDistanceInMiles(lat, lng, storeLat, storeLng)
 
-  // Query Google Places API (New) for 100% verified real-time tailors
-  if (googleApiKey) {
-    try {
-      const searchQueries = [
-        `tailors in ${query || `${lat},${lng}`}`,
-        `tailor alteration shop in ${query || `${lat},${lng}`}`,
-      ]
-
-      for (const tQuery of searchQueries) {
-        const placesRes = await fetch('https://places.googleapis.com/v1/places:searchText', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': googleApiKey,
-            'X-Goog-FieldMask':
-              'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount',
-          },
-          body: JSON.stringify({
-            textQuery: tQuery,
-            locationBias: {
-              circle: {
-                center: { latitude: lat, longitude: lng },
-                radius: radiusMeters,
-              },
-            },
-            maxResultCount: 20,
-          }),
-          signal: AbortSignal.timeout(4000),
-        })
-
-        if (placesRes.ok) {
-          const placesData = await placesRes.json()
-          if (placesData.places && Array.isArray(placesData.places)) {
-            placesData.places.forEach((p: any) => {
-              if (
-                p.location &&
-                typeof p.location.latitude === 'number' &&
-                typeof p.location.longitude === 'number'
-              ) {
-                addTailor({
-                  id: p.id || `place-${Math.random()}`,
-                  name: p.displayName?.text || 'Master Tailor Studio',
-                  area: query || 'Neighborhood Atelier',
-                  address: p.formattedAddress || 'Local Address',
-                  postcode: '',
-                  rating: p.rating || 4.95,
-                  reviewCount: p.userRatingCount || 110,
-                  openingHours: '09:30 - 20:30',
-                  dailyCapacity: 25,
-                  machines: 6,
-                  workers: 4,
-                  leadTailor: 'Master Tailor',
-                  specialties: ['Custom Alterations', 'Trouser Hemming', 'Fit Adjustments'],
-                  retailSold: true,
-                  coords: {
-                    lat: p.location.latitude,
-                    lng: p.location.longitude,
-                  },
-                })
-              }
+          // Only include studios that strictly fall inside the 8 miles radius
+          if (dist <= radiusMiles) {
+            results.push({
+              ...store,
+              coords: { lat: storeLat, lng: storeLng },
+              distanceMiles: dist,
+              distance: `${dist} mi away`,
             })
           }
         }
-      }
-    } catch (err) {
-      console.warn('Google Places API search in route handler error:', err)
+      })
     }
+  } catch (err) {
+    console.warn('Backend store fetch error in nearby route:', err)
   }
 
-  // Sort closest first
+  // Sort strictly by closest distance to user
   results.sort((a, b) => a.distanceMiles - b.distanceMiles)
 
   return NextResponse.json({
@@ -131,3 +73,4 @@ export async function GET(request: Request) {
     center: { lat, lng },
   })
 }
+

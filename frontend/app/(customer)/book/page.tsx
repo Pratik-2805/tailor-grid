@@ -502,21 +502,36 @@ export default function BookPage() {
   const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
 
   // Nearby partner stores for selected city / location
-  const nearbyStores = useMemo(() => {
-    return getStoresForLocation(selectedCity)
-  }, [selectedCity])
+  const [nearbyStores, setNearbyStores] = useState<StoreOption[]>([])
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(() => {
     return prefilledStore || getClosestStoreForLocation(selectedCity)
   })
 
-  // Update selectedStore when city changes
+  // Fetch partner studios purely by lat/lng within 8 miles
   useEffect(() => {
-    if (prefilledStore) {
-      setSelectedStore(prefilledStore)
-    } else {
-      const closest = getClosestStoreForLocation(selectedCity)
-      setSelectedStore(closest)
+    let isCurrent = true
+    const coords = getCityCoordinates(selectedCity)
+
+    fetch(`/api/tailors/nearby?lat=${coords.lat}&lng=${coords.lng}&radiusMiles=8.0`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCurrent) return
+        if (data.tailors && Array.isArray(data.tailors)) {
+          setNearbyStores(data.tailors)
+          if (data.tailors.length > 0) {
+            if (!prefilledStore || !data.tailors.some((s: StoreOption) => s.id === prefilledStore.id)) {
+              setSelectedStore(data.tailors[0])
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Error fetching nearby stores in book page:', err)
+      })
+
+    return () => {
+      isCurrent = false
     }
   }, [selectedCity, prefilledStore])
 
@@ -1157,14 +1172,19 @@ export default function BookPage() {
           <div className="flex-1 w-full min-h-[520px] lg:min-h-[calc(100vh-110px)] lg:sticky lg:top-20 h-[600px] lg:h-[calc(100vh-110px)]">
             <div className="w-full h-full rounded-[28px] overflow-hidden border border-gray-200/90 shadow-sm relative bg-[#FAF8F5]">
               <CleanGoogleMap
-                lat={selectedStore?.coords?.lat || mapCoordinates.lat}
-                lng={selectedStore?.coords?.lng || mapCoordinates.lng}
+                lat={mapCoordinates.lat}
+                lng={mapCoordinates.lng}
                 storeName={selectedStore?.name || `Darzi Master Atelier — ${selectedCity.split(',')[0]}`}
                 storeAddress={selectedStore?.address || `Central Workshop, ${selectedCity}`}
                 origin={selectedCity}
                 className="w-full h-full"
                 showZoomControls={false}
                 disableNavigation={true}
+                isFixed={true}
+                fixedBoxMiles={8.0}
+                radiusMiles={8.0}
+                showUserPin={true}
+                userPinLabel="You"
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
                 onSelectStore={(st) => setSelectedStore(st)}
