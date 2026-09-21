@@ -680,9 +680,6 @@ export function PartnerFlow({
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
     setTimerSecs(15)
     await updateOrder(order.id, updates).catch(() => { })
-
-    setBroadcastToast(`✓ Accepted: ${order.customerName} ($${partnerPayout}) — PIN #${order.otp}`)
-    setTimeout(() => setBroadcastToast(null), 5000)
   }
 
   const handleDeclineAllocatedOrder = (orderId: string) => {
@@ -748,9 +745,6 @@ export function PartnerFlow({
       setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
     }
     updateOrder(orderId, updates).catch(() => { })
-
-    setBroadcastToast(`✓ Alteration Done! Pickup PIN: #${freshPickupOtp}`)
-    setTimeout(() => setBroadcastToast(null), 6000)
   }
 
   // Intake with customer PIN - strictly for Accepted drop-offs
@@ -1247,14 +1241,6 @@ export function PartnerFlow({
           </button>
         </header>
 
-        {/* ── TOAST ALERT ── */}
-        {broadcastToast && (
-          <div className="bg-[#0F1115] text-white py-2.5 px-4 text-xs font-medium flex items-center justify-center gap-2 z-10 border-b border-[#9E593B] toast-enter">
-            <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-            <span>{broadcastToast}</span>
-          </div>
-        )}
-
         {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
 
@@ -1516,67 +1502,7 @@ export function PartnerFlow({
                           )}
                         </div>
 
-                        {/* Scheduled Drop-Offs Today Section */}
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-[#1E2229] flex items-center gap-1.5">
-                              <Clock size={13} className="text-[#9E593B]" />
-                              <span>Scheduled Drop-Off Appointments</span>
-                            </span>
-                            <span className="text-xs text-[#6B7280] font-medium">
-                              {pipelineOrders.filter((o) => o.status === 'Accepted').length} in queue
-                            </span>
-                          </div>
 
-                          {pipelineOrders.filter((o) => o.status === 'Accepted').length > 0 ? (
-                            <div className="grid sm:grid-cols-2 gap-3">
-                              {pipelineOrders
-                                .filter((o) => o.status === 'Accepted')
-                                .map((o) => (
-                                  <div
-                                    key={o.id}
-                                    className="p-3.5 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] hover:bg-white hover:border-[#9E593B] transition-all flex items-center justify-between gap-3 shadow-2xs"
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      <div className="size-11 rounded-lg overflow-hidden bg-stone-200 shrink-0 border border-[#E8E1D5]">
-                                        <img src={getGarmentPhoto(o)} alt={o.garmentName} className="w-full h-full object-cover" />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5 mb-0.5">
-                                          <span className="font-mono text-xs font-bold text-[#1E2229] bg-white border border-[#E8E1D5] px-1.5 py-0.5 rounded">
-                                            PIN #{o.otp}
-                                          </span>
-                                          <span className="font-semibold text-xs text-[#1E2229] truncate">{o.customerName}</span>
-                                        </div>
-                                        <div className="text-[11px] text-[#6B7280] truncate">
-                                          {o.garmentName} · {o.serviceName}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setPinInput(o.otp)
-                                        handleLookupPin(o.otp)
-                                      }}
-                                      className="px-3.5 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold cursor-pointer transition-all shadow-xs shrink-0 whitespace-nowrap active:scale-95 flex items-center gap-1.5"
-                                    >
-                                      <ShieldCheck size={13} />
-                                      <span>Intake Drop-Off →</span>
-                                    </button>
-                                  </div>
-                                ))}
-                            </div>
-                          ) : (
-                            <div className="p-5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-center text-xs text-[#6B7280]">
-                              <p className="font-semibold text-[#1E2229]">No appointments awaiting drop-off intake</p>
-                              <p className="text-[11px] mt-1 text-[#7A7E85]">
-                                When an incoming booking is accepted, the customer's drop-off appointment will appear here for quick 1-click counter intake.
-                              </p>
-                            </div>
-                          )}
-                        </div>
 
                       </div>
                     ) : (
@@ -1593,14 +1519,6 @@ export function PartnerFlow({
                               />
                             </div>
                             <div>
-                              <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="font-mono text-xs font-semibold bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded text-[#1E2229]">
-                                  #{activeIntake.id}
-                                </span>
-                                <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                  ✓ PIN #{activeIntake.otp} Verified
-                                </span>
-                              </div>
                               <h3 className="text-base font-bold text-[#1E2229]">{activeIntake.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeIntake.customerName} · {activeIntake.serviceName}</p>
                             </div>
@@ -1820,7 +1738,6 @@ export function PartnerFlow({
                                     </div>
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
                                         {order.hangTagNo && (
                                           <span className="text-[10px] font-mono font-semibold bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 px-1.5 py-0.2 rounded">
                                             {order.hangTagNo}
@@ -1917,7 +1834,7 @@ export function PartnerFlow({
                                 <div>
                                   <div className="font-semibold text-[#1E2229]">{order.customerName} · {order.garmentName}</div>
                                   <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
-                                    Pickup PIN: <strong className="text-[#1E2229]">#{order.otp}</strong> · {order.hangTagNo || 'Rack A'}
+                                    {order.hangTagNo || 'Rack A'}
                                   </div>
                                 </div>
 
@@ -2009,7 +1926,6 @@ export function PartnerFlow({
                                 </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                    <span className="font-mono text-xs font-bold text-[#1E2229]">#{order.id}</span>
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
                                       {order.status}
                                     </span>
@@ -2035,7 +1951,7 @@ export function PartnerFlow({
                               </button>
                               <div className="flex items-center gap-2">
                                 {order.status === 'Accepted' && (
-                                  <button onClick={() => { setPinInput(order.otp); handleLookupPin(order.otp); setActiveTab('cockpit') }} className="text-xs font-semibold text-[#1E2229] bg-[#F3EFEA] hover:bg-[#E8E1D5] px-3 py-1 rounded-xl cursor-pointer border border-[#E8E1D5]">Intake Drop-Off →</button>
+                                  <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">Awaiting Drop-Off</span>
                                 )}
                                 {order.status === 'Work in Progress' && (
                                   <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
@@ -2069,12 +1985,6 @@ export function PartnerFlow({
                               <img src={getGarmentPhoto(activeSelectedOrder)} alt={activeSelectedOrder.garmentName} className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="font-mono text-xs font-bold text-[#1E2229] bg-[#FAF8F5] border border-[#E8E1D5] px-2 py-0.5 rounded">#{activeSelectedOrder.id}</span>
-                                <span className="text-xs font-semibold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/20 px-2 py-0.5 rounded">
-                                  PIN #{activeSelectedOrder.otp}
-                                </span>
-                              </div>
                               <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>
                             </div>
@@ -2434,9 +2344,6 @@ export function PartnerFlow({
                   {pickupOtpError && (
                     <p className="text-xs text-red-600 font-medium">{pickupOtpError}</p>
                   )}
-                  <p className="text-xs text-[#6B7280] text-center">
-                    (Customer Pickup PIN: <strong className="text-[#1E2229]">#{pickupModalOrder.otp}</strong>)
-                  </p>
                 </div>
 
                 <button
