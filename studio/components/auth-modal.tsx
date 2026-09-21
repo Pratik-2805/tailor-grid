@@ -18,6 +18,7 @@ import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, CUSTOMER_SITE_URL } from '@/lib/api'
 import { OtpVerificationCard } from './otp-input'
+import { CustomSelect } from './custom-select'
 
 type AuthMode =
   | 'role-select'
@@ -91,7 +92,7 @@ export function AuthModal({
   const [sTailorName, setSTailorName] = useState('')
   const [sEmail, setSEmail] = useState('')
   const [sPhone, setSPhone] = useState('')
-  const [sMachines, setSMachines] = useState('4-6')
+  const [sMachines, setSMachines] = useState('')
   const [sSpecialties, setSSpecialties] = useState<string[]>(['Suit Tailoring', 'Dress Hemming'])
 
   const SPECIALTIES = [
@@ -432,6 +433,11 @@ export function AuthModal({
 
   const handleStudioRegister = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!sMachines) {
+      setError('Please select number of sewing machines.')
+      toast.warning('Number of sewing machines is required.', { position: 'top-center' })
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -927,15 +933,16 @@ export function AuthModal({
               <form onSubmit={handleStudioRegister} className="space-y-4">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#374151] mb-1">Sewing Machines & Equipment</label>
-                  <select
+                  <CustomSelect
                     value={sMachines}
-                    onChange={(e) => setSMachines(e.target.value)}
-                    className="w-full rounded-xl border border-[#D1D5DB] px-3 py-2.5 text-xs font-semibold text-[#111827] focus:outline-none bg-white"
-                  >
-                    <option value="2-3">2–3 machines</option>
-                    <option value="4-6">4–6 machines</option>
-                    <option value="8+">8+ machines</option>
-                  </select>
+                    onChange={(val) => setSMachines(val)}
+                    placeholder="No. of sewing machines"
+                    options={[
+                      { value: '2-3', label: '2–3 machines', sublabel: 'Boutique / Small Team' },
+                      { value: '4-6', label: '4–6 machines', sublabel: 'Mid-sized Studio' },
+                      { value: '8+', label: '8+ machines', sublabel: 'Industrial / High Capacity' },
+                    ]}
+                  />
                 </div>
 
                 <div>

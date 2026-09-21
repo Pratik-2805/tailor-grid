@@ -50,6 +50,7 @@ import { type FittingBooking, type OrderStatus, type Screen, type User as UserTy
 import { fetchStudioOrders, updateOrder } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
+import { CustomSelect } from './custom-select'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile'
 
@@ -2451,16 +2452,17 @@ export function PartnerFlow({
                       </div>
                       <div>
                         <span className="text-[10px] font-bold text-[#9E593B] block mb-0.5">CATEGORY</span>
-                        <select
+                        <CustomSelect
                           value={retailCategoryInput}
-                          onChange={(e) => setRetailCategoryInput(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl border border-[#E8E1D5] bg-white text-xs font-medium"
-                        >
-                          <option>Accessories &amp; Ties</option>
-                          <option>Custom Garment Bag &amp; Hanger</option>
-                          <option>Shoe Care &amp; Brushes</option>
-                          <option>Bespoke Cufflinks</option>
-                        </select>
+                          onChange={(val) => setRetailCategoryInput(val)}
+                          buttonClassName="py-1.5 px-3 border-[#E8E1D5] text-xs font-medium"
+                          options={[
+                            'Accessories & Ties',
+                            'Custom Garment Bag & Hanger',
+                            'Shoe Care & Brushes',
+                            'Bespoke Cufflinks',
+                          ]}
+                        />
                       </div>
                     </div>
                   )}

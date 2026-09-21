@@ -37,7 +37,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     if (clean === 'for-partners') return 'for-partners'
     if (clean === 'orders') return 'orders'
     if (clean === 'order') return 'order'
-    if (clean === 'admin') return 'admin'
     if (clean === 'partner') return 'partner'
     if (clean === 'profile') return 'profile'
     return 'home'

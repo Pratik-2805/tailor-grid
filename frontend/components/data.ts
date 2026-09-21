@@ -6,7 +6,6 @@ export type Screen =
   | 'for-partners'
   | 'orders'
   | 'partner'
-  | 'admin'
   | 'order'
   | 'profile'
 

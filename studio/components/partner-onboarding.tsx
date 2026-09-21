@@ -28,6 +28,7 @@ import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, get
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
+import { CustomSelect } from './custom-select'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -229,8 +230,8 @@ export function PartnerOnboarding({
 
   // Step 2: Language & Equipment
   const [language, setLanguage] = useState(cachedForm?.language || 'English')
-  const [machines, setMachines] = useState(cachedForm?.machines || '4-6')
-  const [dailyCapacity, setDailyCapacity] = useState(cachedForm?.dailyCapacity || '25')
+  const [machines, setMachines] = useState(cachedForm?._v === 2 ? (cachedForm?.machines || '') : '')
+  const [dailyCapacity, setDailyCapacity] = useState(cachedForm?._v === 2 ? (cachedForm?.dailyCapacity || '') : '')
   const [openTime, setOpenTime] = useState(cachedForm?.openTime || '10:00')
   const [closeTime, setCloseTime] = useState(cachedForm?.closeTime || '20:00')
   const [operatingHours, setOperatingHours] = useState(cachedForm?.operatingHours || `${cachedForm?.openTime || '10:00'} - ${cachedForm?.closeTime || '20:00'}`)
@@ -323,6 +324,7 @@ export function PartnerOnboarding({
   // ──────── Persist form data to storage on every change ────────
   useEffect(() => {
     const formData = {
+      _v: 2,
       locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, operatingHours: `${openTime} - ${closeTime}`,
       shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
       studioLat, studioLng,
@@ -1308,35 +1310,39 @@ export function PartnerOnboarding({
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                 Sewing Machines *
                               </label>
-                              <select
+                              <CustomSelect
                                 value={machines}
-                                onChange={(e) => setMachines(e.target.value)}
-                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                              >
-                                <option value="2-3">2–3 machines</option>
-                                <option value="4-6">4–6 machines</option>
-                                <option value="8+">8+ machines</option>
-                              </select>
+                                onChange={(val) => setMachines(val)}
+                                placeholder="No. of sewing machines"
+                                buttonClassName="bg-gray-100 border-transparent py-3 text-sm focus:bg-white"
+                                options={[
+                                  { value: '2-3', label: '2–3 machines', sublabel: 'Boutique' },
+                                  { value: '4-6', label: '4–6 machines', sublabel: 'Mid-sized' },
+                                  { value: '8+', label: '8+ machines', sublabel: 'High Capacity' },
+                                ]}
+                              />
                             </div>
 
                             <div>
                               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                                 Daily Order Limit *
                               </label>
-                              <select
+                              <CustomSelect
                                 value={dailyCapacity}
-                                onChange={(e) => setDailyCapacity(e.target.value)}
-                                className="w-full rounded-lg bg-gray-100 border-none px-3.5 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all cursor-pointer"
-                              >
-                                <option value="15">15 orders / day</option>
-                                <option value="25">25 orders / day</option>
-                                <option value="50">50 orders / day</option>
-                              </select>
+                                onChange={(val) => setDailyCapacity(val)}
+                                placeholder="No. of orders/day"
+                                buttonClassName="bg-gray-100 border-transparent py-3 text-sm focus:bg-white"
+                                options={[
+                                  { value: '15', label: '15 orders / day', sublabel: 'Standard Pace' },
+                                  { value: '25', label: '25 orders / day', sublabel: 'High Volume' },
+                                  { value: '50', label: '50 orders / day', sublabel: 'Peak Capacity' },
+                                ]}
+                              />
                             </div>
                           </div>
                         </div>
@@ -1358,6 +1364,16 @@ export function PartnerOnboarding({
                           if (!emailVal.trim() || !emailVal.includes('@')) {
                             setError('Please enter a valid Partner Contact Email.')
                             toast.warning('Contact Email is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!machines) {
+                            setError('Please select the number of sewing machines.')
+                            toast.warning('Number of sewing machines is required.', { position: 'top-center' })
+                            return
+                          }
+                          if (!dailyCapacity) {
+                            setError('Please select your daily order limit.')
+                            toast.warning('Daily order limit is required.', { position: 'top-center' })
                             return
                           }
                           setError('')

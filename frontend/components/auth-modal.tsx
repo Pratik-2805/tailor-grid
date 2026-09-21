@@ -17,7 +17,6 @@ type AuthMode =
   | 'studio-options'
   | 'studio-signup-options'
   | 'studio-login'
-  | 'studio-register'
   | 'studio-partner-google'
 
 interface AuthModalProps {
@@ -90,27 +89,6 @@ export function AuthModal({
 
   // ── Studio Login fields ───────────────────────────────────────────────────
   const [sLoginEmail, setSLoginEmail] = useState('')
-
-  // ── Studio Register fields ────────────────────────────────────────────────
-  const [sName, setSName] = useState('')
-  const [sArea, setSArea] = useState('')
-  const [sPostcode, setSPostcode] = useState('')
-  const [sAddress, setSAddress] = useState('')
-  const [sTailorName, setSTailorName] = useState('')
-  const [sEmail, setSEmail] = useState('')
-  const [sPhone, setSPhone] = useState('')
-  const [sMachines, setSMachines] = useState('4-6')
-  const [sCapacity, setSCapacity] = useState('25')
-  const [sSpecialties, setSSpecialties] = useState<string[]>(['Suit Tailoring', 'Dress Hemming'])
-
-  const SPECIALTIES = [
-    'Suit Tailoring',
-    'Dress Hemming',
-    'Denim Chainstitch',
-    'Silk & Gowns',
-    'Leather & Outerwear',
-    'Zip Replacements',
-  ]
 
   // Reset on open / role / authType / currentUser switch
   useEffect(() => {
@@ -310,9 +288,6 @@ export function AuthModal({
                 avatar: profile.picture,
                 method: 'google',
                 role,
-                ...(role === 'STUDIO' && {
-                  ...(sName ? { studioName: sName.trim() } : {}),
-                }),
               },
             })
             setLoading(false)
@@ -533,46 +508,13 @@ export function AuthModal({
     }
   }
 
-  // ── Studio Registration Final Submit ─────────────────────────────────────
-  const handleStudioRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      const result = await signUpUser({
-        name: sTailorName,
-        email: sEmail,
-        phone: sPhone,
-        address: sAddress,
-        postcode: sPostcode,
-        role: 'STUDIO',
-        storeName: sName,
-        storeArea: sArea,
-        machines: sMachines,
-      })
-      setLoading(false)
-      if (result?.user) onSuccess(result.user)
-    } catch (err: any) {
-      setLoading(false)
-      setError(err.message || 'Registration failed. Please check your details.')
-    }
-  }
-
-  const toggleSpecialty = (s: string) =>
-    setSSpecialties((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]))
-
   const goBack = () => {
-    if (mode === 'studio-register' && registerStep > 1) {
-      setRegisterStep((p) => (p - 1) as 1 | 2 | 3)
-    } else if (mode === 'studio-register') {
-      setMode('studio-signup-options')
-      setRegisterStep(1)
-    } else if (mode === 'studio-login') {
+    if (mode === 'studio-login') {
       setMode('studio-options')
     } else if (mode === 'link-phone-step') {
       setMode('role-select')
       setPendingUser(null)
-    } else if (mode === 'customer-options' || mode === 'studio-partner-google') {
+    } else if (mode === 'customer-options' || mode === 'studio-partner-google' || mode === 'studio-options' || mode === 'studio-signup-options') {
       setMode('role-select')
       setRegisterStep(1)
     } else {
@@ -1178,145 +1120,6 @@ export function AuthModal({
               <Field label="Partner email or phone" required value={sLoginEmail} onChange={setSLoginEmail} placeholder="marco@ateliersoho.com" />
               <SubmitBtn loading={loading} label="Access Studio Dashboard" />
             </form>
-          )}
-
-          {/* ================================================================ */}
-          {/* STUDIO – 3-Step Registration                                     */}
-          {/* ================================================================ */}
-          {mode === 'studio-register' && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">Step {registerStep} of 3</p>
-                <h2 className="font-serif text-[22px] font-bold text-[#18191B] mt-0.5">
-                  {registerStep === 1 ? 'Studio Location' : registerStep === 2 ? 'Lead Tailor' : 'Capacity & Tools'}
-                </h2>
-              </div>
-
-              <div className="h-1 rounded-full bg-[#E5DFD5] overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[#9E593B] transition-all duration-300"
-                  style={{ width: `${(registerStep / 3) * 100}%` }}
-                />
-              </div>
-
-              {registerStep === 1 && (
-                <div className="space-y-3">
-                  <Field label="Atelier / Shop name *" required value={sName} onChange={setSName} placeholder="Atelier SoHo Tailors" />
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <Field label="Area *" required value={sArea} onChange={setSArea} placeholder="SoHo" />
-                    <Field label="Postcode / ZIP / PIN *" required value={sPostcode} onChange={(val) => setSPostcode(val.replace(/[^\d\-]/g, '').slice(0, 10))} placeholder="10001 or 400001" />
-                  </div>
-                  <Field label="Street address" value={sAddress} onChange={setSAddress} placeholder="18 Kensington Church St" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!sName || !sArea || !sPostcode) { setError('Please fill in studio name, area, and postcode.'); return }
-                      const cleanPin = sPostcode.trim().replace(/\D/g, '')
-                      if (cleanPin.length < 5 || cleanPin.length > 10) {
-                        setError('Please enter a valid postal / ZIP code.')
-                        return
-                      }
-                      setError('')
-                      setRegisterStep(2)
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
-                  >
-                    <span>Next</span>
-                    <ArrowRight size={13} />
-                  </button>
-                </div>
-              )}
-
-              {registerStep === 2 && (
-                <div className="space-y-3">
-                  <Field label="Lead master tailor name *" required value={sTailorName} onChange={setSTailorName} placeholder="Marco Rossi" />
-                  <Field label="Partner email *" type="email" required value={sEmail} onChange={setSEmail} placeholder="marco@ateliersoho.com" />
-                  <Field label="Direct phone * (Required)" type="tel" required value={sPhone} onChange={(val) => setSPhone(val.replace(/[^\d+ ]/g, ''))} placeholder="+1 (555) 019-2834 or +91 98765 43210" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!sTailorName || !sEmail || !sPhone) { setError('Please fill in name, email, and phone.'); return }
-                      const cleanDigits = sPhone.trim().replace(/\D/g, '')
-                      if (cleanDigits.length < 10) {
-                        setError('Please enter a valid 10-digit mobile number with country code.')
-                        return
-                      }
-                      setError('')
-                      setRegisterStep(3)
-                    }}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
-                  >
-                    <span>Next</span>
-                    <ArrowRight size={13} />
-                  </button>
-                </div>
-              )}
-
-              {registerStep === 3 && (
-                <form onSubmit={handleStudioRegister} className="space-y-3.5">
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">Machines</label>
-                      <select
-                        value={sMachines}
-                        onChange={(e) => setSMachines(e.target.value)}
-                        className="w-full rounded-xl border border-[#DDD6CB] px-3 py-2 text-xs font-semibold text-[#18191B] focus:outline-none"
-                      >
-                        <option value="2-3">2–3 machines</option>
-                        <option value="4-6">4–6 machines</option>
-                        <option value="8+">8+ machines</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">Daily limit</label>
-                      <select
-                        value={sCapacity}
-                        onChange={(e) => setSCapacity(e.target.value)}
-                        className="w-full rounded-xl border border-[#DDD6CB] px-3 py-2 text-xs font-semibold text-[#18191B] focus:outline-none"
-                      >
-                        <option value="15">15 / day</option>
-                        <option value="25">25 / day</option>
-                        <option value="50">50 / day</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1.5">Specialties</label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {SPECIALTIES.map((s) => {
-                        const on = sSpecialties.includes(s)
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => toggleSpecialty(s)}
-                            className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold border transition-all ${on
-                              ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                              : 'bg-white text-[#5A5D64] border-[#DDD6CB] hover:border-[#9E593B]'
-                              }`}
-                          >
-                            {on && <Check size={9} className="inline mr-0.5" />}
-                            {s}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors disabled:opacity-60"
-                  >
-                    <Sparkles size={14} />
-                    <span>{loading ? 'Activating…' : 'Open Studio Dashboard'}</span>
-                  </button>
-                </form>
-              )}
-            </div>
           )}
         </div>
       </div>
