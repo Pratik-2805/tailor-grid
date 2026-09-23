@@ -1,42 +1,42 @@
 require('dotenv').config();
-let twilio = null;
-try {
-  twilio = require('twilio');
-} catch (e) {
-  console.warn('[SMS] Twilio module not installed, fallback OTP mode active.');
-}
+const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
 const { prisma } = require('./prisma');
 
-let twilioClient = null;
+let snsClient = null;
 
-function getTwilioClient() {
-  if (twilioClient) return twilioClient;
+/**
+ * Lazy initialization of AWS SNS Client with environment variables.
+ */
+function getSnsClient() {
+  if (snsClient) return snsClient;
 
-  if (!twilio) {
+  const region = process.env.AWS_REGION || 'us-east-1';
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (accessKeyId && secretAccessKey) {
     try {
-      twilio = require('twilio');
-    } catch (e) {
-      return null;
-    }
-  }
-
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN;
-
-  if (twilio && sid && token && sid.startsWith('AC')) {
-    try {
-      twilioClient = twilio(sid, token);
-      console.log(`[SMS] Twilio client active with SID: ${sid.substring(0, 6)}... Sender: ${process.env.TWILIO_PHONE_NUMBER}`);
-      return twilioClient;
+      snsClient = new SNSClient({
+        region,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+      console.log(`[AWS SNS] SNS client initialized successfully (Region: ${region})`);
+      return snsClient;
     } catch (err) {
-      console.error('[SMS] Failed to initialize Twilio client:', err.message);
+      console.error('[AWS SNS] Failed to initialize SNS client:', err.message);
     }
+  } else {
+    console.warn('[AWS SNS] AWS credentials missing in environment variables.');
   }
+
   return null;
 }
 
 // Initialize on module load
-getTwilioClient();
+getSnsClient();
 
 // In-memory cache as secondary fallback
 const memoryOtpStore = new Map();
@@ -225,7 +225,43 @@ async function verifyOtp(phone, inputCode) {
 }
 
 /**
- * Sends a real 4-digit verification code SMS using Twilio.
+ * Generic helper to send an SMS using AWS SNS.
+ */
+async function sendSms(toPhone, message) {
+  const validation = validateAndFormatPhone(toPhone);
+  if (!validation.isValid) {
+    throw new Error(validation.error);
+  }
+
+  const formattedTo = validation.formatted;
+  const client = getSnsClient();
+
+  if (!client) {
+    throw new Error('AWS SNS client is not configured. Please check AWS_REGION, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY in .env.');
+  }
+
+  const command = new PublishCommand({
+    PhoneNumber: formattedTo,
+    Message: message,
+    MessageAttributes: {
+      'AWS.SNS.SMS.SMSType': {
+        DataType: 'String',
+        StringValue: 'Transactional',
+      },
+    },
+  });
+
+  const response = await client.send(command);
+  console.log(`[AWS SNS] SMS dispatched to ${formattedTo}. MessageId: ${response.MessageId}`);
+  return {
+    success: true,
+    messageId: response.MessageId,
+    to: formattedTo,
+  };
+}
+
+/**
+ * Sends a real 4-digit verification code SMS using AWS SNS.
  */
 async function sendVerificationSms(toPhone, otpCode) {
   const validation = validateAndFormatPhone(toPhone);
@@ -236,80 +272,73 @@ async function sendVerificationSms(toPhone, otpCode) {
   const formattedTo = validation.formatted;
   const messageBody = `Your Darzi verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
 
-  const client = getTwilioClient();
-  const senderNumber = process.env.TWILIO_PHONE_NUMBER;
+  const client = getSnsClient();
 
-  if (!client || !senderNumber) {
-    console.log(`[SMS-FALLBACK] Twilio SMS not configured. Mock SMS dispatched for ${formattedTo} with OTP: ${otpCode}`);
+  if (!client) {
+    console.warn(`[AWS SNS] Client not configured. Development simulated OTP for ${formattedTo}: ${otpCode}`);
     return {
       success: true,
-      sid: 'mock-sid-' + Date.now(),
+      messageId: 'simulated-' + Date.now(),
       status: 'simulated',
       to: formattedTo,
-      message: `Verification code ${otpCode} generated for ${formattedTo} (Development Mode)`,
+      message: `Verification code ${otpCode} generated for ${formattedTo} (AWS SNS not configured)`,
       otp: otpCode,
     };
   }
 
   try {
-    const twilioPromise = client.messages.create({
-      body: messageBody,
-      from: senderNumber,
-      to: formattedTo,
-    });
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Twilio request timed out after 4 seconds')), 4000)
+    const publishPromise = client.send(
+      new PublishCommand({
+        PhoneNumber: formattedTo,
+        Message: messageBody,
+        MessageAttributes: {
+          'AWS.SNS.SMS.SMSType': {
+            DataType: 'String',
+            StringValue: 'Transactional',
+          },
+        },
+      })
     );
 
-    const result = await Promise.race([twilioPromise, timeoutPromise]);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('AWS SNS request timed out after 5 seconds')), 5000)
+    );
 
-    console.log(`[SMS] Twilio message dispatched to ${formattedTo}. SID: ${result.sid}, Status: ${result.status}`);
+    const result = await Promise.race([publishPromise, timeoutPromise]);
+
+    console.log(`[AWS SNS] Verification SMS dispatched to ${formattedTo}. MessageId: ${result.MessageId}`);
     return {
       success: true,
-      sid: result.sid,
-      status: result.status,
+      messageId: result.MessageId,
       to: formattedTo,
       message: `Verification code sent via SMS to ${formattedTo}`,
     };
   } catch (err) {
-    console.error(`[SMS-NOTICE] Twilio send notice for ${formattedTo}:`, err.message);
-
-    console.log(`[SMS-FALLBACK] Proceeding with instant verified OTP for ${formattedTo}: ${otpCode}`);
-    return {
-      success: true,
-      sid: 'mock-sid-fallback-' + Date.now(),
-      status: 'simulated-fallback',
-      to: formattedTo,
-      message: `Verification code ${otpCode} generated for ${formattedTo}`,
-      otp: otpCode,
-    };
+    console.error(`[AWS SNS ERROR] Failed to send SMS to ${formattedTo}:`, err.message || err);
+    throw new Error(err.message || 'Failed to send SMS via AWS SNS.');
   }
 }
 
 /**
- * Sends order status update SMS.
+ * Sends order status update SMS via AWS SNS.
  */
 async function sendOrderUpdateSms(toPhone, orderId, statusText) {
-  const client = getTwilioClient();
-  const senderNumber = process.env.TWILIO_PHONE_NUMBER;
-  if (!validation.isValid || !client || !senderNumber) return null;
+  const validation = validateAndFormatPhone(toPhone);
+  if (!validation.isValid) return null;
 
   try {
     const body = `Darzi Update: Your order ${orderId} is now ${statusText}. Track your bespoke alterations in your Darzi portal.`;
-    const result = await client.messages.create({
-      body,
-      from: senderNumber,
-      to: validation.formatted,
-    });
-    return result.sid;
+    const result = await sendSms(validation.formatted, body);
+    return result.messageId;
   } catch (err) {
-    console.warn(`[SMS] Order update SMS failed for ${toPhone}:`, err.message);
+    console.warn(`[AWS SNS] Order update SMS failed for ${toPhone}:`, err.message);
     return null;
   }
 }
 
 module.exports = {
+  getSnsClient,
+  sendSms,
   validateAndFormatPhone,
   saveOtp,
   verifyOtp,
