@@ -74,11 +74,31 @@ export function StudioProxy({ children }: StudioProxyProps) {
   useEffect(() => {
     verifyRoleGate()
 
+    // Suppress third-party Chrome Extension unhandled promise rejections from noise-polluting console
+    const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
+      const reason = e.reason
+      const reasonStr = String(reason || '')
+      const stack = reason?.stack || ''
+      if (
+        reasonStr.includes('chrome-extension://') ||
+        stack.includes('chrome-extension://') ||
+        reasonStr.includes("reading 'M_ID'") ||
+        stack.includes('eppiocemhmnlbhjplcgkofciiegomcon')
+      ) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+      }
+    }
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+
     const handleStorageChange = () => {
       verifyRoleGate()
     }
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   // ── 1. Checking Role Gate / Redirecting State ──

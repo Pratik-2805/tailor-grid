@@ -47,6 +47,27 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
   const hideFooter = currentScreen === 'partner' || isBookScreen
 
+  // Suppress third-party Chrome Extension unhandled promise rejections from noise-polluting Next.js console
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
+      const reason = e.reason
+      const reasonStr = String(reason || '')
+      const stack = reason?.stack || ''
+      if (
+        reasonStr.includes('chrome-extension://') ||
+        stack.includes('chrome-extension://') ||
+        reasonStr.includes("reading 'M_ID'") ||
+        stack.includes('eppiocemhmnlbhjplcgkofciiegomcon')
+      ) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+      }
+    }
+    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    return () => window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+  }, [])
+
   // Disable browser automatic scroll restoration and force top scroll on load / route changes
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
