@@ -283,12 +283,19 @@ export async function getCurrentUser(): Promise<User | null> {
       const data = await res.json()
       if (data.user) {
         setAuthUser(data.user)
-        setAuthRole('STUDIO')
+        if (data.user.role === 'STUDIO') {
+          setAuthRole('STUDIO')
+        }
         return data.user
       }
     }
 
-    // User not found in DB or token invalid -> clear stale session
+    // If res not ok, check if cached onboarding user exists before clearing
+    const stored = getAuthUser<User>()
+    if (stored) {
+      return stored
+    }
+
     clearAllAuth()
     return null
   } catch (err) {

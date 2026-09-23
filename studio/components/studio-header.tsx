@@ -31,10 +31,10 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
         {/* Brand Logo */}
         <div className="flex items-center gap-3 lg:gap-4 shrink-0">
           <a
-            href={customerSiteUrl}
+            href={user ? '/' : customerSiteUrl}
             className="flex items-center gap-3 group text-left shrink-0 py-1 cursor-pointer hover:opacity-90 transition-opacity"
-            aria-label="Darzi Home"
-            title="Return to Darzi Home"
+            aria-label={user ? 'Darzi Studio Workbench' : 'Darzi Home'}
+            title={user ? 'Darzi Studio Workbench' : 'Return to Darzi Home'}
           >
             <img
               src="/bg_logo.png"
@@ -59,14 +59,16 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
 
-          {/* Link back to Main Customer Site */}
-          <a
-            href={customerSiteUrl}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-[#1E2229] hover:text-black transition-colors whitespace-nowrap shrink-0 hover:bg-[#F3EFEA] rounded-full border border-[#E8E1D5] bg-white shadow-2xs"
-          >
-            <ArrowLeft size={13} className="text-[#9E593B] shrink-0" />
-            <span>Customer Site</span>
-          </a>
+          {/* Link back to Main Customer Site - only when NOT logged in */}
+          {!user && (
+            <a
+              href={customerSiteUrl}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-[#1E2229] hover:text-black transition-colors whitespace-nowrap shrink-0 hover:bg-[#F3EFEA] rounded-full border border-[#E8E1D5] bg-white shadow-2xs"
+            >
+              <ArrowLeft size={13} className="text-[#9E593B] shrink-0" />
+              <span>Customer Site</span>
+            </a>
+          )}
 
           {user && user.studioName && user.phone ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">
@@ -132,12 +134,14 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               <ShieldCheck size={14} className="text-[#9E593B]" />
               <span>Studio Workbench</span>
             </div>
-            <a
-              href={customerSiteUrl}
-              className="text-xs px-2.5 py-1 rounded bg-white text-[#1E2229] font-medium border border-[#E8E1D5] flex items-center gap-1"
-            >
-              <ArrowLeft size={11} /> Customer Site
-            </a>
+            {!user && (
+              <a
+                href={customerSiteUrl}
+                className="text-xs px-2.5 py-1 rounded bg-white text-[#1E2229] font-medium border border-[#E8E1D5] flex items-center gap-1"
+              >
+                <ArrowLeft size={11} /> Customer Site
+              </a>
+            )}
           </div>
 
           <div className="pt-1 flex flex-col gap-2">

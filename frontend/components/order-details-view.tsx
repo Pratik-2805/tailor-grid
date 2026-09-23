@@ -21,6 +21,8 @@ import {
   LogIn,
   RotateCcw,
   XCircle,
+  Edit3,
+  Plus,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
@@ -190,6 +192,40 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [distanceBadge, setDistanceBadge] = useState<string>('0.3 mi • ~5 mins walk')
+  const [isEditingMeas, setIsEditingMeas] = useState(false)
+  const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
+  const [isSavingMeas, setIsSavingMeas] = useState(false)
+
+  const handleSaveCustomerMeasurements = async () => {
+    if (!order?.id) return
+    setIsSavingMeas(true)
+    const measurementsMap: Record<string, string> = {}
+    editMeasFields.forEach((f) => {
+      if (f.value && f.value.trim()) {
+        measurementsMap[f.key] = f.value.trim()
+      }
+    })
+
+    const combinedSpecs = Object.entries(measurementsMap)
+      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
+      .join(' · ')
+
+    const updates = {
+      pinnedAdjustment: combinedSpecs || 'Standard customer fit',
+      measurements: measurementsMap,
+    }
+
+    try {
+      await updateOrder(order.id, updates)
+      setOrder((prev: any) => ({ ...prev, ...updates }))
+      setIsEditingMeas(false)
+      toast.success('Measurements updated successfully!', { position: 'top-center', autoClose: 2000 })
+    } catch {
+      toast.error('Failed to update measurements.', { position: 'top-center' })
+    } finally {
+      setIsSavingMeas(false)
+    }
+  }
 
   // Auto-detect location non-blocking if permission granted
   useEffect(() => {
@@ -369,7 +405,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       if (navigator.share) {
         navigator.share({
           title: `Fitting Appointment: ${storeNameDisplay}`,
-          text: `Here are my fitting drop-off details at ${storeNameDisplay} (${storeAddressDisplay}). PIN: ${formattedOtp}`,
+          text: isCompleted
+            ? `My garment alteration at ${storeNameDisplay} is complete!`
+            : `Here are my fitting drop-off details at ${storeNameDisplay} (${storeAddressDisplay}). PIN: ${formattedOtp}`,
           url: shareUrl,
         }).catch(() => { })
       } else {
@@ -757,7 +795,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               </div>
               {/* Step 4 */}
               <div className="flex flex-col gap-1.5">
-                <div className={`h-1.5 w-full rounded-full ${stepIndex === 4 ? 'bg-black animate-pulse' : 'bg-gray-200'}`} />
+                <div className={`h-1.5 w-full rounded-full ${isCompleted ? 'bg-black' : isReady ? 'bg-black animate-pulse' : 'bg-gray-200'}`} />
                 <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 4 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
                   4. Pickup
                 </span>
@@ -843,20 +881,75 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </div>
                   </div>
 
-                  {/* Uber-Style Black High-Visibility PIN Badge */}
-                  <button
-                    type="button"
-                    onClick={handleCopyPin}
-                    className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
-                    title="Click to copy PIN"
-                  >
-                    <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
-                      {pinBoxTitle}
-                    </span>
-                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
-                      {formattedOtp}
-                    </span>
-                  </button>
+                  {/* Uber-Style Top-Right Badge: Completed / Cancelled / In Progress / PIN */}
+                  {isCompleted ? (
+                    <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                        <span className="size-2 rounded-full bg-emerald-500" />
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
+                          Order Completed
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
+                        <CheckCircle2 size={13} className="text-emerald-400" />
+                        <span>Garment Collected</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                        ✓ Fulfilled &bull; Closed
+                      </span>
+                    </div>
+                  ) : isCancelled ? (
+                    <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                        <span className="size-2 rounded-full bg-red-500" />
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-red-400">
+                          Cancelled
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
+                        <XCircle size={13} className="text-red-400" />
+                        <span>Order Cancelled</span>
+                      </div>
+                      <span className="text-[10px] text-red-300/80 block mt-1 font-medium">
+                        No PIN Required
+                      </span>
+                    </div>
+                  ) : isInProgress ? (
+                    <div
+                      className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]"
+                    >
+                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                        </span>
+                        <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
+                          Work in Progress
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-white mt-1">
+                        <Scissors size={13} className="text-[#9E593B]" />
+                        <span>Tailoring Active</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                        PIN Expired &bull; On Bench
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCopyPin}
+                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
+                      title="Click to copy PIN"
+                    >
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                        {pinBoxTitle}
+                      </span>
+                      <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
+                        {formattedOtp}
+                      </span>
+                    </button>
+                  )}
 
                 </div>
 
@@ -900,7 +993,92 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                         Your Measurements:
                       </span>
                     </div>
+
+                    {!isInProgress && !isReady && !isCompleted && !isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const parsed = parseOrderMeasurements(order)
+                          const entries = Object.entries(parsed)
+                          if (entries.length > 0) {
+                            setEditMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
+                          } else {
+                            setEditMeasFields([
+                              { key: 'hem', label: 'Hem Adjustment', value: '' },
+                              { key: 'waist', label: 'Waist / Seat', value: '' },
+                              { key: 'sleeve', label: 'Sleeve Length', value: '' },
+                              { key: 'length', label: 'Shirt / Garment Length', value: '' },
+                            ])
+                          }
+                          setIsEditingMeas(!isEditingMeas)
+                        }}
+                        className="text-[11px] font-bold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Edit3 size={11} />
+                        <span>{isEditingMeas ? 'Close Editor' : 'Edit Measurements'}</span>
+                      </button>
+                    )}
                   </div>
+
+                  {isEditingMeas && (
+                    /* Customer Inline Measurement Editor */
+                    <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3 mb-3 animate-in fade-in duration-150">
+                      <p className="text-[11px] text-gray-600 font-medium">
+                        Update your fit requests before visiting the studio for drop-off:
+                      </p>
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {editMeasFields.map((field, idx) => (
+                          <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200">
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                              {field.label}
+                            </label>
+                            <input
+                              type="text"
+                              value={field.value}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setEditMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
+                              }}
+                              placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
+                              className="w-full px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newKey = `custom_${Date.now()}`
+                            setEditMeasFields(prev => [...prev, { key: newKey, label: 'Custom Note', value: '' }])
+                          }}
+                          className="text-[11px] text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus size={11} />
+                          <span>Add Field</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingMeas(false)}
+                            className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSavingMeas}
+                            onClick={handleSaveCustomerMeasurements}
+                            className="px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            {isSavingMeas ? 'Saving…' : '✓ Save Fit Specs'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {(() => {
                     const parsed = parseOrderMeasurements(order)

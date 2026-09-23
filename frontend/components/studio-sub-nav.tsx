@@ -155,8 +155,12 @@ export function StudioSubNav({
             <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
               <button
                 onClick={() => {
-                  const token = isClient ? getAuthToken() : null
-                  window.location.href = getStudioUrl('/', token)
+                  const role = isClient ? getAuthRole() : null
+                  if (role === 'STUDIO') {
+                    window.location.href = getStudioUrl('/', getAuthToken())
+                  } else {
+                    window.location.href = getStudioUrl('/?step=1')
+                  }
                 }}
                 className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
               >
