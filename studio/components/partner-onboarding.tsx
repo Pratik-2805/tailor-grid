@@ -437,6 +437,7 @@ export function PartnerOnboarding({
             setPendingGoogle(pending)
             if (typeof window !== 'undefined') {
               sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
+              try { localStorage.setItem('tg_pending_google', JSON.stringify(pending)) } catch { }
               if (result.token) setAuthToken(result.token)
               if (result.user) setAuthUser(result.user)
               setAuthRole('STUDIO')
@@ -444,7 +445,11 @@ export function PartnerOnboarding({
 
             // Set email and tailor name from Google
             if (profile.email) setEmailVal(profile.email)
-            if (profile.name && profile.name !== 'Google User') setTailorName(profile.name)
+            if (profile.name && profile.name !== 'Google User') {
+              setTailorName(profile.name)
+            } else {
+              setTailorName('')
+            }
 
             // Clear stale form cache — start fresh registration
             ssRemove('tg_onboard_form')
@@ -456,7 +461,6 @@ export function PartnerOnboarding({
             setShopArea('')
             setPostcode('')
             setStreetAddress('')
-            setTailorName('')
             setPhone('')
             setIsPhoneVerified(false)
             setStep3VerifiedPhone('')

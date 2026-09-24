@@ -7,6 +7,7 @@ import { useApp } from '@/components/app-provider'
 import { CustomLoader } from '@/components/custom-loader'
 import type { StoreOption, User } from '@/components/data'
 import { getAuthToken, getAuthUser, getAuthRole, setStorageCookie } from '@/lib/cookies'
+import { STUDIO_BASE_URL } from '@/lib/api'
 
 export default function HomePage() {
   const router = useRouter()
@@ -26,10 +27,18 @@ export default function HomePage() {
     if (typeof window !== 'undefined') {
       const storedUser = getAuthUser<User>()
       if (storedUser) {
+        if (storedUser.role === 'STUDIO') {
+          window.location.href = STUDIO_BASE_URL
+          return false
+        }
         return storedUser.role === 'CUSTOMER'
       }
       const token = getAuthToken()
       const role = getAuthRole()
+      if (token && role === 'STUDIO') {
+        window.location.href = STUDIO_BASE_URL
+        return false
+      }
       return Boolean(token && role === 'CUSTOMER')
     }
     return false
@@ -42,21 +51,37 @@ export default function HomePage() {
           router.replace('/book')
         }, 50)
         return () => clearTimeout(timer)
+      } else if (user?.role === 'STUDIO') {
+        window.location.href = STUDIO_BASE_URL
       } else {
         setHasCustomerSession(false)
       }
     }
   }, [user, isAuthLoading, router])
 
-  // Only forward customer role to /book; STUDIO role and guests access the root '/' homepage
-  if (isAuthLoading || (hasCustomerSession && (!user || user.role === 'CUSTOMER')) || (user && user.role === 'CUSTOMER')) {
+  // Forward customer role to /book, and redirect STUDIO role to Studio Workbench
+  if (
+    isAuthLoading ||
+    (hasCustomerSession && (!user || user.role === 'CUSTOMER')) ||
+    (user && user.role === 'CUSTOMER') ||
+    (user && user.role === 'STUDIO')
+  ) {
+    const isStudio = user?.role === 'STUDIO'
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
         <CustomLoader
           size="lg"
           variant="atelier"
-          text={user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Opening your Atelier studio'}
-          subtext="Preparing your bespoke alteration experience"
+          text={
+            isStudio
+              ? 'Opening Workbench Dashboard'
+              : (user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Opening your Atelier studio')
+          }
+          subtext={
+            isStudio
+              ? 'Redirecting to your Studio Workbench'
+              : 'Preparing your bespoke alteration experience'
+          }
         />
       </div>
     )

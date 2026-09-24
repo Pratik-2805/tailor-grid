@@ -1310,6 +1310,19 @@ router.get('/me', async (req, res) => {
     }
 
     if (!user) {
+      if (decoded.type === 'pending_google_signup' && decoded.email) {
+        return res.json({
+          user: {
+            id: `temp_g_${decoded.email}`,
+            email: decoded.email,
+            name: decoded.name || 'Google User',
+            avatar: decoded.avatar || null,
+            role: decoded.role || 'STUDIO',
+            status: 'INACTIVE',
+            isNewUser: true,
+          },
+        });
+      }
       return res.status(404).json({ error: 'User profile not found' });
     }
 
