@@ -47,7 +47,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder } from '@/lib/api'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, type PendingDispatchRequest } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
@@ -70,6 +70,9 @@ interface BroadcastRequest {
   otp: string
   isRealCustomerOrder?: boolean
   realOrder?: FittingBooking
+  isDispatchSession?: boolean
+  secondsRemaining?: number
+  stage?: number
 }
 
 const GARMENT_FALLBACK_IMAGES: Record<string, string> = {
@@ -241,14 +244,15 @@ export function parseOrderMeasurements(order?: Partial<FittingBooking> | null): 
 
   // 1. Process order.measurements
   if (order.measurements) {
-    if (typeof order.measurements === 'object' && !Array.isArray(order.measurements)) {
-      Object.entries(order.measurements).forEach(([k, v]) => {
+    const rawMeas: any = order.measurements
+    if (typeof rawMeas === 'object' && !Array.isArray(rawMeas)) {
+      Object.entries(rawMeas).forEach(([k, v]) => {
         if (v !== undefined && v !== null && String(v).trim()) {
           result[k] = String(v).trim()
         }
       })
-    } else if (typeof order.measurements === 'string') {
-      const raw = order.measurements.trim()
+    } else if (typeof rawMeas === 'string') {
+      const raw = rawMeas.trim()
       if (raw.startsWith('{') && raw.endsWith('}')) {
         try {
           const parsed = JSON.parse(raw)
@@ -359,6 +363,7 @@ export function PartnerFlow({
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('Accepted')
   const [refreshing, setRefreshing] = useState(false)
+  const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
 
   // Full View Image Lightbox State
   const [lightboxPhotos, setLightboxPhotos] = useState<string[] | null>(null)
@@ -628,6 +633,28 @@ export function PartnerFlow({
     return () => clearInterval(interval)
   }, [user, online])
 
+  // Single Dispatch Session Listener - Live Pending Dispatches Feed
+  useEffect(() => {
+    if (!online || !user?.studioId) {
+      setPendingDispatches([])
+      return
+    }
+
+    const checkDispatches = async () => {
+      try {
+        if (!user?.studioId) return
+        const pending = await fetchPendingDispatches(user.studioId)
+        if (Array.isArray(pending)) {
+          setPendingDispatches(pending)
+        }
+      } catch { }
+    }
+
+    checkDispatches()
+    const dispatchInterval = setInterval(checkDispatches, 2000)
+    return () => clearInterval(dispatchInterval)
+  }, [online, user?.studioId])
+
   // Live incoming requests from real customer bookings (Status: Allocated)
   // Re-broadcasts every 2 minutes until accepted by a studio, UNLESS explicitly skipped by THIS studio.
   const liveAllocatedOrders = orders.filter((o) => {
@@ -640,26 +667,30 @@ export function PartnerFlow({
     return true
   })
 
-  const allBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => {
-    const payout = o.partnerPayout || Math.round((o.price || 30) * 0.75)
-    return {
-      id: o.id,
-      customerName: o.customerName || 'Customer',
-      customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
-      distanceMiles: 0.8,
-      garmentName: o.garmentName || 'Garment Alteration',
-      serviceName: o.serviceName || 'Custom Fit & Alteration',
-      fittingType: (o.fittingType as any) || 'NEED_STUDIO_FITTING',
-      garmentBrand: o.garmentBrand,
-      fitNotes: o.fitNotes || 'Customer requested standard alteration pinning at counter.',
-      partnerPayout: payout,
-      slaHours: o.slaHours || 24,
-      imageUrl: o.intakePhotoUrl || '',
-      otp: o.otp || '0000',
-      isRealCustomerOrder: true,
-      realOrder: o,
-    }
-  })
+  // Map incoming dispatch requests (Single Dispatch Engine in Server Cache)
+  const dispatchBroadcasts: BroadcastRequest[] = pendingDispatches
+    .filter((pd) => !permanentlySkippedIds.includes(pd.orderId))
+    .map((pd) => ({
+      id: pd.orderId,
+      customerName: pd.customerName || pd.order?.customerName || 'Customer',
+      customerArea: pd.distance ? `${pd.distance} · Stage ${pd.stage || 1}` : 'Local Area · 0.8 mi away',
+      distanceMiles: pd.distanceMiles || 0.8,
+      garmentName: pd.garmentName || pd.order?.garmentName || 'Garment Alteration',
+      serviceName: pd.serviceName || pd.order?.serviceName || 'Custom Fit & Alteration',
+      fittingType: 'NEED_STUDIO_FITTING',
+      garmentBrand: pd.order?.garmentBrand || '',
+      fitNotes: pd.order?.fitNotes || 'Customer requested standard alteration pinning at counter.',
+      partnerPayout: pd.payout || pd.order?.partnerPayout || 15,
+      slaHours: pd.order?.slaHours || 48,
+      imageUrl: pd.order?.imageUrl || pd.order?.intakePhotoUrl || '',
+      otp: pd.order?.otp || '0000',
+      isDispatchSession: true,
+      secondsRemaining: pd.secondsRemaining,
+      stage: pd.stage,
+    }))
+
+  // Only broadcast live cache dispatch sessions so that expired or cancelled orders clear immediately
+  const allBroadcasts: BroadcastRequest[] = dispatchBroadcasts
 
   const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
 
@@ -682,26 +713,47 @@ export function PartnerFlow({
     await updateOrder(order.id, updates).catch(() => { })
   }
 
-  const handleDeclineAllocatedOrder = (orderId: string) => {
-    // Explicitly skipped by studio -> permanently hide for this studio!
-    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, orderId])))
-    setTimerSecs(15)
-  }
+  const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
+    // 1. Live Dispatch Cache Request -> respond with ACCEPT
+    if (bc.isDispatchSession) {
+      if (!user?.studioId) return
+      const res = await respondToDispatch(bc.id, user.studioId, 'ACCEPT')
+      if (res.success) {
+        setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
+        setTimeout(() => setBroadcastToast(null), 5000)
+        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+        handleRefresh()
+      } else {
+        if (res.code === 'ORDER_ALREADY_ASSIGNED') {
+          setBroadcastToast('Order was accepted by another partner atelier.')
+        } else {
+          setBroadcastToast(res.message || 'Unable to accept request.')
+        }
+        setTimeout(() => setBroadcastToast(null), 4000)
+        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+      }
+      return
+    }
 
-  const handleAcceptBroadcast = (bc: BroadcastRequest) => {
+    // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
       handleAcceptAllocatedOrder(bc.realOrder)
     }
   }
 
-  const handleSkipBroadcast = (bc?: BroadcastRequest | null) => {
+  const handleSkipBroadcast = async (bc?: BroadcastRequest | null) => {
     if (!bc) return
     // Explicitly clicked Skip -> permanently hide for THIS studio!
     setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, bc.id])))
     setTimerSecs(15)
+
+    if (bc.isDispatchSession && user?.studioId) {
+      respondToDispatch(bc.id, user.studioId, 'SKIP').catch(() => { })
+      setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+    }
   }
 
-  // 15-Second Timer Countdown & Auto-Skip on Expiry (Unattended -> re-broadcasts every 2 minutes)
+  // Timer Countdown & Auto-Skip on Expiry
   useEffect(() => {
     if (!online || allBroadcasts.length === 0 || timerPaused) return
     const interval = setInterval(() => {
@@ -1244,89 +1296,86 @@ export function PartnerFlow({
         {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
 
-          {/* ── 1. RADAR / INCOMING BROADCAST HERO ── */}
-          {online && currentBroadcast ? (
-            <div
-              className="m-4 lg:m-8 mb-2"
-              onMouseEnter={() => setTimerPaused(true)}
-              onMouseLeave={() => setTimerPaused(false)}
-            >
-              <div className="bg-[#0F1115] text-white rounded-2xl p-5 shadow-sm border border-[#9E593B]/40 relative overflow-hidden">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
-                  {/* Left: Garment Info */}
-                  <div className="flex items-start gap-4 min-w-0">
-                    <div className="relative size-16 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10">
-                      <img
-                        src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                        alt={currentBroadcast.garmentName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md">
-                          Incoming Dispatch
-                        </span>
-                        {currentBroadcast.garmentBrand && (
-                          <span className="text-[11px] text-stone-300 bg-white/10 px-2 py-0.5 rounded-md">
-                            {currentBroadcast.garmentBrand}
-                          </span>
-                        )}
-
-                      </div>
-
-                      <h3 className="text-base font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
-
-                      <div className="flex items-center gap-3 text-xs text-stone-400 pt-0.5">
-                        <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
-                        <span>·</span>
-                        <span>{currentBroadcast.customerName}</span>
-                        <span>·</span>
-                        <span>{currentBroadcast.customerArea}</span>
-                        <span>·</span>
-                        <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h Turnaround</span>
-                      </div>
-                    </div>
+        {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION ── */}
+        {online && currentBroadcast ? (
+          <div
+            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4"
+            onMouseEnter={() => setTimerPaused(true)}
+            onMouseLeave={() => setTimerPaused(false)}
+          >
+            <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Left: Garment Info */}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+                    <img
+                      src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                      alt={currentBroadcast.garmentName}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
-                  {/* Right: Payout + Actions */}
-                  <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end shrink-0 pt-3 lg:pt-0 border-t lg:border-0 border-white/10">
-                    <div className="text-left lg:text-right pr-2">
-                      <span className="text-[10px] uppercase tracking-wider text-stone-400 font-medium block">Net Payout</span>
-                      <div className="text-2xl font-bold text-emerald-400">${currentBroadcast.partnerPayout}</div>
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md shadow-sm">
+                        Incoming Dispatch
+                      </span>
+                      {currentBroadcast.garmentBrand && (
+                        <span className="text-[10px] text-stone-300 bg-white/10 px-1.5 py-0.5 rounded-md">
+                          {currentBroadcast.garmentBrand}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSkipBroadcast(currentBroadcast)}
-                        className="px-4 py-2 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
-                      >
-                        Skip
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                        className="px-4 py-2 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
-                      >
-                        <Zap size={13} className="fill-white" />
-                        <span>Accept (${currentBroadcast.partnerPayout})</span>
-                      </button>
+                    <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
+
+                    <div className="flex items-center gap-2 text-[11px] text-stone-400">
+                      <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
+                      <span>·</span>
+                      <span>{currentBroadcast.customerArea}</span>
+                      <span>·</span>
+                      <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom Countdown Progress Bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
-                  <div
-                    className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
-                    style={{ width: `${(timerSecs / 15) * 100}%` }}
-                  />
+                {/* Right: Payout + Actions */}
+                <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
+                  <div className="text-left sm:text-right pr-1">
+                    <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Net Payout</span>
+                    <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.partnerPayout}</div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSkipBroadcast(currentBroadcast)}
+                      className="px-3.5 py-1.5 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
+                    >
+                      Skip
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                      className="px-4 py-1.5 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                    >
+                      <Zap size={13} className="fill-white" />
+                      <span>Accept (${currentBroadcast.partnerPayout})</span>
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* Bottom Countdown Progress Bar */}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
+                <div
+                  className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
+                  style={{ width: `${(timerSecs / 15) * 100}%` }}
+                />
+              </div>
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
           {/* ── 2. MAIN WORKBENCH VIEW TABS ── */}
           <div className="p-4 lg:p-8 pt-4 space-y-6 max-w-[1440px] mx-auto">

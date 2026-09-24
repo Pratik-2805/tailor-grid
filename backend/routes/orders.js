@@ -1,7 +1,229 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
+const dispatchService = require('../services/dispatch.service');
 
 const router = express.Router();
+
+// GET /api/orders/dispatch/pending - Live feed of pending requests for a tailor studio
+router.get('/dispatch/pending', async (req, res) => {
+  try {
+    const { storeId } = req.query;
+    if (!storeId) {
+      return res.status(400).json({ error: 'storeId is required' });
+    }
+    const pending = dispatchService.getPendingRequestsForTailor(storeId);
+    return res.json({ success: true, pendingRequests: pending });
+  } catch (err) {
+    console.error('Pending dispatch fetch error:', err);
+    return res.status(500).json({ error: 'Failed to fetch pending requests' });
+  }
+});
+
+// POST /api/orders/dispatch/start - Start single 5-mile dispatch session purely in server cache
+router.post('/dispatch/start', async (req, res) => {
+  try {
+    const {
+      userId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      postcode,
+      garmentId,
+      garmentName,
+      serviceId,
+      serviceName,
+      date,
+      timeSlot,
+      garmentBrand,
+      fitNotes,
+      measurements,
+      imageUrl,
+      price,
+      customerLat,
+      customerLng,
+    } = req.body;
+
+    if (!customerEmail && !customerPhone) {
+      return res.status(400).json({ error: 'Customer email or phone is required' });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const orderId = req.body.id || `TG-${Math.floor(100000 + Math.random() * 900000)}`;
+    const parsedPrice = price ? parseFloat(price) : 25;
+    const partnerPayout = Math.round(parsedPrice * 0.75 * 100) / 100;
+
+    let measurementsStr = '';
+    if (measurements) {
+      measurementsStr = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
+    }
+
+    // Connect user if exists
+    let linkedUserId = null;
+    if (userId) {
+      const userExists = await prisma.user.findUnique({ where: { id: userId } });
+      if (userExists) linkedUserId = userExists.id;
+    }
+    if (!linkedUserId && customerEmail) {
+      const userByEmail = await prisma.user.findUnique({ where: { email: customerEmail.trim().toLowerCase() } });
+      if (userByEmail) linkedUserId = userByEmail.id;
+    }
+
+    // Pure server-side cache session — DO NOT insert into PostgreSQL until accepted by a tailor!
+    const orderSessionPayload = {
+      id: orderId,
+      userId: linkedUserId,
+      customerName: customerName || 'Valued Customer',
+      customerEmail: customerEmail ? customerEmail.trim().toLowerCase() : 'customer@example.com',
+      customerPhone: customerPhone ? customerPhone.trim() : null,
+      postcode: postcode || 'W8 4EP',
+      garmentId: garmentId || 'trousers',
+      garmentName: garmentName || 'Trousers & Jeans',
+      serviceId: serviceId || 'trouser-hem',
+      serviceName: serviceName || 'Standard Hemming',
+      date: date || new Date().toISOString().split('T')[0],
+      timeSlot: timeSlot || '14:00 - 15:00',
+      garmentBrand: garmentBrand || '',
+      fitNotes: fitNotes || measurementsStr || '',
+      pinnedAdjustment: measurementsStr || '',
+      partnerPayout,
+      imageUrl: req.body.intakePhotoUrl || imageUrl || null,
+      price: parsedPrice,
+      otp,
+      customerLat: parseFloat(customerLat) || 51.5074,
+      customerLng: parseFloat(customerLng) || -0.1278,
+    };
+
+    const dispatchSession = await dispatchService.startOrderDispatch(orderSessionPayload);
+
+    return res.status(201).json({
+      success: true,
+      order: orderSessionPayload,
+      dispatch: dispatchSession,
+    });
+  } catch (err) {
+    console.error('Dispatch start error:', err);
+    return res.status(500).json({ error: 'Failed to initiate dispatch session' });
+  }
+});
+
+// POST /api/orders/:id/dispatch/cancel - Customer cancels search before acceptance
+router.post('/:id/dispatch/cancel', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = dispatchService.cancelDispatch(id);
+    return res.json(result);
+  } catch (err) {
+    console.error('Dispatch cancel error:', err);
+    return res.status(500).json({ error: 'Failed to cancel dispatch session' });
+  }
+});
+
+// GET /api/orders/:id/dispatch/status - Customer live progress monitor
+router.get('/:id/dispatch/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const status = dispatchService.getDispatchSessionStatus(id);
+
+    // If session not found in memory, fall back to checking PostgreSQL Order status
+    if (status.status === 'NOT_FOUND') {
+      const dbOrder = await prisma.order.findUnique({
+        where: { id },
+        include: { store: true },
+      });
+
+      if (dbOrder) {
+        return res.json({
+          success: true,
+          dispatch: {
+            orderId: id,
+            status: dbOrder.storeId ? 'ASSIGNED' : 'EXHAUSTED',
+            acceptedTailor: dbOrder.store || null,
+            order: formatOrderOutput(dbOrder),
+          },
+        });
+      }
+    }
+
+    return res.json({ success: true, dispatch: status });
+  } catch (err) {
+    console.error('Dispatch status error:', err);
+    return res.status(500).json({ error: 'Failed to get dispatch status' });
+  }
+});
+
+// POST /api/orders/:id/dispatch/respond - Tailor Accept or Skip response
+router.post('/:id/dispatch/respond', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tailorId, action } = req.body;
+
+    if (!tailorId || !action) {
+      return res.status(400).json({ error: 'tailorId and action (ACCEPT | SKIP) are required' });
+    }
+
+    if (action === 'SKIP') {
+      const skipResult = await dispatchService.recordTailorSkip(id, tailorId);
+      return res.json(skipResult);
+    }
+
+    if (action === 'ACCEPT') {
+      const acceptResult = await dispatchService.recordTailorAccept(id, tailorId);
+      if (!acceptResult.success) {
+        return res.status(409).json(acceptResult); // 409 Conflict if already assigned
+      }
+      return res.json(acceptResult);
+    }
+
+    return res.status(400).json({ error: 'Invalid action. Expected ACCEPT or SKIP' });
+  } catch (err) {
+    console.error('Dispatch respond error:', err);
+    return res.status(500).json({ error: 'Failed to process dispatch response' });
+  }
+});
+
+// POST /api/orders/:id/dispatch/schedule - Customer fallback to schedule later slot
+router.post('/:id/dispatch/schedule', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, timeSlot } = req.body;
+    const result = await dispatchService.scheduleOrderForLater(id, date, timeSlot);
+    return res.json(result);
+  } catch (err) {
+    console.error('Dispatch schedule error:', err);
+    return res.status(500).json({ error: 'Failed to schedule order' });
+  }
+});
+
+// POST /api/orders/:id/dispatch/retry - Re-dispatch order
+router.post('/:id/dispatch/retry', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { customerLat, customerLng } = req.body;
+
+    let orderData = null;
+    const existingSession = dispatchService.getDispatchSessionStatus(id);
+    if (existingSession && existingSession.order) {
+      orderData = existingSession.order;
+    } else {
+      orderData = await prisma.order.findUnique({ where: { id } });
+    }
+
+    if (!orderData) {
+      return res.status(404).json({ error: 'Order not found for retry' });
+    }
+
+    const session = await dispatchService.startOrderDispatch({
+      ...orderData,
+      customerLat: parseFloat(customerLat) || orderData.customerLat || 51.5074,
+      customerLng: parseFloat(customerLng) || orderData.customerLng || -0.1278,
+    });
+
+    return res.json({ success: true, dispatch: session });
+  } catch (err) {
+    console.error('Dispatch retry error:', err);
+    return res.status(500).json({ error: 'Failed to retry dispatch session' });
+  }
+});
 
 // GET /api/orders/studio/stats - Studio analytics & settlements directly from PostgreSQL
 router.get('/studio/stats', async (req, res) => {
@@ -72,7 +294,14 @@ function parseOrderMeasurements(pinnedAdjustment) {
 function formatOrderOutput(o) {
   if (!o) return o;
   const measurements = parseOrderMeasurements(o.pinnedAdjustment);
-  const updated = { ...o, measurements };
+  const updated = {
+    ...o,
+    measurements,
+    customerLocation: (o.customerLat && o.customerLng) ? { lat: o.customerLat, lng: o.customerLng } : null,
+    tailorLocation: (o.tailorLat && o.tailorLng)
+      ? { lat: o.tailorLat, lng: o.tailorLng }
+      : (o.store?.lat && o.store?.lng ? { lat: o.store.lat, lng: o.store.lng } : null),
+  };
   if (o.store && (!o.storeName || o.storeName === 'Atelier SoHo' || o.storeName === 'Local Partner Atelier')) {
     updated.storeName = o.store.name;
   }
@@ -230,10 +459,19 @@ router.post('/', async (req, res) => {
 
     // Ensure store exists if storeId provided
     let validStoreId = null;
+    let storeLat = null;
+    let storeLng = null;
     if (storeId) {
       const storeExists = await prisma.partnerStore.findUnique({ where: { id: storeId } });
-      if (storeExists) validStoreId = storeId;
+      if (storeExists) {
+        validStoreId = storeId;
+        storeLat = storeExists.lat;
+        storeLng = storeExists.lng;
+      }
     }
+
+    const customerLatVal = req.body.customerLat ? parseFloat(req.body.customerLat) : null;
+    const customerLngVal = req.body.customerLng ? parseFloat(req.body.customerLng) : null;
 
     const newOrder = await prisma.order.create({
       data: {
@@ -243,6 +481,10 @@ router.post('/', async (req, res) => {
         customerEmail: customerEmail ? customerEmail.trim().toLowerCase() : 'customer@example.com',
         customerPhone: customerPhone ? customerPhone.trim() : null,
         postcode: postcode || 'W8 4EP',
+        customerLat: customerLatVal,
+        customerLng: customerLngVal,
+        tailorLat: storeLat,
+        tailorLng: storeLng,
         garmentId: garmentId || 'trousers',
         garmentName: garmentName || 'Trousers & Jeans',
         serviceId: serviceId || 'trouser-hem',
@@ -280,6 +522,15 @@ router.post('/', async (req, res) => {
         price: parsedPrice,
         otp,
       },
+    });
+
+    // Start single 5-mile dispatch session quietly in background for tailor studios
+    dispatchService.startOrderDispatch({
+      ...newOrder,
+      customerLat: parseFloat(req.body.customerLat) || 51.5074,
+      customerLng: parseFloat(req.body.customerLng) || -0.1278,
+    }).catch((err) => {
+      console.warn('Background dispatch session warning:', err.message || err);
     });
 
     return res.status(201).json({
