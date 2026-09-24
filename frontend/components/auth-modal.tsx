@@ -489,10 +489,35 @@ export function AuthModal({
   // ── Studio Login ──────────────────────────────────────────────────────────
   const handleStudioLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    const cleanId = sLoginEmail.trim()
+    if (!cleanId) {
+      const msg = 'Please enter your registered email or mobile number.'
+      setError(msg)
+      toast.warning(msg, { position: 'top-center' })
+      return
+    }
+    if (cleanId.includes('@')) {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+      if (!emailRegex.test(cleanId)) {
+        const msg = 'Please enter a valid email address (e.g. atelier@domain.com).'
+        setError(msg)
+        toast.warning(msg, { position: 'top-center' })
+        return
+      }
+    } else {
+      const digits = cleanId.replace(/\D/g, '')
+      if (digits.length < 8) {
+        const msg = 'Please enter a valid mobile number with country code.'
+        setError(msg)
+        toast.warning(msg, { position: 'top-center' })
+        return
+      }
+    }
+
     setLoading(true)
     setError('')
     try {
-      const result = await loginUser({ identifier: sLoginEmail.trim(), role: 'STUDIO' })
+      const result = await loginUser({ identifier: cleanId, role: 'STUDIO' })
       setLoading(false)
       if (result?.user) finalizeAuth(result.user, 'STUDIO')
     } catch (err: any) {
