@@ -332,11 +332,28 @@ export function PartnerOnboarding({
   const [alreadyRegistered, setAlreadyRegistered] = useState(false)
   const [alreadyRegisteredUser, setAlreadyRegisteredUser] = useState<User | null>(null)
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
-  const isGoogleAuthUser = Boolean(
-    pendingGoogle?.email ||
-    (user?.method === 'google' && user?.email)
+  const hasPendingMobile = Boolean(
+    ssGet('tg_pending_mobile') ||
+    (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
   )
-  const fixedGoogleEmail = user?.email || pendingGoogle?.email || ''
+  const cachedAuthUser = typeof window !== 'undefined' ? getAuthUser<User>() : null
+
+  const isGoogleAuthUser = Boolean(
+    !hasPendingMobile &&
+    (
+      pendingGoogle?.email ||
+      user?.method === 'google' ||
+      cachedAuthUser?.method === 'google' ||
+      user?.email ||
+      cachedAuthUser?.email
+    )
+  )
+  const fixedGoogleEmail =
+    pendingGoogle?.email ||
+    user?.email ||
+    cachedAuthUser?.email ||
+    emailVal ||
+    ''
 
   useEffect(() => {
     const activeEmail = user?.email || pendingGoogle?.email || (typeof window !== 'undefined' ? getAuthUser<User>()?.email : '')

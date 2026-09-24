@@ -135,6 +135,18 @@ export default function StudioPage() {
                 setAuthToken(result.token || '')
                 setAuthRole('STUDIO')
                 setAuthUser(result.user)
+                const pending = {
+                  tempSignupId: result.tempSignupId,
+                  email: profile.email || result.user?.email,
+                  name: profile.name || result.user?.name || 'Master Tailor',
+                  avatar: profile.picture || result.user?.avatar,
+                }
+                if (typeof window !== 'undefined') {
+                  try {
+                    sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
+                    localStorage.setItem('tg_pending_google', JSON.stringify(pending))
+                  } catch { }
+                }
                 window.location.href = '/?step=1'
               }
             }

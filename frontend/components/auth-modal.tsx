@@ -1080,7 +1080,7 @@ export function AuthModal({
               </div>
 
               <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
+                <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogleStudio()} bordered />
                 <button
                   onClick={() => {
                     onClose()
