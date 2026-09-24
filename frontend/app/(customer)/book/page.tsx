@@ -489,9 +489,8 @@ function DropdownSelector({
           )}
           <ChevronDown
             size={16}
-            className={`text-[#7A7E85] group-hover:text-[#0F1115] transition-transform duration-200 ${
-              isOpen ? 'rotate-180' : ''
-            }`}
+            className={`text-[#7A7E85] group-hover:text-[#0F1115] transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
+              }`}
           />
         </div>
       </button>
@@ -508,11 +507,10 @@ function DropdownSelector({
                   onSelect(item.id)
                   onToggle()
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#9E593B]/10 text-[#9E593B]'
-                    : 'hover:bg-[#FAF8F5] text-[#0F1115]'
-                }`}
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-left transition-colors cursor-pointer ${isSelected
+                  ? 'bg-[#9E593B]/10 text-[#9E593B]'
+                  : 'hover:bg-[#FAF8F5] text-[#0F1115]'
+                  }`}
               >
                 <div className="min-w-0 flex-1 mr-2">
                   <p className="text-xs font-bold truncate">{item.label}</p>
@@ -560,6 +558,7 @@ export default function BookPage() {
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
+  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   // Selection states initialized from prefilled context
   const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
@@ -570,6 +569,36 @@ export default function BookPage() {
   // Image Upload state
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Live device GPS location detection on mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        setUserGpsCoords({ lat: latitude, lng: longitude })
+
+        // Auto-detect city locality if not manually overridden
+        try {
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          )
+          if (res.ok) {
+            const data = await res.json()
+            const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
+            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || 'IN-MH'
+            const formatted = `${cityName}, ${stateCode}`
+            setSelectedCity(formatted)
+          }
+        } catch { }
+      },
+      (err) => {
+        console.warn('Geolocation prompt/access skipped or denied, fallback to city centroid:', err)
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    )
+  }, [setSelectedCity])
 
   // Measurement collapsible dropdown & custom edit state
   const [isMeasurementOpen, setIsMeasurementOpen] = useState(false)
@@ -621,7 +650,7 @@ export default function BookPage() {
   // Fetch partner studios purely by lat/lng within 8 miles
   useEffect(() => {
     let isCurrent = true
-    const coords = getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     fetch(`/api/tailors/nearby?lat=${coords.lat}&lng=${coords.lng}&radiusMiles=8.0`)
       .then((res) => res.json())
@@ -643,7 +672,7 @@ export default function BookPage() {
     return () => {
       isCurrent = false
     }
-  }, [selectedCity, prefilledStore])
+  }, [selectedCity, userGpsCoords, prefilledStore])
 
   // Sync prefilled state from App context / measurement draft
   useEffect(() => {
@@ -756,10 +785,11 @@ export default function BookPage() {
     })
   }, [user, selectedGarmentId, activeMeasurementFields])
 
-  // Map coordinates dynamically based on selected city
+  // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
+    if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [selectedCity])
+  }, [userGpsCoords, selectedCity])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -935,7 +965,7 @@ export default function BookPage() {
     }
     setCreatedOrderId(newOrderId)
 
-    const coords = getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     // CASE 1: Customer explicitly scheduled a visit time -> save to DB immediately
     if (pickupOption === 'schedule') {
@@ -1324,11 +1354,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => handleUnitChange('in')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
-                                measUnit === 'in'
-                                  ? 'bg-black text-white shadow-xs'
-                                  : 'text-neutral-500 hover:text-black'
-                              }`}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'in'
+                                ? 'bg-black text-white shadow-xs'
+                                : 'text-neutral-500 hover:text-black'
+                                }`}
                               title="Inches"
                             >
                               in
@@ -1336,11 +1365,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => handleUnitChange('cm')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${
-                                measUnit === 'cm'
-                                  ? 'bg-black text-white shadow-xs'
-                                  : 'text-neutral-500 hover:text-black'
-                              }`}
+                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'cm'
+                                ? 'bg-black text-white shadow-xs'
+                                : 'text-neutral-500 hover:text-black'
+                                }`}
                               title="Centimeters"
                             >
                               cm
@@ -1498,7 +1526,11 @@ export default function BookPage() {
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         selectedCity={selectedCity}
-        onSelectCity={(c) => setSelectedCity(c)}
+        onSelectCity={(c) => {
+          setSelectedCity(c)
+          const newCoords = getCityCoordinates(c)
+          setUserGpsCoords(newCoords)
+        }}
       />
 
       {/* Schedule Atelier Visit Modal */}
@@ -1617,7 +1649,7 @@ export default function BookPage() {
       {isNoTailorsModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150 text-center">
-            
+
             {/* Header Icon */}
             <div className="mx-auto size-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shadow-2xs">
               <Scissors size={26} className="rotate-45" />

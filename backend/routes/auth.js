@@ -993,18 +993,36 @@ router.post('/login', async (req, res) => {
   try {
     const { email, phone, identifier, role = 'CUSTOMER' } = req.body;
     const searchVal = identifier || email || phone;
-    if (!searchVal) {
-      return res.status(400).json({ error: 'Please enter your email or mobile number.' });
+    if (!searchVal || !searchVal.trim()) {
+      return res.status(400).json({ error: 'Please enter your email address or mobile number.' });
     }
 
     const cleanVal = searchVal.trim();
-
     let user = null;
+
     if (cleanVal.includes('@')) {
-      user = await prisma.user.findUnique({ where: { email: cleanVal.toLowerCase() } });
+      // Validate Email Format
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(cleanVal)) {
+        return res.status(400).json({ error: 'Please enter a valid email address (e.g. name@domain.com).' });
+      }
+
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: cleanVal.toLowerCase() },
+            { contact: cleanVal.toLowerCase() },
+          ],
+        },
+      });
     } else {
+      // Validate Mobile Number Format
       const phoneValidation = validateAndFormatPhone(cleanVal);
-      const searchFormatted = phoneValidation.isValid ? phoneValidation.formatted : cleanVal;
+      if (!phoneValidation.isValid) {
+        return res.status(400).json({ error: phoneValidation.error || 'Please enter a valid email address or 10-digit mobile number.' });
+      }
+
+      const searchFormatted = phoneValidation.formatted;
       user = await prisma.user.findFirst({
         where: {
           OR: [
@@ -1020,7 +1038,7 @@ router.post('/login', async (req, res) => {
     if (!user) {
       if (role === 'STUDIO') {
         return res.status(403).json({
-          error: 'Unauthorized user, access denied.',
+          error: 'Unauthorized user, access denied. Please register your atelier first.',
         });
       }
       return res.status(404).json({
@@ -1028,17 +1046,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // STRICT ROLE GATE & OTP ENFORCEMENT: Studio accounts cannot bypass OTP
-    if (role === 'STUDIO') {
-      if (user.role !== 'STUDIO') {
-        return res.status(403).json({
-          error: 'This account is registered as a Customer account. It cannot be used to log in to Darzi Studio.',
-        });
-      }
+    // Role Validation
+    if (role === 'STUDIO' && user.role !== 'STUDIO') {
       return res.status(403).json({
-        error: 'Studio partners must authenticate via SMS verification code.',
-        requireOtp: true,
-        phone: user.phone || null,
+        error: 'This account is registered as a Customer account. It cannot be used to log in to Darzi Studio.',
       });
     }
 
@@ -1048,13 +1059,25 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const token = generateToken(user);
+    // Account Status Validation
+    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+      return res.status(403).json({
+        error: 'Your account has been suspended. Please contact support.',
+      });
+    }
+
+    let returnUser = user;
+    if (user.role === 'STUDIO') {
+      returnUser = await enrichStudioUser(user);
+    }
+
+    const token = generateToken(returnUser);
     return res.json({
       success: true,
       token,
-      user,
-      needsPhone: !user.phone,
-      hasPhone: Boolean(user.phone),
+      user: returnUser,
+      needsPhone: !returnUser.phone,
+      hasPhone: Boolean(returnUser.phone),
     });
   } catch (err) {
     console.error('Login Error:', err);
