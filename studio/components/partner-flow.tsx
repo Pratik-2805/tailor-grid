@@ -724,6 +724,26 @@ export function PartnerFlow({
         setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
         setTimeout(() => setBroadcastToast(null), 5000)
         setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+
+        // ✅ Immediately promote the newly created order from 'Allocated' → 'Accepted'
+        // so it becomes visible in the pipeline (pipelineOrders filters out 'Allocated')
+        const studioDisplayName =
+          (user?.studioName && user.studioName.trim()) ||
+          studioName ||
+          (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
+        const promotionUpdates = {
+          status: 'Accepted' as const,
+          storeId: user.studioId,
+          storeName: studioDisplayName,
+          ...(user?.phone ? { storePhone: user.phone } : {}),
+        }
+        // Optimistic UI update
+        setOrders((prev) =>
+          prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
+        )
+        // Persist to DB
+        updateOrder(bc.id, promotionUpdates).catch(() => {})
+
         handleRefresh()
       } else {
         if (res.code === 'ORDER_ALREADY_ASSIGNED') {
