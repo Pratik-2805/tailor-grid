@@ -5,13 +5,13 @@ const { calculateDistanceInMiles } = require('./locate.service');
 const dispatchSessions = new Map();
 
 const STAGE_CONFIG = [
-  { stage: 1, minRadius: 0.0, maxRadius: 1.0, durationSec: 20 },
-  { stage: 2, minRadius: 1.0, maxRadius: 3.0, durationSec: 20 },
-  { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 20 },
+  { stage: 1, minRadius: 0.0, maxRadius: 1.0, durationSec: 15 },
+  { stage: 2, minRadius: 1.0, maxRadius: 3.0, durationSec: 15 },
+  { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 15 },
 ];
 
 const DISPATCH_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
-const HARD_TIMEOUT_SEC = 60; // 60 seconds hard dispatch cap
+const HARD_TIMEOUT_SEC = 45; // 45 seconds hard dispatch cap (3 stages × 15s)
 
 /**
  * Clean up expired dispatch sessions from memory
@@ -130,7 +130,7 @@ async function startOrderDispatch(order) {
     currentRadius: 1.0,
     startedAt: now,
     stageStartedAt: now,
-    stageEndsAt: now + 20 * 1000,
+    stageEndsAt: now + 15 * 1000,
     hardTimeoutAt: now + HARD_TIMEOUT_SEC * 1000,
     cacheExpiresAt: now + DISPATCH_TTL_MS,
     status: tailorPool.length === 0 ? 'ZERO_TAILORS' : 'SEARCHING', // SEARCHING, ASSIGNED, EXHAUSTED, ZERO_TAILORS, CANCELLED, SCHEDULED

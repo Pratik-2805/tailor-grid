@@ -410,7 +410,8 @@ export function PartnerFlow({
   // ── 1. Live Broadcast Queue & 15-Second Countdown ───────────────────
   const [broadcastIdx, setBroadcastIdx] = useState(0)
   const [timerSecs, setTimerSecs] = useState(15)
-  const [timerPaused, setTimerPaused] = useState(false)
+  const [timerProgress, setTimerProgress] = useState(100)
+  const broadcastExpiryRef = useRef<{ id: string; expiresAt: number; totalDurationMs: number } | null>(null)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
   // Permanently skipped order IDs for THIS studio (clicked Skip)
@@ -767,7 +768,9 @@ export function PartnerFlow({
     if (!bc) return
     // Explicitly clicked Skip -> permanently hide for THIS studio!
     setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, bc.id])))
+    broadcastExpiryRef.current = null
     setTimerSecs(15)
+    setTimerProgress(100)
 
     if (bc.isDispatchSession && user?.studioId) {
       respondToDispatch(bc.id, user.studioId, 'SKIP').catch(() => { })
@@ -775,23 +778,53 @@ export function PartnerFlow({
     }
   }
 
-  // Timer Countdown & Auto-Skip on Expiry
+  // Smooth Timestamp-Based Timer (50ms continuous ticker)
   useEffect(() => {
-    if (!online || allBroadcasts.length === 0 || timerPaused) return
+    if (!online || !currentBroadcast) {
+      broadcastExpiryRef.current = null
+      setTimerSecs(15)
+      setTimerProgress(100)
+      return
+    }
+
+    const bId = currentBroadcast.id
+    const serverRemainingSec =
+      typeof currentBroadcast.secondsRemaining === 'number' && currentBroadcast.secondsRemaining > 0
+        ? currentBroadcast.secondsRemaining
+        : 15
+
+    // Initialize or re-anchor expiry timestamp when broadcast changes
+    if (!broadcastExpiryRef.current || broadcastExpiryRef.current.id !== bId) {
+      const remainingMs = Math.max(1000, Math.min(15, serverRemainingSec) * 1000)
+      broadcastExpiryRef.current = {
+        id: bId,
+        expiresAt: Date.now() + remainingMs,
+        totalDurationMs: 15000,
+      }
+    }
+
     const interval = setInterval(() => {
-      setTimerSecs((prev) => {
-        if (prev <= 1) {
-          if (currentBroadcast) {
-            // Unattended timer expired -> suppress locally for 2 minutes, then repeat
-            setTimeoutTimestamps((prev) => ({ ...prev, [currentBroadcast.id]: Date.now() }))
-          }
-          return 15
-        }
-        return prev - 1
-      })
-    }, 1000)
+      if (!broadcastExpiryRef.current || broadcastExpiryRef.current.id !== bId) return
+
+      const now = Date.now()
+      const remainingMs = broadcastExpiryRef.current.expiresAt - now
+
+      if (remainingMs <= 0) {
+        // Unattended timer expired -> suppress locally for 2 minutes, then repeat
+        setTimeoutTimestamps((tPrev) => ({ ...tPrev, [bId]: Date.now() }))
+        broadcastExpiryRef.current = null
+        setTimerSecs(15)
+        setTimerProgress(0)
+      } else {
+        const secs = Math.ceil(remainingMs / 1000)
+        const pct = Math.max(0, Math.min(100, (remainingMs / broadcastExpiryRef.current.totalDurationMs) * 100))
+        setTimerSecs(secs)
+        setTimerProgress(pct)
+      }
+    }, 50)
+
     return () => clearInterval(interval)
-  }, [online, allBroadcasts.length, timerPaused, currentBroadcast])
+  }, [online, currentBroadcast?.id])
 
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
@@ -1074,7 +1107,7 @@ export function PartnerFlow({
   // Timer circumference for circular progress
   const timerRadius = 22
   const timerCircumference = 2 * Math.PI * timerRadius
-  const timerStrokeDashoffset = timerCircumference - (timerSecs / 10) * timerCircumference
+  const timerStrokeDashoffset = timerCircumference - (timerSecs / 15) * timerCircumference
 
   // PIN keypad helper
   const handleKeypadPress = (val: string) => {
@@ -1347,8 +1380,6 @@ export function PartnerFlow({
           {online && currentBroadcast ? (
             <div
               className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4"
-              onMouseEnter={() => setTimerPaused(true)}
-              onMouseLeave={() => setTimerPaused(false)}
             >
               <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1414,10 +1445,10 @@ export function PartnerFlow({
                 </div>
 
                 {/* Bottom Countdown Progress Bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80 overflow-hidden">
                   <div
-                    className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
-                    style={{ width: `${(timerSecs / 15) * 100}%` }}
+                    className="h-full bg-[#9E593B] transition-[width] duration-75 ease-linear"
+                    style={{ width: `${timerProgress}%` }}
                   />
                 </div>
               </div>
