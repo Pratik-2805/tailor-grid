@@ -357,7 +357,7 @@ router.post('/send-otp', async (req, res) => {
         await saveOtp(cleanPhone, code);
         console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
 
-        // Send real SMS via Twilio
+        // Send real SMS via AWS SNS
         const smsResult = await sendVerificationSms(cleanPhone, code);
 
         const responsePayload = {
