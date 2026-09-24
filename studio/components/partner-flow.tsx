@@ -248,7 +248,7 @@ export function parseOrderMeasurements(order?: Partial<FittingBooking> | null): 
         }
       })
     } else if (typeof order.measurements === 'string') {
-      const raw = order.measurements.trim()
+      const raw = (order.measurements as string).trim()
       if (raw.startsWith('{') && raw.endsWith('}')) {
         try {
           const parsed = JSON.parse(raw)
