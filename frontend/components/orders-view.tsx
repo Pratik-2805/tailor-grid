@@ -362,9 +362,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-[#9E593B] bg-[#F4EFEA] px-2 py-0.5 rounded">
-                          {o.id}
-                        </span>
                         <span className="text-xs font-semibold text-[#18191B]">{o.slot}</span>
                       </div>
 
@@ -376,17 +373,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                           <MapPin size={12} className="text-[#9E593B]" />
                           <span>{o.studio} ({o.address})</span>
                         </span>
-                        {o.phone && (
-                          <a
-                            href={`tel:${o.phone.replace(/\s+/g, '')}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
-                            title="Call partner studio"
-                          >
-                            <Phone size={11} className="text-emerald-600" />
-                            <span>{o.phone}</span>
-                          </a>
-                        )}
                       </div>
                     </div>
 

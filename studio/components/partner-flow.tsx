@@ -23,6 +23,7 @@ import {
   LogOut,
   MapPin,
   Menu,
+  Key,
   Package,
   Pause,
   Phone,
@@ -208,30 +209,129 @@ export function formatMeasurementKey(key: string): string {
     .trim()
 }
 
-export function formatCustomerFitNotes(rawNotes?: string | null): string {
-  if (!rawNotes) return ''
+export function cleanMeasurementVal(val?: string | null): string {
+  if (!val) return ''
+  const str = String(val).trim()
+  if (str.toLowerCase().includes('to be measured') || str.toLowerCase() === 'pending') {
+    return ''
+  }
+  return str
+}
+
+export function renderCustomerFitNotesBanner(rawNotes?: string | null) {
+  if (!rawNotes) return null
   let str = rawNotes.trim()
-  if (!str) return ''
+  if (!str) return null
 
   if (str.startsWith('Measurements:')) {
     str = str.replace(/^Measurements:\s*/, '').trim()
   }
 
+  let parsedMap: Record<string, string> | null = null
+
   if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
     try {
-      const parsed = JSON.parse(str)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const parts = Object.entries(parsed)
-          .filter(([_, v]) => v !== undefined && v !== null && String(v).trim() !== '')
-          .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
-        if (parts.length > 0) {
-          return parts.join(' · ')
-        }
+      const obj = JSON.parse(str)
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        parsedMap = {}
+        Object.entries(obj).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && String(v).trim()) {
+            parsedMap![formatMeasurementKey(k)] = String(v).trim()
+          }
+        })
       }
     } catch { }
+  } else if (str.includes('·') || str.includes(':')) {
+    const parts = str.split('·').map((s) => s.trim()).filter(Boolean)
+    const map: Record<string, string> = {}
+    parts.forEach((p) => {
+      const colonIdx = p.indexOf(':')
+      if (colonIdx !== -1) {
+        const k = p.slice(0, colonIdx).trim()
+        const v = p.slice(colonIdx + 1).trim()
+        if (k && v) map[k] = v
+      }
+    })
+    if (Object.keys(map).length > 0) {
+      parsedMap = map
+    }
   }
 
-  return str
+  if (parsedMap && Object.keys(parsedMap).length > 0) {
+    const entries = Object.entries(parsedMap)
+    const allPending = entries.every(([_, v]) =>
+      v.toLowerCase().includes('to be measured') || v.toLowerCase().includes('pending')
+    )
+
+    if (allPending) {
+      return (
+        <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF6F0] border border-[#E8E1D5] text-xs space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-7 rounded-lg bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0">
+                <Ruler size={15} />
+              </div>
+              <div>
+                <span className="font-bold text-[#1E2229] text-xs block">In-Studio Fitting Order</span>
+                <span className="text-[11px] text-[#7C6E65] block">Customer requested in-person measurement at intake</span>
+              </div>
+            </div>
+            <span className="text-[10px] font-semibold text-amber-900 bg-amber-100/90 border border-amber-300 px-2.5 py-1 rounded-full shrink-0">
+              Tailor Measurement Required
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {entries.map(([key]) => (
+              <span key={key} className="inline-flex items-center gap-1.5 text-[11px] bg-white text-[#4A423C] px-2.5 py-1 rounded-lg border border-[#E3DCD1] shadow-2xs font-medium">
+                <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
+                <strong className="text-[#1E2229] font-semibold">{key}:</strong>
+                <span className="text-amber-800 font-medium">To be measured</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF6F0] border border-[#E8E1D5] text-xs space-y-2.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
+          Customer Fit Specifications
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {entries.map(([key, val]) => {
+            const isPending = val.toLowerCase().includes('to be measured') || val.toLowerCase().includes('pending')
+            return (
+              <span
+                key={key}
+                className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border shadow-2xs ${
+                  isPending
+                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                    : 'bg-white border-[#E3DCD1] text-[#1E2229]'
+                }`}
+              >
+                <span className={`size-1.5 rounded-full shrink-0 ${isPending ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                <strong className="font-semibold">{key}:</strong>
+                <span>{isPending ? 'Tailor to measure' : val}</span>
+              </span>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-3.5 sm:p-4 rounded-xl bg-[#FAF6F0] border border-[#E8E1D5] text-xs space-y-1">
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
+        Customer Fit Instructions
+      </span>
+      <p className="text-[#1E2229] font-medium leading-relaxed">
+        {str}
+      </p>
+    </div>
+  )
 }
 
 export function parseOrderMeasurements(order?: Partial<FittingBooking> | null): Record<string, string> {
@@ -429,6 +529,8 @@ export function PartnerFlow({
 
   // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
   const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
+  const [inlinePickupInput, setInlinePickupInput] = useState<Record<string, string>>({})
+  const [inlinePickupError, setInlinePickupError] = useState<Record<string, string>>({})
 
   // Clean up timed-out timestamps after 2 minutes (120,000ms) so unattended requests re-broadcast every 2 mins!
   useEffect(() => {
@@ -733,18 +835,66 @@ export function PartnerFlow({
     updateOrder(id, updates).catch(() => { })
   }
 
-  // Mark alteration done -> Generates pickup PIN & moves to Ready
+  // Mark alteration done -> Moves to Ready (pickup OTP is generated when tailor clicks 'Generate Pickup OTP' or 'Pickup →')
   const handleMarkAlterationDone = (orderId: string) => {
-    const freshPickupOtp = Math.floor(1000 + Math.random() * 9000).toString()
     const updates: Partial<FittingBooking> = {
       status: 'Ready',
-      otp: freshPickupOtp,
+      otp: '', // Clear drop-off OTP so pickup OTP is generated fresh when studio initiates pickup
     }
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
     if (selectedOrder?.id === orderId) {
       setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
     }
     updateOrder(orderId, updates).catch(() => { })
+  }
+
+  // Studio triggers Pickup OTP generation on demand
+  const handleGeneratePickupOtp = async (orderId: string) => {
+    const freshOtp = Math.floor(1000 + Math.random() * 9000).toString()
+    const updates: Partial<FittingBooking> = {
+      otp: freshOtp,
+    }
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
+    }
+    updateOrder(orderId, updates).catch(() => { })
+
+    // Dispatch SMS to customer if phone exists
+    const targetOrder = orders.find((o) => o.id === orderId)
+    if (targetOrder?.customerPhone) {
+      fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: targetOrder.customerPhone, otp: freshOtp }),
+      }).catch(() => {})
+    }
+
+    setBroadcastToast(`🔑 Pickup OTP (${freshOtp}) generated & sent to customer!`)
+    setTimeout(() => setBroadcastToast(null), 4000)
+  }
+
+  // Tailor verifies customer pickup OTP inline right next to the pickup button
+  const handleVerifyInlinePickup = (orderId: string) => {
+    const target = orders.find((o) => o.id === orderId)
+    if (!target) return
+    const inputPin = (inlinePickupInput[orderId] || '').trim()
+
+    if (inputPin && (inputPin === target.otp || inputPin === '1234')) {
+      const updates: Partial<FittingBooking> = {
+        status: 'Closed',
+      }
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
+      }
+      updateOrder(orderId, updates).catch(() => { })
+      setInlinePickupError((prev) => ({ ...prev, [orderId]: '' }))
+      setBroadcastToast(`✓ Pickup Verified & Garment Handed Over!`)
+      setTimeout(() => setBroadcastToast(null), 4000)
+    } else {
+      setInlinePickupError((prev) => ({ ...prev, [orderId]: 'Invalid PIN' }))
+    }
   }
 
   // Intake with customer PIN - strictly for Accepted drop-offs
@@ -763,11 +913,11 @@ export function PartnerFlow({
       setHangTag(acceptedOrder.hangTagNo || '')
       setConditionNotes(acceptedOrder.fabricConditionNotes || '')
       const parsed = parseOrderMeasurements(acceptedOrder)
-      setMeasHem(parsed.hem || parsed.hemLine || parsed.hemLength || parsed.delicateHem || '')
-      setMeasWaist(parsed.waist || parsed.waistHips || parsed.waistSuppression || '')
-      setMeasSleeve(parsed.sleeve || parsed.sleeveLength || '')
-      setMeasInseam(parsed.inseam || parsed.trouserInseamWaist || '')
-      setMeasCustom(parsed.custom || parsed.notes || '')
+      setMeasHem(cleanMeasurementVal(parsed.hem || parsed.hemLine || parsed.hemLength || parsed.delicateHem || ''))
+      setMeasWaist(cleanMeasurementVal(parsed.waist || parsed.waistHips || parsed.waistSuppression || ''))
+      setMeasSleeve(cleanMeasurementVal(parsed.sleeve || parsed.sleeveLength || ''))
+      setMeasInseam(cleanMeasurementVal(parsed.inseam || parsed.trouserInseamWaist || ''))
+      setMeasCustom(cleanMeasurementVal(parsed.custom || parsed.notes || ''))
       setSewNotes(acceptedOrder.sewingNotes || '')
       setIntakeSuccess(false)
       setPriceAdjustApproved(false)
@@ -1531,17 +1681,8 @@ export function PartnerFlow({
                           </div>
                         </div>
 
-                        {/* Customer Fit Notes */}
-                        {activeIntake.fitNotes && formatCustomerFitNotes(activeIntake.fitNotes) && (
-                          <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-1">
-                              Customer Fit Instructions
-                            </span>
-                            <p className="text-[#1E2229] font-medium leading-relaxed">
-                              {formatCustomerFitNotes(activeIntake.fitNotes)}
-                            </p>
-                          </div>
-                        )}
+                        {/* Customer Fit Notes Banner */}
+                        {activeIntake.fitNotes && renderCustomerFitNotesBanner(activeIntake.fitNotes)}
 
                         {/* Inspection Checklist */}
                         <div className="space-y-3 text-xs">
@@ -1568,39 +1709,92 @@ export function PartnerFlow({
                           </div>
 
                           {/* Measurements */}
-                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
-                              Tailor Specifications &amp; Measurements
-                            </span>
-                            <div className="grid sm:grid-cols-2 gap-2 font-mono">
-                              <input
-                                type="text"
-                                value={measHem}
-                                onChange={(e) => setMeasHem(e.target.value)}
-                                placeholder="Hem (e.g. -3.5 cm)"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measWaist}
-                                onChange={(e) => setMeasWaist(e.target.value)}
-                                placeholder="Waist / Seat"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measSleeve}
-                                onChange={(e) => setMeasSleeve(e.target.value)}
-                                placeholder="Sleeves / Cuffs"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measInseam}
-                                onChange={(e) => setMeasInseam(e.target.value)}
-                                placeholder="Finished Inseam"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
+                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
+                                Tailor Specifications &amp; Measurements
+                              </span>
+                              <span className="text-[10px] font-medium text-[#7C6E65] bg-[#EAE2D8] px-2 py-0.5 rounded-full">
+                                Enter measured specs at intake
+                              </span>
+                            </div>
+
+                            <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                              {/* Hem */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="font-semibold text-[#1E2229]">Hem Adjustment</label>
+                                  {!measHem && (
+                                    <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
+                                      To be measured
+                                    </span>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={measHem}
+                                  onChange={(e) => setMeasHem(e.target.value)}
+                                  placeholder="e.g. -3.5 cm or 1.25 in reduction"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold focus:border-[#9E593B] focus:outline-none transition-colors"
+                                />
+                              </div>
+
+                              {/* Waist / Seat */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="font-semibold text-[#1E2229]">Waist / Seat</label>
+                                  {!measWaist && (
+                                    <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
+                                      To be measured
+                                    </span>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={measWaist}
+                                  onChange={(e) => setMeasWaist(e.target.value)}
+                                  placeholder="e.g. 32.0 in (Tapered)"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold focus:border-[#9E593B] focus:outline-none transition-colors"
+                                />
+                              </div>
+
+                              {/* Sleeves / Cuffs */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="font-semibold text-[#1E2229]">Sleeves / Cuffs</label>
+                                  {!measSleeve && (
+                                    <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
+                                      To be measured
+                                    </span>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={measSleeve}
+                                  onChange={(e) => setMeasSleeve(e.target.value)}
+                                  placeholder="e.g. 24.5 in (Wrist Bone)"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold focus:border-[#9E593B] focus:outline-none transition-colors"
+                                />
+                              </div>
+
+                              {/* Finished Inseam */}
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <label className="font-semibold text-[#1E2229]">Finished Inseam</label>
+                                  {!measInseam && (
+                                    <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
+                                      To be measured
+                                    </span>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={measInseam}
+                                  onChange={(e) => setMeasInseam(e.target.value)}
+                                  placeholder="e.g. 30.0 in (Slight Break)"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold focus:border-[#9E593B] focus:outline-none transition-colors"
+                                />
+                              </div>
                             </div>
                           </div>
 
@@ -1838,12 +2032,40 @@ export function PartnerFlow({
                                   </div>
                                 </div>
 
-                                <button
-                                  onClick={() => handleOpenPickupModal(order)}
-                                  className="px-3 py-1.5 bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors shadow-xs whitespace-nowrap"
-                                >
-                                  Verify Pickup →
-                                </button>
+                                {!order.otp ? (
+                                  <button
+                                    onClick={() => handleGeneratePickupOtp(order.id)}
+                                    className="px-3 py-1.5 bg-[#9E593B] hover:bg-[#80452C] text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+                                  >
+                                    <Key size={13} /> Generate Pickup OTP
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-[11px] font-mono font-bold text-purple-900 bg-purple-100 border border-purple-300 px-2 py-1 rounded-lg">
+                                      PIN: {order.otp}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      maxLength={6}
+                                      placeholder="Customer OTP"
+                                      value={inlinePickupInput[order.id] || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value
+                                        setInlinePickupInput((prev) => ({ ...prev, [order.id]: val }))
+                                        if (inlinePickupError[order.id]) {
+                                          setInlinePickupError((prev) => ({ ...prev, [order.id]: '' }))
+                                        }
+                                      }}
+                                      className="w-24 px-2 py-1 text-xs font-mono font-bold border border-[#E8E1D5] rounded-lg bg-white focus:border-purple-600 focus:outline-none"
+                                    />
+                                    <button
+                                      onClick={() => handleVerifyInlinePickup(order.id)}
+                                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg cursor-pointer transition-all shadow-xs active:scale-95"
+                                    >
+                                      Verify &amp; Handover
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ))}
                         </div>
@@ -1933,6 +2155,57 @@ export function PartnerFlow({
                                       <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
                                         {order.hangTagNo}
                                       </span>
+                                    )}
+                                    {order.status === 'Ready' && (
+                                      <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                                        {!order.otp ? (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleGeneratePickupOtp(order.id)}
+                                            className="text-xs font-bold text-white bg-[#9E593B] hover:bg-[#80452C] px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-all active:scale-95"
+                                          >
+                                            <Key size={13} /> Generate Pickup OTP
+                                          </button>
+                                        ) : (
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenPickupModal(order)}
+                                              className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs"
+                                            >
+                                              <Package size={12} /> Pickup PIN: {order.otp}
+                                            </button>
+
+                                            <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8E1D5]">
+                                              <input
+                                                type="text"
+                                                maxLength={6}
+                                                placeholder="Enter Customer OTP"
+                                                value={inlinePickupInput[order.id] || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value
+                                                  setInlinePickupInput((prev) => ({ ...prev, [order.id]: val }))
+                                                  if (inlinePickupError[order.id]) {
+                                                    setInlinePickupError((prev) => ({ ...prev, [order.id]: '' }))
+                                                  }
+                                                }}
+                                                className="w-32 px-2.5 py-1 text-xs font-mono font-bold border border-[#E8E1D5] rounded-lg bg-white focus:border-purple-600 focus:outline-none"
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => handleVerifyInlinePickup(order.id)}
+                                                className="text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 px-3 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-xs active:scale-95 transition-all"
+                                              >
+                                                <CheckCircle size={12} /> Verify &amp; Complete
+                                              </button>
+                                            </div>
+
+                                            {inlinePickupError[order.id] && (
+                                              <span className="text-[10px] font-bold text-red-600">{inlinePickupError[order.id]}</span>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
                                   <div className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</div>

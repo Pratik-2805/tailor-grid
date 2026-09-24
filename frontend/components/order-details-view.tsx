@@ -752,7 +752,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               <div className="flex flex-col gap-1.5">
                 <div className={`h-1.5 w-full rounded-full ${stepIndex === 3 ? 'bg-black animate-pulse' : stepIndex > 3 ? 'bg-black' : 'bg-gray-200'}`} />
                 <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 3 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
-                  3. Tailoring
+                  3. Tailoring in Process
                 </span>
               </div>
               {/* Step 4 */}
@@ -843,20 +843,49 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </div>
                   </div>
 
-                  {/* Uber-Style Black High-Visibility PIN Badge */}
-                  <button
-                    type="button"
-                    onClick={handleCopyPin}
-                    className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
-                    title="Click to copy PIN"
-                  >
-                    <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
-                      {pinBoxTitle}
-                    </span>
-                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
-                      {formattedOtp}
-                    </span>
-                  </button>
+                  {/* High-Visibility Status / PIN Badge */}
+                  {isInProgress ? (
+                    <div className="shrink-0 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl px-4 py-2.5 text-center shadow-2xs">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-blue-700">
+                        VERIFIED AT BENCH
+                      </span>
+                      <span className="text-xs font-bold text-blue-950 mt-1 flex items-center justify-center gap-1">
+                        <CheckCircle2 size={13} className="text-blue-600" /> Intake Verified
+                      </span>
+                    </div>
+                  ) : isReady && !order?.otp ? (
+                    <div className="shrink-0 bg-purple-50 border border-purple-200 text-purple-900 rounded-2xl px-4 py-2.5 text-center shadow-2xs">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-purple-700">
+                        READY FOR PICKUP
+                      </span>
+                      <span className="text-xs font-bold text-purple-950 mt-1 flex items-center justify-center gap-1">
+                        <Package size={13} className="text-purple-600" /> Studio will trigger PIN
+                      </span>
+                    </div>
+                  ) : isCompleted ? (
+                    <div className="shrink-0 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl px-4 py-2.5 text-center shadow-2xs">
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-emerald-700">
+                        HANDOVER COMPLETE
+                      </span>
+                      <span className="text-xs font-bold text-emerald-950 mt-1 flex items-center justify-center gap-1">
+                        ✓ Garment Collected
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleCopyPin}
+                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
+                      title="Click to copy PIN"
+                    >
+                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                        {pinBoxTitle}
+                      </span>
+                      <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
+                        {formattedOtp}
+                      </span>
+                    </button>
+                  )}
 
                 </div>
 
