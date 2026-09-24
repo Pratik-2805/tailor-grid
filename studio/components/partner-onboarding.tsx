@@ -90,7 +90,7 @@ export function PartnerOnboarding({
     if (typeof window !== 'undefined') try { sessionStorage.removeItem(key) } catch { }
   }
 
-  // Check if we have cached pending Google data from session / local storage
+  // Check if we have cached pending Google data from session / local storage or JWT payload
   const [pendingGoogle, setPendingGoogle] = useState<{
     tempSignupId?: string
     email?: string
@@ -98,7 +98,26 @@ export function PartnerOnboarding({
     avatar?: string
   } | null>(() => {
     const stored = ssGet('tg_pending_google') || (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_google') : null)
-    return stored ? JSON.parse(stored) : null
+    if (stored) {
+      try { return JSON.parse(stored) } catch { }
+    }
+    if (typeof window !== 'undefined') {
+      const token = getAuthToken()
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          if (payload && (payload.method === 'google' || payload.type === 'pending_google_signup') && payload.email) {
+            return {
+              tempSignupId: payload.id || `temp_g_${payload.email}`,
+              email: payload.email,
+              name: payload.name || 'Master Tailor',
+              avatar: payload.avatar,
+            }
+          }
+        } catch { }
+      }
+    }
+    return null
   })
 
   // Auth Card State: single card with options, mobile, or email subviews
@@ -143,11 +162,24 @@ export function PartnerOnboarding({
       ssGet('tg_pending_mobile') ||
       (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
     )
+    const hasPendingGoogle = !!(
+      ssGet('tg_pending_google') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
+    )
+    const token = typeof window !== 'undefined' ? getAuthToken() : null
+    let hasTokenAuth = !!token
+    if (token) {
+      try {
+        const p = JSON.parse(atob(token.split('.')[1]))
+        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
+      } catch { }
+    }
     const hasAuth = !!(
       user?.email ||
       pendingGoogle?.email ||
       cachedUser?.email ||
-      (typeof window !== 'undefined' && getAuthToken()) ||
+      hasTokenAuth ||
+      hasPendingGoogle ||
       hasPendingMobile
     )
     if (typeof window !== 'undefined') {
@@ -192,7 +224,26 @@ export function PartnerOnboarding({
       ssGet('tg_pending_mobile') ||
       (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
     )
-    const hasAuth = !!(user?.email || pendingGoogle?.email || cachedUser?.email || getAuthToken() || hasPendingMobile)
+    const hasPendingGoogle = !!(
+      ssGet('tg_pending_google') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
+    )
+    const token = getAuthToken()
+    let hasTokenAuth = !!token
+    if (token) {
+      try {
+        const p = JSON.parse(atob(token.split('.')[1]))
+        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
+      } catch { }
+    }
+    const hasAuth = !!(
+      user?.email ||
+      pendingGoogle?.email ||
+      cachedUser?.email ||
+      hasTokenAuth ||
+      hasPendingGoogle ||
+      hasPendingMobile
+    )
     if (!hasAuth) {
       if (currentStep !== 'auth') {
         setCurrentStepRaw('auth')
@@ -344,12 +395,24 @@ export function PartnerOnboarding({
       pendingGoogle?.email ||
       user?.method === 'google' ||
       cachedAuthUser?.method === 'google' ||
+      (typeof window !== 'undefined' && (() => {
+        try {
+          const pg = JSON.parse(sessionStorage.getItem('tg_pending_google') || localStorage.getItem('tg_pending_google') || '{}')
+          return !!pg.email
+        } catch { return false }
+      })()) ||
       user?.email ||
       cachedAuthUser?.email
     )
   )
   const fixedGoogleEmail =
     pendingGoogle?.email ||
+    (typeof window !== 'undefined' && (() => {
+      try {
+        const pg = JSON.parse(sessionStorage.getItem('tg_pending_google') || localStorage.getItem('tg_pending_google') || '{}')
+        return pg.email || ''
+      } catch { return '' }
+    })()) ||
     user?.email ||
     cachedAuthUser?.email ||
     emailVal ||
