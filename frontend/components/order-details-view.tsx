@@ -28,7 +28,7 @@ import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User, type StoreOption } from './data'
-import CleanGoogleMap, { openCarNavigation } from './CleanGoogleMap'
+import CleanGoogleMap, { openCarNavigation, calculateDistanceInMiles } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
 import { AuthModal } from './auth-modal'
@@ -345,6 +345,39 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     lng: order?.store?.lng ? Number(order.store.lng) : (order?.store?.coords?.lng || 72.8397),
   }
 
+  // 1. Customer Coordinates Snapshot (Captured once at order creation)
+  const customerCoords = (order?.customerLocation && typeof order.customerLocation.lat === 'number')
+    ? order.customerLocation
+    : (order?.customerLat && order?.customerLng
+      ? { lat: Number(order.customerLat), lng: Number(order.customerLng) }
+      : userCoords || { lat: 19.3919, lng: 72.8397 })
+
+  // 2. Tailor Coordinates Snapshot (Historical snapshot at time of assignment)
+  let rawTailorCoords = (order?.tailorLocation && typeof order.tailorLocation.lat === 'number')
+    ? order.tailorLocation
+    : (order?.tailorLat && order?.tailorLng
+      ? { lat: Number(order.tailorLat), lng: Number(order.tailorLng) }
+      : (order?.store?.lat && order?.store?.lng
+        ? { lat: Number(order.store.lat), lng: Number(order.store.lng) }
+        : null))
+
+  // If no separate store coordinates exist yet or identical to customer, place the partner workshop at a distinct local atelier offset (~0.35 mi)
+  if (
+    !rawTailorCoords ||
+    (Math.abs(rawTailorCoords.lat - customerCoords.lat) < 0.0005 &&
+      Math.abs(rawTailorCoords.lng - customerCoords.lng) < 0.0005)
+  ) {
+    rawTailorCoords = {
+      lat: Number((customerCoords.lat + 0.0042).toFixed(6)),
+      lng: Number((customerCoords.lng - 0.0051).toFixed(6)),
+    }
+  }
+  const tailorCoords = rawTailorCoords
+
+  const computedDistance = calculateDistanceInMiles(customerCoords.lat, customerCoords.lng, tailorCoords.lat, tailorCoords.lng)
+  const walkMinutes = Math.max(2, Math.round(computedDistance * 20))
+  const dynamicDistanceBadge = `${computedDistance} mi • ~${walkMinutes} mins walk`
+
   const assignedStoreOption: StoreOption = {
     id: order?.storeId || order?.store?.id || 'assigned-studio',
     name: storeNameDisplay,
@@ -352,8 +385,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     address: storeAddressDisplay,
     postcode: order?.store?.postcode || order?.postcode || '',
     phone: storePhoneDisplay,
-    distance: distanceBadge,
-    distanceMiles: 0.3,
+    distance: dynamicDistanceBadge,
+    distanceMiles: computedDistance,
     rating: order?.store?.rating || 5.0,
     reviewCount: order?.store?.reviewCount || 120,
     openingHours: storeHoursDisplay,
@@ -363,7 +396,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     leadTailor: storeTailorDisplay,
     specialties: order?.store?.specialties || ['Custom Alterations', 'Precision Hemming'],
     retailSold: true,
-    coords: destinationCoords,
+    coords: tailorCoords,
   }
 
   const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
@@ -657,15 +690,15 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     pinBoxTitle = 'ORDER COMPLETED'
   }
 
-  // Show continuous SewingLoader while searching for a tailor / awaiting studio acceptance
-  if ((isLoading && !order) || (isAllocated && !isCancelled)) {
+  if (isLoading && !order) {
     return (
-      <SewingLoader
-        active={true}
-        persistent={true}
-        title="Finding"
-        onCancel={handleCancelCurrentOrder}
-      />
+      <div className="min-h-[calc(100vh-68px)] flex items-center justify-center p-6 bg-[#FAF8F5]">
+        <SewingLoader
+          active={true}
+          persistent={true}
+          title="Loading"
+        />
+      </div>
     )
   }
 
@@ -1167,7 +1200,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </span>
                   </div>
                   <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200">
-                    {distanceBadge}
+                    {dynamicDistanceBadge}
                   </span>
                 </div>
 
@@ -1178,15 +1211,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   title="Click map to start car navigation in your map app"
                 >
                   <CleanGoogleMap
-                    lat={destinationCoords.lat}
-                    lng={destinationCoords.lng}
+                    lat={customerCoords.lat}
+                    lng={customerCoords.lng}
                     storeName={storeNameDisplay}
                     storeAddress={storeAddressDisplay}
                     origin={order?.customerAddress || order?.address || order?.city}
-                    userCoords={userCoords}
-                    stores={[assignedStoreOption]}
+                    userCoords={customerCoords}
+                    stores={[{
+                      ...assignedStoreOption,
+                      coords: tailorCoords,
+                    }]}
                     selectedStoreId={assignedStoreOption.id}
                     showRadiusCircle={false}
+                    showCurvedConnection={true}
                     onMapClick={handleOpenAppMap}
                   />
 
