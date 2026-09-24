@@ -290,19 +290,35 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    // If res not ok, check if cached onboarding user exists before clearing
-    const stored = getAuthUser<User>()
-    if (stored) {
-      return stored
-    }
+    // If user is completing registration via Google or mobile, retain pending onboarding session
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google') && payload.email) {
+        const pendingUser: User = getAuthUser<User>() || {
+          id: payload.id || `temp_g_${payload.email}`,
+          contact: payload.email,
+          email: payload.email,
+          name: payload.name || 'Studio Partner',
+          role: 'STUDIO',
+          method: 'google',
+          status: 'INACTIVE',
+        }
+        return pendingUser
+      }
+    } catch {}
 
+    // User not found in DB or token expired/invalid -> clear stale session
     clearAllAuth()
     return null
   } catch (err) {
-    const stored = getAuthUser<User>()
-    if (stored) {
-      return stored
-    }
+    // Network error (backend unreachable)
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google') && payload.email) {
+        return getAuthUser<User>()
+      }
+    } catch {}
+    clearAllAuth()
     return null
   }
 }

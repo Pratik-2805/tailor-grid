@@ -1067,9 +1067,10 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode('customer-mobile')
+                    onClose()
+                    if (typeof window !== 'undefined') {
+                      window.location.href = getStudioUrl('/?auth=signin&mode=mobile')
+                    }
                   }}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
                 >
@@ -1104,7 +1105,7 @@ export function AuthModal({
               </div>
 
               <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
+                <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogleStudio()} bordered />
                 <button
                   onClick={() => {
                     onClose()

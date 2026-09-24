@@ -9,7 +9,7 @@ import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL, loginWithGoogle } from '@/lib/api'
-import { setAuthToken, setAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
+import { setAuthToken, setAuthUser, getAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
 
 export default function StudioPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -39,6 +39,33 @@ export default function StudioPage() {
       if (token) {
         setAuthToken(token)
         setAuthRole('STUDIO')
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          if (payload && payload.email) {
+            const pendingUser: User = {
+              id: payload.id || `temp_g_${payload.email}`,
+              contact: payload.email,
+              email: payload.email,
+              name: payload.name || 'Master Tailor',
+              avatar: payload.avatar || null,
+              role: 'STUDIO',
+              method: payload.method || 'google',
+              status: 'INACTIVE',
+            }
+            setAuthUser(pendingUser)
+            setUser(pendingUser)
+            const pending = {
+              tempSignupId: payload.id || `temp_g_${payload.email}`,
+              email: payload.email,
+              name: payload.name || 'Master Tailor',
+              avatar: payload.avatar,
+            }
+            sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
+            localStorage.setItem('tg_pending_google', JSON.stringify(pending))
+          }
+        } catch (e) {
+          console.warn('Failed to parse handover token payload:', e)
+        }
         const url = new URL(window.location.href)
         url.searchParams.delete('token')
         window.history.replaceState({}, '', url.toString())
@@ -64,16 +91,28 @@ export default function StudioPage() {
           setUser(u)
           setRoleSelected(true)
         } else {
-          setUser(null)
-          if (authParam === 'signin' || authParam === 'login') {
-            setAuthType('signin')
+          const cached = getAuthUser<User>()
+          if (cached && (cached.email || cached.method === 'google')) {
+            setUser(cached)
+            setRoleSelected(true)
+          } else {
+            setUser(null)
+            if (authParam === 'signin' || authParam === 'login') {
+              setAuthType('signin')
+            }
           }
         }
       })
       .catch(() => {
-        setUser(null)
-        if (authParam === 'signin' || authParam === 'login') {
-          setAuthType('signin')
+        const cached = getAuthUser<User>()
+        if (cached && (cached.email || cached.method === 'google')) {
+          setUser(cached)
+          setRoleSelected(true)
+        } else {
+          setUser(null)
+          if (authParam === 'signin' || authParam === 'login') {
+            setAuthType('signin')
+          }
         }
       })
       .finally(() => {
@@ -135,6 +174,18 @@ export default function StudioPage() {
                 setAuthToken(result.token || '')
                 setAuthRole('STUDIO')
                 setAuthUser(result.user)
+                const pending = {
+                  tempSignupId: result.tempSignupId,
+                  email: profile.email || result.user?.email,
+                  name: profile.name || result.user?.name || 'Master Tailor',
+                  avatar: profile.picture || result.user?.avatar,
+                }
+                if (typeof window !== 'undefined') {
+                  try {
+                    sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
+                    localStorage.setItem('tg_pending_google', JSON.stringify(pending))
+                  } catch { }
+                }
                 window.location.href = '/?step=1'
               }
             }
