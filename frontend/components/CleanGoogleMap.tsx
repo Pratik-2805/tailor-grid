@@ -301,14 +301,52 @@ export default function CleanGoogleMap({
           this.div.style.pointerEvents = 'none'
 
           this.div.innerHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
-              <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background: rgba(0, 0, 0, 0.12); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-              <div style="width: 18px; height: 18px; border-radius: 50%; background: #0F1115; border: 3px solid #FFFFFF; box-shadow: 0 2px 10px rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 2;">
-                <div style="width: 5px; height: 5px; border-radius: 50%; background: #FFFFFF;"></div>
-              </div>
-              <div style="margin-top: 3px; background: #0F1115; color: #FFFFFF; font-size: 8px; font-weight: 800; padding: 1.5px 5px; border-radius: 5px; box-shadow: 0 2px 6px rgba(0,0,0,0.25); white-space: nowrap; letter-spacing: 0.5px; text-transform: uppercase;">
-                ${userPinLabel}
-              </div>
+            <style>
+              @keyframes gmaps-ring-pulse {
+                0%   { transform: scale(1);   opacity: 1; }
+                100% { transform: scale(3.2); opacity: 0; }
+              }
+            </style>
+            <!--
+              Google Maps "current location" dot breakdown:
+              1. Large flat semi-transparent accuracy disc (static, ~56px)
+              2. Expanding ring pulse (same blue, fades out)
+              3. Core dot: white border + blue fill + drop shadow
+            -->
+            <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;">
+
+              <!-- 1. Accuracy disc (static, flat, semi-transparent blue) -->
+              <div style="
+                position: absolute;
+                inset: 0;
+                border-radius: 50%;
+                background: rgba(66, 133, 244, 0.15);
+              "></div>
+
+              <!-- 2. Expanding pulse ring -->
+              <div style="
+                position: absolute;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: rgba(66, 133, 244, 0.4);
+                animation: gmaps-ring-pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+              "></div>
+
+              <!-- 3. Core dot — white border, Google blue fill -->
+              <div style="
+                position: relative;
+                z-index: 2;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #4285F4;
+                border: 3px solid #FFFFFF;
+                box-shadow:
+                  0 1px 4px rgba(0,0,0,0.3),
+                  0 0 0 1px rgba(66,133,244,0.3);
+              "></div>
+
             </div>
           `
 
