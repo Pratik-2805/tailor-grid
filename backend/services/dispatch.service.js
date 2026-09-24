@@ -414,27 +414,36 @@ async function recordTailorAccept(orderId, tailorId) {
 }
 
 /**
- * Customer cancels search before acceptance - Immediately clears timers and purges from memory cache
+ * Customer cancels search before acceptance - Immediately clears timers, purges from memory cache and DB
  */
-function cancelDispatch(orderId) {
+async function cancelDispatch(orderId) {
   const session = dispatchSessions.get(orderId);
-  if (!session) return { success: true, message: 'Session already cleared' };
+  if (session) {
+    if (session.timer) {
+      clearTimeout(session.timer);
+      session.timer = null;
+    }
+    if (session.hardTimer) {
+      clearTimeout(session.hardTimer);
+      session.hardTimer = null;
+    }
+    session.activeCandidateTailorIds.clear();
+    session.declinedTailorIds.clear();
+    session.status = 'CANCELLED';
 
-  if (session.timer) {
-    clearTimeout(session.timer);
-    session.timer = null;
+    // Immediately remove from server-side memory cache
+    dispatchSessions.delete(orderId);
+    console.log(`[Dispatch Engine] Order ${orderId} CANCELLED by customer and completely removed from server cache.`);
   }
-  if (session.hardTimer) {
-    clearTimeout(session.hardTimer);
-    session.hardTimer = null;
-  }
-  session.activeCandidateTailorIds.clear();
-  session.declinedTailorIds.clear();
-  session.status = 'CANCELLED';
 
-  // Immediately remove from server-side memory cache
-  dispatchSessions.delete(orderId);
-  console.log(`[Dispatch Engine] Order ${orderId} CANCELLED by customer and completely removed from server cache.`);
+  // Also clean up any unaccepted allocated record from DB
+  try {
+    await prisma.order.deleteMany({
+      where: { id: orderId, status: 'Allocated' }
+    });
+  } catch (err) {
+    // Ignore if not in DB
+  }
 
   return { success: true, message: 'Dispatch search cancelled and cleared from server cache' };
 }

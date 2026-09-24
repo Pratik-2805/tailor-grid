@@ -110,7 +110,7 @@ router.post('/dispatch/start', async (req, res) => {
 router.post('/:id/dispatch/cancel', async (req, res) => {
   try {
     const { id } = req.params;
-    const result = dispatchService.cancelDispatch(id);
+    const result = await dispatchService.cancelDispatch(id);
     return res.json(result);
   } catch (err) {
     console.error('Dispatch cancel error:', err);
