@@ -392,6 +392,13 @@ export function AuthModal({
     const cleanEmail = sLoginEmail.trim()
     if (!cleanEmail) {
       setError('Please enter your partner email.')
+      toast.warning('Please enter your partner email.', { position: 'top-center' })
+      return
+    }
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Please enter a valid email address (e.g. name@domain.com).')
+      toast.warning('Please enter a valid email address.', { position: 'top-center' })
       return
     }
     setLoading(true)
