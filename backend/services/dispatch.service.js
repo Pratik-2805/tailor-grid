@@ -530,12 +530,32 @@ async function scheduleOrderForLater(orderId, scheduledDate, scheduledTimeSlot) 
   const oData = session?.orderData || {};
   const customerCoords = session?.customerCoords || { lat: 51.5074, lng: -0.1278 };
 
+  // Resolve tailor coordinates from the store record if a store is already known
+  let tailorLatVal = null;
+  let tailorLngVal = null;
+  if (oData.storeId) {
+    try {
+      const store = await prisma.partnerStore.findUnique({ where: { id: oData.storeId } });
+      if (store && typeof store.lat === 'number' && typeof store.lng === 'number') {
+        tailorLatVal = store.lat;
+        tailorLngVal = store.lng;
+      }
+    } catch (e) {
+      console.warn('[Dispatch] Could not resolve store coords for scheduled order:', e.message);
+    }
+  }
+
   const scheduledOrder = await prisma.order.upsert({
     where: { id: orderId },
     update: {
       date: scheduledDate || new Date().toISOString().split('T')[0],
       timeSlot: scheduledTimeSlot || '10:00 - 11:00',
       status: 'Allocated',
+      // ✅ Refresh customer coords on reschedule in case GPS updated
+      customerLat: customerCoords.lat,
+      customerLng: customerCoords.lng,
+      ...(tailorLatVal !== null ? { tailorLat: tailorLatVal } : {}),
+      ...(tailorLngVal !== null ? { tailorLng: tailorLngVal } : {}),
     },
     create: {
       id: orderId,
@@ -546,6 +566,8 @@ async function scheduleOrderForLater(orderId, scheduledDate, scheduledTimeSlot) 
       postcode: oData.postcode || 'W8 4EP',
       customerLat: customerCoords.lat,
       customerLng: customerCoords.lng,
+      tailorLat: tailorLatVal,
+      tailorLng: tailorLngVal,
       garmentId: oData.garmentId || 'trousers',
       garmentName: oData.garmentName || 'Trousers & Jeans',
       serviceId: oData.serviceId || 'trouser-hem',

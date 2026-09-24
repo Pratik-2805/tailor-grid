@@ -572,6 +572,10 @@ router.put('/:id', async (req, res) => {
       retailCategory,
       rating,
       ratingFeedback,
+      tailorLat,
+      tailorLng,
+      customerLat,
+      customerLng,
     } = req.body;
 
     const updateData = {};
@@ -601,6 +605,12 @@ router.put('/:id', async (req, res) => {
     if (rating !== undefined) updateData.rating = parseFloat(rating);
     if (ratingFeedback !== undefined) updateData.ratingFeedback = ratingFeedback;
 
+    // Direct coordinate overrides from request body
+    if (tailorLat !== undefined && tailorLat !== null) updateData.tailorLat = parseFloat(tailorLat);
+    if (tailorLng !== undefined && tailorLng !== null) updateData.tailorLng = parseFloat(tailorLng);
+    if (customerLat !== undefined && customerLat !== null) updateData.customerLat = parseFloat(customerLat);
+    if (customerLng !== undefined && customerLng !== null) updateData.customerLng = parseFloat(customerLng);
+
     if (storeId !== undefined) {
       if (storeId) {
         const storeExists = await prisma.partnerStore.findUnique({ where: { id: storeId } });
@@ -611,6 +621,13 @@ router.put('/:id', async (req, res) => {
           }
           if (!updateData.storePhone && storeExists.phone) {
             updateData.storePhone = storeExists.phone;
+          }
+          // ✅ Always persist the tailor's precise coordinates when a store is linked
+          if (typeof storeExists.lat === 'number' && !updateData.tailorLat) {
+            updateData.tailorLat = storeExists.lat;
+          }
+          if (typeof storeExists.lng === 'number' && !updateData.tailorLng) {
+            updateData.tailorLng = storeExists.lng;
           }
         }
       } else {
