@@ -1493,86 +1493,86 @@ export function PartnerFlow({
         {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
 
-        {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION ── */}
-        {online && currentBroadcast ? (
-          <div
-            className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4"
-            onMouseEnter={() => setTimerPaused(true)}
-            onMouseLeave={() => setTimerPaused(false)}
-          >
-            <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Left: Garment Info */}
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
-                    <img
-                      src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                      alt={currentBroadcast.garmentName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+          {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION ── */}
+          {online && currentBroadcast ? (
+            <div
+              className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4"
+              onMouseEnter={() => setTimerPaused(true)}
+              onMouseLeave={() => setTimerPaused(false)}
+            >
+              <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  {/* Left: Garment Info */}
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+                      <img
+                        src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                        alt={currentBroadcast.garmentName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md shadow-sm">
-                        Incoming Dispatch
-                      </span>
-                      {currentBroadcast.garmentBrand && (
-                        <span className="text-[10px] text-stone-300 bg-white/10 px-1.5 py-0.5 rounded-md">
-                          {currentBroadcast.garmentBrand}
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md shadow-sm">
+                          Incoming Dispatch
                         </span>
-                      )}
+                        {currentBroadcast.garmentBrand && (
+                          <span className="text-[10px] text-stone-300 bg-white/10 px-1.5 py-0.5 rounded-md">
+                            {currentBroadcast.garmentBrand}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
+
+                      <div className="flex items-center gap-2 text-[11px] text-stone-400">
+                        <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
+                        <span>·</span>
+                        <span>{currentBroadcast.customerArea}</span>
+                        <span>·</span>
+                        <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Payout + Actions */}
+                  <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
+                    <div className="text-left sm:text-right pr-1">
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Net Payout</span>
+                      <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.partnerPayout}</div>
                     </div>
 
-                    <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
-
-                    <div className="flex items-center gap-2 text-[11px] text-stone-400">
-                      <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
-                      <span>·</span>
-                      <span>{currentBroadcast.customerArea}</span>
-                      <span>·</span>
-                      <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSkipBroadcast(currentBroadcast)}
+                        className="px-3.5 py-1.5 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                        className="px-4 py-1.5 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                      >
+                        <Zap size={13} className="fill-white" />
+                        <span>Accept (${currentBroadcast.partnerPayout})</span>
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Payout + Actions */}
-                <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
-                  <div className="text-left sm:text-right pr-1">
-                    <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Net Payout</span>
-                    <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.partnerPayout}</div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSkipBroadcast(currentBroadcast)}
-                      className="px-3.5 py-1.5 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
-                    >
-                      Skip
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                      className="px-4 py-1.5 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-                    >
-                      <Zap size={13} className="fill-white" />
-                      <span>Accept (${currentBroadcast.partnerPayout})</span>
-                    </button>
-                  </div>
+                {/* Bottom Countdown Progress Bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
+                  <div
+                    className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
+                    style={{ width: `${(timerSecs / 15) * 100}%` }}
+                  />
                 </div>
-              </div>
-
-              {/* Bottom Countdown Progress Bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80">
-                <div
-                  className="h-full bg-[#9E593B] transition-all duration-1000 ease-linear"
-                  style={{ width: `${(timerSecs / 15) * 100}%` }}
-                />
               </div>
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
           {/* ── 2. MAIN WORKBENCH VIEW TABS ── */}
           <div className="p-4 lg:p-8 pt-4 space-y-6 max-w-[1440px] mx-auto">

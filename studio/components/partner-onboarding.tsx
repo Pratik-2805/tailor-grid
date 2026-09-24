@@ -90,7 +90,7 @@ export function PartnerOnboarding({
     if (typeof window !== 'undefined') try { sessionStorage.removeItem(key) } catch { }
   }
 
-  // Check if we have cached pending Google data from session / local storage
+  // Check if we have cached pending Google data from session / local storage or JWT payload
   const [pendingGoogle, setPendingGoogle] = useState<{
     tempSignupId?: string
     email?: string
@@ -98,11 +98,37 @@ export function PartnerOnboarding({
     avatar?: string
   } | null>(() => {
     const stored = ssGet('tg_pending_google') || (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_google') : null)
-    return stored ? JSON.parse(stored) : null
+    if (stored) {
+      try { return JSON.parse(stored) } catch { }
+    }
+    if (typeof window !== 'undefined') {
+      const token = getAuthToken()
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          if (payload && (payload.method === 'google' || payload.type === 'pending_google_signup') && payload.email) {
+            return {
+              tempSignupId: payload.id || `temp_g_${payload.email}`,
+              email: payload.email,
+              name: payload.name || 'Master Tailor',
+              avatar: payload.avatar,
+            }
+          }
+        } catch { }
+      }
+    }
+    return null
   })
 
   // Auth Card State: single card with options, mobile, or email subviews
-  const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>('options')
+  const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>(() => {
+    if (typeof window !== 'undefined') {
+      const modeParam = new URLSearchParams(window.location.search).get('mode')
+      if (modeParam === 'mobile') return 'mobile'
+      if (modeParam === 'email') return 'email'
+    }
+    return 'options'
+  })
   const [authLoading, setAuthLoading] = useState(false)
 
   // Double-submit locks
@@ -132,7 +158,30 @@ export function PartnerOnboarding({
   // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
     const cachedUser = getAuthUser<User>()
-    const hasAuth = !!(user?.email || pendingGoogle?.email || cachedUser?.email || (typeof window !== 'undefined' && getAuthToken()))
+    const hasPendingMobile = !!(
+      ssGet('tg_pending_mobile') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
+    )
+    const hasPendingGoogle = !!(
+      ssGet('tg_pending_google') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
+    )
+    const token = typeof window !== 'undefined' ? getAuthToken() : null
+    let hasTokenAuth = !!token
+    if (token) {
+      try {
+        const p = JSON.parse(atob(token.split('.')[1]))
+        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
+      } catch { }
+    }
+    const hasAuth = !!(
+      user?.email ||
+      pendingGoogle?.email ||
+      cachedUser?.email ||
+      hasTokenAuth ||
+      hasPendingGoogle ||
+      hasPendingMobile
+    )
     if (typeof window !== 'undefined') {
       const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
       if (urlStep) return urlStep
@@ -171,11 +220,38 @@ export function PartnerOnboarding({
   useEffect(() => {
     if (typeof window === 'undefined') return
     const cachedUser = getAuthUser<User>()
-    const hasAuth = !!(user?.email || pendingGoogle?.email || cachedUser?.email || getAuthToken())
+    const hasPendingMobile = !!(
+      ssGet('tg_pending_mobile') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
+    )
+    const hasPendingGoogle = !!(
+      ssGet('tg_pending_google') ||
+      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
+    )
+    const token = getAuthToken()
+    let hasTokenAuth = !!token
+    if (token) {
+      try {
+        const p = JSON.parse(atob(token.split('.')[1]))
+        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
+      } catch { }
+    }
+    const hasAuth = !!(
+      user?.email ||
+      pendingGoogle?.email ||
+      cachedUser?.email ||
+      hasTokenAuth ||
+      hasPendingGoogle ||
+      hasPendingMobile
+    )
     if (!hasAuth) {
       if (currentStep !== 'auth') {
         setCurrentStepRaw('auth')
-        setSignInMode('options')
+        // Only reset signInMode if there's no mode param in the URL
+        const urlModeParam = new URLSearchParams(window.location.search).get('mode')
+        if (!urlModeParam) {
+          setSignInMode('options')
+        }
       }
       const url = new URL(window.location.href)
       if (url.searchParams.has('step')) {
@@ -267,7 +343,12 @@ export function PartnerOnboarding({
   const [postcode, setPostcode] = useState(cachedForm?.postcode || '')
   const [streetAddress, setStreetAddress] = useState(cachedForm?.streetAddress || '')
   const [tailorName, setTailorName] = useState(cachedForm?.tailorName || '')
-  const [phone, setPhone] = useState(cachedForm?.phone || '')
+  const [phone, setPhone] = useState(
+    cachedForm?.phone ||
+    ssGet('tg_pending_mobile') ||
+    (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_mobile') : null) ||
+    ''
+  )
   const [studioLat, setStudioLat] = useState<number | null>(cachedForm?.studioLat || null)
   const [studioLng, setStudioLng] = useState<number | null>(cachedForm?.studioLng || null)
   const [emailVal, setEmailVal] = useState(
@@ -278,10 +359,18 @@ export function PartnerOnboarding({
   const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
     const cached = ssGet('tg_phone_verified') || (typeof window !== 'undefined' ? localStorage.getItem('tg_phone_verified') : null)
     if (cached === 'true') return true
+    if (ssGet('tg_pending_mobile') || (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))) return true
     return Boolean(user?.phone)
   })
   const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => {
-    return ssGet('tg_verified_phone') || (typeof window !== 'undefined' ? localStorage.getItem('tg_verified_phone') : null) || user?.phone || ''
+    return (
+      ssGet('tg_verified_phone') ||
+      (typeof window !== 'undefined' ? localStorage.getItem('tg_verified_phone') : null) ||
+      ssGet('tg_pending_mobile') ||
+      (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_mobile') : null) ||
+      user?.phone ||
+      ''
+    )
   })
   const [step3OtpSent, setStep3OtpSent] = useState(false)
   const [step3Otp, setStep3Otp] = useState('')
@@ -294,14 +383,40 @@ export function PartnerOnboarding({
   const [alreadyRegistered, setAlreadyRegistered] = useState(false)
   const [alreadyRegisteredUser, setAlreadyRegisteredUser] = useState<User | null>(null)
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
-  const isGoogleAuthUser = Boolean(
-    pendingGoogle?.email ||
-    user?.email ||
-    user?.method === 'google' ||
-    (typeof window !== 'undefined' && getAuthUser<User>()?.email) ||
-    emailVal.includes('@')
+  const hasPendingMobile = Boolean(
+    ssGet('tg_pending_mobile') ||
+    (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
   )
-  const fixedGoogleEmail = user?.email || pendingGoogle?.email || (typeof window !== 'undefined' ? getAuthUser<User>()?.email : '') || emailVal
+  const cachedAuthUser = typeof window !== 'undefined' ? getAuthUser<User>() : null
+
+  const isGoogleAuthUser = Boolean(
+    !hasPendingMobile &&
+    (
+      pendingGoogle?.email ||
+      user?.method === 'google' ||
+      cachedAuthUser?.method === 'google' ||
+      (typeof window !== 'undefined' && (() => {
+        try {
+          const pg = JSON.parse(sessionStorage.getItem('tg_pending_google') || localStorage.getItem('tg_pending_google') || '{}')
+          return !!pg.email
+        } catch { return false }
+      })()) ||
+      user?.email ||
+      cachedAuthUser?.email
+    )
+  )
+  const fixedGoogleEmail =
+    pendingGoogle?.email ||
+    (typeof window !== 'undefined' && (() => {
+      try {
+        const pg = JSON.parse(sessionStorage.getItem('tg_pending_google') || localStorage.getItem('tg_pending_google') || '{}')
+        return pg.email || ''
+      } catch { return '' }
+    })()) ||
+    user?.email ||
+    cachedAuthUser?.email ||
+    emailVal ||
+    ''
 
   useEffect(() => {
     const activeEmail = user?.email || pendingGoogle?.email || (typeof window !== 'undefined' ? getAuthUser<User>()?.email : '')
@@ -539,12 +654,29 @@ export function PartnerOnboarding({
       setAuthLoading(false)
 
       if (res?.isNewUser) {
-        // Verified with Twilio SMS OTP, but not in Prisma yet!
-        // Advance seamlessly to Studio Registration form ("Earn with Darzi")
+        // Verified with Twilio SMS OTP — new studio user or incomplete registration
+        // Store verified phone in session so auth guard doesn't reset to 'auth' step
         const verifiedPhone = res.phone || sPhoneLogin.trim()
+        ssSet('tg_pending_mobile', verifiedPhone)
+        ssSet('tg_verified_phone', verifiedPhone)
+        ssSet('tg_phone_verified', 'true')
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('tg_pending_mobile', verifiedPhone)
+            localStorage.setItem('tg_verified_phone', verifiedPhone)
+            localStorage.setItem('tg_phone_verified', 'true')
+          } catch { }
+        }
         setPhone(verifiedPhone)
         setIsPhoneVerified(true)
         setStep3VerifiedPhone(verifiedPhone)
+        setSOtpSent(false)
+        setSOtp('')
+        // If backend returned a partial user, store it for prefill
+        if (res.user) {
+          setAuthUser(res.user)
+          setAuthRole('STUDIO')
+        }
         toast.info('Mobile verified! Complete your atelier registration to enter Workbench.', {
           position: 'top-center',
         })
@@ -751,6 +883,7 @@ export function PartnerOnboarding({
       ssRemove('tg_onboard_form')
       ssRemove('tg_phone_verified')
       ssRemove('tg_verified_phone')
+      ssRemove('tg_pending_mobile')
       if (typeof window !== 'undefined') {
         try {
           localStorage.removeItem('tg_pending_google')
@@ -759,6 +892,7 @@ export function PartnerOnboarding({
           localStorage.removeItem('tg_onboard_email')
           localStorage.removeItem('tg_phone_verified')
           localStorage.removeItem('tg_verified_phone')
+          localStorage.removeItem('tg_pending_mobile')
         } catch { }
       }
 

@@ -779,6 +779,14 @@ router.post('/google', async (req, res) => {
         });
       }
 
+      if (existingUser.method !== 'google') {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { method: 'google' },
+        }).catch(() => {});
+        existingUser.method = 'google';
+      }
+
       const isRegisteredStudio = Boolean(
         existingUser.role === 'STUDIO' &&
         existingUser.status === 'ACTIVE' &&
@@ -831,6 +839,7 @@ router.post('/google', async (req, res) => {
       role,
       status: role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE',
       contact: cleanEmail,
+      method: 'google',
     };
 
     return res.json({
