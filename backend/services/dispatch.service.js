@@ -10,7 +10,7 @@ const STAGE_CONFIG = [
   { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 15 },
 ];
 
-const DISPATCH_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
+const DISPATCH_TTL_MS = 1 * 60 * 1000; // 1 minute TTL
 const HARD_TIMEOUT_SEC = 45; // 45 seconds hard dispatch cap (3 stages × 15s)
 
 /**
@@ -27,8 +27,8 @@ function cleanupExpiredSessions() {
   }
 }
 
-// Run cleanup periodically
-setInterval(cleanupExpiredSessions, 60 * 1000);
+// Run cleanup periodically every 30 seconds
+setInterval(cleanupExpiredSessions, 30 * 1000);
 
 /**
  * Fetch eligible tailors within 5.0 miles ONCE from PostgreSQL
