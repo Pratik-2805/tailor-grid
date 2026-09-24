@@ -484,3 +484,105 @@ export async function fetchServices(): Promise<GarmentCategory[]> {
   }
   return []
 }
+
+export interface DispatchSessionStatus {
+  orderId: string
+  status: 'SEARCHING' | 'ASSIGNED' | 'EXHAUSTED' | 'ZERO_TAILORS' | 'CANCELLED' | 'SCHEDULED' | 'NOT_FOUND'
+  stage: number
+  currentRadius: number
+  stageSecondsRemaining: number
+  totalSecondsElapsed: number
+  hardTimeoutSec: number
+  totalEligibleCount: number
+  contactedCount: number
+  declinedCount: number
+  acceptedTailorId?: string | null
+  acceptedTailor?: any
+  order?: any
+  message?: string
+}
+
+export async function startOrderDispatch(orderData: any): Promise<{
+  success: boolean
+  order?: any
+  dispatch?: DispatchSessionStatus
+  error?: string
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/dispatch/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderData),
+    })
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.error || 'Failed to start dispatch session')
+    }
+
+    return await res.json()
+  } catch (err: any) {
+    console.error('Start order dispatch error:', err)
+    throw err
+  }
+}
+
+export async function fetchDispatchStatus(orderId: string): Promise<DispatchSessionStatus | null> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/status`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.dispatch || null
+  } catch (err) {
+    return null
+  }
+}
+
+export async function retryOrderDispatch(
+  orderId: string,
+  customerLat?: number,
+  customerLng?: number
+): Promise<{ success: boolean; dispatch?: DispatchSessionStatus }> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/retry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerLat, customerLng }),
+    })
+    return await res.json()
+  } catch (err) {
+    return { success: false }
+  }
+}
+
+export async function cancelOrderDispatch(orderId: string): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return await res.json()
+  } catch (err) {
+    return { success: false }
+  }
+}
+
+export async function scheduleOrder(
+  orderId: string,
+  date: string,
+  timeSlot: string
+): Promise<{ success: boolean; order?: any }> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, timeSlot }),
+    })
+    return await res.json()
+  } catch (err) {
+    return { success: false }
+  }
+}
+

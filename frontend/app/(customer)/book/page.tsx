@@ -23,7 +23,8 @@ import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
-import { createOrder } from '@/lib/api'
+import { SewingLoader } from '@/components/sewing-loader'
+import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
@@ -594,6 +595,22 @@ export default function BookPage() {
   const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
 
+  // Live Dispatch Searching & No-Tailors alert states
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchOrderId, setSearchOrderId] = useState<string>('')
+  const searchOrderIdRef = useRef<string>('')
+  const [isNoTailorsModalOpen, setIsNoTailorsModalOpen] = useState(false)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Clean up polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [])
+
   // Nearby partner stores for selected city / location
   const [nearbyStores, setNearbyStores] = useState<StoreOption[]>([])
 
@@ -816,15 +833,36 @@ export default function BookPage() {
     })
   }
 
+  const handleCancelSearch = async () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+    const activeOrderId = searchOrderIdRef.current || searchOrderId
+    if (activeOrderId) {
+      await cancelOrderDispatch(activeOrderId)
+      if (typeof window !== 'undefined') {
+        const { removeStorageCookie } = await import('@/lib/cookies')
+        removeStorageCookie(`tg_order_${activeOrderId}`)
+      }
+    }
+    searchOrderIdRef.current = ''
+    setSearchOrderId('')
+    setIsSearching(false)
+    toast.info('Alteration search cancelled')
+  }
+
+  const handleTryAgainSearch = () => {
+    setIsNoTailorsModalOpen(false)
+    executeBooking('now')
+  }
+
   // Complete Booking flow execution
   const executeBooking = async (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
     if (!user || !user.phone) {
       openAuth('CUSTOMER', user ? 'signup' : 'signin')
       return
     }
-
-    // 1. Start the seamless persistent sewing animation loader immediately
-    startBookingTransition()
 
     const finalMeasurements: Record<string, string> = {}
     activeMeasurementFields.forEach((field) => {
@@ -897,37 +935,141 @@ export default function BookPage() {
     }
     setCreatedOrderId(newOrderId)
 
+    const coords = getCityCoordinates(selectedCity)
+
+    // CASE 1: Customer explicitly scheduled a visit time -> save to DB immediately
+    if (pickupOption === 'schedule') {
+      startBookingTransition()
+      try {
+        await createOrder({
+          id: newOrderId,
+          userId: user?.id,
+          customerName: user?.name,
+          customerEmail: user?.email,
+          customerPhone: user?.phone,
+          postcode: closestStore?.postcode || 'W8 4EP',
+          customerLat: coords.lat,
+          customerLng: coords.lng,
+          garmentId: selectedGarmentId,
+          garmentName: currentCategory.name,
+          serviceId: selectedServiceId,
+          serviceName: currentService.name,
+          storeId: closestStore?.id || undefined,
+          storeName: closestStore?.name || 'Awaiting Studio Acceptance',
+          storePhone: closestStore?.phone || undefined,
+          price: currentService.customerPrice || currentCategory.startingPrice || 25,
+          date: formattedDateDisplay,
+          timeSlot: activeSchedTime,
+          measurements: measurementsData,
+          imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
+          status: 'Allocated',
+        })
+        toast.success('Scheduled atelier fitting confirmed!', { position: 'top-center' })
+        router.push(`/order/${newOrderId}`)
+      } catch (error) {
+        console.error('Scheduled booking failed:', error)
+        toast.error('Unable to create your order. Please try again.')
+        stopBookingTransition()
+      }
+      return
+    }
+
+    // CASE 2: "Book now" Instant Dispatch Search
+    // Unconfirmed order stays purely in server-side memory cache!
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+    }
+
+    searchOrderIdRef.current = newOrderId
+    setSearchOrderId(newOrderId)
+    setIsSearching(true)
+
     try {
-      // 2. Await backend database creation
-      await createOrder({
+      const dispatchStartRes = await startOrderDispatch({
         id: newOrderId,
         userId: user?.id,
         customerName: user?.name,
         customerEmail: user?.email,
         customerPhone: user?.phone,
         postcode: closestStore?.postcode || 'W8 4EP',
+        customerLat: coords.lat,
+        customerLng: coords.lng,
         garmentId: selectedGarmentId,
         garmentName: currentCategory.name,
         serviceId: selectedServiceId,
         serviceName: currentService.name,
-        storeId: closestStore?.id || undefined,
-        storeName: closestStore?.name || 'Awaiting Studio Acceptance',
-        storePhone: closestStore?.phone || undefined,
         price: currentService.customerPrice || currentCategory.startingPrice || 25,
         date: formattedDateDisplay,
         timeSlot: activeSchedTime,
         measurements: measurementsData,
         imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
-        status: 'Allocated',
       })
 
-      // 3. Navigate directly to order details while loader stays up seamlessly!
-      toast.success('Fitting appointment & measurements confirmed!', { position: 'top-center' })
-      router.push(`/order/${newOrderId}`)
-    } catch (error) {
-      console.error('Booking failed:', error)
-      toast.error('Unable to create your order. Please try again.')
-      stopBookingTransition()
+      // If zero tailors found initially within 5 miles
+      if (dispatchStartRes.dispatch?.status === 'ZERO_TAILORS') {
+        setIsSearching(false)
+        setIsNoTailorsModalOpen(true)
+        return
+      }
+
+      // Start live status polling loop (every 1 second)
+      const interval = setInterval(async () => {
+        try {
+          const status = await fetchDispatchStatus(newOrderId)
+          if (!status) return
+
+          if (status.status === 'ASSIGNED') {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current)
+              pollingIntervalRef.current = null
+            }
+            setIsSearching(false)
+
+            const winningStore = status.acceptedTailor
+            const updatedOrder = {
+              ...orderData,
+              storeId: winningStore?.id || status.acceptedTailorId,
+              storeName: winningStore?.name || 'Partner Atelier',
+              storePhone: winningStore?.phone,
+              storeAddress: winningStore?.address,
+              status: 'Allocated',
+            }
+
+            if (typeof window !== 'undefined') {
+              setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(updatedOrder))
+              setStorageCookie('tg_latest_order', JSON.stringify(updatedOrder))
+            }
+
+            toast.success(`Request accepted by ${winningStore?.name || 'Partner Atelier'}!`, {
+              position: 'top-center',
+            })
+
+            router.push(`/order/${newOrderId}`)
+          } else if (status.status === 'EXHAUSTED' || status.status === 'ZERO_TAILORS') {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current)
+              pollingIntervalRef.current = null
+            }
+            setIsSearching(false)
+            setIsNoTailorsModalOpen(true)
+          } else if (status.status === 'CANCELLED') {
+            if (pollingIntervalRef.current) {
+              clearInterval(pollingIntervalRef.current)
+              pollingIntervalRef.current = null
+            }
+            setIsSearching(false)
+          }
+        } catch (err) {
+          console.warn('Dispatch polling warning:', err)
+        }
+      }, 1000)
+
+      pollingIntervalRef.current = interval
+    } catch (err) {
+      console.error('Failed to start dispatch session:', err)
+      setIsSearching(false)
+      toast.error('Unable to initiate tailor search. Please try again.')
     }
   }
 
@@ -1470,6 +1612,68 @@ export default function BookPage() {
           </div>
         </div>
       )}
+
+      {/* No Tailors Available Modal (When all tailors decline or 60s search exhausted) */}
+      {isNoTailorsModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150 text-center">
+            
+            {/* Header Icon */}
+            <div className="mx-auto size-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shadow-2xs">
+              <Scissors size={26} className="rotate-45" />
+            </div>
+
+            {/* Title */}
+            <div>
+              <h3 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
+                No Tailors Available Right Now
+              </h3>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={handleTryAgainSearch}
+                className="w-full py-3.5 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold text-sm transition-all cursor-pointer shadow-xs active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={16} />
+                <span>Try Again</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNoTailorsModalOpen(false)
+                  setIsScheduleModalOpen(true)
+                }}
+                className="w-full py-3.5 rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold text-sm transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <Calendar size={16} />
+                <span>Schedule for Later</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsNoTailorsModalOpen(false)}
+                className="w-full py-2.5 text-xs text-gray-500 hover:text-black font-semibold transition-colors cursor-pointer"
+              >
+                Modify request details
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Live Sewing Animation Dispatch Loader ("Finding...") */}
+      <SewingLoader
+        active={isSearching}
+        persistent={true}
+        title="Finding"
+        onCancel={handleCancelSearch}
+        orderId={searchOrderId}
+      />
     </div>
   )
 }

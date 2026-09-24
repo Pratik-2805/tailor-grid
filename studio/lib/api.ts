@@ -356,3 +356,52 @@ export async function deleteOrder(id: string): Promise<boolean> {
     return false
   }
 }
+
+export interface PendingDispatchRequest {
+  orderId: string
+  order: any
+  distanceMiles: number
+  distance: string
+  stage: number
+  currentRadius: number
+  secondsRemaining: number
+  payout: number
+  customerName: string
+  garmentName: string
+  serviceName: string
+  timeSlot: string
+  date: string
+}
+
+export async function fetchPendingDispatches(storeId: string): Promise<PendingDispatchRequest[]> {
+  try {
+    if (!storeId) return []
+    const res = await fetch(`${API_BASE}/orders/dispatch/pending?storeId=${encodeURIComponent(storeId)}`, {
+      cache: 'no-store',
+    })
+    if (!res.ok) return []
+    const data = await res.json()
+    return data.pendingRequests || []
+  } catch (err) {
+    return []
+  }
+}
+
+export async function respondToDispatch(
+  orderId: string,
+  tailorId: string,
+  action: 'ACCEPT' | 'SKIP'
+): Promise<{ success: boolean; message?: string; code?: string; order?: any }> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tailorId, action }),
+    })
+    const data = await res.json()
+    return data
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Failed to submit response' }
+  }
+}
+

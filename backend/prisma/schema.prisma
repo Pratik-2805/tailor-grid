@@ -145,6 +145,10 @@ model Order {
   slaStartedAt          DateTime?
   rating                Float?
   ratingFeedback        String?
+  customerLat           Float?
+  customerLng           Float?
+  tailorLat             Float?
+  tailorLng             Float?
   status                String        @default("Allocated") // Allocated, Accepted, Customer Arrived, Fitting Completed, Work in Progress, Ready, Collected, Closed
   price                 Float
   otp                   String

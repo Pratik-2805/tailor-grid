@@ -71,8 +71,34 @@ type Props = {
   selectedStoreId?: string
   radiusMiles?: number
   showRadiusCircle?: boolean
+  showCurvedConnection?: boolean
   onSelectStore?: (store: StoreOption) => void
   onStoresFound?: (stores: StoreOption[]) => void
+}
+
+export function generateCurvedPoints(
+  p1: { lat: number; lng: number },
+  p2: { lat: number; lng: number },
+  curvature: number = 0.18,
+  numPoints: number = 24
+): google.maps.LatLng[] {
+  const points: google.maps.LatLng[] = []
+  const midLat = (p1.lat + p2.lat) / 2
+  const midLng = (p1.lng + p2.lng) / 2
+  const dLat = p2.lat - p1.lat
+  const dLng = p2.lng - p1.lng
+
+  // Perpendicular control point offset for natural arc
+  const ctrlLat = midLat - dLng * curvature
+  const ctrlLng = midLng + dLat * curvature
+
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints
+    const lat = (1 - t) * (1 - t) * p1.lat + 2 * (1 - t) * t * ctrlLat + t * t * p2.lat
+    const lng = (1 - t) * (1 - t) * p1.lng + 2 * (1 - t) * t * ctrlLng + t * t * p2.lng
+    points.push(new google.maps.LatLng(lat, lng))
+  }
+  return points
 }
 
 export default function CleanGoogleMap({
@@ -94,6 +120,7 @@ export default function CleanGoogleMap({
   selectedStoreId,
   radiusMiles = 4.0,
   showRadiusCircle = false,
+  showCurvedConnection = false,
   onSelectStore,
   onStoresFound,
 }: Props) {
@@ -226,10 +253,10 @@ export default function CleanGoogleMap({
       )
       map.fitBounds(bounds8x8, 0)
       map.setCenter({ lat, lng })
-    } else {
+    } else if (!showCurvedConnection) {
       map.panTo({ lat, lng })
     }
-  }, [lat, lng, isReady, isFixed, fixedBoxMiles])
+  }, [lat, lng, isReady, isFixed, fixedBoxMiles, showCurvedConnection])
 
   // 3. Filter stores strictly within radius and render pins
   useEffect(() => {
@@ -399,8 +426,80 @@ export default function CleanGoogleMap({
       markersRef.current.push(overlay)
     })
 
-    // If map is NOT fixed and stores exist, fit bounds to show all pins; when fixed, maintain exact 8x8 box centered at user
-    if (!isFixed && validStoresInRadius.length > 1) {
+    // C. Dotted Curved Connection Polyline between Customer & Tailor Atelier
+    if (showCurvedConnection && validStoresInRadius.length > 0) {
+      const originPoint = (userCoords && userCoords.lat && userCoords.lng)
+        ? userCoords
+        : { lat, lng }
+      const targetStore = validStoresInRadius.find((s) => s.id === selectedStoreId) || validStoresInRadius[0]
+
+      if (
+        originPoint &&
+        targetStore?.coords &&
+        typeof targetStore.coords.lat === 'number' &&
+        typeof targetStore.coords.lng === 'number'
+      ) {
+        const curvePoints = generateCurvedPoints(originPoint, targetStore.coords, 0.2, 32)
+
+        // Dotted line symbol
+        const lineSymbol: google.maps.Symbol = {
+          path: 'M 0,-1 0,1',
+          strokeOpacity: 1,
+          scale: 3,
+          strokeColor: '#0F1115',
+        }
+
+        const curvedDottedLine = new google.maps.Polyline({
+          path: curvePoints,
+          strokeOpacity: 0,
+          icons: [
+            {
+              icon: lineSymbol,
+              offset: '0',
+              repeat: '13px',
+            },
+          ],
+          map,
+        })
+
+        markersRef.current.push(curvedDottedLine)
+
+        // Smart Bounds: Extend across all curve points + apex + marker buffers
+        const connectionBounds = new google.maps.LatLngBounds()
+        connectionBounds.extend(new google.maps.LatLng(originPoint.lat, originPoint.lng))
+        connectionBounds.extend(new google.maps.LatLng(targetStore.coords.lat, targetStore.coords.lng))
+
+        // Extend with all curve arc points
+        curvePoints.forEach((pt) => {
+          connectionBounds.extend(pt)
+        })
+
+        // Add 15% margin buffer so top of tailor badge and bottom of YOU badge never touch map edges
+        const ne = connectionBounds.getNorthEast()
+        const sw = connectionBounds.getSouthWest()
+        const latDelta = Math.max(0.003, (ne.lat() - sw.lat()) * 0.25)
+        const lngDelta = Math.max(0.003, (ne.lng() - sw.lng()) * 0.25)
+
+        const bufferedBounds = new google.maps.LatLngBounds(
+          new google.maps.LatLng(sw.lat() - latDelta, sw.lng() - lngDelta),
+          new google.maps.LatLng(ne.lat() + latDelta, ne.lng() + lngDelta)
+        )
+
+        map.fitBounds(bufferedBounds, { top: 32, right: 32, bottom: 32, left: 32 })
+
+        // Smart Zoom Clamping: Prevent extreme over-zoom or under-zoom
+        const listener = google.maps.event.addListenerOnce(map, 'idle', () => {
+          const currentZoom = map.getZoom() || 14
+          if (currentZoom > 16.5) {
+            map.setZoom(16)
+          } else if (currentZoom < 12.5) {
+            map.setZoom(13)
+          }
+        })
+        setTimeout(() => google.maps.event.removeListener(listener), 1500)
+      }
+    } else if (!isFixed && validStoresInRadius.length > 1) {
+      // If map is NOT fixed and stores exist, fit bounds to show all pins
       const bounds = new google.maps.LatLngBounds()
       bounds.extend(new google.maps.LatLng(lat, lng))
       validStoresInRadius.forEach((st) => {
@@ -408,7 +507,7 @@ export default function CleanGoogleMap({
       })
       map.fitBounds(bounds, 36)
     }
-  }, [stores, selectedStoreId, lat, lng, radiusMiles, disableNavigation, isReady, origin, userCoords, isFixed, fixedBoxMiles, showUserPin, userPinLabel, onSelectStore, onStoresFound])
+  }, [stores, selectedStoreId, lat, lng, radiusMiles, disableNavigation, isReady, origin, userCoords, isFixed, fixedBoxMiles, showUserPin, userPinLabel, showCurvedConnection, onSelectStore, onStoresFound])
 
   const handleZoomIn = (e: React.MouseEvent) => {
     e.stopPropagation()
