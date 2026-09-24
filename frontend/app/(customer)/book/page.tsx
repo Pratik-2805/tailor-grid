@@ -560,6 +560,7 @@ export default function BookPage() {
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
+  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
 
   // Selection states initialized from prefilled context
   const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
@@ -570,6 +571,36 @@ export default function BookPage() {
   // Image Upload state
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Live device GPS location detection on mount
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) return
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        setUserGpsCoords({ lat: latitude, lng: longitude })
+
+        // Auto-detect city locality if not manually overridden
+        try {
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          )
+          if (res.ok) {
+            const data = await res.json()
+            const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
+            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || 'IN-MH'
+            const formatted = `${cityName}, ${stateCode}`
+            setSelectedCity(formatted)
+          }
+        } catch { }
+      },
+      (err) => {
+        console.warn('Geolocation prompt/access skipped or denied, fallback to city centroid:', err)
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    )
+  }, [setSelectedCity])
 
   // Measurement collapsible dropdown & custom edit state
   const [isMeasurementOpen, setIsMeasurementOpen] = useState(false)
@@ -621,7 +652,7 @@ export default function BookPage() {
   // Fetch partner studios purely by lat/lng within 8 miles
   useEffect(() => {
     let isCurrent = true
-    const coords = getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     fetch(`/api/tailors/nearby?lat=${coords.lat}&lng=${coords.lng}&radiusMiles=8.0`)
       .then((res) => res.json())
@@ -643,7 +674,7 @@ export default function BookPage() {
     return () => {
       isCurrent = false
     }
-  }, [selectedCity, prefilledStore])
+  }, [selectedCity, userGpsCoords, prefilledStore])
 
   // Sync prefilled state from App context / measurement draft
   useEffect(() => {
@@ -756,10 +787,11 @@ export default function BookPage() {
     })
   }, [user, selectedGarmentId, activeMeasurementFields])
 
-  // Map coordinates dynamically based on selected city
+  // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
+    if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [selectedCity])
+  }, [userGpsCoords, selectedCity])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -935,7 +967,7 @@ export default function BookPage() {
     }
     setCreatedOrderId(newOrderId)
 
-    const coords = getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     // CASE 1: Customer explicitly scheduled a visit time -> save to DB immediately
     if (pickupOption === 'schedule') {
@@ -1498,7 +1530,11 @@ export default function BookPage() {
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         selectedCity={selectedCity}
-        onSelectCity={(c) => setSelectedCity(c)}
+        onSelectCity={(c) => {
+          setSelectedCity(c)
+          const newCoords = getCityCoordinates(c)
+          setUserGpsCoords(newCoords)
+        }}
       />
 
       {/* Schedule Atelier Visit Modal */}
