@@ -22,6 +22,16 @@ export function middleware(request: NextRequest) {
       }
     }
 
+    const studioUrl =
+      process.env.NEXT_PUBLIC_STUDIO_URL ||
+      process.env.STUDIO_URL ||
+      (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
+
+    // When a STUDIO partner is logged in, restrict them exclusively to Studio Workbench (port 3001)
+    if (token && role === 'STUDIO') {
+      return NextResponse.redirect(new URL(studioUrl))
+    }
+
     const isCustomerProtected =
       pathname === '/book' ||
       pathname.startsWith('/book/') ||
@@ -36,7 +46,6 @@ export function middleware(request: NextRequest) {
     }
 
     // When an authenticated CUSTOMER visits root '/', redirect seamlessly to '/book'
-    // When a STUDIO user or guest visits root '/', let them access '/' freely
     if (pathname === '/') {
       if (token && role === 'CUSTOMER') {
         return NextResponse.redirect(new URL('/book', request.nextUrl.origin))
@@ -53,5 +62,14 @@ export function middleware(request: NextRequest) {
 export default middleware
 
 export const config = {
-  matcher: ['/', '/book', '/book/:path*', '/orders', '/orders/:path*', '/profile', '/profile/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api routes
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico, public assets
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|woff|woff2)$).*)',
+  ],
 }

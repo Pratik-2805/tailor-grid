@@ -466,6 +466,8 @@ export function PartnerFlow({
   const [measSleeve, setMeasSleeve] = useState('')
   const [measInseam, setMeasInseam] = useState('')
   const [measCustom, setMeasCustom] = useState('')
+  const [isEditingIntakeMeas, setIsEditingIntakeMeas] = useState(false)
+  const [intakeMeasFields, setIntakeMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
   const [hangTag, setHangTag] = useState('')
   const [conditionNotes, setConditionNotes] = useState('')
   const [sewNotes, setSewNotes] = useState('')
@@ -824,6 +826,25 @@ export function PartnerFlow({
       setIntakeSuccess(false)
       setPriceAdjustApproved(false)
       setShowPriceAdjust(false)
+      setIsEditingIntakeMeas(false)
+
+      const entries = Object.entries(parsed)
+      if (entries.length > 0) {
+        setIntakeMeasFields(
+          entries.map(([k, v]) => ({
+            key: k,
+            label: formatMeasurementKey(k),
+            value: String(v),
+          }))
+        )
+      } else {
+        setIntakeMeasFields([
+          { key: 'hem', label: 'Hem Adjustment', value: '' },
+          { key: 'waist', label: 'Waist / Seat', value: '' },
+          { key: 'sleeve', label: 'Sleeve Length', value: '' },
+          { key: 'inseam', label: 'Finished Inseam', value: '' },
+        ])
+      }
       return
     }
 
@@ -859,6 +880,12 @@ export function PartnerFlow({
     if (measSleeve) measurementsMap.sleeve = measSleeve
     if (measInseam) measurementsMap.inseam = measInseam
     if (measCustom) measurementsMap.custom = measCustom
+
+    intakeMeasFields.forEach((f) => {
+      if (f.value && f.value.trim()) {
+        measurementsMap[f.key] = f.value.trim()
+      }
+    })
 
     const combinedSpecs = Object.entries(measurementsMap)
       .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
@@ -1557,6 +1584,32 @@ export function PartnerFlow({
                     ) : (
                       /* Active Garment Intake Inspection Docket */
                       <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5 animate-scaleUp">
+                        {/* ── Status Banner: Pickup is Taken / PIN Verified ── */}
+                        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 shadow-2xs">
+                          <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <CheckCircle2 size={18} />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-extrabold text-emerald-950 uppercase tracking-wide">
+                                  Pickup is Taken · Drop-off Confirmed
+                                </span>
+                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
+                                  PIN Verified
+                                </span>
+                              </div>
+                              <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                                Customer drop-off PIN {activeIntake.otp || pinInput} authenticated &bull; Garment received at counter
+                              </p>
+                            </div>
+                          </div>
+                          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5 rounded-full shadow-2xs">
+                            <Check size={14} className="text-emerald-600" />
+                            <span>Checked In</span>
+                          </span>
+                        </div>
+
                         {/* Header with Photo & Tag */}
                         <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3.5 min-w-0">
@@ -1616,41 +1669,142 @@ export function PartnerFlow({
                             </div>
                           </div>
 
-                          {/* Measurements */}
-                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block">
-                              Tailor Specifications &amp; Measurements
-                            </span>
-                            <div className="grid sm:grid-cols-2 gap-2 font-mono">
-                              <input
-                                type="text"
-                                value={measHem}
-                                onChange={(e) => setMeasHem(e.target.value)}
-                                placeholder="Hem (e.g. -3.5 cm)"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measWaist}
-                                onChange={(e) => setMeasWaist(e.target.value)}
-                                placeholder="Waist / Seat"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measSleeve}
-                                onChange={(e) => setMeasSleeve(e.target.value)}
-                                placeholder="Sleeves / Cuffs"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={measInseam}
-                                onChange={(e) => setMeasInseam(e.target.value)}
-                                placeholder="Finished Inseam"
-                                className="px-3 py-1.5 rounded-lg bg-white border border-[#E8E1D5] text-xs font-semibold"
-                              />
+                          {/* Measurements Section */}
+                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Scissors size={14} className="text-[#9E593B]" />
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B]">
+                                  Tailor Specifications &amp; Measurements
+                                </span>
+                              </div>
+
+                              {!isEditingIntakeMeas ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingIntakeMeas(true)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  <Edit3 size={12} />
+                                  <span>Edit Measurements</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingIntakeMeas(false)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-black text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  <Check size={12} />
+                                  <span>Done Editing</span>
+                                </button>
+                              )}
                             </div>
+
+                            {!isEditingIntakeMeas ? (
+                              /* Clean Specs Display (Kept as is, not showing raw empty textboxes directly) */
+                              <div className="space-y-2">
+                                {intakeMeasFields.length > 0 && intakeMeasFields.some(f => f.value && f.value.trim()) ? (
+                                  <div className="flex flex-wrap gap-2">
+                                    {intakeMeasFields.map((field, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E8E1D5] text-xs shadow-2xs"
+                                      >
+                                        <span className="font-semibold text-gray-500">{field.label}:</span>
+                                        <span className={`font-mono font-bold ${field.value.toLowerCase().includes('measured by tailor') ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]' : 'text-[#0F1115]'}`}>
+                                          {field.value}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="p-3 bg-white/80 rounded-xl border border-[#E8E1D5] text-xs text-gray-500 font-medium">
+                                    No pre-set fit numbers &bull; Customer requested in-person measurement at bench.
+                                  </div>
+                                )}
+
+                                <div className="flex flex-wrap items-center justify-between text-[11px] text-gray-500 pt-1 gap-2">
+                                  <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                                    <Check size={13} className="text-emerald-600" />
+                                    Current fit specifications retained (keep as is)
+                                  </span>
+                                  <span className="text-gray-400">
+                                    Click &quot;Edit Measurements&quot; if customer requests fit modifications
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              /* Interactive Editor View when customer needs changes */
+                              <div className="space-y-3 pt-1 animate-in fade-in duration-150">
+                                <p className="text-[11px] text-gray-600 font-medium">
+                                  Customer requested changes: Update or enter measured fit values below:
+                                </p>
+
+                                <div className="grid sm:grid-cols-2 gap-2.5">
+                                  {intakeMeasFields.map((field, idx) => (
+                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
+                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                        {field.label}
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={field.value}
+                                        onChange={(e) => {
+                                          const val = e.target.value
+                                          setIntakeMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
+                                          if (field.key === 'hem' || field.key.includes('hem')) setMeasHem(val)
+                                          if (field.key === 'waist' || field.key.includes('waist')) setMeasWaist(val)
+                                          if (field.key === 'sleeve' || field.key.includes('sleeve')) setMeasSleeve(val)
+                                          if (field.key === 'inseam' || field.key.includes('inseam')) setMeasInseam(val)
+                                        }}
+                                        placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
+                                        className="w-full px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none font-mono"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="flex items-center justify-between pt-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newKey = `custom_${Date.now()}`
+                                      setIntakeMeasFields(prev => [...prev, { key: newKey, label: 'Custom Fit Note', value: '' }])
+                                    }}
+                                    className="text-xs text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <Plus size={12} />
+                                    <span>Add Custom Fit Field</span>
+                                  </button>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (activeIntake) {
+                                          const parsed = parseOrderMeasurements(activeIntake)
+                                          const entries = Object.entries(parsed)
+                                          if (entries.length > 0) {
+                                            setIntakeMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
+                                          }
+                                        }
+                                        setIsEditingIntakeMeas(false)
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                                    >
+                                      Cancel / Keep Original
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsEditingIntakeMeas(false)}
+                                      className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+                                    >
+                                      ✓ Save Specifications
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Tailor & Machine */}

@@ -88,8 +88,12 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               <div className="mt-8 flex flex-wrap items-center gap-5">
                 <button
                   onClick={() => {
-                    const token = getAuthToken()
-                    window.location.href = getStudioUrl('/', token)
+                    const role = getAuthRole()
+                    if (role === 'STUDIO') {
+                      window.location.href = getStudioUrl('/', getAuthToken())
+                    } else {
+                      window.location.href = getStudioUrl('/?step=1')
+                    }
                   }}
                   className="rounded-full bg-white text-[#0F1115] px-8 py-4 text-xs font-extrabold uppercase tracking-wider transition-all hover:bg-[#FAF8F5] active:scale-95 shadow-md cursor-pointer"
                 >
@@ -99,8 +103,11 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 <button
                   onClick={() => {
                     const role = getAuthRole()
-                    const token = role === 'STUDIO' ? getAuthToken() : null
-                    window.location.href = getStudioUrl('/', token)
+                    if (role === 'STUDIO') {
+                      window.location.href = getStudioUrl('/', getAuthToken())
+                    } else {
+                      window.location.href = getStudioUrl('/?auth=signin')
+                    }
                   }}
                   className="text-xs font-semibold text-white/70 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 py-2"
                 >
@@ -433,8 +440,12 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <button
               onClick={() => {
-                const token = getAuthToken()
-                window.location.href = getStudioUrl('/', token)
+                const role = getAuthRole()
+                if (role === 'STUDIO') {
+                  window.location.href = getStudioUrl('/', getAuthToken())
+                } else {
+                  window.location.href = getStudioUrl('/?step=1')
+                }
               }}
               className="rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-8 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-md transition-all active:scale-95 cursor-pointer"
             >
@@ -444,8 +455,11 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
             <button
               onClick={() => {
                 const role = getAuthRole()
-                const token = role === 'STUDIO' ? getAuthToken() : null
-                window.location.href = getStudioUrl('/', token)
+                if (role === 'STUDIO') {
+                  window.location.href = getStudioUrl('/', getAuthToken())
+                } else {
+                  window.location.href = getStudioUrl('/?auth=signin')
+                }
               }}
               className="rounded-full border border-[#0F1115]/30 hover:border-[#0F1115] bg-white px-7 py-3.5 text-xs font-bold uppercase tracking-wider text-[#0F1115] hover:bg-[#FAF8F5] transition-all cursor-pointer"
             >
@@ -463,8 +477,12 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
         </div>
         <button
           onClick={() => {
-            const token = getAuthToken()
-            window.location.href = getStudioUrl('/', token)
+            const role = getAuthRole()
+            if (role === 'STUDIO') {
+              window.location.href = getStudioUrl('/', getAuthToken())
+            } else {
+              window.location.href = getStudioUrl('/?step=1')
+            }
           }}
           className="rounded-full bg-white text-[#0F1115] px-6 py-2.5 text-xs font-extrabold uppercase tracking-wider hover:bg-[#FAF8F5] transition-colors cursor-pointer"
         >

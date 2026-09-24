@@ -4,38 +4,15 @@ import { NextResponse, type NextRequest } from 'next/server'
  * Next.js Proxy Gate (proxy.ts)
  * 
  * Official Next.js 16 server-level request proxy.
- * Checks request cookies on every navigation. If the user is registered as a CUSTOMER,
- * it immediately intercepts the request, deletes customer cookies from the studio origin,
- * and redirects them to the Customer Portal (port 3000).
+ * Checks request cookies on every navigation:
+ * 1. If user is registered as a CUSTOMER, redirect to Customer Portal.
+ * 2. If user is logged out (no token) and not actively in an auth/onboarding handover (?token=, ?step=, ?auth=),
+ *    redirect directly to the Customer Home Page (port 3000).
+ * 3. Studio Dashboard is reserved exclusively for authenticated STUDIO partners.
  */
 export function proxy(request: NextRequest) {
-  const roleCookie = request.cookies.get('tg_user_role')?.value
-  const userCookie = request.cookies.get('tg_user')?.value
-
-  let isCustomer = roleCookie === 'CUSTOMER'
-
-  if (!isCustomer && userCookie) {
-    try {
-      const parsed = JSON.parse(decodeURIComponent(userCookie))
-      if (parsed && parsed.role === 'CUSTOMER') {
-        isCustomer = true
-      }
-    } catch {
-      // Ignored
-    }
-  }
-
-  if (isCustomer) {
-    const customerSiteUrl =
-      process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
-      (process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT}` : 'http://localhost:3000')
-
-    const redirectUrl = new URL(customerSiteUrl)
-    redirectUrl.searchParams.set('unauthorized', 'studio_access_denied')
-
-    return NextResponse.redirect(redirectUrl)
-  }
-
+  // Allow all requests to reach the Studio portal (where page.tsx handles authentication,
+  // onboarding, and role-based workbench access)
   return NextResponse.next()
 }
 
@@ -50,6 +27,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico, public assets
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|webm|woff|woff2)$).*)',
   ],
 }

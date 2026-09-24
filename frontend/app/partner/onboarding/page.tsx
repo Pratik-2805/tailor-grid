@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getStudioUrl } from '@/lib/api'
-import { getAuthRole, getAuthUser } from '@/lib/cookies'
+import { getAuthRole, getAuthUser, getAuthToken } from '@/lib/cookies'
 import { CustomLoader } from '@/components/custom-loader'
 
 export default function PartnerOnboardingPage() {
@@ -17,25 +17,15 @@ export default function PartnerOnboardingPage() {
     hasTriggeredRef.current = true
 
     const role = getAuthRole()
-    const user = getAuthUser()
-
-    // If logged in as Customer, disallow partner onboarding and redirect to user portal
-    if (role === 'CUSTOMER' || user?.role === 'CUSTOMER') {
-      toast.error('Unauthorized access, redirecting to user portal.', {
-        position: 'top-center',
-        autoClose: 2500,
-        toastId: 'unauthorized-partner-onboarding',
-      })
-
-      setTimeout(() => {
-        router.replace('/')
-      }, 1800)
-      return
-    }
+    const token = getAuthToken()
 
     setTimeout(() => {
-      window.location.href = getStudioUrl('/')
-    }, 800)
+      if (role === 'STUDIO') {
+        window.location.href = getStudioUrl('/', token)
+      } else {
+        window.location.href = getStudioUrl('/?step=1')
+      }
+    }, 600)
   }, [router])
 
   return (
