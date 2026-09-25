@@ -536,6 +536,32 @@ export function PartnerFlow({
   const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
   const [inlinePickupInput, setInlinePickupInput] = useState<Record<string, string>>({})
   const [inlinePickupError, setInlinePickupError] = useState<Record<string, string>>({})
+  const [verifyingHandoverMap, setVerifyingHandoverMap] = useState<Record<string, boolean>>({})
+  const [justGeneratedOtpMap, setJustGeneratedOtpMap] = useState<Record<string, boolean>>({})
+  const [generatedOtpMap, setGeneratedOtpMap] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('tg_generated_pickup_otps')
+      if (stored) {
+        try { return JSON.parse(stored) } catch { }
+      }
+    }
+    return {}
+  })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tg_generated_pickup_otps', JSON.stringify(generatedOtpMap))
+      } catch { }
+    }
+  }, [generatedOtpMap])
+
+  const isPickupOtpGenerated = (order?: Partial<FittingBooking> | null) => {
+    if (!order || !order.id || !order.otp) return false
+    if (order.pickupOtpGenerated) return true
+    if (generatedOtpMap[order.id] && generatedOtpMap[order.id] === order.otp) return true
+    return false
+  }
 
   // Clean up timed-out timestamps after 2 minutes (120,000ms) so unattended requests re-broadcast every 2 mins!
   useEffect(() => {
@@ -898,6 +924,9 @@ export function PartnerFlow({
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
     const updates: Partial<FittingBooking> = { status: newStatus }
+    if (newStatus === 'Ready') {
+      updates.otp = '' // Clear drop-off OTP so pickup OTP must be generated fresh when studio initiates pickup
+    }
     if (newStatus === 'Work in Progress') {
       const existing = orders.find((o) => o.id === id)
       if (!existing?.slaStartedAt) updates.slaStartedAt = new Date().toISOString()
@@ -927,10 +956,17 @@ export function PartnerFlow({
     const freshOtp = Math.floor(1000 + Math.random() * 9000).toString()
     const updates: Partial<FittingBooking> = {
       otp: freshOtp,
+      pickupOtpGenerated: true,
     }
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
+    setGeneratedOtpMap((prev) => ({ ...prev, [orderId]: freshOtp }))
+    setJustGeneratedOtpMap((prev) => ({ ...prev, [orderId]: true }))
+    setTimeout(() => {
+      setJustGeneratedOtpMap((prev) => ({ ...prev, [orderId]: false }))
+    }, 4000)
+
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates, pickupOtpGenerated: true } : o)))
     if (selectedOrder?.id === orderId) {
-      setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
+      setSelectedOrder((prev) => (prev ? { ...prev, ...updates, pickupOtpGenerated: true } : prev))
     }
     updateOrder(orderId, updates).catch(() => { })
 
@@ -955,17 +991,24 @@ export function PartnerFlow({
     const inputPin = (inlinePickupInput[orderId] || '').trim()
 
     if (inputPin && (inputPin === target.otp || inputPin === '1234')) {
-      const updates: Partial<FittingBooking> = {
-        status: 'Closed',
-      }
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
-      }
-      updateOrder(orderId, updates).catch(() => { })
       setInlinePickupError((prev) => ({ ...prev, [orderId]: '' }))
-      setBroadcastToast(`✓ Pickup Verified & Garment Handed Over!`)
-      setTimeout(() => setBroadcastToast(null), 4000)
+      // 🌟 Trigger Aftereffect Success Animation State
+      setVerifyingHandoverMap((prev) => ({ ...prev, [orderId]: true }))
+
+      // Hold aftereffect animation for 1200ms for visual delight before status transition
+      setTimeout(() => {
+        const updates: Partial<FittingBooking> = {
+          status: 'Closed',
+        }
+        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
+        if (selectedOrder?.id === orderId) {
+          setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
+        }
+        updateOrder(orderId, updates).catch(() => { })
+        setVerifyingHandoverMap((prev) => ({ ...prev, [orderId]: false }))
+        setBroadcastToast(`✓ Pickup Verified & Garment Handed Over!`)
+        setTimeout(() => setBroadcastToast(null), 4000)
+      }, 1200)
     } else {
       setInlinePickupError((prev) => ({ ...prev, [orderId]: 'Invalid PIN' }))
     }
@@ -2189,55 +2232,105 @@ export function PartnerFlow({
 
                         <div className="space-y-2">
                           {orders
-                            .filter((o) => o.status === 'Ready')
-                            .map((order) => (
-                              <div
-                                key={order.id}
-                                className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-between gap-3 text-xs"
-                              >
-                                <div>
-                                  <div className="font-semibold text-[#1E2229]">{order.customerName} · {order.garmentName}</div>
-                                  <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
-                                    {order.hangTagNo || 'Rack A'}
-                                  </div>
-                                </div>
-
-                                {!order.otp ? (
-                                  <button
-                                    onClick={() => handleGeneratePickupOtp(order.id)}
-                                    className="px-3 py-1.5 bg-[#9E593B] hover:bg-[#80452C] text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+                            .filter((o) => o.status === 'Ready' || verifyingHandoverMap[o.id])
+                            .map((order) => {
+                              const isSuccess = verifyingHandoverMap[order.id]
+                              if (isSuccess) {
+                                return (
+                                  <div
+                                    key={order.id}
+                                    className="p-3.5 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white flex items-center justify-between gap-3 text-xs shadow-md border border-emerald-400 animate-scaleUp transition-all duration-300 ring-4 ring-emerald-500/20"
                                   >
-                                    <Key size={13} /> Generate Pickup OTP
-                                  </button>
-                                ) : (
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-[11px] font-mono font-bold text-purple-900 bg-purple-100 border border-purple-300 px-2 py-1 rounded-lg">
-                                      PIN: {order.otp}
-                                    </span>
-                                    <input
-                                      type="text"
-                                      maxLength={6}
-                                      placeholder="Customer OTP"
-                                      value={inlinePickupInput[order.id] || ''}
-                                      onChange={(e) => {
-                                        const val = e.target.value
-                                        setInlinePickupInput((prev) => ({ ...prev, [order.id]: val }))
-                                        if (inlinePickupError[order.id]) {
-                                          setInlinePickupError((prev) => ({ ...prev, [order.id]: '' }))
-                                        }
-                                      }}
-                                      className="w-24 px-2 py-1 text-xs font-mono font-bold border border-[#E8E1D5] rounded-lg bg-white focus:border-purple-600 focus:outline-none"
-                                    />
-                                    <button
-                                      onClick={() => handleVerifyInlinePickup(order.id)}
-                                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg cursor-pointer transition-all shadow-xs active:scale-95"
-                                    >
-                                      Verify &amp; Handover
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                      <div className="size-9 rounded-full bg-white/20 flex items-center justify-center animate-bounce shrink-0 shadow-inner">
+                                        <CheckCircle2 size={20} className="text-white" />
+                                      </div>
+                                      <div>
+                                        <div className="font-extrabold text-white text-sm flex items-center gap-1.5 tracking-tight">
+                                          OTP Verified Successfully!
+                                          <Sparkles size={14} className="text-yellow-300 animate-spin" />
+                                        </div>
+                                        <div className="text-[11px] text-emerald-100 font-medium mt-0.5">
+                                          Handover completed for <strong>{order.customerName}</strong> ({order.garmentName})
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-xs px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide uppercase shadow-xs">
+                                      <Check size={13} className="text-white" /> Handed Over
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            ))}
+                                )
+                              }
+
+                              const isJustGenerated = justGeneratedOtpMap[order.id]
+                              const errorMsg = inlinePickupError[order.id]
+
+                              return (
+                                <div
+                                  key={order.id}
+                                  className={`p-3 rounded-xl bg-[#FAF8F5] border transition-all ${errorMsg ? 'border-red-400 ring-2 ring-red-200' : 'border-[#E8E1D5]'
+                                    } flex items-center justify-between gap-3 text-xs`}
+                                >
+                                  <div>
+                                    <div className="font-semibold text-[#1E2229]">{order.customerName} · {order.garmentName}</div>
+                                    <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
+                                      {order.hangTagNo || 'Rack A'}
+                                    </div>
+                                  </div>
+
+                                  {!isPickupOtpGenerated(order) ? (
+                                    <button
+                                      onClick={() => handleGeneratePickupOtp(order.id)}
+                                      className="px-3 py-1.5 bg-[#9E593B] hover:bg-[#80452C] text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-xs flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+                                    >
+                                      <Key size={13} /> Generate Pickup OTP
+                                    </button>
+                                  ) : (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {isJustGenerated ? (
+                                        <span className="text-[11px] font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1 animate-bounce shadow-xs">
+                                          <CheckCircle2 size={13} className="text-emerald-700 shrink-0" />
+                                          OTP Sent to Customer!
+                                        </span>
+                                      ) : (
+                                        <span className="text-[11px] font-semibold text-purple-800 bg-purple-50 border border-purple-200 px-2 py-1 rounded-lg flex items-center gap-1">
+                                          <Check size={12} className="text-purple-600 shrink-0" />
+                                          OTP Sent
+                                        </span>
+                                      )}
+                                      <div className="relative">
+                                        <input
+                                          type="text"
+                                          maxLength={6}
+                                          placeholder="Customer OTP"
+                                          value={inlinePickupInput[order.id] || ''}
+                                          onChange={(e) => {
+                                            const val = e.target.value
+                                            setInlinePickupInput((prev) => ({ ...prev, [order.id]: val }))
+                                            if (inlinePickupError[order.id]) {
+                                              setInlinePickupError((prev) => ({ ...prev, [order.id]: '' }))
+                                            }
+                                          }}
+                                          className={`w-24 px-2 py-1 text-xs font-mono font-bold border rounded-lg bg-white focus:outline-none transition-all ${errorMsg ? 'border-red-500 focus:border-red-600 bg-red-50' : 'border-[#E8E1D5] focus:border-purple-600'
+                                            }`}
+                                        />
+                                        {errorMsg && (
+                                          <span className="absolute -bottom-4 left-0 text-[10px] font-bold text-red-600 whitespace-nowrap">
+                                            {errorMsg}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <button
+                                        onClick={() => handleVerifyInlinePickup(order.id)}
+                                        className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg cursor-pointer transition-all shadow-xs active:scale-95 flex items-center gap-1"
+                                      >
+                                        <CheckCircle size={12} /> Verify &amp; Handover
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                         </div>
                       </div>
                     )}
@@ -2328,7 +2421,7 @@ export function PartnerFlow({
                                     )}
                                     {order.status === 'Ready' && (
                                       <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                                        {!order.otp ? (
+                                        {!isPickupOtpGenerated(order) ? (
                                           <button
                                             type="button"
                                             onClick={() => handleGeneratePickupOtp(order.id)}
@@ -2343,7 +2436,7 @@ export function PartnerFlow({
                                               onClick={() => handleOpenPickupModal(order)}
                                               className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1.5 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs"
                                             >
-                                              <Package size={12} /> Pickup PIN: {order.otp}
+                                              <Package size={12} /> Verify Pickup OTP
                                             </button>
 
                                             <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8E1D5]">
@@ -2402,9 +2495,7 @@ export function PartnerFlow({
                                   </button>
                                 )}
                                 {order.status === 'Ready' && (
-                                  <button onClick={() => handleOpenPickupModal(order)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
-                                    <Package size={12} /> Pickup →
-                                  </button>
+                                  <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">Ready on Rack</span>
                                 )}
                                 {order.status === 'Closed' && (
                                   <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Completed ✓</span>

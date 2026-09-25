@@ -110,6 +110,7 @@ export type FittingBooking = {
   status: OrderStatus
   price: number
   otp: string
+  pickupOtpGenerated?: boolean
   createdAt?: string
 }
 
