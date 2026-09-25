@@ -5,13 +5,13 @@ const { calculateDistanceInMiles } = require('./locate.service');
 const dispatchSessions = new Map();
 
 const STAGE_CONFIG = [
-  { stage: 1, minRadius: 0.0, maxRadius: 1.0, durationSec: 20 },
-  { stage: 2, minRadius: 1.0, maxRadius: 3.0, durationSec: 20 },
-  { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 20 },
+  { stage: 1, minRadius: 0.0, maxRadius: 1.0, durationSec: 15 },
+  { stage: 2, minRadius: 1.0, maxRadius: 3.0, durationSec: 15 },
+  { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 15 },
 ];
 
-const DISPATCH_TTL_MS = 10 * 60 * 1000; // 10 minutes TTL
-const HARD_TIMEOUT_SEC = 60; // 60 seconds hard dispatch cap
+const DISPATCH_TTL_MS = 1 * 60 * 1000; // 1 minute TTL
+const HARD_TIMEOUT_SEC = 45; // 45 seconds hard dispatch cap (3 stages × 15s)
 
 /**
  * Clean up expired dispatch sessions from memory
@@ -27,8 +27,8 @@ function cleanupExpiredSessions() {
   }
 }
 
-// Run cleanup periodically
-setInterval(cleanupExpiredSessions, 60 * 1000);
+// Run cleanup periodically every 30 seconds
+setInterval(cleanupExpiredSessions, 30 * 1000);
 
 /**
  * Fetch eligible tailors within 5.0 miles ONCE from PostgreSQL
@@ -130,7 +130,7 @@ async function startOrderDispatch(order) {
     currentRadius: 1.0,
     startedAt: now,
     stageStartedAt: now,
-    stageEndsAt: now + 20 * 1000,
+    stageEndsAt: now + 15 * 1000,
     hardTimeoutAt: now + HARD_TIMEOUT_SEC * 1000,
     cacheExpiresAt: now + DISPATCH_TTL_MS,
     status: tailorPool.length === 0 ? 'ZERO_TAILORS' : 'SEARCHING', // SEARCHING, ASSIGNED, EXHAUSTED, ZERO_TAILORS, CANCELLED, SCHEDULED
@@ -414,27 +414,36 @@ async function recordTailorAccept(orderId, tailorId) {
 }
 
 /**
- * Customer cancels search before acceptance - Immediately clears timers and purges from memory cache
+ * Customer cancels search before acceptance - Immediately clears timers, purges from memory cache and DB
  */
-function cancelDispatch(orderId) {
+async function cancelDispatch(orderId) {
   const session = dispatchSessions.get(orderId);
-  if (!session) return { success: true, message: 'Session already cleared' };
+  if (session) {
+    if (session.timer) {
+      clearTimeout(session.timer);
+      session.timer = null;
+    }
+    if (session.hardTimer) {
+      clearTimeout(session.hardTimer);
+      session.hardTimer = null;
+    }
+    session.activeCandidateTailorIds.clear();
+    session.declinedTailorIds.clear();
+    session.status = 'CANCELLED';
 
-  if (session.timer) {
-    clearTimeout(session.timer);
-    session.timer = null;
+    // Immediately remove from server-side memory cache
+    dispatchSessions.delete(orderId);
+    console.log(`[Dispatch Engine] Order ${orderId} CANCELLED by customer and completely removed from server cache.`);
   }
-  if (session.hardTimer) {
-    clearTimeout(session.hardTimer);
-    session.hardTimer = null;
-  }
-  session.activeCandidateTailorIds.clear();
-  session.declinedTailorIds.clear();
-  session.status = 'CANCELLED';
 
-  // Immediately remove from server-side memory cache
-  dispatchSessions.delete(orderId);
-  console.log(`[Dispatch Engine] Order ${orderId} CANCELLED by customer and completely removed from server cache.`);
+  // Also clean up any unaccepted allocated record from DB
+  try {
+    await prisma.order.deleteMany({
+      where: { id: orderId, status: 'Allocated' }
+    });
+  } catch (err) {
+    // Ignore if not in DB
+  }
 
   return { success: true, message: 'Dispatch search cancelled and cleared from server cache' };
 }
