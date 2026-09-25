@@ -870,6 +870,15 @@ export default function BookPage() {
     }
     const activeOrderId = searchOrderIdRef.current || searchOrderId
     if (activeOrderId) {
+      // Broadcast instant cancellation to all tailor atelier tabs in 0ms
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const bc = new BroadcastChannel('tg_dispatch_channel')
+          bc.postMessage({ type: 'DISPATCH_CANCELLED', orderId: activeOrderId })
+          bc.close()
+        } catch { }
+      }
+
       await cancelOrderDispatch(activeOrderId)
       if (typeof window !== 'undefined') {
         const { removeStorageCookie } = await import('@/lib/cookies')

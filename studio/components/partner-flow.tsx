@@ -421,7 +421,7 @@ export function PartnerFlow({
   const [broadcastIdx, setBroadcastIdx] = useState(0)
   const [timerSecs, setTimerSecs] = useState(15)
   const [timerProgress, setTimerProgress] = useState(100)
-  const broadcastExpiryRef = useRef<{ id: string; expiresAt: number; totalDurationMs: number } | null>(null)
+  const broadcastExpiryRef = useRef<{ key: string; expiresAt: number; totalDurationMs: number } | null>(null)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
   // Permanently skipped order IDs for THIS studio (clicked Skip)
@@ -646,7 +646,31 @@ export function PartnerFlow({
     return () => clearInterval(interval)
   }, [user, online])
 
-  // Single Dispatch Session Listener - Live Pending Dispatches Feed
+  // Listen for instant 0ms cross-tab cancellation broadcasts
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('BroadcastChannel' in window)) return
+
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('tg_dispatch_channel')
+      bc.onmessage = (event) => {
+        if (event.data?.type === 'DISPATCH_CANCELLED' && event.data?.orderId) {
+          const cancelledId = event.data.orderId
+          setPendingDispatches((prev) => prev.filter((p) => p.orderId !== cancelledId))
+          setOrders((prev) => prev.filter((o) => o.id !== cancelledId || o.status !== 'Allocated'))
+          if (broadcastExpiryRef.current?.key?.startsWith(cancelledId)) {
+            broadcastExpiryRef.current = null
+          }
+        }
+      }
+    } catch { }
+
+    return () => {
+      if (bc) bc.close()
+    }
+  }, [])
+
+  // Single Dispatch Session Listener - Live Pending Dispatches Feed (1s interval)
   useEffect(() => {
     if (!online || !user?.studioId) {
       setPendingDispatches([])
@@ -664,7 +688,7 @@ export function PartnerFlow({
     }
 
     checkDispatches()
-    const dispatchInterval = setInterval(checkDispatches, 2000)
+    const dispatchInterval = setInterval(checkDispatches, 1000)
     return () => clearInterval(dispatchInterval)
   }, [online, user?.studioId])
 
@@ -706,6 +730,7 @@ export function PartnerFlow({
   const allBroadcasts: BroadcastRequest[] = dispatchBroadcasts
 
   const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
+  const currentBroadcastKey = currentBroadcast ? `${currentBroadcast.id}-stage-${currentBroadcast.stage || 1}` : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
     const assignedStudioId = user?.studioId || undefined
@@ -723,6 +748,7 @@ export function PartnerFlow({
 
     setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
     setTimerSecs(15)
+    setTimerProgress(100)
     await updateOrder(order.id, updates).catch(() => { })
   }
 
@@ -788,33 +814,36 @@ export function PartnerFlow({
     }
   }
 
-  // Smooth Timestamp-Based Timer (50ms continuous ticker)
+  // Smooth Timestamp-Based Timer (50ms continuous ticker, re-anchored on every stage transition)
   useEffect(() => {
-    if (!online || !currentBroadcast) {
+    if (!online || !currentBroadcast || !currentBroadcastKey) {
       broadcastExpiryRef.current = null
       setTimerSecs(15)
       setTimerProgress(100)
       return
     }
 
+    const bKey = currentBroadcastKey
     const bId = currentBroadcast.id
     const serverRemainingSec =
       typeof currentBroadcast.secondsRemaining === 'number' && currentBroadcast.secondsRemaining > 0
         ? currentBroadcast.secondsRemaining
         : 15
 
-    // Initialize or re-anchor expiry timestamp when broadcast changes
-    if (!broadcastExpiryRef.current || broadcastExpiryRef.current.id !== bId) {
+    // Initialize or re-anchor expiry timestamp when broadcast OR stage changes
+    if (!broadcastExpiryRef.current || broadcastExpiryRef.current.key !== bKey) {
       const remainingMs = Math.max(1000, Math.min(15, serverRemainingSec) * 1000)
       broadcastExpiryRef.current = {
-        id: bId,
+        key: bKey,
         expiresAt: Date.now() + remainingMs,
         totalDurationMs: 15000,
       }
+      setTimerProgress(Math.max(0, Math.min(100, (remainingMs / 15000) * 100)))
+      setTimerSecs(Math.ceil(remainingMs / 1000))
     }
 
     const interval = setInterval(() => {
-      if (!broadcastExpiryRef.current || broadcastExpiryRef.current.id !== bId) return
+      if (!broadcastExpiryRef.current || broadcastExpiryRef.current.key !== bKey) return
 
       const now = Date.now()
       const remainingMs = broadcastExpiryRef.current.expiresAt - now
@@ -834,7 +863,7 @@ export function PartnerFlow({
     }, 50)
 
     return () => clearInterval(interval)
-  }, [online, currentBroadcast?.id])
+  }, [online, currentBroadcastKey])
 
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
@@ -1434,9 +1463,10 @@ export function PartnerFlow({
         <main className="flex-1 overflow-y-auto">
 
           {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION ── */}
-          {online && currentBroadcast ? (
+          {online && currentBroadcast && currentBroadcastKey ? (
             <div
-              className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4"
+              key={currentBroadcastKey}
+              className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in"
             >
               <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
