@@ -292,15 +292,17 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">
+    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
 
-      {/* Studio Header (Port 3001) */}
-      <StudioHeader
-        user={user}
-        onOpenAuth={handleOpenAuth}
-        onSignOut={handleSignOut}
-        onOpenProfile={() => setPartnerTab('profile')}
-      />
+      {/* Studio Header (Port 3001) - only for onboarding and pre-auth states */}
+      {!(user && user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone) && (
+        <StudioHeader
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onSignOut={handleSignOut}
+          onOpenProfile={() => setPartnerTab('profile')}
+        />
+      )}
 
       <main className="flex-1 flex flex-col">
         {user && user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone ? (

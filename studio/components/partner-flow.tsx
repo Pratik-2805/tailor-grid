@@ -348,8 +348,18 @@ export function PartnerFlow({
   onTabChange,
 }: PartnerFlowProps) {
   const rawStudioName = (user?.studioName || '').trim()
-  const studioName = rawStudioName.length > 0 ? rawStudioName : (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
-  const tailorName = user?.name || 'Master Tailor'
+  const studioName =
+    rawStudioName.length > 2 && rawStudioName.toLowerCase() !== 'x'
+      ? rawStudioName
+      : (user?.name && user.name.length > 2 && user.name.toLowerCase() !== 'x')
+      ? `${user.name}'s Atelier`
+      : 'Darzi Atelier · Soho Flagship'
+  const tailorName =
+    (user?.name && user.name.length > 1 && user.name.toLowerCase() !== 'x')
+      ? user.name
+      : (rawStudioName.length > 2 && rawStudioName.toLowerCase() !== 'x')
+      ? rawStudioName
+      : 'Master Tailor'
 
   const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
   const activeTab = controlledTab || internalTab
@@ -1053,14 +1063,14 @@ export function PartnerFlow({
   const handleCompletePickupAndSettlement = () => {
     if (!pickupModalOrder) return
     const hasRetail = retailAnswer === 'YES'
-    const retailVal = hasRetail ? parseFloat(retailValueInput || '0') : null
-    const retailCat = hasRetail ? retailCategoryInput : null
+    const retailVal = hasRetail ? 45 : undefined
+    const retailCat = hasRetail ? 'Accessories & Ties' : undefined
 
     const updates: Partial<FittingBooking> = {
       status: 'Closed',
       retailSold: hasRetail,
-      retailValue: retailVal ?? undefined,
-      retailCategory: retailCat ?? undefined,
+      retailValue: retailVal,
+      retailCategory: retailCat,
     }
 
     setOrders((prev) => prev.map((o) => (o.id === pickupModalOrder.id ? { ...o, ...updates } : o)))
@@ -1137,100 +1147,107 @@ export function PartnerFlow({
   /* LUXURY ATELIER WORKBENCH — SIGNATURE WARM CREAM & TERRACOTTA PALETTE        */
   /* ═══════════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-[#FAF8F5] text-[#1E2229] font-sans antialiased">
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] text-[#0F172A] font-sans antialiased">
 
       {/* ── MOBILE BACKDROP ── */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/30 backdrop-blur-xs md:hidden animate-fadeIn"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden animate-fadeIn"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* SIDEBAR — OBSIDIAN & BESPOKE TERRACOTTA ACCENTS                         */}
+      {/* SIDEBAR — OBSIDIAN LUXURY ATELIER NODE                                   */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
       <aside
         className={`
-          fixed md:sticky top-0 md:top-0 left-0 z-50 md:z-30
-          h-full md:h-[calc(100vh-64px)]
-          bg-[#0F1115] text-white
-          flex flex-col border-r border-white/10
-          sidebar-transition
+          fixed md:sticky top-0 left-0 z-50 md:z-30
+          h-screen
+          bg-[#0A0D14] text-white
+          flex flex-col border-r border-slate-800/80
+          sidebar-transition shadow-xl
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          ${sidebarCollapsed ? 'w-16' : 'w-[240px]'}
+          ${sidebarCollapsed ? 'w-20' : 'w-[250px]'}
         `}
       >
-        {/* Sidebar Header */}
-        <div className={`flex items-center gap-3 px-4 h-14 border-b border-white/10 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+        {/* Sidebar Header: Brand & Workshop Node */}
+        <div className={`flex items-center gap-3 px-4 h-16 border-b border-slate-800/80 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <>
-              <div className="size-7 rounded-lg bg-[#9E593B] text-white grid place-items-center shrink-0 shadow-xs">
-                <Scissors size={14} className="text-white" />
+              <div className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center shrink-0 shadow-md ring-1 ring-white/15">
+                <Scissors size={17} className="text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-xs text-white truncate leading-tight">{studioName}</div>
-                <div className="text-[10px] text-stone-400 truncate flex items-center gap-1.5 mt-0.5">
-                  <span className="size-1.5 rounded-full bg-emerald-400" />
-                  <span>Workshop Node</span>
+                <div className="font-bold text-xs text-white truncate leading-tight tracking-wide flex items-center gap-1.5">
+                  <span className="truncate">{studioName}</span>
+                </div>
+                <div className="text-[10px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-slate-300 font-medium">Workshop Node</span>
                 </div>
               </div>
               {/* Collapse button — desktop only */}
               <button
                 onClick={() => setSidebarCollapsed(true)}
-                className="hidden md:grid size-6 place-items-center hover:bg-white/10 text-stone-400 hover:text-white rounded transition-colors cursor-pointer"
+                className="hidden md:grid size-7 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                 title="Collapse sidebar"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={15} />
               </button>
               {/* Close button — mobile only */}
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="md:hidden grid size-6 place-items-center hover:bg-white/10 text-stone-400 hover:text-white rounded transition-colors cursor-pointer"
+                className="md:hidden grid size-7 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </>
           ) : (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="size-7 rounded-lg bg-[#9E593B] text-white grid place-items-center cursor-pointer hover:bg-[#8A4C32] transition-colors shadow-xs"
+              className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center cursor-pointer hover:opacity-90 transition-all shadow-md ring-1 ring-white/15"
               title="Expand sidebar"
             >
-              <Scissors size={14} />
+              <Scissors size={17} />
             </button>
           )}
         </div>
 
-        {/* Online Toggle */}
-        <div className={`p-2.5 border-b border-white/10 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+        {/* Online Status Toggle Capsule */}
+        <div className={`p-3 border-b border-slate-800/60 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <button
               onClick={() => setOnline(!online)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer border ${online
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40 hover:bg-emerald-900/40'
-                : 'bg-stone-900 text-stone-400 border-stone-800 hover:bg-stone-800'
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${online
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50 hover:bg-emerald-900/50'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
                 }`}
             >
-              <div className="flex items-center gap-2">
-                <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-500'}`} />
-                <span>{online ? 'Studio Active' : 'Studio Inactive'}</span>
+              <div className="flex items-center gap-2.5">
+                <div className="relative flex items-center justify-center">
+                  <span className={`size-2.5 rounded-full shrink-0 ${online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                  {online && <span className="absolute size-4 rounded-full bg-emerald-400/40 animate-ping" />}
+                </div>
+                <span>{online ? 'Workshop Active' : 'Workshop Offline'}</span>
               </div>
-              <span className="text-[10px] text-stone-400">{online ? 'Online' : 'Offline'}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>
+                {online ? 'RECEIVING' : 'PAUSED'}
+              </span>
             </button>
           ) : (
             <button
               onClick={() => setOnline(!online)}
-              className="grid place-items-center cursor-pointer p-2 rounded hover:bg-white/10"
-              title={online ? 'Studio Active — Click to deactivate' : 'Studio Inactive — Click to activate'}
+              className="grid place-items-center cursor-pointer p-2.5 rounded-xl hover:bg-white/10"
+              title={online ? 'Workshop Active — Click to pause' : 'Workshop Offline — Click to activate'}
             >
-              <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-stone-600'}`} />
+              <span className={`size-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
             </button>
           )}
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto scrollbar-none">
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-none">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             const Icon = item.icon
@@ -1244,20 +1261,20 @@ export function PartnerFlow({
                 onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-2.5 text-xs font-medium rounded-xl transition-all cursor-pointer
-                  ${sidebarCollapsed ? 'justify-center px-0 py-2.5' : 'px-3 py-2'}
+                  w-full flex items-center gap-3 text-xs font-semibold rounded-xl transition-all cursor-pointer
+                  ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-2.5'}
                   ${active
-                    ? 'bg-[#9E593B] text-white font-semibold shadow-xs'
-                    : 'text-stone-400 hover:text-white hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/20 ring-1 ring-white/15'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
-                <Icon size={15} className={active ? 'text-white' : 'text-stone-400'} />
+                <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />
                 {!sidebarCollapsed && (
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>
                     {badge !== null && badge > 0 && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full leading-none ${item.id === 'cockpit' ? 'bg-amber-400 text-stone-950' : 'bg-white/20 text-white'
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow-2xs ${item.id === 'cockpit' ? 'bg-amber-400 text-slate-950' : 'bg-white/20 text-white'
                         }`}>
                         {badge}
                       </span>
@@ -1270,14 +1287,27 @@ export function PartnerFlow({
         </nav>
 
         {/* Sidebar Footer */}
-        <div className={`p-2 border-t border-white/10 space-y-0.5 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`p-3 border-t border-slate-800/80 space-y-1 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+          {/* Main Customer Site Link */}
+          <a
+            href="http://localhost:3000"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Open Customer Front-end"
+            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
+              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
+          >
+            <ExternalLink size={14} className="text-slate-400" />
+            {!sidebarCollapsed && <span>Customer Site</span>}
+          </a>
+
           <button
             onClick={handleRefresh}
             title="Refresh Order Feed"
-            className={`flex items-center gap-2 text-xs font-medium text-stone-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-8 justify-center' : 'w-full px-3 py-2'}`}
+            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
+              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
+            <RefreshCw size={14} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
             {!sidebarCollapsed && <span>Sync Feed</span>}
           </button>
 
@@ -1287,90 +1317,117 @@ export function PartnerFlow({
               else go('partner')
             }}
             title="Sign Out"
-            className={`flex items-center gap-2 text-xs font-medium text-stone-400 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-8 justify-center' : 'w-full px-3 py-2'}`}
+            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all cursor-pointer
+              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
           >
-            <LogOut size={13} />
+            <LogOut size={14} />
             {!sidebarCollapsed && <span>Sign Out</span>}
           </button>
         </div>
       </aside>
 
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      {/* MAIN CONTENT AREA — WARM CREAM ATELIER DESK                             */}
+      {/* MAIN WORKBENCH DESK — CLEAN SLATE MODERN SAAS                            */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#FAF8F5]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#F8FAFC]">
 
-        {/* ── TOP STATUS BAR ── */}
-        <header className="h-14 bg-[#FAF8F5]/90 backdrop-blur-md border-b border-[#E8E1D5] flex items-center px-4 lg:px-8 gap-4 shrink-0 z-20">
+        {/* ── UNIFIED TOP STATUS BAR ── */}
+        <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/90 flex items-center px-4 lg:px-8 gap-4 shrink-0 z-20 shadow-2xs">
           {/* Mobile hamburger */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="md:hidden size-8 grid place-items-center rounded-lg hover:bg-[#F3EFEA] text-[#1E2229] cursor-pointer"
+            className="md:hidden size-9 grid place-items-center rounded-xl hover:bg-slate-100 text-slate-700 cursor-pointer"
           >
-            <Menu size={16} />
+            <Menu size={18} />
           </button>
 
-          {/* Minimalist Summary Stats (Inline, non-boxy) */}
-          <div className="hidden sm:flex items-center gap-6 text-xs text-[#6B7280] font-medium">
+          {/* Dynamic Section Title & Subtitle */}
+          <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-[#9E593B] font-semibold">Net Earned:</span>
-              <span className="font-bold text-[#1E2229]">${todayEarned}</span>
-              <span className="text-[10px] text-[#6B7280]">(80% Escrow)</span>
+              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                {activeTab === 'cockpit' && 'Workshop Cockpit'}
+                {activeTab === 'pipeline' && 'Alterations Pipeline'}
+                {activeTab === 'payouts' && 'Payouts & Escrow Ledger'}
+                {activeTab === 'profile' && 'Studio Node Configuration'}
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Node
+              </span>
             </div>
-            <span className="h-3 w-px bg-[#E8E1D5]" />
-            <div className="flex items-center gap-2">
-              <span className="text-[#6B7280]">Bench:</span>
-              <span className="font-semibold text-[#1E2229]">{activeOnBench} active</span>
-            </div>
-            <span className="h-3 w-px bg-[#E8E1D5]" />
-            <div className="flex items-center gap-2">
-              <span className="text-[#6B7280]">Drop-Offs:</span>
-              <span className="font-semibold text-[#1E2229]">{pendingDropOffs} scheduled</span>
-            </div>
-            {readyOnRack > 0 && (
-              <>
-                <span className="h-3 w-px bg-[#E8E1D5]" />
-                <div className="flex items-center gap-2">
-                  <span className="text-purple-700 font-semibold">Ready on Rack:</span>
-                  <span className="font-bold text-[#1E2229]">{readyOnRack}</span>
-                </div>
-              </>
-            )}
+            <span className="text-[11px] text-slate-500 truncate hidden sm:block">
+              {activeTab === 'cockpit' && 'Express counter intake, PIN verification & active bench SLA clock'}
+              {activeTab === 'pipeline' && 'Manage orders across intake, sewing bench, QA, and customer collection'}
+              {activeTab === 'payouts' && 'Daily payouts with 80% net guaranteed via instant bank settlement'}
+              {activeTab === 'profile' && 'Manage atelier equipment, specialisms, operating hours & contact info'}
+            </span>
           </div>
 
           <div className="flex-1" />
 
-          {/* Online Indicator */}
-          <button
-            type="button"
-            onClick={() => setOnline(!online)}
-            className="flex items-center gap-2 px-3 py-1 rounded-full bg-white text-xs font-semibold text-[#1E2229] border border-[#E8E1D5] shadow-2xs hover:bg-[#FAF8F5] transition-colors cursor-pointer"
-            title={online ? 'Studio is Active — Click to pause' : 'Studio is Inactive — Click to activate'}
-          >
-            <span className={`size-2 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`} />
-            <span>{online ? 'Studio Active' : 'Studio Inactive'}</span>
-          </button>
+          {/* Right Status Actions */}
+          <div className="flex items-center gap-3">
+            {/* Quick Metrics Capsules */}
+            <div className="hidden xl:flex items-center gap-2 text-xs bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 font-medium">
+              <div className="px-2.5 py-1 rounded-lg bg-white shadow-2xs text-slate-800 font-bold flex items-center gap-1.5">
+                <span className="text-emerald-700">${todayEarned}</span>
+                <span className="text-[10px] text-slate-400 font-normal">Earned</span>
+              </div>
+              <div className="px-2.5 py-1 rounded-lg text-slate-600 flex items-center gap-1">
+                <span className="font-bold text-slate-800">{activeOnBench}</span>
+                <span className="text-[10px] text-slate-400">Bench</span>
+              </div>
+              <div className="px-2.5 py-1 rounded-lg text-slate-600 flex items-center gap-1">
+                <span className="font-bold text-slate-800">{pendingDropOffs}</span>
+                <span className="text-[10px] text-slate-400">Arrivals</span>
+              </div>
+            </div>
 
-          {/* Profile */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('profile')}
-            title="Edit Studio Profile & Configuration"
-            className="flex items-center gap-2.5 pl-3 border-l border-[#E8E1D5] hover:opacity-80 transition-opacity cursor-pointer group text-left"
-          >
-            <div className="size-7 rounded-full bg-[#9E593B] text-white text-xs font-semibold flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
-              {user?.avatar ? (
-                <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
-              ) : (
-                tailorName.charAt(0)
-              )}
-            </div>
-            <div className="hidden lg:block text-left">
-              <div className="text-xs font-semibold text-[#1E2229] leading-tight truncate max-w-[120px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
-              <div className="text-[10px] text-[#9E593B] font-medium">Master Tailor ✎</div>
-            </div>
-          </button>
+            {/* Refresh Feed */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              title="Sync Feed with Cloud"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#9E593B]' : 'text-slate-500'} />
+              <span className="hidden md:inline">Sync</span>
+            </button>
+
+            {/* Online Toggle Switch */}
+            <button
+              type="button"
+              onClick={() => setOnline(!online)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs ${online
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+              }`}
+              title={online ? 'Studio Active · Click to pause' : 'Studio Inactive · Click to activate'}
+            >
+              <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+              <span className="hidden sm:inline">{online ? 'Active' : 'Paused'}</span>
+            </button>
+
+            {/* Master Tailor Profile Pill */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              title="Edit Studio Profile & Configuration"
+              className="flex items-center gap-2.5 pl-3 border-l border-slate-200 hover:opacity-85 transition-opacity cursor-pointer group text-left"
+            >
+              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-2xs ring-2 ring-[#9E593B]/20 group-hover:scale-105 transition-transform overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
+                ) : (
+                  tailorName.charAt(0)
+                )}
+              </div>
+              <div className="hidden lg:block text-left">
+                <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+                <div className="text-[10px] text-[#9E593B] font-semibold">Master Tailor ✎</div>
+              </div>
+            </button>
+          </div>
         </header>
 
         {/* ── SCROLLABLE WORKSPACE ── */}
@@ -1464,649 +1521,850 @@ export function PartnerFlow({
             {activeTab === 'cockpit' && (
               <div className="space-y-6">
 
-                {/* ── INTEGRATED METRICS RIBBON (Warm Linen Palette) ── */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E8E1D5]">
-                  <div className="p-3 sm:p-4 sm:first:pl-2">
-                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Today's Payout</span>
-                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">${todayEarned}</div>
-                    <span className="text-xs text-[#9E593B] font-semibold mt-0.5 block">80% Net · Rolling Escrow</span>
+                {/* ── 4 UIVERSE-INSPIRED ELEVATED METRIC CARDS ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Today's Net Payout */}
+                  <div className="uiverse-stat-card uiverse-stat-emerald group cursor-default">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        Today's Payout
+                      </span>
+                      <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
+                        <DollarSign size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        ${todayEarned}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                        80% Net
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      Rolling Escrow &bull; Instant Settlement
+                    </p>
                   </div>
 
-                  <div className="p-3 sm:p-4">
-                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">On Sewing Bench</span>
-                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{activeOnBench} <span className="text-sm font-normal text-[#6B7280]">garments</span></div>
-                    <span className="text-xs text-[#6B7280] font-medium mt-0.5 block">{activeOnBench > 0 ? 'SLA Timers Running' : 'All Workstations Ready'}</span>
+                  {/* Card 2: Active on Sewing Bench */}
+                  <div className="uiverse-stat-card uiverse-stat-amber group cursor-default">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        On Sewing Bench
+                      </span>
+                      <div className="size-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
+                        <Scissors size={15} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        {activeOnBench}
+                      </span>
+                      <span className="text-xs font-medium text-slate-500">garments</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700 mt-2 font-semibold flex items-center gap-1.5">
+                      <span className={`size-1.5 rounded-full ${activeOnBench > 0 ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
+                      {activeOnBench > 0 ? 'Live SLA Timers Running' : 'All Workstations Ready'}
+                    </p>
                   </div>
 
-                  <div className="p-3 sm:p-4">
-                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Drop-Off Queue</span>
-                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{pendingDropOffs} <span className="text-sm font-normal text-[#6B7280]">scheduled</span></div>
-                    <span className="text-xs text-[#6B7280] font-medium mt-0.5 block">Awaiting PIN Ingress</span>
+                  {/* Card 3: Drop-Off Queue */}
+                  <div className="uiverse-stat-card uiverse-stat-sky group cursor-default">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        Drop-Off Queue
+                      </span>
+                      <div className="size-8 rounded-xl bg-sky-50 text-sky-600 border border-sky-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
+                        <Package size={15} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        {pendingDropOffs}
+                      </span>
+                      <span className="text-xs font-medium text-slate-500">scheduled</span>
+                    </div>
+                    <p className="text-[11px] text-sky-700 mt-2 font-semibold flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-sky-500" />
+                      Counter PIN Ingress Active
+                    </p>
                   </div>
 
-                  <div className="p-3 sm:p-4 sm:last:pr-2">
-                    <span className="text-[11px] font-semibold text-[#6B7280] uppercase tracking-wider block">Ready on Rack</span>
-                    <div className="text-2xl sm:text-3xl font-bold text-[#1E2229] mt-1">{readyOnRack} <span className="text-sm font-normal text-[#6B7280]">finished</span></div>
-                    <span className="text-xs text-purple-700 font-semibold mt-0.5 block">{readyOnRack > 0 ? 'Pickup Alerts Sent' : 'Rack Clear'}</span>
+                  {/* Card 4: Ready on Rack */}
+                  <div className="uiverse-stat-card uiverse-stat-purple group cursor-default">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        Ready on Rack
+                      </span>
+                      <div className="size-8 rounded-xl bg-purple-50 text-purple-600 border border-purple-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
+                        <CheckCircle2 size={16} />
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                      <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        {readyOnRack}
+                      </span>
+                      <span className="text-xs font-medium text-slate-500">finished</span>
+                    </div>
+                    <p className="text-[11px] text-purple-700 mt-2 font-semibold flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-purple-500" />
+                      {readyOnRack > 0 ? 'Pickup Alerts Dispatched' : 'Rack Clear & Calibrated'}
+                    </p>
                   </div>
                 </div>
 
-                {/* ── 2 Main Functional Areas: Customer Intake & Sewing Bench ── */}
-                <div className="grid lg:grid-cols-12 gap-6 items-start">
-
-                  {/* ── LEFT: IN-STORE COUNTER INGRESS TERMINAL ── */}
-                  <div className="lg:col-span-7 space-y-4">
-                    {!activeIntake ? (
-                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-6">
-
-                        {/* Header */}
-                        <div className="flex items-start justify-between border-b border-[#E8E1D5] pb-4">
-                          <div>
-                            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#9E593B] mb-0.5">
-                              <Package size={13} className="text-[#9E593B]" />
-                              <span>Counter Ingress</span>
-                            </div>
-                            <h2 className="text-lg sm:text-xl font-bold text-[#1E2229]">
-                              Drop-Off Verification &amp; Intake
-                            </h2>
-                            <p className="text-xs text-[#6B7280] mt-1">
-                              Enter customer's 4-digit drop-off PIN to retrieve specs and place garment on sewing bench.
-                            </p>
-                          </div>
-
-                          <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200 shrink-0">
-                            Counter Ready
-                          </span>
+                {/* ── WORKBENCH FLOOR: DEDICATED DOCKET OR 3-STATION ATELIER PRODUCTION FLOOR ── */}
+                {activeIntake ? (
+                  /* ── FULL-WIDTH ATELIER INTAKE & INSPECTION DOCKET ── */
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6 animate-scaleUp">
+                    {/* Status Banner */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-emerald-50/90 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+                      <div className="flex items-center gap-3.5">
+                        <div className="size-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <CheckCircle2 size={22} />
                         </div>
-
-                        {/* Interactive Unified 4-Digit PIN Terminal */}
-                        <div className="p-6 rounded-2xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-[#1E2229] uppercase tracking-wide">
-                              Customer 4-Digit Drop-Off PIN
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-extrabold text-emerald-950 uppercase tracking-wide">
+                              Garment Intake &amp; Drop-Off Inspection
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => setShowKeypad(!showKeypad)}
-                              className="text-xs font-medium text-[#9E593B] hover:underline cursor-pointer"
-                            >
-                              {showKeypad ? 'Hide Keypad' : 'Tactile Keypad'}
-                            </button>
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
+                              Drop-off PIN Verified
+                            </span>
                           </div>
-
-                          {/* Seamless Single PIN Entry Experience */}
-                          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                            <div className="relative flex items-center justify-center gap-2.5 sm:gap-3">
-                              {/* Invisible input overlaying the slots */}
-                              <input
-                                type="text"
-                                maxLength={4}
-                                value={pinInput}
-                                autoFocus
-                                onChange={(e) => {
-                                  const val = e.target.value.replace(/[^0-9]/g, '')
-                                  setPinInput(val)
-                                  setPinError('')
-                                  if (val.length === 4) {
-                                    handleLookupPin(val)
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && pinInput) handleLookupPin(pinInput)
-                                }}
-                                className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full text-transparent"
-                                aria-label="Enter 4-digit PIN"
-                              />
-
-                              {[0, 1, 2, 3].map((idx) => {
-                                const digit = pinInput[idx] || ''
-                                const isFocused = pinInput.length === idx
-                                return (
-                                  <div
-                                    key={idx}
-                                    className={`size-14 sm:size-16 rounded-xl bg-white border flex items-center justify-center font-mono font-bold text-2xl sm:text-3xl transition-all shadow-2xs ${digit
-                                      ? 'border-[#1E2229] text-[#1E2229] bg-white'
-                                      : isFocused
-                                        ? 'border-[#9E593B] ring-3 ring-[#9E593B]/20 bg-white'
-                                        : 'border-[#E8E1D5] text-[#D1D5DB]'
-                                      }`}
-                                  >
-                                    {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
-                                  </div>
-                                )
-                              })}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleLookupPin(pinInput)}
-                              disabled={pinInput.length === 0}
-                              className={`w-full sm:w-auto px-6 py-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${pinInput.length === 4
-                                ? 'bg-[#0F1115] hover:bg-[#9E593B] text-white active:scale-95'
-                                : 'bg-[#E5E7EB] text-[#9CA3AF] cursor-not-allowed'
-                                }`}
-                            >
-                              <ShieldCheck size={15} />
-                              <span>Verify &amp; Intake →</span>
-                            </button>
-                          </div>
-
-                          {pinError && (
-                            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle size={14} className="shrink-0" />
-                                <span>{pinError}</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setPinInput('')}
-                                className="text-xs underline text-red-800 cursor-pointer"
-                              >
-                                Clear
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Tactile Keypad (on demand) */}
-                          {showKeypad && (
-                            <div className="pt-3 border-t border-[#E8E1D5]">
-                              <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-                                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLEAR', '0', 'BACK'].map((key) => (
-                                  <button
-                                    key={key}
-                                    type="button"
-                                    onClick={() => handleKeypadPress(key)}
-                                    className={`py-3 rounded-xl font-mono text-sm font-bold transition-all cursor-pointer active:scale-95 ${key === 'CLEAR' || key === 'BACK'
-                                      ? 'bg-[#E8E1D5] text-[#1E2229] hover:bg-[#DDD6CB] text-xs'
-                                      : 'bg-white hover:bg-[#0F1115] hover:text-white text-[#1E2229] border border-[#E8E1D5] shadow-2xs'
-                                      }`}
-                                  >
-                                    {key}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                          <p className="text-xs text-emerald-800 font-medium mt-0.5">
+                            Customer authenticated at counter &bull; Inspect fabric, confirm tailoring specifications, and transfer to sewing bench.
+                          </p>
                         </div>
-
-
-
                       </div>
-                    ) : (
-                      /* Active Garment Intake Inspection Docket */
-                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5 animate-scaleUp">
-                        {/* ── Status Banner: Pickup is Taken / PIN Verified ── */}
-                        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 shadow-2xs">
-                          <div className="flex items-center gap-3">
-                            <div className="size-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                              <CheckCircle2 size={18} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-extrabold text-emerald-950 uppercase tracking-wide">
-                                  Pickup is Taken · Drop-off Confirmed
-                                </span>
-                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-900 border border-emerald-300">
-                                  PIN Verified
-                                </span>
-                              </div>
-                              <p className="text-xs text-emerald-800 font-medium mt-0.5">
-                                Customer drop-off PIN {activeIntake.otp || pinInput} authenticated &bull; Garment received at counter
-                              </p>
-                            </div>
-                          </div>
-                          <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-white border border-emerald-200 px-3 py-1.5 rounded-full shadow-2xs">
-                            <Check size={14} className="text-emerald-600" />
-                            <span>Checked In</span>
-                          </span>
-                        </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveIntake(null)
+                          setPinInput('')
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-900 text-xs font-bold transition-colors cursor-pointer shrink-0"
+                      >
+                        ← Back to Floor
+                      </button>
+                    </div>
 
-                        {/* Header with Photo & Tag */}
-                        <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#E8E1D5]">
-                          <div className="flex items-start gap-3.5 min-w-0">
-                            <div className="size-16 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                    {/* 2-Column Inspection Grid */}
+                    <div className="grid lg:grid-cols-12 gap-6 items-start">
+                      {/* Left: Garment Profile & Condition */}
+                      <div className="lg:col-span-5 space-y-5">
+                        {/* Garment Summary Card */}
+                        <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
+                          <div className="flex items-start gap-4">
+                            <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
                               <img
                                 src={getGarmentPhoto(activeIntake)}
                                 alt={activeIntake.garmentName}
                                 className="w-full h-full object-cover"
                               />
                             </div>
-                            <div>
-                              <h3 className="text-base font-bold text-[#1E2229]">{activeIntake.garmentName}</h3>
-                              <p className="text-xs text-[#6B7280]">{activeIntake.customerName} · {activeIntake.serviceName}</p>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] block mb-1">
+                                Order #{activeIntake.id.slice(0, 8)}
+                              </span>
+                              <h3 className="text-lg font-bold text-slate-900 leading-tight">
+                                {activeIntake.garmentName}
+                              </h3>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {activeIntake.customerName} &bull; {activeIntake.serviceName}
+                              </p>
+                              <div className="mt-3 flex items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                                  ${activeIntake.partnerPayout || Math.round((activeIntake.price || 35) * 0.75)} Net Payout (80%)
+                                </span>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="text-right">
-                            <div className="text-xs font-bold text-emerald-800">
-                              ${activeIntake.partnerPayout || Math.round((activeIntake.price || 35) * 0.75)} Net Payout
+                          {/* Customer Fit Notes */}
+                          {activeIntake.fitNotes && formatCustomerFitNotes(activeIntake.fitNotes) && (
+                            <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-1">
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 block">
+                                Client Fit Instructions
+                              </span>
+                              <p className="text-slate-800 font-medium leading-relaxed">
+                                {formatCustomerFitNotes(activeIntake.fitNotes)}
+                              </p>
                             </div>
-                          </div>
+                          )}
                         </div>
 
-                        {/* Customer Fit Notes */}
-                        {activeIntake.fitNotes && formatCustomerFitNotes(activeIntake.fitNotes) && (
-                          <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs">
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-1">
-                              Customer Fit Instructions
-                            </span>
-                            <p className="text-[#1E2229] font-medium leading-relaxed">
-                              {formatCustomerFitNotes(activeIntake.fitNotes)}
-                            </p>
-                          </div>
-                        )}
+                        {/* Intake Inspection Checklist */}
+                        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-4 shadow-2xs">
+                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                            <Tag size={14} className="text-[#9E593B]" />
+                            <span>Garment Intake Tags &amp; Condition</span>
+                          </h4>
 
-                        {/* Inspection Checklist */}
-                        <div className="space-y-3 text-xs">
-                          <div className="grid sm:grid-cols-2 gap-3">
+                          <div className="space-y-3 text-xs">
                             <div>
-                              <label className="block font-semibold text-[#1E2229] mb-1">Fabric Condition Notes</label>
-                              <input
-                                type="text"
-                                value={conditionNotes}
-                                onChange={(e) => setConditionNotes(e.target.value)}
-                                placeholder="e.g. Clean wool, pristine fabric"
-                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] focus:border-[#9E593B] focus:outline-none bg-white transition-colors"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-semibold text-[#1E2229] mb-1">Garment Rack Hang-Tag</label>
+                              <label className="block font-semibold text-slate-700 mb-1">Garment Rack Hang-Tag</label>
                               <input
                                 type="text"
                                 value={hangTag}
                                 onChange={(e) => setHangTag(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] font-mono font-semibold focus:border-[#9E593B] focus:outline-none bg-white transition-colors"
+                                placeholder="e.g. RACK-A-12"
+                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 font-mono font-bold text-slate-900 focus:border-[#9E593B] focus:outline-none bg-slate-50/50 transition-colors"
                               />
                             </div>
-                          </div>
 
-                          {/* Measurements Section */}
-                          <div className="p-4 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Scissors size={14} className="text-[#9E593B]" />
-                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B]">
-                                  Tailor Specifications &amp; Measurements
-                                </span>
-                              </div>
-
-                              {!isEditingIntakeMeas ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setIsEditingIntakeMeas(true)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer"
-                                >
-                                  <Edit3 size={12} />
-                                  <span>Edit Measurements</span>
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setIsEditingIntakeMeas(false)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-black text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                                >
-                                  <Check size={12} />
-                                  <span>Done Editing</span>
-                                </button>
-                              )}
-                            </div>
-
-                            {!isEditingIntakeMeas ? (
-                              /* Clean Specs Display (Kept as is, not showing raw empty textboxes directly) */
-                              <div className="space-y-2">
-                                {intakeMeasFields.length > 0 && intakeMeasFields.some(f => f.value && f.value.trim()) ? (
-                                  <div className="flex flex-wrap gap-2">
-                                    {intakeMeasFields.map((field, idx) => (
-                                      <div
-                                        key={idx}
-                                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E8E1D5] text-xs shadow-2xs"
-                                      >
-                                        <span className="font-semibold text-gray-500">{field.label}:</span>
-                                        <span className={`font-mono font-bold ${field.value.toLowerCase().includes('measured by tailor') ? 'text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-[11px]' : 'text-[#0F1115]'}`}>
-                                          {field.value}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="p-3 bg-white/80 rounded-xl border border-[#E8E1D5] text-xs text-gray-500 font-medium">
-                                    No pre-set fit numbers &bull; Customer requested in-person measurement at bench.
-                                  </div>
-                                )}
-
-                                <div className="flex flex-wrap items-center justify-between text-[11px] text-gray-500 pt-1 gap-2">
-                                  <span className="flex items-center gap-1.5 text-emerald-800 font-semibold">
-                                    <Check size={13} className="text-emerald-600" />
-                                    Current fit specifications retained (keep as is)
-                                  </span>
-                                  <span className="text-gray-400">
-                                    Click &quot;Edit Measurements&quot; if customer requests fit modifications
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              /* Interactive Editor View when customer needs changes */
-                              <div className="space-y-3 pt-1 animate-in fade-in duration-150">
-                                <p className="text-[11px] text-gray-600 font-medium">
-                                  Customer requested changes: Update or enter measured fit values below:
-                                </p>
-
-                                <div className="grid sm:grid-cols-2 gap-2.5">
-                                  {intakeMeasFields.map((field, idx) => (
-                                    <div key={idx} className="bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
-                                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                                        {field.label}
-                                      </label>
-                                      <input
-                                        type="text"
-                                        value={field.value}
-                                        onChange={(e) => {
-                                          const val = e.target.value
-                                          setIntakeMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
-                                          if (field.key === 'hem' || field.key.includes('hem')) setMeasHem(val)
-                                          if (field.key === 'waist' || field.key.includes('waist')) setMeasWaist(val)
-                                          if (field.key === 'sleeve' || field.key.includes('sleeve')) setMeasSleeve(val)
-                                          if (field.key === 'inseam' || field.key.includes('inseam')) setMeasInseam(val)
-                                        }}
-                                        placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
-                                        className="w-full px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none font-mono"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-
-                                <div className="flex items-center justify-between pt-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newKey = `custom_${Date.now()}`
-                                      setIntakeMeasFields(prev => [...prev, { key: newKey, label: 'Custom Fit Note', value: '' }])
-                                    }}
-                                    className="text-xs text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-                                  >
-                                    <Plus size={12} />
-                                    <span>Add Custom Fit Field</span>
-                                  </button>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        if (activeIntake) {
-                                          const parsed = parseOrderMeasurements(activeIntake)
-                                          const entries = Object.entries(parsed)
-                                          if (entries.length > 0) {
-                                            setIntakeMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
-                                          }
-                                        }
-                                        setIsEditingIntakeMeas(false)
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-                                    >
-                                      Cancel / Keep Original
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setIsEditingIntakeMeas(false)}
-                                      className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-black text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
-                                    >
-                                      ✓ Save Specifications
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Tailor & Machine */}
-                          <div className="grid sm:grid-cols-2 gap-3">
                             <div>
-                              <label className="block font-semibold text-[#1E2229] mb-1">Assigned Master Tailor</label>
+                              <label className="block font-semibold text-slate-700 mb-1">Fabric Condition Notes</label>
                               <input
                                 type="text"
-                                value={worker}
-                                onChange={(e) => setWorker(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white text-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block font-semibold text-[#1E2229] mb-1">Sewing Machine Bench</label>
-                              <input
-                                type="text"
-                                value={machine}
-                                onChange={(e) => setMachine(e.target.value)}
-                                className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white text-xs"
+                                value={conditionNotes}
+                                onChange={(e) => setConditionNotes(e.target.value)}
+                                placeholder="e.g. Clean wool, pristine condition, no preexisting snags"
+                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-slate-900 focus:border-[#9E593B] focus:outline-none bg-slate-50/50 transition-colors"
                               />
                             </div>
                           </div>
                         </div>
+                      </div>
 
-                        {/* Surcharge Option */}
-                        <div className="pt-1">
-                          {!showPriceAdjust ? (
-                            <button
-                              type="button"
-                              onClick={() => setShowPriceAdjust(true)}
-                              className="text-xs font-medium text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                            >
-                              <Plus size={12} />
-                              <span>Add surcharge for complex silk / extra fabric work</span>
-                            </button>
+                      {/* Right: Measurements, Tailor Bench & Confirmation */}
+                      <div className="lg:col-span-7 space-y-5">
+                        {/* Measurements Section */}
+                        <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Scissors size={15} className="text-[#9E593B]" />
+                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Tailoring Specifications &amp; Pin Points
+                              </span>
+                            </div>
+
+                            {!isEditingIntakeMeas ? (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingIntakeMeas(true)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Edit3 size={12} />
+                                <span>Modify Measurements</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingIntakeMeas(false)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                              >
+                                <Check size={12} />
+                                <span>Done Editing</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {!isEditingIntakeMeas ? (
+                            <div className="space-y-3">
+                              {intakeMeasFields.length > 0 && intakeMeasFields.some((f) => f.value && f.value.trim()) ? (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                  {intakeMeasFields.map((field, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs"
+                                    >
+                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                                        {field.label}
+                                      </span>
+                                      <span className="font-mono font-bold text-slate-900 text-sm">
+                                        {field.value}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="p-4 bg-white rounded-xl border border-slate-200 text-xs text-slate-500 font-medium">
+                                  No pre-set fit numbers &bull; Customer requested in-person measurement at bench.
+                                </div>
+                              )}
+
+                              <p className="text-[11px] text-slate-400">
+                                Fit specifications are locked to the docket. Click &quot;Modify Measurements&quot; if the customer asks for on-the-spot adjustments.
+                              </p>
+                            </div>
                           ) : (
-                            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
-                              <span className="font-bold text-amber-950">Complex Fabric Surcharge</span>
-                              <div className="flex gap-2">
-                                <input
-                                  type="number"
-                                  placeholder="Amount ($)"
-                                  value={priceAdjustAmount}
-                                  onChange={(e) => setPriceAdjustAmount(e.target.value)}
-                                  className="w-24 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 font-bold"
-                                />
-                                <input
-                                  type="text"
-                                  placeholder="Reason (e.g. heavy hand-stitch lining)"
-                                  value={priceAdjustReason}
-                                  onChange={(e) => setPriceAdjustReason(e.target.value)}
-                                  className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300"
-                                />
+                            <div className="space-y-3 pt-1 animate-fadeIn">
+                              <p className="text-xs text-slate-600 font-medium">
+                                Update or enter custom fit parameters below:
+                              </p>
+
+                              <div className="grid sm:grid-cols-2 gap-2.5">
+                                {intakeMeasFields.map((field, idx) => (
+                                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                                      {field.label}
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={field.value}
+                                      onChange={(e) => {
+                                        const val = e.target.value
+                                        setIntakeMeasFields((prev) =>
+                                          prev.map((f, i) => (i === idx ? { ...f, value: val } : f))
+                                        )
+                                        if (field.key === 'hem' || field.key.includes('hem')) setMeasHem(val)
+                                        if (field.key === 'waist' || field.key.includes('waist')) setMeasWaist(val)
+                                        if (field.key === 'sleeve' || field.key.includes('sleeve')) setMeasSleeve(val)
+                                        if (field.key === 'inseam' || field.key.includes('inseam')) setMeasInseam(val)
+                                      }}
+                                      placeholder={`Enter ${field.label}`}
+                                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:border-[#9E593B] outline-none font-mono"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2">
                                 <button
                                   type="button"
-                                  onClick={() => setPriceAdjustApproved(true)}
-                                  className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold cursor-pointer transition-colors"
+                                  onClick={() => {
+                                    const newKey = `custom_${Date.now()}`
+                                    setIntakeMeasFields((prev) => [
+                                      ...prev,
+                                      { key: newKey, label: 'Custom Fit Note', value: '' },
+                                    ])
+                                  }}
+                                  className="text-xs text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
                                 >
-                                  {priceAdjustApproved ? '✓ Added' : 'Apply'}
+                                  <Plus size={12} />
+                                  <span>Add Custom Spec Field</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingIntakeMeas(false)}
+                                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold transition-colors cursor-pointer"
+                                >
+                                  ✓ Save Fit Specs
                                 </button>
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {/* Confirmation Buttons */}
-                        <div className="pt-4 border-t border-[#E8E1D5] flex items-center justify-between gap-3">
+                        {/* Station Allocation */}
+                        <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-4 shadow-2xs">
+                          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                            <Sliders size={14} className="text-[#9E593B]" />
+                            <span>Workstation &amp; Tailor Assignment</span>
+                          </h4>
+
+                          <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                            <div>
+                              <label className="block font-semibold text-slate-700 mb-1">Assigned Master Tailor</label>
+                              <input
+                                type="text"
+                                value={worker}
+                                onChange={(e) => setWorker(e.target.value)}
+                                placeholder="e.g. Master Tailor Marco"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 font-medium focus:border-[#9E593B] focus:outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-semibold text-slate-700 mb-1">Sewing Machine Bench</label>
+                              <input
+                                type="text"
+                                value={machine}
+                                onChange={(e) => setMachine(e.target.value)}
+                                placeholder="e.g. Juki DDL-8700 Bench #2"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 font-medium focus:border-[#9E593B] focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Complex Fabric Surcharge Option */}
+                          <div className="pt-1">
+                            {!showPriceAdjust ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowPriceAdjust(true)}
+                                className="text-xs font-medium text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                              >
+                                <Plus size={12} />
+                                <span>Add complex fabric / delicate lining surcharge</span>
+                              </button>
+                            ) : (
+                              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
+                                <span className="font-bold text-amber-950">Complex Fabric Surcharge</span>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="number"
+                                    placeholder="Amount ($)"
+                                    value={priceAdjustAmount}
+                                    onChange={(e) => setPriceAdjustAmount(e.target.value)}
+                                    className="w-24 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 font-bold"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="Reason (e.g. delicate silk lining)"
+                                    value={priceAdjustReason}
+                                    onChange={(e) => setPriceAdjustReason(e.target.value)}
+                                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPriceAdjustApproved(true)}
+                                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-[#9E593B] text-white font-semibold cursor-pointer transition-colors"
+                                  >
+                                    {priceAdjustApproved ? '✓ Added' : 'Apply'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Confirmation Bar */}
+                        <div className="pt-2 flex items-center justify-between gap-4">
                           <button
                             type="button"
                             onClick={() => {
                               setActiveIntake(null)
                               setPinInput('')
                             }}
-                            className="px-4 py-2.5 rounded-xl border border-[#E8E1D5] text-xs font-medium text-[#6B7280] hover:bg-[#F3EFEA] cursor-pointer transition-colors"
+                            className="px-5 py-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
                           >
-                            Cancel
+                            Cancel Intake
                           </button>
 
                           <button
                             type="button"
                             onClick={handleConfirmIntakeAndStart}
-                            className="flex-1 bg-[#0F1115] hover:bg-[#9E593B] text-white py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95"
+                            className="flex-1 bg-slate-900 hover:bg-[#9E593B] text-white py-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
                           >
-                            <Scissors size={14} />
-                            <span>Confirm Intake &amp; Start SLA Clock →</span>
+                            <Scissors size={15} />
+                            <span>Confirm Intake &amp; Start Sewing SLA Clock →</span>
                           </button>
                         </div>
 
                         {intakeSuccess && (
-                          <div className="p-3 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-semibold text-center border border-emerald-200">
-                            ✓ Intake complete! Garment placed on bench &amp; SLA clock started.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── RIGHT: LIVE SEWING BENCH & WORKSTATIONS FLOOR ── */}
-                  <div className="lg:col-span-5 space-y-4">
-                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-5">
-
-                      {/* Bench Header */}
-                      <div className="flex items-center justify-between pb-3.5 border-b border-[#E8E1D5]">
-                        <div>
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-[#9E593B] block mb-0.5">
-                            Atelier Workstations
-                          </span>
-                          <h3 className="text-base font-bold text-[#1E2229]">
-                            Garments in Progress ({activeOnBench})
-                          </h3>
-                        </div>
-
-                        <span className="text-xs font-semibold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/20 px-2.5 py-0.5 rounded-full">
-                          Live SLA
-                        </span>
-                      </div>
-
-                      {/* Active Garments List */}
-                      <div className="space-y-3">
-                        {orders
-                          .filter((o) => o.status === 'Work in Progress')
-                          .map((order) => {
-                            const sla = getSlaCountdown(order)
-                            return (
-                              <div
-                                key={order.id}
-                                className="p-4 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] space-y-3 shadow-2xs"
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-start gap-3 min-w-0">
-                                    <div className="size-12 rounded-lg overflow-hidden bg-stone-200 border border-[#E8E1D5] shrink-0">
-                                      <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <div className="flex items-center gap-1.5 mb-0.5">
-                                        {order.hangTagNo && (
-                                          <span className="text-[10px] font-mono font-semibold bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 px-1.5 py-0.2 rounded">
-                                            {order.hangTagNo}
-                                          </span>
-                                        )}
-                                      </div>
-                                      <h4 className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</h4>
-                                      <p className="text-[11px] text-[#6B7280] truncate">{order.customerName} · {order.serviceName}</p>
-                                    </div>
-                                  </div>
-
-                                  <div className="text-right shrink-0">
-                                    <span className="font-bold text-xs text-emerald-800 block">
-                                      ${order.partnerPayout || Math.round((order.price || 35) * 0.75)}
-                                    </span>
-                                    <span className={`text-[10px] font-medium flex items-center justify-end gap-1 ${sla.urgent ? 'text-red-600 font-bold' : 'text-[#6B7280]'}`}>
-                                      <Clock size={10} />
-                                      <span>{sla.text}</span>
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {(() => {
-                                  const summary = formatOrderSpecsSummary(order)
-                                  return summary ? (
-                                    <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono">
-                                      {summary}
-                                    </div>
-                                  ) : null
-                                })()}
-
-                                {/* SLA Countdown Progress */}
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-[10px] text-[#6B7280] font-medium">
-                                    <span>Turnaround SLA</span>
-                                    <span>{Math.round(sla.percent)}% remaining</span>
-                                  </div>
-                                  <div className="h-1.5 rounded-full bg-[#E8E1D5] overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all duration-500 ${sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
-                                        }`}
-                                      style={{ width: `${sla.percent}%` }}
-                                    />
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleMarkAlterationDone(order.id)}
-                                  className="w-full py-2 bg-[#0F1115] hover:bg-[#9E593B] text-white rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-95"
-                                >
-                                  <CheckCircle size={13} />
-                                  <span>Mark Alteration Done (Alert Customer) →</span>
-                                </button>
-                              </div>
-                            )
-                          })}
-
-                        {activeOnBench === 0 && (
-                          <div className="py-8 px-4 rounded-2xl bg-[#FAF8F5] border border-dashed border-[#E8E1D5] text-center space-y-2">
-                            <div className="size-10 rounded-full bg-[#FAF3EC] text-[#9E593B] mx-auto grid place-items-center">
-                              <Scissors size={18} />
-                            </div>
-                            <div className="text-xs font-semibold text-[#1E2229]">No Garments Currently on Sewing Bench</div>
-                            <p className="text-[11px] text-[#766F66] max-w-[280px] mx-auto">
-                              Verify an incoming customer drop-off PIN to allocate garments and begin alterations.
-                            </p>
+                          <div className="p-3.5 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold text-center border border-emerald-200 animate-fadeIn">
+                            ✓ Garment checked in &amp; placed on sewing bench! Live SLA started.
                           </div>
                         )}
                       </div>
                     </div>
+                  </div>
+                ) : (
+                  /* ── ATELIER WORKBENCH FLOOR: HORIZONTAL EXPRESS COUNTER + 3-STATION KANBAN BOARD ── */
+                  <div className="space-y-6">
 
-                    {/* Ready on Rack Shelf */}
-                    {readyOnRack > 0 && (
-                      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs space-y-3">
-                        <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-2">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#1E2229]">
-                            <CheckCircle2 size={15} className="text-emerald-700" />
-                            <span>Ready on Rack for Pickup ({readyOnRack})</span>
+                    {/* 1. HORIZONTAL EXPRESS INGRESS COUNTER BAR */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-sm">
+                      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-5">
+
+                        {/* Left: Counter Context */}
+                        <div className="flex items-center gap-3.5">
+                          <div className="size-11 rounded-2xl bg-amber-50 text-[#9E593B] border border-amber-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+                            <Package size={20} />
                           </div>
-                          <span className="text-[10px] font-semibold bg-emerald-50 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                            Alerted
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-base font-bold text-slate-900">
+                                Express Drop-Off Ingress
+                              </h2>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Counter Online
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              Key in client's 4-digit drop-off PIN to verify booking, inspect garment, and queue to bench.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right: Direct 4-Digit Ingress Input Strip */}
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+                          <div className="relative flex items-center gap-2">
+                            {/* Hidden capture input */}
+                            <input
+                              id="studio-counter-pin-input"
+                              type="text"
+                              maxLength={4}
+                              value={pinInput}
+                              autoFocus
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/[^0-9]/g, '')
+                                setPinInput(val)
+                                setPinError('')
+                                if (val.length === 4) {
+                                  handleLookupPin(val)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && pinInput) handleLookupPin(pinInput)
+                              }}
+                              className="absolute inset-0 opacity-0 cursor-pointer z-10 w-full h-full text-transparent"
+                              aria-label="Enter 4-digit PIN"
+                            />
+
+                            {[0, 1, 2, 3].map((idx) => {
+                              const digit = pinInput[idx] || ''
+                              const isFocused = pinInput.length === idx
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`uiverse-pin-slot size-12 sm:size-13 font-mono font-bold text-xl sm:text-2xl ${
+                                    digit ? 'filled text-slate-900' : isFocused ? 'active text-[#9E593B]' : 'text-slate-300'
+                                  }`}
+                                >
+                                  {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleLookupPin(pinInput)}
+                            disabled={pinInput.length === 0}
+                            className={`px-5 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
+                              pinInput.length === 4
+                                ? 'bg-slate-900 hover:bg-[#9E593B] text-white active:scale-95 shadow-sm'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            }`}
+                          >
+                            <ShieldCheck size={16} />
+                            <span>Verify Drop-off →</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setShowKeypad(!showKeypad)}
+                            className="px-3.5 py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold shrink-0 cursor-pointer transition-colors"
+                            title="Toggle tactile on-screen keypad"
+                          >
+                            {showKeypad ? '✕ Keypad' : '🔢 Keypad'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Error Banner */}
+                      {pinError && (
+                        <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold flex items-center justify-between gap-2 animate-fadeIn">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle size={15} className="shrink-0 text-red-600" />
+                            <span>{pinError}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPinInput('')}
+                            className="text-xs underline text-red-800 font-bold cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Tactile Keypad Drawer */}
+                      {showKeypad && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+                          <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
+                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'CLEAR', '0', 'BACK'].map((key) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => handleKeypadPress(key)}
+                                className={`uiverse-keypad-btn ${
+                                  key === 'CLEAR' || key === 'BACK' ? 'bg-slate-100 text-slate-700 text-xs font-bold' : ''
+                                }`}
+                              >
+                                {key === 'BACK' ? '⌫' : key}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. THREE-STATION ATELIER PRODUCTION FLOOR (KANBAN WORKFLOW) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+                      {/* ═══ STATION 1: DROP-OFF QUEUE ═══ */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="size-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs">
+                              1
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                                Scheduled Arrivals
+                              </h3>
+                              <p className="text-[11px] text-slate-400">Clients arriving today</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full">
+                            {pendingDropOffs} expected
                           </span>
                         </div>
 
-                        <div className="space-y-2">
-                          {orders
-                            .filter((o) => o.status === 'Ready')
-                            .map((order) => (
-                              <div
-                                key={order.id}
-                                className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-between gap-3 text-xs"
-                              >
-                                <div>
-                                  <div className="font-semibold text-[#1E2229]">{order.customerName} · {order.garmentName}</div>
-                                  <div className="text-[11px] text-[#6B7280] font-mono mt-0.5">
-                                    {order.hangTagNo || 'Rack A'}
+                        {/* List */}
+                        <div className="space-y-3">
+                          {orders.filter((o) => ['Accepted', 'Allocated', 'Customer Arrived'].includes(o.status)).length > 0 ? (
+                            orders
+                              .filter((o) => ['Accepted', 'Allocated', 'Customer Arrived'].includes(o.status))
+                              .map((ord) => (
+                                <div
+                                  key={ord.id}
+                                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <h4 className="font-bold text-xs text-slate-900 truncate">
+                                        {ord.customerName}
+                                      </h4>
+                                      <p className="text-[11px] text-slate-500 truncate">
+                                        {ord.garmentName} &bull; {ord.serviceName}
+                                      </p>
+                                    </div>
+                                    <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">
+                                      Drop-off Today
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-1">
+                                    <span className="text-[11px] font-semibold text-emerald-700">
+                                      ${ord.partnerPayout || Math.round((ord.price || 35) * 0.75)} Net Payout
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPinInput('')
+                                        setPinError('')
+                                        const el = document.getElementById('studio-counter-pin-input')
+                                        if (el) {
+                                          el.focus()
+                                          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                                    >
+                                      Enter Customer PIN →
+                                    </button>
                                   </div>
                                 </div>
-
-                                <button
-                                  onClick={() => handleOpenPickupModal(order)}
-                                  className="px-3 py-1.5 bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold text-xs rounded-xl cursor-pointer transition-colors shadow-xs whitespace-nowrap"
-                                >
-                                  Verify Pickup →
-                                </button>
-                              </div>
-                            ))}
+                              ))
+                          ) : (
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                              <Package size={24} className="mx-auto text-slate-400" />
+                              <div className="text-xs font-bold text-slate-700">All Scheduled Drop-Offs Received</div>
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                                New bookings for today will populate here immediately upon client confirmation.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
 
+                      {/* ═══ STATION 2: ACTIVE ON BENCH ═══ */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="size-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs">
+                              2
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                                Sewing Bench
+                              </h3>
+                              <p className="text-[11px] text-slate-400">Under needle right now</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                            <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            {activeOnBench} active
+                          </span>
+                        </div>
+
+                        {/* List */}
+                        <div className="space-y-3">
+                          {orders.filter((o) => o.status === 'Work in Progress').length > 0 ? (
+                            orders
+                              .filter((o) => o.status === 'Work in Progress')
+                              .map((order) => {
+                                const sla = getSlaCountdown(order)
+                                return (
+                                  <div
+                                    key={order.id}
+                                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-3 shadow-2xs"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-2.5 min-w-0">
+                                        <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                          <img
+                                            src={getGarmentPhoto(order)}
+                                            alt={order.garmentName}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <div className="flex items-center gap-1.5 mb-0.5">
+                                            {order.hangTagNo && (
+                                              <span className="text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
+                                                {order.hangTagNo}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <h4 className="font-bold text-xs text-slate-900 truncate">{order.garmentName}</h4>
+                                          <p className="text-[11px] text-slate-500 truncate">
+                                            {order.customerName} &bull; {order.serviceName}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="text-right shrink-0">
+                                        <span className="font-extrabold text-xs text-emerald-700 block">
+                                          ${order.partnerPayout || Math.round((order.price || 35) * 0.75)}
+                                        </span>
+                                        <span
+                                          className={`text-[10px] font-semibold flex items-center justify-end gap-1 ${
+                                            sla.urgent ? 'text-red-600 font-bold' : 'text-slate-500'
+                                          }`}
+                                        >
+                                          <Clock size={11} />
+                                          <span>{sla.text}</span>
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Tailoring Specs Snippet */}
+                                    {(() => {
+                                      const summary = formatOrderSpecsSummary(order)
+                                      return summary ? (
+                                        <div className="text-[10px] text-slate-700 bg-white px-2 py-1 rounded-md border border-slate-200 truncate font-mono">
+                                          {summary}
+                                        </div>
+                                      ) : null
+                                    })()}
+
+                                    {/* SLA Countdown Progress */}
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                                        <span>Turnaround SLA</span>
+                                        <span>{Math.round(sla.percent)}% remaining</span>
+                                      </div>
+                                      <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full transition-all duration-500 ${
+                                            sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
+                                          }`}
+                                          style={{ width: `${sla.percent}%` }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAlterationDone(order.id)}
+                                      className="w-full py-2 bg-slate-900 hover:bg-[#9E593B] text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-95"
+                                    >
+                                      <CheckCircle size={13} />
+                                      <span>Mark Done &amp; Alert Customer →</span>
+                                    </button>
+                                  </div>
+                                )
+                              })
+                          ) : (
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                              <Scissors size={24} className="mx-auto text-slate-400" />
+                              <div className="text-xs font-bold text-slate-700">Sewing Bench Clear</div>
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                                No alterations currently in needle. Check in garments from the drop-off queue to start live SLA tracking.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ═══ STATION 3: READY ON RACK ═══ */}
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                        {/* Header */}
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <div className="size-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs">
+                              3
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                                Ready on Rack
+                              </h3>
+                              <p className="text-[11px] text-slate-400">Customer pickup stage</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full">
+                            {readyOnRack} on rack
+                          </span>
+                        </div>
+
+                        {/* List */}
+                        <div className="space-y-3">
+                          {orders.filter((o) => o.status === 'Ready').length > 0 ? (
+                            orders
+                              .filter((o) => o.status === 'Ready')
+                              .map((order) => (
+                                <div
+                                  key={order.id}
+                                  className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <h4 className="font-bold text-xs text-slate-900 truncate">
+                                        {order.customerName}
+                                      </h4>
+                                      <p className="text-[11px] text-slate-500 truncate">
+                                        {order.garmentName} &bull; {order.serviceName}
+                                      </p>
+                                    </div>
+                                    <span className="text-[10px] font-mono font-bold bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md shrink-0">
+                                      {order.hangTagNo || 'Rack A-1'}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                                    <span className="font-bold text-emerald-700">
+                                      ${order.partnerPayout || Math.round((order.price || 35) * 0.75)} Net Payout
+                                    </span>
+                                    <span className="text-[10px] text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
+                                      Pickup Alert Sent
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenPickupModal(order)}
+                                    className="w-full py-2 bg-slate-900 hover:bg-[#9E593B] text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shadow-2xs flex items-center justify-center gap-1.5"
+                                  >
+                                    <CheckCircle2 size={13} />
+                                    <span>Verify Pickup PIN &amp; Settle →</span>
+                                  </button>
+                                </div>
+                              ))
+                          ) : (
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                              <CheckCircle2 size={24} className="mx-auto text-slate-400" />
+                              <div className="text-xs font-bold text-slate-700">Rack Clear &amp; Calibrated</div>
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                                Alterations marked finished on the sewing bench will appear here ready for client collection.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
-
-                </div>
+                )}
               </div>
             )}
 
@@ -2186,6 +2444,14 @@ export function PartnerFlow({
                                     {order.hangTagNo && (
                                       <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
                                         {order.hangTagNo}
+                                      </span>
+                                    )}
+                                    {order.retailSold !== undefined && order.retailSold !== null && (
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${order.retailSold
+                                        ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                        : 'bg-stone-50 text-stone-600 border-stone-200'
+                                        }`}>
+                                        {order.retailSold ? '🛍️ Retail: Yes' : 'Retail: No'}
                                       </span>
                                     )}
                                   </div>
@@ -2308,6 +2574,17 @@ export function PartnerFlow({
                           <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.customerName}</span></div>
                           <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Phone:</span><a href={`tel:${activeSelectedOrder.customerPhone}`} className="font-semibold text-[#9E593B] hover:underline">{activeSelectedOrder.customerPhone || 'N/A'}</a></div>
                           <div className="flex justify-between py-1.5"><span className="text-[#6B7280]">Rack Tag:</span><span className="font-mono font-bold text-[#1E2229]">{activeSelectedOrder.hangTagNo || 'N/A'}</span></div>
+                          {activeSelectedOrder.retailSold !== undefined && activeSelectedOrder.retailSold !== null && (
+                            <div className="flex justify-between py-1.5 items-center">
+                              <span className="text-[#6B7280]">Retail Accessory:</span>
+                              <span className={`font-semibold px-2 py-0.5 rounded text-[10px] border ${activeSelectedOrder.retailSold
+                                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                                }`}>
+                                {activeSelectedOrder.retailSold ? '🛍️ Yes (Purchased)' : 'No Retail Sold'}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.slaHours || 48}h Guaranteed</span></div>
                         </div>
 
@@ -2433,7 +2710,17 @@ export function PartnerFlow({
                             const isSettled = o.status === 'Closed' || o.status === 'Collected'
                             return (
                               <tr key={o.id}>
-                                <td className="p-3.5 font-semibold text-[#1E2229]">#{o.id} · {o.customerName}</td>
+                                <td className="p-3.5 font-semibold text-[#1E2229]">
+                                  #{o.id} · {o.customerName}
+                                  {o.retailSold !== undefined && o.retailSold !== null && (
+                                    <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${o.retailSold
+                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                      : 'bg-stone-50 text-stone-600 border-stone-200'
+                                      }`}>
+                                      {o.retailSold ? '🛍️ Retail: Yes' : 'Retail: No'}
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="p-3.5 text-[#1E2229]">${price}.00</td>
                                 <td className="p-3.5 text-[#6B7280]">-${fee}</td>
                                 <td className="p-3.5 font-bold text-emerald-800">${net}</td>
@@ -2615,7 +2902,7 @@ export function PartnerFlow({
                   <span>✓ Identity Verified! Ready for garment handover.</span>
                 </div>
 
-                {/* Retail In-Store Sales Prompt */}
+                {/* Retail In-Store Sales Prompt - Simple Yes or No */}
                 <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 text-xs">
                   <label className="font-semibold text-[#1E2229] block">
                     Did the customer purchase retail accessories during pickup?
@@ -2624,52 +2911,24 @@ export function PartnerFlow({
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('YES')}
-                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
+                      className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
                         ? 'bg-[#0F1115] text-white border-[#0F1115]'
                         : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                         }`}
                     >
-                      Yes (+Add Sale)
+                      Yes
                     </button>
                     <button
                       type="button"
                       onClick={() => setRetailAnswer('NO')}
-                      className={`flex-1 py-2 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
+                      className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
                         ? 'bg-[#0F1115] text-white border-[#0F1115]'
                         : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
                         }`}
                     >
-                      No (Handover Only)
+                      No
                     </button>
                   </div>
-
-                  {retailAnswer === 'YES' && (
-                    <div className="pt-2 space-y-2">
-                      <div>
-                        <span className="text-[10px] font-bold text-[#9E593B] block mb-0.5">RETAIL SALE AMOUNT ($)</span>
-                        <input
-                          type="number"
-                          value={retailValueInput}
-                          onChange={(e) => setRetailValueInput(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl border border-[#E8E1D5] bg-white font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-[#9E593B] block mb-0.5">CATEGORY</span>
-                        <CustomSelect
-                          value={retailCategoryInput}
-                          onChange={(val) => setRetailCategoryInput(val)}
-                          buttonClassName="py-1.5 px-3 border-[#E8E1D5] text-xs font-medium"
-                          options={[
-                            'Accessories & Ties',
-                            'Custom Garment Bag & Hanger',
-                            'Shoe Care & Brushes',
-                            'Bespoke Cufflinks',
-                          ]}
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <button
