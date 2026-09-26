@@ -451,20 +451,6 @@ export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null):
   return ''
 }
 
-export function formatCustomerFitNotes(notes?: any): string {
-  if (!notes) return ''
-  if (typeof notes !== 'string') {
-    try {
-      return String(notes)
-    } catch {
-      return ''
-    }
-  }
-  const trimmed = notes.trim()
-  if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) return ''
-  return trimmed
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
