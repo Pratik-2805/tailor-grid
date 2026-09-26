@@ -45,6 +45,7 @@ import {
   TrendingUp,
   User,
   X,
+  XCircle,
   Zap,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
@@ -152,6 +153,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   Ready: { label: 'Ready', bg: 'bg-emerald-50', text: 'text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
   Collected: { label: 'Picked Up', bg: 'bg-teal-50', text: 'text-teal-800 border-teal-200', dot: 'bg-teal-500' },
   Closed: { label: 'Completed', bg: 'bg-stone-50', text: 'text-stone-700 border-stone-200', dot: 'bg-stone-400' },
+  Cancelled: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-800 border-red-200', dot: 'bg-red-500' },
 }
 
 interface PartnerFlowProps {
@@ -428,6 +430,20 @@ export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null):
   return ''
 }
 
+export function formatCustomerFitNotes(notes?: any): string {
+  if (!notes) return ''
+  if (typeof notes !== 'string') {
+    try {
+      return String(notes)
+    } catch {
+      return ''
+    }
+  }
+  const trimmed = notes.trim()
+  if (!trimmed || trimmed.startsWith('{') || trimmed.startsWith('[')) return ''
+  return trimmed
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -637,6 +653,11 @@ export function PartnerFlow({
   const [retailValueInput, setRetailValueInput] = useState('45')
   const [retailCategoryInput, setRetailCategoryInput] = useState('Accessories & Ties')
   const [pickupCompleted, setPickupCompleted] = useState(false)
+
+  // Cancel Order Modal State (Allowed only till first PIN / drop-off intake)
+  const [orderToCancel, setOrderToCancel] = useState<FittingBooking | null>(null)
+  const [cancelReason, setCancelReason] = useState<string>('Studio capacity reached / unable to service')
+  const [isCancellingOrder, setIsCancellingOrder] = useState<boolean>(false)
 
   // Workshop Controls State
   const [hoursWeekday, setHoursWeekday] = useState(() => {
@@ -1232,6 +1253,82 @@ export function PartnerFlow({
       setBroadcastToast(`✓ Placed on Sewing Bench: ${activeIntake.customerName} (${hangTag})`)
       setTimeout(() => setBroadcastToast(null), 4000)
     }, 1200)
+  }
+
+  // Cancel Order Handlers (Only allowed before first PIN is entered / drop-off intake)
+  const handleInitiateCancelOrder = (order: FittingBooking) => {
+    setOrderToCancel(order)
+    setCancelReason('Studio capacity reached / unable to service')
+  }
+
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return
+    setIsCancellingOrder(true)
+    const targetId = orderToCancel.id
+    const targetCust = orderToCancel.customerName
+    const reasonText = cancelReason.trim() || 'Studio unable to service alteration before drop-off'
+
+    try {
+      // 1. Update status to Cancelled in PostgreSQL database
+      await updateOrder(targetId, {
+        status: 'Cancelled',
+        fabricConditionNotes: `Cancelled by Studio: ${reasonText}`,
+      }).catch((e) => console.warn('Backend cancel update error:', e))
+
+      // 2. Broadcast cancellation via BroadcastChannel to customer's live tracking view (instant 0ms)
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const bc = new BroadcastChannel('tg_dispatch_channel')
+          bc.postMessage({
+            type: 'ORDER_CANCELLED',
+            orderId: targetId,
+            customerName: targetCust,
+            by: 'STUDIO',
+            reason: reasonText,
+          })
+          bc.postMessage({
+            type: 'DISPATCH_CANCELLED',
+            orderId: targetId,
+          })
+          bc.close()
+        } catch { }
+      }
+
+      // 3. Update localStorage and dispatch event for cross-tab and local consumers
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem(`tg_order_${targetId}`)
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            parsed.status = 'Cancelled'
+            parsed.cancelledBy = 'STUDIO'
+            parsed.cancelReason = reasonText
+            localStorage.setItem(`tg_order_${targetId}`, JSON.stringify(parsed))
+          }
+          window.dispatchEvent(
+            new CustomEvent('tg_order_status_change', {
+              detail: { orderId: targetId, status: 'Cancelled', by: 'STUDIO', reason: reasonText },
+            })
+          )
+        } catch { }
+      }
+
+      // 4. Update Studio local state so order is marked Cancelled
+      setOrders((prev) =>
+        prev.map((o) => (o.id === targetId ? { ...o, status: 'Cancelled' as OrderStatus } : o))
+      )
+      if (selectedOrder?.id === targetId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'Cancelled' as OrderStatus } : null))
+      }
+
+      setBroadcastToast(`✓ Order #${targetId} cancelled. Client ${targetCust} has been notified.`)
+      setTimeout(() => setBroadcastToast(null), 5000)
+    } catch (err) {
+      console.error('Failed to cancel order:', err)
+    } finally {
+      setIsCancellingOrder(false)
+      setOrderToCancel(null)
+    }
   }
 
   // Edit measurements
@@ -2400,25 +2497,35 @@ export function PartnerFlow({
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center justify-between pt-1">
+                                  <div className="flex items-center justify-between pt-1 gap-2">
                                     <span className="text-[11px] font-semibold text-emerald-700">
                                       ${ord.partnerPayout || Math.round((ord.price || 35) * 0.75)} Net Payout
                                     </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setPinInput('')
-                                        setPinError('')
-                                        const el = document.getElementById('studio-counter-pin-input')
-                                        if (el) {
-                                          el.focus()
-                                          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
-                                    >
-                                      Enter Customer PIN →
-                                    </button>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleInitiateCancelOrder(ord)}
+                                        className="px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 text-[11px] font-semibold shrink-0 transition-colors cursor-pointer"
+                                        title="Cancel order before drop-off"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPinInput('')
+                                          setPinError('')
+                                          const el = document.getElementById('studio-counter-pin-input')
+                                          if (el) {
+                                            el.focus()
+                                            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                          }
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                                      >
+                                        Enter Customer PIN →
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               ))
@@ -2739,7 +2846,17 @@ export function PartnerFlow({
                               </button>
                               <div className="flex items-center gap-2">
                                 {order.status === 'Accepted' && (
-                                  <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">Awaiting Drop-Off</span>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleInitiateCancelOrder(order)}
+                                      className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+                                      title="Cancel order before garment drop-off"
+                                    >
+                                      <XCircle size={11} /> Cancel Order
+                                    </button>
+                                    <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">Awaiting Drop-Off</span>
+                                  </>
                                 )}
                                 {order.status === 'Work in Progress' && (
                                   <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
@@ -2900,6 +3017,29 @@ export function PartnerFlow({
                             </div>
                           )
                         })()}
+
+                        {/* Order Cancellation Control (Only before First PIN / Drop-Off Intake) */}
+                        {activeSelectedOrder.status === 'Accepted' && (
+                          <div className="p-4 rounded-xl bg-red-50/70 border border-red-200 flex items-center justify-between gap-3 animate-fadeIn">
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-red-950 flex items-center gap-1.5">
+                                <AlertCircle size={14} className="text-red-600 shrink-0" />
+                                <span>Awaiting Garment Drop-Off</span>
+                              </div>
+                              <p className="text-[11px] text-red-700 mt-0.5 leading-snug">
+                                You can decline or cancel this order before the client provides their intake PIN.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleInitiateCancelOrder(activeSelectedOrder)}
+                              className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95 flex items-center gap-1.5"
+                            >
+                              <XCircle size={13} />
+                              <span>Cancel Order</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3284,6 +3424,126 @@ export function PartnerFlow({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Order Confirmation Modal (Before First PIN / Drop-Off Intake) ── */}
+      {orderToCancel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => {
+            if (!isCancellingOrder) setOrderToCancel(null)
+          }}
+        >
+          <div
+            className="bg-white border border-[#E8E1D5] rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0">
+                  <XCircle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#1E2229]">Cancel Alteration Order</h3>
+                  <p className="text-xs text-[#6B7280]">
+                    Order #{orderToCancel.id} &bull; {orderToCancel.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={() => setOrderToCancel(null)}
+                className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2229] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Info notice */}
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                <span>Garment Awaiting Drop-Off (No PIN Entered)</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                This alteration has not been dropped off or checked in at the sewing bench. Cancelling will immediately notify{' '}
+                <span className="font-semibold">{orderToCancel.customerName}</span> on their live tracking dashboard and release any card holds.
+              </p>
+            </div>
+
+            {/* Garment summary */}
+            <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs flex items-center justify-between">
+              <div>
+                <div className="font-bold text-[#1E2229]">{orderToCancel.garmentName}</div>
+                <div className="text-[11px] text-[#6B7280]">{orderToCancel.serviceName}</div>
+              </div>
+              <span className="font-bold text-sm text-[#1E2229]">
+                ${orderToCancel.partnerPayout || Math.round((orderToCancel.price || 35) * 0.75)}
+              </span>
+            </div>
+
+            {/* Reason selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#1E2229]">
+                Reason for Cancellation
+              </label>
+              <select
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                disabled={isCancellingOrder}
+                className="w-full text-xs font-medium px-3 py-2.5 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] text-[#1E2229] focus:outline-none focus:border-[#9E593B]"
+              >
+                <option value="Studio capacity reached / unable to service">
+                  Studio capacity reached / fully booked
+                </option>
+                <option value="Fabric / alteration type cannot be fulfilled">
+                  Fabric or alteration complexity cannot be fulfilled
+                </option>
+                <option value="Customer requested cancellation before arrival">
+                  Client requested cancellation before arrival
+                </option>
+                <option value="Customer no-show / did not arrive for scheduled slot">
+                  Customer no-show / missed arrival window
+                </option>
+                <option value="Workshop maintenance / emergency closure">
+                  Workshop maintenance / temporary closure
+                </option>
+              </select>
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-2 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={() => setOrderToCancel(null)}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E1D5] text-xs font-bold text-[#6B7280] hover:text-[#1E2229] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={handleConfirmCancelOrder}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              >
+                {isCancellingOrder ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Cancelling &amp; Notifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={14} />
+                    <span>Cancel Order &amp; Send Message</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -82,6 +82,45 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     }
   }, [user])
 
+  // Listen for real-time cancellation broadcasts from Studio
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    let bc: BroadcastChannel | null = null
+    if ('BroadcastChannel' in window) {
+      try {
+        bc = new BroadcastChannel('tg_dispatch_channel')
+        bc.onmessage = (event) => {
+          const data = event.data
+          if (
+            (data?.type === 'ORDER_CANCELLED' || data?.type === 'DISPATCH_CANCELLED') &&
+            data?.orderId
+          ) {
+            setBackendOrders((prev) =>
+              prev.map((o) => (o.id === data.orderId ? { ...o, status: 'Cancelled' } : o))
+            )
+          }
+        }
+      } catch { }
+    }
+
+    const handleCustomChange = (e: any) => {
+      const detail = e.detail
+      if (detail?.orderId && detail?.status === 'Cancelled') {
+        setBackendOrders((prev) =>
+          prev.map((o) => (o.id === detail.orderId ? { ...o, status: 'Cancelled' } : o))
+        )
+      }
+    }
+
+    window.addEventListener('tg_order_status_change', handleCustomChange)
+
+    return () => {
+      if (bc) bc.close()
+      window.removeEventListener('tg_order_status_change', handleCustomChange)
+    }
+  }, [])
+
   // Dynamically compute real measurements for the Digital Fit Passport from real orders and profile
   const passportItems = useMemo(() => {
     const items: { k: string; v: string; sourceGarment?: string }[] = []
@@ -411,7 +450,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                           <ChevronRight size={13} />
                         </button>
 
-                        {!isCancelled && !isCompleted && (
+                        {(o.status === 'Allocated' || o.status === 'Accepted') && !isCancelled && !isCompleted && (
                           <button
                             type="button"
                             onClick={(e) => {

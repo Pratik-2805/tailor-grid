@@ -818,20 +818,71 @@ export default function BookPage() {
     setIsCategoryDropdownOpen(false)
   }
 
-  // Handle Photo Upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress and resize image file to maintain crisp quality while keeping size < 100KB
+  const compressImageFile = async (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+        const reader = new FileReader()
+        reader.onload = (e) => resolve((e.target?.result as string) || '')
+        reader.onerror = () => resolve('')
+        reader.readAsDataURL(file)
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          let width = img.width
+          let height = img.height
+
+          if (width > maxWidth || height > maxHeight) {
+            if (width / height > maxWidth / maxHeight) {
+              height = Math.round((height * maxWidth) / width)
+              width = maxWidth
+            } else {
+              width = Math.round((width * maxHeight) / height)
+              height = maxHeight
+            }
+          }
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            resolve((e.target?.result as string) || '')
+            return
+          }
+
+          ctx.drawImage(img, 0, 0, width, height)
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
+          resolve(compressedDataUrl)
+        }
+        img.onerror = () => resolve((e.target?.result as string) || '')
+        img.src = e.target?.result as string
+      }
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Handle Photo Upload with fast compression
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setUploadedImages((prev) => [...prev, event.target!.result as string])
+    const fileList = Array.from(files)
+    for (const file of fileList) {
+      try {
+        const compressed = await compressImageFile(file)
+        if (compressed) {
+          setUploadedImages((prev) => [...prev, compressed])
         }
+      } catch (err) {
+        console.warn('Image compression skipped, falling back to direct reader:', err)
       }
-      reader.readAsDataURL(file)
-    })
+    }
     e.target.value = ''
   }
 

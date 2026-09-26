@@ -172,14 +172,103 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
   return defaultValue
 }
 
-export function setStorageCookie(key: string, value: string, _days?: number): void {
+// Helper to safely prune old tg_order_ cache items when storage gets full
+function pruneStaleOrderStorage(): void {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(key, value)
+    const keys = Object.keys(localStorage)
+    const orderKeys = keys.filter((k) => k.startsWith('tg_order_'))
+    // Keep at most 3 newest order keys, remove the rest
+    if (orderKeys.length > 3) {
+      const keysToRemove = orderKeys.slice(0, orderKeys.length - 3)
+      for (const k of keysToRemove) {
+        localStorage.removeItem(k)
+      }
+    }
+  } catch {}
+}
+
+// Strip huge base64 data URLs from cached JSON strings to prevent quota exhaustion
+function sanitizePayloadForLocalStorage(value: string): string {
+  if (!value || typeof value !== 'string') return value
+  if (!value.includes('data:image/') && value.length < 150000) return value
+
+  try {
+    const parsed = JSON.parse(value)
+    let modified = false
+
+    if (Array.isArray(parsed.images)) {
+      parsed.images = parsed.images.map((img: any) => {
+        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 500) {
+          modified = true
+          return '[cached-image-omitted]'
+        }
+        return img
+      })
+    }
+
+    if (typeof parsed.imageUrl === 'string' && parsed.imageUrl.startsWith('data:image/') && parsed.imageUrl.length > 500) {
+      parsed.imageUrl = '[cached-image-omitted]'
+      modified = true
+    }
+
+    if (typeof parsed.intakePhotoUrl === 'string' && parsed.intakePhotoUrl.startsWith('data:image/') && parsed.intakePhotoUrl.length > 500) {
+      parsed.intakePhotoUrl = '[cached-image-omitted]'
+      modified = true
+    }
+
+    return modified ? JSON.stringify(parsed) : value
+  } catch {
+    return value
+  }
+}
+
+export function setStorageCookie(key: string, value: string, _days?: number): void {
+  if (typeof window === 'undefined') return
+
+  // Automatically keep payload lean if storing order cache
+  const cleanValue = (key.startsWith('tg_order_') || key === 'tg_latest_order')
+    ? sanitizePayloadForLocalStorage(value)
+    : value
+
+  try {
+    localStorage.setItem(key, cleanValue)
     // Always delete any existing cookie for this key to keep HTTP headers clean
     deleteCookie(key, '/')
-  } catch (err) {
-    console.warn(`Error setting localStorage for key ${key}:`, err)
+  } catch (err: any) {
+    const isQuotaError =
+      err?.name === 'QuotaExceededError' ||
+      err?.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      err?.code === 22 ||
+      err?.code === 1014 ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes('quota'))
+
+    if (isQuotaError) {
+      try {
+        // 1. Evict older tg_order_ keys to free space
+        pruneStaleOrderStorage()
+
+        // 2. Strip any remaining large media from the payload
+        const sanitized = sanitizePayloadForLocalStorage(cleanValue)
+        localStorage.setItem(key, sanitized)
+        deleteCookie(key, '/')
+        return
+      } catch {
+        // If still failing, attempt removing all other order caches
+        try {
+          const keys = Object.keys(localStorage)
+          keys.filter((k) => k.startsWith('tg_order_') && k !== key).forEach((k) => localStorage.removeItem(k))
+          localStorage.removeItem('tg_latest_order')
+          localStorage.setItem(key, sanitizePayloadForLocalStorage(cleanValue))
+          deleteCookie(key, '/')
+          return
+        } catch {
+          // Graceful fallback: do not crash application
+        }
+      }
+    } else {
+      console.warn(`Error setting localStorage for key ${key}:`, err)
+    }
   }
 }
 

@@ -335,6 +335,65 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }, [slugId])
 
+  // Listen for instant 0ms real-time cancellation notifications from Studio
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    let bc: BroadcastChannel | null = null
+    if ('BroadcastChannel' in window) {
+      try {
+        bc = new BroadcastChannel('tg_dispatch_channel')
+        bc.onmessage = (event) => {
+          const data = event.data
+          if (
+            (data?.type === 'ORDER_CANCELLED' || data?.type === 'DISPATCH_CANCELLED') &&
+            data?.orderId &&
+            (data.orderId === slugId || data.orderId === order?.id)
+          ) {
+            setOrder((prev: any) => ({
+              ...(prev || {}),
+              status: 'Cancelled',
+              cancelledBy: data.by || 'STUDIO',
+              cancelReason: data.reason || prev?.cancelReason,
+            }))
+            toast.error(
+              data.by === 'STUDIO'
+                ? `Notice: Your order #${data.orderId} was cancelled by the atelier studio.`
+                : `Order #${data.orderId} has been cancelled.`,
+              { position: 'top-center', autoClose: 7000 }
+            )
+          }
+        }
+      } catch { }
+    }
+
+    const handleCustomChange = (e: any) => {
+      const detail = e.detail
+      if (
+        (detail?.orderId === slugId || detail?.orderId === order?.id) &&
+        detail?.status === 'Cancelled'
+      ) {
+        setOrder((prev: any) => ({
+          ...(prev || {}),
+          status: 'Cancelled',
+          cancelledBy: detail.by || 'STUDIO',
+          cancelReason: detail.reason || prev?.cancelReason,
+        }))
+        toast.error(`Notice: Your order #${detail.orderId} was cancelled by the atelier studio.`, {
+          position: 'top-center',
+          autoClose: 7000,
+        })
+      }
+    }
+
+    window.addEventListener('tg_order_status_change', handleCustomChange)
+
+    return () => {
+      if (bc) bc.close()
+      window.removeEventListener('tg_order_status_change', handleCustomChange)
+    }
+  }, [slugId, order?.id])
+
   const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '0000')
   const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
 
@@ -673,8 +732,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
 
   if (isCancelled) {
-    headerTitle = 'Order Cancelled'
-    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
+    headerTitle = order?.cancelledBy === 'STUDIO' ? 'Order Cancelled by Studio' : 'Order Cancelled'
+    headerSubtitle = order?.cancelledBy === 'STUDIO'
+      ? `${storeNameDisplay} cancelled this booking before drop-off • Order #${order?.id || slugId}`
+      : `This alteration request was cancelled • Order #${order?.id || slugId}`
   } else if (isAllocated) {
     headerTitle = 'Request Broadcast'
     headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
@@ -741,9 +802,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               <XCircle size={22} />
             </div>
             <div className="space-y-1 min-w-0 flex-1">
-              <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
+              <h3 className="font-extrabold text-base text-red-950">
+                {order?.cancelledBy === 'STUDIO'
+                  ? 'Order Cancelled by Atelier Studio'
+                  : order?.storeId || (order?.storeName && order?.storeName !== 'Awaiting Studio Acceptance')
+                    ? 'Alteration Cancelled Before Drop-Off'
+                    : 'Fitting Request Not Accepted'}
+              </h3>
               <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
-                No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
+                {order?.cancelledBy === 'STUDIO'
+                  ? `The partner studio (${storeNameDisplay}) was unable to proceed with this alteration and cancelled the booking before garment drop-off. ${order?.cancelReason ? `Reason: "${order.cancelReason}". ` : ''}Any payment pre-authorization has been released and no charges were incurred.`
+                  : order?.storeId || (order?.storeName && order?.storeName !== 'Awaiting Studio Acceptance')
+                    ? 'This alteration order was cancelled prior to garment drop-off. Any card holds have been released and no charges were incurred.'
+                    : 'No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.'}
               </p>
               <div className="pt-3 flex flex-wrap items-center gap-3">
                 <button
@@ -791,7 +862,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 </span>
               </div>
 
-              {!isCancelled && !isCompleted && (
+              {!isInProgress && !isReady && !isCompleted && !isCancelled && (isAllocated || isAccepted || order?.status === 'Allocated' || order?.status === 'Accepted') && (
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(true)}
