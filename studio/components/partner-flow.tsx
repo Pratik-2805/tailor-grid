@@ -221,6 +221,27 @@ export function cleanMeasurementVal(val?: string | null): string {
   return str
 }
 
+export function formatCustomerFitNotes(rawNotes?: string | null): string {
+  if (!rawNotes) return ''
+  let str = String(rawNotes).trim()
+  if (!str) return ''
+  if (str.startsWith('Measurements:')) {
+    str = str.replace(/^Measurements:\s*/, '').trim()
+  }
+  if ((str.startsWith('{') && str.endsWith('}')) || (str.startsWith('[') && str.endsWith(']'))) {
+    try {
+      const obj = JSON.parse(str)
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        return Object.entries(obj)
+          .filter(([_, v]) => v !== undefined && v !== null && String(v).trim())
+          .map(([k, v]) => `${formatMeasurementKey(k)}: ${String(v).trim()}`)
+          .join(' · ')
+      }
+    } catch { }
+  }
+  return str
+}
+
 export function renderCustomerFitNotesBanner(rawNotes?: string | null) {
   if (!rawNotes) return null
   let str = rawNotes.trim()

@@ -645,9 +645,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const isCancelled = currentStatus === 'CANCELLED'
   const isAllocated = currentStatus === 'ALLOCATED' || currentStatus === 'SEARCHING' || currentStatus === 'PENDING'
   const isAccepted = currentStatus === 'ACCEPTED'
-  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING'
+  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING' || currentStatus === 'FITTING COMPLETED' || currentStatus === 'CUSTOMER ARRIVED'
   const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
   const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
+  const isValidated = Boolean(order?.otpVerified || isInProgress || isReady || isCompleted)
 
   // Dynamic Header Text
   let headerTitle = 'Order Accepted'
@@ -761,7 +762,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </span>
                 </div>
 
-                {!isCancelled && !isCompleted && (
+                {!isCancelled && !isValidated && (
                   <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
@@ -801,24 +802,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </div>
                 </div>
 
-                {/* Uber-Style Top-Right Badge: Completed / Cancelled / In Progress / PIN */}
-                {isCompleted ? (
-                  <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <span className="size-2 rounded-full bg-emerald-500" />
-                      <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
-                        Order Completed
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
-                      <CheckCircle2 size={13} className="text-emerald-400" />
-                      <span>Garment Collected</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 block mt-1 font-medium">
-                      ✓ Fulfilled &bull; Closed
-                    </span>
-                  </div>
-                ) : isCancelled ? (
+                {/* Top-Right Area: PIN (only before tailor validation) or Cancelled badge */}
+                {isCancelled ? (
                   <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
                     <div className="flex items-center justify-center gap-1.5 mb-0.5">
                       <span className="size-2 rounded-full bg-red-500" />
@@ -834,80 +819,33 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       No PIN Required
                     </span>
                   </div>
-                ) : isInProgress ? (
-                  <div
-                    className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]"
-                  >
-                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                      </span>
-                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
-                        Work in Progress
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-white mt-1">
-                      <Scissors size={13} className="text-[#9E593B]" />
-                      <span>Tailoring Active</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 block mt-1 font-medium">
-                      PIN Expired &bull; On Bench
-                    </span>
-                  </div>
-                ) : isReady ? (
-                  isPickupOtpActive ? (
+                ) : !isValidated ? (
+                  !isPinGenerated ? (
+                    <button
+                      type="button"
+                      onClick={handleGeneratePin}
+                      disabled={isGeneratingPin}
+                      className="shrink-0 bg-black text-white hover:bg-neutral-800 active:scale-95 border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md transition-all cursor-pointer flex items-center justify-center font-bold text-xs sm:text-sm tracking-wide group"
+                    >
+                      {isGeneratingPin ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 size={15} className="animate-spin text-white" />
+                          <span>Revealing...</span>
+                        </div>
+                      ) : (
+                        <span>Reveal PIN</span>
+                      )}
+                    </button>
+                  ) : (
                     <div
-                      className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center"
+                      className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
                     >
                       <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
-                        {order.otp}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
-                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                        </span>
-                        <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400">
-                          Awaiting Studio OTP
-                        </span>
-                      </div>
-                      <div className="text-xs font-mono font-bold text-gray-300 mt-1">
-                        OTP PENDING
-                      </div>
-                      <span className="text-[10px] text-gray-400 block mt-1 font-medium">
-                        Tailor generates on pickup
+                        {formattedOtp}
                       </span>
                     </div>
                   )
-                ) : !isPinGenerated ? (
-                  <button
-                    type="button"
-                    onClick={handleGeneratePin}
-                    disabled={isGeneratingPin}
-                    className="shrink-0 bg-black text-white hover:bg-neutral-800 active:scale-95 border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md transition-all cursor-pointer flex items-center justify-center font-bold text-xs sm:text-sm tracking-wide group"
-                  >
-                    {isGeneratingPin ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 size={15} className="animate-spin text-white" />
-                        <span>Revealing...</span>
-                      </div>
-                    ) : (
-                      <span>Reveal PIN</span>
-                    )}
-                  </button>
-                ) : (
-                  <div
-                    className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
-                  >
-                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
-                      {formattedOtp}
-                    </span>
-                  </div>
-                )}
+                ) : null}
 
               </div>
 
@@ -1099,12 +1037,14 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
 
             {/* Note Strip */}
-            <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-medium text-gray-500">
-              <span className="text-gray-600">
-                <strong className="text-black font-bold">NOTE:</strong> Give this PIN to the tailor for confirming the order.
-              </span>
-              <span className="font-bold text-black">Darzi</span>
-            </div>
+            {!isValidated && !isCancelled && (
+              <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-medium text-gray-500">
+                <span className="text-gray-600">
+                  <strong className="text-black font-bold">NOTE:</strong> Give this PIN to the tailor for confirming the order.
+                </span>
+                <span className="font-bold text-black">Darzi</span>
+              </div>
+            )}
 
           </div>
 
