@@ -361,6 +361,8 @@ export function PartnerFlow({
       ? rawStudioName
       : 'Master Tailor'
 
+  const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
+
   const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
   const activeTab = controlledTab || internalTab
   const setActiveTab = (tab: StudioTab) => {
@@ -374,6 +376,7 @@ export function PartnerFlow({
   const [statusFilter, setStatusFilter] = useState('Accepted')
   const [refreshing, setRefreshing] = useState(false)
   const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
+
 
   // Full View Image Lightbox State
   const [lightboxPhotos, setLightboxPhotos] = useState<string[] | null>(null)
@@ -622,7 +625,7 @@ export function PartnerFlow({
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      const fetched = await fetchStudioOrders(user?.studioId)
+      const fetched = await fetchStudioOrders(currentStudioId)
       if (fetched) {
         updateOrdersAndSelected(fetched)
       }
@@ -635,7 +638,7 @@ export function PartnerFlow({
     handleRefresh()
     const interval = setInterval(() => {
       if (online) {
-        fetchStudioOrders(user?.studioId).then((fetched) => {
+        fetchStudioOrders(currentStudioId).then((fetched) => {
           if (fetched) {
             updateOrdersAndSelected(fetched)
           }
@@ -644,7 +647,7 @@ export function PartnerFlow({
     }, 2500)
 
     return () => clearInterval(interval)
-  }, [user, online])
+  }, [currentStudioId, online])
 
   // Listen for instant 0ms cross-tab cancellation broadcasts
   useEffect(() => {
@@ -672,15 +675,15 @@ export function PartnerFlow({
 
   // Single Dispatch Session Listener - Live Pending Dispatches Feed (1s interval)
   useEffect(() => {
-    if (!online || !user?.studioId) {
+    if (!online || !currentStudioId) {
       setPendingDispatches([])
       return
     }
 
     const checkDispatches = async () => {
       try {
-        if (!user?.studioId) return
-        const pending = await fetchPendingDispatches(user.studioId)
+        if (!currentStudioId) return
+        const pending = await fetchPendingDispatches(currentStudioId)
         if (Array.isArray(pending)) {
           setPendingDispatches(pending)
         }
@@ -690,7 +693,7 @@ export function PartnerFlow({
     checkDispatches()
     const dispatchInterval = setInterval(checkDispatches, 1000)
     return () => clearInterval(dispatchInterval)
-  }, [online, user?.studioId])
+  }, [online, currentStudioId])
 
   // Live incoming requests from real customer bookings (Status: Allocated)
   // Re-broadcasts every 2 minutes until accepted by a studio, UNLESS explicitly skipped by THIS studio.
@@ -726,21 +729,44 @@ export function PartnerFlow({
       stage: pd.stage,
     }))
 
-  // Only broadcast live cache dispatch sessions so that expired or cancelled orders clear immediately
-  const allBroadcasts: BroadcastRequest[] = dispatchBroadcasts
+  // Map live allocated orders from database (real customer alteration bookings)
+  const allocatedBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => ({
+    id: o.id,
+    customerName: o.customerName || 'Valued Customer',
+    customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
+    distanceMiles: 0.8,
+    garmentName: o.garmentName || 'Garment Alteration',
+    serviceName: o.serviceName || 'Custom Fit & Alteration',
+    fittingType: 'NEED_STUDIO_FITTING' as const,
+    garmentBrand: o.garmentBrand || '',
+    fitNotes: o.fitNotes || o.pinnedAdjustment || 'Customer requested alteration fitting.',
+    partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
+    slaHours: o.slaHours || 48,
+    imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
+    otp: o.otp || '0000',
+    isRealCustomerOrder: true,
+    realOrder: o,
+    secondsRemaining: 15,
+    stage: 1,
+  }))
+
+  // Merge live cache dispatch sessions and database allocated alteration bookings
+  const dispatchOrderIds = new Set(dispatchBroadcasts.map((d) => d.id))
+  const uniqueAllocatedBroadcasts = allocatedBroadcasts.filter((a) => !dispatchOrderIds.has(a.id))
+  const allBroadcasts: BroadcastRequest[] = [...dispatchBroadcasts, ...uniqueAllocatedBroadcasts]
 
   const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
   const currentBroadcastKey = currentBroadcast ? `${currentBroadcast.id}-stage-${currentBroadcast.stage || 1}` : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
-    const assignedStudioId = user?.studioId || undefined
+    const assignedStudioId = currentStudioId
     const assignedStudioName = (user?.studioName && user.studioName.trim()) || studioName || (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
     const assignedStudioPhone = user?.phone || user?.contact || ''
     const partnerPayout = order.partnerPayout || Math.round((order.price || 30) * 0.75)
 
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
-      ...(assignedStudioId ? { storeId: assignedStudioId } : {}),
+      storeId: assignedStudioId,
       storeName: assignedStudioName,
       ...(assignedStudioPhone ? { storePhone: assignedStudioPhone } : {}),
       partnerPayout,
@@ -755,8 +781,8 @@ export function PartnerFlow({
   const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
     // 1. Live Dispatch Cache Request -> respond with ACCEPT
     if (bc.isDispatchSession) {
-      if (!user?.studioId) return
-      const res = await respondToDispatch(bc.id, user.studioId, 'ACCEPT')
+      if (!currentStudioId) return
+      const res = await respondToDispatch(bc.id, currentStudioId, 'ACCEPT')
       if (res.success) {
         setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
         setTimeout(() => setBroadcastToast(null), 5000)
@@ -770,7 +796,7 @@ export function PartnerFlow({
           (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
         const promotionUpdates = {
           status: 'Accepted' as const,
-          storeId: user.studioId,
+          storeId: currentStudioId,
           storeName: studioDisplayName,
           ...(user?.phone ? { storePhone: user.phone } : {}),
         }
@@ -796,7 +822,10 @@ export function PartnerFlow({
 
     // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
-      handleAcceptAllocatedOrder(bc.realOrder)
+      await handleAcceptAllocatedOrder(bc.realOrder)
+      setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
+      setTimeout(() => setBroadcastToast(null), 5000)
+      handleRefresh()
     }
   }
 
@@ -808,8 +837,8 @@ export function PartnerFlow({
     setTimerSecs(15)
     setTimerProgress(100)
 
-    if (bc.isDispatchSession && user?.studioId) {
-      respondToDispatch(bc.id, user.studioId, 'SKIP').catch(() => { })
+    if (bc.isDispatchSession && currentStudioId) {
+      respondToDispatch(bc.id, currentStudioId, 'SKIP').catch(() => { })
       setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
     }
   }
@@ -1195,77 +1224,83 @@ export function PartnerFlow({
           h-screen
           bg-[#0A0D14] text-white
           flex flex-col border-r border-slate-800/80
-          sidebar-transition shadow-xl
+          sidebar-transition shadow-2xl
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          ${sidebarCollapsed ? 'w-20' : 'w-[250px]'}
+          ${sidebarCollapsed ? 'w-20' : 'w-72'}
         `}
       >
         {/* Sidebar Header: Brand & Workshop Node */}
-        <div className={`flex items-center gap-3 px-4 h-16 border-b border-slate-800/80 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 px-4 h-18 border-b border-slate-800/80 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <>
-              <div className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center shrink-0 shadow-md ring-1 ring-white/15">
-                <Scissors size={17} className="text-white" />
+              <div className="size-10 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center shrink-0 shadow-md ring-1 ring-white/15">
+                <Scissors size={18} className="text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-xs text-white truncate leading-tight tracking-wide flex items-center gap-1.5">
-                  <span className="truncate">{studioName}</span>
+                <div className="font-bold text-sm text-white truncate leading-tight tracking-tight">
+                  {studioName}
                 </div>
-                <div className="text-[10px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
+                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                   <span className="text-slate-300 font-medium">Workshop Node</span>
+                  <span className="text-slate-500 font-mono text-[10px]">#{currentStudioId.slice(-6)}</span>
                 </div>
               </div>
               {/* Collapse button — desktop only */}
               <button
+                type="button"
                 onClick={() => setSidebarCollapsed(true)}
-                className="hidden md:grid size-7 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="hidden md:grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
                 title="Collapse sidebar"
               >
-                <ChevronLeft size={15} />
+                <ChevronLeft size={16} />
               </button>
               {/* Close button — mobile only */}
               <button
+                type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="md:hidden grid size-7 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="md:hidden grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </>
           ) : (
             <button
+              type="button"
               onClick={() => setSidebarCollapsed(false)}
-              className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center cursor-pointer hover:opacity-90 transition-all shadow-md ring-1 ring-white/15"
+              className="size-10 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center cursor-pointer hover:opacity-90 transition-all shadow-md ring-1 ring-white/15"
               title="Expand sidebar"
             >
-              <Scissors size={17} />
+              <Scissors size={18} />
             </button>
           )}
         </div>
 
         {/* Online Status Toggle Capsule */}
-        <div className={`p-3 border-b border-slate-800/60 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
+        <div className={`p-3.5 border-b border-slate-800/60 shrink-0 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
           {!sidebarCollapsed ? (
             <button
+              type="button"
               onClick={() => setOnline(!online)}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${online
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50 hover:bg-emerald-900/50'
+                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50 hover:bg-emerald-900/50 shadow-xs'
                 : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
                 }`}
             >
-              <div className="flex items-center gap-2.5">
-                <div className="relative flex items-center justify-center">
-                  <span className={`size-2.5 rounded-full shrink-0 ${online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="relative flex items-center justify-center shrink-0">
+                  <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
                   {online && <span className="absolute size-4 rounded-full bg-emerald-400/40 animate-ping" />}
                 </div>
-                <span>{online ? 'Workshop Active' : 'Workshop Offline'}</span>
+                <span className="truncate">{online ? 'Workshop Active' : 'Workshop Offline'}</span>
               </div>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>
+              <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold tracking-wider shrink-0 ${online ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}`}>
                 {online ? 'RECEIVING' : 'PAUSED'}
               </span>
             </button>
           ) : (
             <button
+              type="button"
               onClick={() => setOnline(!online)}
               className="grid place-items-center cursor-pointer p-2.5 rounded-xl hover:bg-white/10"
               title={online ? 'Workshop Active — Click to pause' : 'Workshop Offline — Click to activate'}
@@ -1275,8 +1310,8 @@ export function PartnerFlow({
           )}
         </div>
 
-        {/* Nav Items */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-none">
+        {/* Nav Items — The 4 Core Workshop Pillars */}
+        <nav className="flex-1 p-3.5 pt-4 space-y-3 overflow-y-auto scrollbar-none">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             const Icon = item.icon
@@ -1287,23 +1322,24 @@ export function PartnerFlow({
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-3 text-xs font-semibold rounded-xl transition-all cursor-pointer
-                  ${sidebarCollapsed ? 'justify-center px-0 py-3' : 'px-3.5 py-2.5'}
+                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer
+                  ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3.5'}
                   ${active
-                    ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/20 ring-1 ring-white/15'
+                    ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/25 ring-1 ring-white/15'
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }
                 `}
               >
-                <Icon size={16} className={active ? 'text-white' : 'text-slate-400'} />
+                <Icon size={19} className={active ? 'text-white' : 'text-slate-400 shrink-0'} />
                 {!sidebarCollapsed && (
                   <>
                     <span className="flex-1 text-left truncate">{item.label}</span>
                     {badge !== null && badge > 0 && (
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow-2xs ${item.id === 'cockpit' ? 'bg-amber-400 text-slate-950' : 'bg-white/20 text-white'
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full leading-none shadow-2xs ${item.id === 'cockpit' ? 'bg-amber-400 text-slate-950 font-black' : 'bg-white/20 text-white'
                         }`}>
                         {badge}
                       </span>
@@ -1315,22 +1351,29 @@ export function PartnerFlow({
           })}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className={`p-3 border-t border-slate-800/80 space-y-1 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
-          {/* Main Customer Site Link */}
-          <a
-            href="http://localhost:3000"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open Customer Front-end"
-            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
-          >
-            <ExternalLink size={14} className="text-slate-400" />
-            {!sidebarCollapsed && <span>Customer Site</span>}
-          </a>
+        {/* User / Studio Footer */}
+        <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+          {!sidebarCollapsed && (
+            <div
+              onClick={() => setActiveTab('profile')}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
+            >
+              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
+                ) : (
+                  tailorName.charAt(0)
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-white truncate">{tailorName}</div>
+                <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
+              </div>
+            </div>
+          )}
 
           <button
+            type="button"
             onClick={handleRefresh}
             title="Refresh Order Feed"
             className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
@@ -1341,6 +1384,7 @@ export function PartnerFlow({
           </button>
 
           <button
+            type="button"
             onClick={() => {
               if (onSignOut) onSignOut()
               else go('partner')
@@ -1411,6 +1455,7 @@ export function PartnerFlow({
                 <span className="text-[10px] text-slate-400">Arrivals</span>
               </div>
             </div>
+
 
             {/* Refresh Feed */}
             <button
@@ -1483,7 +1528,7 @@ export function PartnerFlow({
                     <div className="space-y-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md shadow-sm">
-                          Incoming Dispatch
+                          {currentBroadcast.isRealCustomerOrder ? 'New Alteration Request' : 'Incoming Dispatch'}
                         </span>
                         {currentBroadcast.garmentBrand && (
                           <span className="text-[10px] text-stone-300 bg-white/10 px-1.5 py-0.5 rounded-md">
@@ -2116,30 +2161,30 @@ export function PartnerFlow({
                     </div>
 
                     {/* 2. THREE-STATION ATELIER PRODUCTION FLOOR (KANBAN WORKFLOW) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
 
                       {/* ═══ STATION 1: DROP-OFF QUEUE ═══ */}
-                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
                           <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs">
+                            <div className="size-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
                               1
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="text-sm font-bold text-slate-900 leading-tight">
                                 Scheduled Arrivals
                               </h3>
                               <p className="text-[11px] text-slate-400">Clients arriving today</p>
                             </div>
                           </div>
-                          <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full">
+                          <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {pendingDropOffs} expected
                           </span>
                         </div>
 
                         {/* List */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 flex flex-col justify-start">
                           {orders.filter((o) => ['Accepted', 'Allocated', 'Customer Arrived'].includes(o.status)).length > 0 ? (
                             orders
                               .filter((o) => ['Accepted', 'Allocated', 'Customer Arrived'].includes(o.status))
@@ -2185,10 +2230,10 @@ export function PartnerFlow({
                                 </div>
                               ))
                           ) : (
-                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <Package size={24} className="mx-auto text-slate-400" />
                               <div className="text-xs font-bold text-slate-700">All Scheduled Drop-Offs Received</div>
-                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
                                 New bookings for today will populate here immediately upon client confirmation.
                               </p>
                             </div>
@@ -2197,28 +2242,28 @@ export function PartnerFlow({
                       </div>
 
                       {/* ═══ STATION 2: ACTIVE ON BENCH ═══ */}
-                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
                           <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs">
+                            <div className="size-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">
                               2
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="text-sm font-bold text-slate-900 leading-tight">
                                 Sewing Bench
                               </h3>
                               <p className="text-[11px] text-slate-400">Under needle right now</p>
                             </div>
                           </div>
-                          <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">
                             <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
                             {activeOnBench} active
                           </span>
                         </div>
 
                         {/* List */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 flex flex-col justify-start">
                           {orders.filter((o) => o.status === 'Work in Progress').length > 0 ? (
                             orders
                               .filter((o) => o.status === 'Work in Progress')
@@ -2306,10 +2351,10 @@ export function PartnerFlow({
                                 )
                               })
                           ) : (
-                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <Scissors size={24} className="mx-auto text-slate-400" />
                               <div className="text-xs font-bold text-slate-700">Sewing Bench Clear</div>
-                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
                                 No alterations currently in needle. Check in garments from the drop-off queue to start live SLA tracking.
                               </p>
                             </div>
@@ -2318,27 +2363,27 @@ export function PartnerFlow({
                       </div>
 
                       {/* ═══ STATION 3: READY ON RACK ═══ */}
-                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm space-y-4">
+                      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
                           <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs">
+                            <div className="size-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
                               3
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h3 className="text-sm font-bold text-slate-900 leading-tight">
                                 Ready on Rack
                               </h3>
                               <p className="text-[11px] text-slate-400">Customer pickup stage</p>
                             </div>
                           </div>
-                          <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full">
+                          <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {readyOnRack} on rack
                           </span>
                         </div>
 
                         {/* List */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 flex flex-col justify-start">
                           {orders.filter((o) => o.status === 'Ready').length > 0 ? (
                             orders
                               .filter((o) => o.status === 'Ready')
@@ -2381,10 +2426,10 @@ export function PartnerFlow({
                                 </div>
                               ))
                           ) : (
-                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2">
+                            <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <CheckCircle2 size={24} className="mx-auto text-slate-400" />
                               <div className="text-xs font-bold text-slate-700">Rack Clear &amp; Calibrated</div>
-                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[220px] mx-auto">
+                              <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
                                 Alterations marked finished on the sewing bench will appear here ready for client collection.
                               </p>
                             </div>
@@ -3049,6 +3094,14 @@ export function PartnerFlow({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Workshop Notification / Toast Banner */}
+      {(broadcastToast || studioNotice) && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#0F1115]/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3 animate-in slide-in-from-bottom-4 fade-in">
+          <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+          <span className="text-sm font-semibold">{broadcastToast || studioNotice}</span>
         </div>
       )}
     </div>
