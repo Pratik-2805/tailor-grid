@@ -76,7 +76,7 @@ interface BroadcastRequest {
   stage?: number
 }
 
-function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | null {
+function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | undefined {
   const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
   if (photo && typeof photo === 'string') {
     if (photo.startsWith('http') || photo.startsWith('data:')) return photo
@@ -89,7 +89,7 @@ function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | null 
       } catch { }
     }
   }
-  return null
+  return undefined
 }
 
 function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
@@ -195,6 +195,16 @@ export function cleanMeasurementVal(val?: string | null): string {
   const str = String(val).trim()
   if (str.toLowerCase().includes('to be measured') || str.toLowerCase() === 'pending') {
     return ''
+  }
+  return str
+}
+
+export function formatCustomerFitNotes(rawNotes?: string | null): string {
+  if (!rawNotes) return ''
+  let str = rawNotes.trim()
+  if (!str) return ''
+  if (str.startsWith('Measurements:')) {
+    str = str.replace(/^Measurements:\s*/, '').trim()
   }
   return str
 }
@@ -1905,13 +1915,15 @@ export function PartnerFlow({
                         {/* Garment Summary Card */}
                         <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
                           <div className="flex items-start gap-4">
-                            <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
-                              <img
-                                src={getGarmentPhoto(activeIntake)}
-                                alt={activeIntake.garmentName}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
+                            {getGarmentPhoto(activeIntake) && (
+                              <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
+                                <img
+                                  src={getGarmentPhoto(activeIntake)!}
+                                  alt={activeIntake.garmentName}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] block mb-1">
                                 Order #{activeIntake.id.slice(0, 8)}

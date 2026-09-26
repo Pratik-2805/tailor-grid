@@ -1112,7 +1112,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                           alt={`${order?.garmentName || 'Garment'} Reference`}
                           className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
                           onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                            (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined }) || ''
                           }}
                         />
                       ))}
