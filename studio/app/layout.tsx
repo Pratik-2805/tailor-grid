@@ -40,7 +40,7 @@ export default function RootLayout({
       <head>
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
-      <body className="font-sans antialiased bg-[#FAF8F5] text-[#1D2024] selection:bg-[#9E593B]/20 selection:text-[#9E593B]">
+      <body className="font-sans antialiased bg-[#F8FAFC] text-[#0F172A] selection:bg-[#9E593B]/20 selection:text-[#9E593B]">
         <StudioProxy>
           {children}
         </StudioProxy>
