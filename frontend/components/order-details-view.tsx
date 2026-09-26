@@ -440,10 +440,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }, [userCoords, destinationCoords.lat, destinationCoords.lng])
 
   const handleCopyPin = () => {
+    const pinToCopy = isReady ? (order?.otp || '') : formattedOtp
+    if (!pinToCopy) return
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(formattedOtp)
+      navigator.clipboard.writeText(pinToCopy)
       setPinCopied(true)
-      toast.success(`4-Digit PIN (${formattedOtp}) copied to clipboard!`, { position: 'top-center', autoClose: 2000 })
+      toast.success(`4-Digit PIN (${pinToCopy}) copied to clipboard!`, { position: 'top-center', autoClose: 2000 })
       setTimeout(() => setPinCopied(false), 2000)
     }
   }
@@ -687,6 +689,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
   }
 
+  const isPickupOtpActive = Boolean(order?.otp && order.otp.trim() !== '')
+
   // Dynamic PIN Box Label
   let pinBoxTitle = 'GIVE PIN TO TAILOR'
   if (pinCopied) {
@@ -694,7 +698,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   } else if (isInProgress) {
     pinBoxTitle = 'VERIFIED AT BENCH'
   } else if (isReady) {
-    pinBoxTitle = 'SHOW PICKUP PIN'
+    pinBoxTitle = isPickupOtpActive ? 'SHOW PICKUP PIN' : 'AWAITING STUDIO OTP'
   } else if (isCompleted) {
     pinBoxTitle = 'ORDER COMPLETED'
   }
@@ -728,7 +732,37 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           </button>
         </div>
 
-        <div className="w-full flex-1 flex flex-col">
+            {/* Uber-Style Step Tracker */}
+            <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-100">
+              {/* Step 1 */}
+              <div className="flex flex-col gap-1.5">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex >= 1 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 1 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
+                  1. Matched
+                </span>
+              </div>
+              {/* Step 2 */}
+              <div className="flex flex-col gap-1.5">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 2 ? 'bg-black animate-pulse' : stepIndex > 2 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 2 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
+                  2. Give PIN
+                </span>
+              </div>
+              {/* Step 3 */}
+              <div className="flex flex-col gap-1.5">
+                <div className={`h-1.5 w-full rounded-full ${stepIndex === 3 ? 'bg-black animate-pulse' : stepIndex > 3 ? 'bg-black' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 3 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
+                  3. Tailoring in Process
+                </span>
+              </div>
+              {/* Step 4 */}
+              <div className="flex flex-col gap-1.5">
+                <div className={`h-1.5 w-full rounded-full ${isCompleted ? 'bg-black' : isReady ? 'bg-black animate-pulse' : 'bg-gray-200'}`} />
+                <span className={`text-[10px] uppercase tracking-wider ${stepIndex >= 4 ? 'font-extrabold text-black' : 'font-semibold text-gray-400'}`}>
+                  4. Pickup
+                </span>
+              </div>
+            </div>          </div>
 
           {/* Notification Alert if Request Not Accepted / Cancelled */}
           {isCancelled && (
@@ -882,24 +916,40 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                         PIN Expired &bull; On Bench
                       </span>
                     </div>
-                  ) : isGeneratingPin ? (
-                    <div
-                      className="shrink-0 bg-black text-white border border-black rounded-2xl px-4 py-3 text-center shadow-md min-w-[155px] flex items-center justify-center gap-2"
-                    >
-                      <Loader2 size={16} className="animate-spin text-white" />
-                      <span className="text-xs sm:text-sm font-extrabold text-white">Generating...</span>
-                    </div>
-                  ) : !isPinGenerated ? (
-                    <button
-                      type="button"
-                      onClick={handleGeneratePin}
-                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-3 text-center shadow-md transition-all active:scale-95 cursor-pointer group min-w-[155px] flex items-center justify-center"
-                      title="Click to generate 4-digit PIN"
-                    >
-                      <span className="text-xs sm:text-sm font-extrabold text-white">
-                        Generate PIN
-                      </span>
-                    </button>
+                  ) : isReady ? (
+                    isPickupOtpActive ? (
+                      <button
+                        type="button"
+                        onClick={handleCopyPin}
+                        className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
+                        title="Click to copy PIN"
+                      >
+                        <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                          {pinBoxTitle}
+                        </span>
+                        <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
+                          {order.otp}
+                        </span>
+                      </button>
+                    ) : (
+                      <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                        <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                          </span>
+                          <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400">
+                            Awaiting Studio OTP
+                          </span>
+                        </div>
+                        <div className="text-xs font-mono font-bold text-gray-300 mt-1">
+                          OTP PENDING
+                        </div>
+                        <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                          Tailor generates on pickup
+                        </span>
+                      </div>
+                    )
                   ) : (
                     <button
                       type="button"
