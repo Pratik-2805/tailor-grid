@@ -23,6 +23,7 @@ import {
   XCircle,
   Edit3,
   Plus,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
@@ -189,12 +190,27 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLoading, setIsLoading] = useState(true)
   const [copiedToast, setCopiedToast] = useState(false)
   const [pinCopied, setPinCopied] = useState(false)
+  const [isPinGenerated, setIsPinGenerated] = useState(false)
+  const [isGeneratingPin, setIsGeneratingPin] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [distanceBadge, setDistanceBadge] = useState<string>('0.3 mi • ~5 mins walk')
   const [isEditingMeas, setIsEditingMeas] = useState(false)
   const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
   const [isSavingMeas, setIsSavingMeas] = useState(false)
+
+  const handleGeneratePin = () => {
+    if (isPinGenerated) {
+      handleCopyPin()
+      return
+    }
+    setIsGeneratingPin(true)
+    setTimeout(() => {
+      setIsGeneratingPin(false)
+      setIsPinGenerated(true)
+      toast.success('4-Digit PIN generated successfully!', { position: 'top-center', autoClose: 2000 })
+    }, 700)
+  }
 
   const handleSaveCustomerMeasurements = async () => {
     if (!order?.id) return
@@ -652,13 +668,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
   const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
 
-  // Stepper index: 1 = Matched, 2 = Give PIN, 3 = Tailoring, 4 = Pickup/Completed
-  let stepIndex = 2
-  if (isAllocated) stepIndex = 1
-  else if (isAccepted) stepIndex = 2
-  else if (isInProgress) stepIndex = 3
-  else if (isReady || isCompleted) stepIndex = 4
-
   // Dynamic Header Text
   let headerTitle = 'Order Accepted'
   let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
@@ -708,104 +717,20 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
   return (
     <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
-      <div className="flex-1 py-6 sm:py-10 px-3 sm:px-6 flex flex-col justify-center items-center">
-        <div className="max-w-[1040px] w-full mx-auto">
-
-          {/* ========================================================================= */}
-          {/* 1. UBER-STYLE HEADER & PROGRESS TIMELINE */}
-          {/* ========================================================================= */}
-          <div className="mb-6 bg-white rounded-2xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
-
-            <div className="flex items-center justify-between gap-3 mb-5">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onGoHome || (() => { window.location.href = '/' })}
-                  className="w-8 h-8 rounded-full bg-[#F3F3F3] hover:bg-black hover:text-white border border-gray-200 text-black flex items-center justify-center transition-all cursor-pointer shadow-2xs active:scale-95"
-                  title="Back to Home"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] tracking-tight leading-none">
-                    {headerTitle}
-                  </h1>
-                  <span className="text-[11px] font-semibold text-gray-500 mt-1 block">
-                    {headerSubtitle}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {isCancelled ? (
-                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 px-3 py-1.5 rounded-full">
-                    <span className="size-2 rounded-full bg-red-500" />
-                    <span className="text-xs font-bold text-red-700">
-                      Cancelled
-                    </span>
-                  </div>
-                ) : isAllocated ? (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200/80 px-3 py-1.5 rounded-full">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                    </span>
-                    <span className="text-xs font-bold text-amber-900">
-                      Awaiting Studio Acceptance
-                    </span>
-                  </div>
-                ) : isInProgress ? (
-                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
-                    </span>
-                    <span className="text-xs font-bold text-blue-900">
-                      In Tailoring &bull; Atelier Active
-                    </span>
-                  </div>
-                ) : isReady ? (
-                  <div className="flex items-center gap-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-full">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-600" />
-                    </span>
-                    <span className="text-xs font-bold text-purple-900">
-                      Ready for Pickup
-                    </span>
-                  </div>
-                ) : isCompleted ? (
-                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-                    <span className="size-2 rounded-full bg-emerald-600" />
-                    <span className="text-xs font-bold text-emerald-800">
-                      ✓ Completed &amp; Collected
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    <span className="text-xs font-bold text-emerald-800">
-                      Accepted &bull; Ready for Drop-off
-                    </span>
-                  </div>
-                )}
-
-                {!isCancelled && !isCompleted && (
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 border border-red-200 text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer active:scale-95 ml-2"
-                  >
-                    <XCircle size={14} />
-                    <span>Cancel Order</span>
-                  </button>
-                )}
-              </div>
+      <div className="flex-1 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8 w-full max-w-[1280px] mx-auto flex flex-col">
+        {/* Navigation Breadcrumb / Header in left whitespace */}
+        <div className="mb-4 sm:mb-5 lg:-ml-10 xl:-ml-16 2xl:-ml-24 transition-all">
+          <button
+            type="button"
+            onClick={onGoOrders || onGoHome || (() => { window.location.href = '/orders' })}
+            className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer group"
+          >
+            <div className="w-8 h-8 rounded-full bg-white border border-gray-200/90 shadow-2xs flex items-center justify-center text-[#18191B] group-hover:bg-[#18191B] group-hover:text-white transition-all">
+              <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
             </div>
+            <span className="font-bold text-[#18191B]">Order Details</span>
+          </button>
+        </div>
 
             {/* Uber-Style Step Tracker */}
             <div className="grid grid-cols-4 gap-2 pt-2 border-t border-gray-100">
@@ -876,25 +801,44 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           )}
 
           {/* ========================================================================= */}
-          {/* 2. UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
+          {/* UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
           {/* ========================================================================= */}
           <div className="grid lg:grid-cols-12 gap-5 items-stretch">
 
             {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* LEFT COLUMN: Atelier Info, High-Visibility PIN Badge, Work & Measurements */}
+            {/* LEFT COLUMN: Order Status, Atelier Info, High-Visibility PIN, Work & Meas */}
             {/* ───────────────────────────────────────────────────────────────────────── */}
             <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
 
               <div>
-                {/* Top Row: Store Name & Location vs Uber-Style Black PIN Box */}
-                <div className="flex items-start justify-between gap-4 pb-4 border-b border-gray-100">
+                {/* 1. Integrated Order ID & Cancel Button */}
+                <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-gray-100">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-0.5">
+                      Order ID
+                    </span>
+                    <span className="text-xs sm:text-[13px] font-mono font-bold text-[#0F1115] tracking-wide block">
+                      #{order?.id || slugId}
+                    </span>
+                  </div>
+
+                  {!isCancelled && !isCompleted && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelModal(true)}
+                      className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-full bg-red-600 hover:bg-red-700 text-xs sm:text-sm font-bold text-white transition-all shadow-sm cursor-pointer active:scale-95 shrink-0"
+                    >
+                      Cancel Order
+                    </button>
+                  )}
+                </div>
+
+                {/* 2. Matched Studio Info & PIN Box */}
+                <div className="flex items-start justify-between gap-4 py-4 border-b border-gray-100">
 
                   {/* Store Info */}
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-1">
-                      Matched Studio
-                    </span>
-                    <h2 className="text-lg sm:text-xl font-extrabold text-[#0F1115] truncate leading-tight">
+                    <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] truncate leading-tight tracking-tight">
                       {storeNameDisplay}
                     </h2>
                     <div className="flex items-center gap-1.5 mt-1.5 text-xs font-medium text-gray-600">
@@ -1010,7 +954,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     <button
                       type="button"
                       onClick={handleCopyPin}
-                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
+                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-all active:scale-95 cursor-pointer group min-w-[155px] animate-in zoom-in-95 duration-150"
                       title="Click to copy PIN"
                     >
                       <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
@@ -1171,9 +1115,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     }
                     return (
                       <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
-                        <Scissors size={14} className="text-amber-700 shrink-0" />
                         <p className="text-xs text-amber-900 font-medium">
-                          In-Studio Precision Pinning &bull; Tailor will measure your fit upon drop-off.
+                          Tailor will measure your fit upon drop-off.
                         </p>
                       </div>
                     )
@@ -1245,7 +1188,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 {/* Tailor Studio Map Canvas (Google Maps JS API / Clean Styled) */}
                 <div
                   onClick={handleOpenAppMap}
-                  className="flex-1 min-h-[280px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
+                  className="flex-1 min-h-[320px] sm:min-h-[360px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
                   title="Click map to start car navigation in your map app"
                 >
                   <CleanGoogleMap

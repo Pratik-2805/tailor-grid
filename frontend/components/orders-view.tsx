@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   ArrowRight,
@@ -23,7 +24,6 @@ import {
 import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
 import { fetchOrders, updateOrder } from '@/lib/api'
-import { OrderDetailsView } from './order-details-view'
 
 interface OrdersViewProps {
   go: (s: Screen) => void
@@ -32,10 +32,10 @@ interface OrdersViewProps {
 }
 
 export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'orders' | 'fit-profile'>('orders')
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<any | null>(null)
-  const [selectedDetailOrderId, setSelectedDetailOrderId] = useState<string | null>(null)
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false)
   const [backendOrders, setBackendOrders] = useState<FittingBooking[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -282,8 +282,8 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   }))
 
   return (
-    <div className="py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
-      <div className="mx-auto max-w-[1040px] px-5 lg:px-8">
+    <div className="py-8 sm:py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
+      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Navigation */}
         <button
@@ -357,7 +357,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                 return (
                   <div
                     key={o.id}
-                    onClick={() => setSelectedDetailOrderId(o.id)}
+                    onClick={() => router.push(`/order/${o.id}`)}
                     className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer group"
                   >
                     <div>
@@ -403,7 +403,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedDetailOrderId(o.id)
+                            router.push(`/order/${o.id}`)
                           }}
                           className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
                         >
@@ -558,28 +558,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                   {isSubmittingCancel ? 'Cancelling...' : 'Yes, Cancel Order'}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Full-Screen Live Order Details Tracker Modal */}
-        {selectedDetailOrderId && (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="relative min-h-screen">
-              <div className="sticky top-4 right-4 sm:right-8 z-50 flex justify-end px-4 pt-2">
-                <button
-                  onClick={() => setSelectedDetailOrderId(null)}
-                  className="flex items-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] text-white px-4 py-2 rounded-full font-extrabold text-xs shadow-2xl transition-all active:scale-95 cursor-pointer border border-white/20"
-                >
-                  <span>Close Tracker</span>
-                  <span className="font-mono text-sm">✕</span>
-                </button>
-              </div>
-              <OrderDetailsView
-                slugId={selectedDetailOrderId}
-                onGoHome={() => setSelectedDetailOrderId(null)}
-                onGoOrders={() => setSelectedDetailOrderId(null)}
-              />
             </div>
           </div>
         )}
