@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Check,
@@ -172,6 +172,44 @@ function parseOrderMeasurements(order?: any): Record<string, string> {
   return result
 }
 
+function SewStitchDoodlePlayer() {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let isMounted = true
+    let animInstance: any = null
+
+    import('lottie-web').then((lottie) => {
+      if (!isMounted || !containerRef.current) return
+      try {
+        animInstance = lottie.default.loadAnimation({
+          container: containerRef.current,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          path: '/Sew%20Stitch%20Doodle.json',
+          rendererSettings: {
+            preserveAspectRatio: 'xMidYMid meet',
+          },
+        })
+      } catch (err) {
+        console.warn('Lottie load error:', err)
+      }
+    })
+
+    return () => {
+      isMounted = false
+      if (animInstance) {
+        try {
+          animInstance.destroy()
+        } catch { }
+      }
+    }
+  }, [])
+
+  return <div ref={containerRef} className="w-full h-full overflow-hidden pointer-events-none" />
+}
+
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
   const { stopBookingTransition } = useApp()
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -193,6 +231,15 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isEditingMeas, setIsEditingMeas] = useState(false)
   const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
   const [isSavingMeas, setIsSavingMeas] = useState(false)
+  const [inProcessDots, setInProcessDots] = useState('')
+
+  useEffect(() => {
+    // Sequential dots cycle: "" (0) -> "." (1) -> ".." (2) -> "..." (3) -> "" (0)
+    const interval = setInterval(() => {
+      setInProcessDots((prev) => (prev.length < 3 ? prev + '.' : ''))
+    }, 450)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleGeneratePin = () => {
     if (isPinGenerated) return
@@ -650,6 +697,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
   const isValidated = Boolean(order?.otpVerified || isInProgress || isReady || isCompleted)
 
+  useEffect(() => {
+    if (isReady) {
+      setIsPinGenerated(false)
+    }
+  }, [isReady])
+
   // Dynamic Header Text
   let headerTitle = 'Order Accepted'
   let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
@@ -682,6 +735,45 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           persistent={true}
           title="Loading"
         />
+      </div>
+    )
+  }
+
+  if (isInProgress && !isReady && !isCompleted && !isCancelled) {
+    return (
+      <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
+        <div className="flex-1 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8 w-full max-w-[1280px] mx-auto flex flex-col">
+          {/* Navigation Breadcrumb */}
+          <div className="mb-4 sm:mb-5 lg:-ml-10 xl:-ml-16 2xl:-ml-24 transition-all">
+            <button
+              type="button"
+              onClick={onGoOrders || onGoHome || (() => { window.location.href = '/orders' })}
+              className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-full bg-white border border-gray-200/90 shadow-2xs flex items-center justify-center text-[#18191B] group-hover:bg-[#18191B] group-hover:text-white transition-all">
+                <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+              </div>
+              <span className="font-bold text-[#18191B]">Order Details</span>
+            </button>
+          </div>
+
+          {/* Truly Centered Content */}
+          <div className="flex-1 flex flex-col items-center justify-center py-4 sm:py-8 -mt-6 sm:-mt-10 text-center animate-in zoom-in-95 duration-200">
+            <div className="size-52 sm:size-64 flex items-center justify-center pointer-events-none mb-2">
+              <SewStitchDoodlePlayer />
+            </div>
+
+            <div className="space-y-2 max-w-[540px]">
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0F1115]">
+                <span>Your alteration is in process</span>
+                <span className="inline-block w-6 text-left font-mono font-extrabold text-[#0F1115]">{inProcessDots}</span>
+              </h2>
+              <p className="text-sm sm:text-base text-gray-500 font-medium">
+                {storeNameDisplay} is crafting your {garmentDisplay.toLowerCase()}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -802,7 +894,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   </div>
                 </div>
 
-                {/* Top-Right Area: PIN (only before tailor validation) or Cancelled badge */}
+                {/* Top-Right Area: Completed / Cancelled / Reveal PIN / Revealed PIN */}
                 {isCancelled ? (
                   <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
                     <div className="flex items-center justify-center gap-1.5 mb-0.5">
@@ -819,33 +911,47 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       No PIN Required
                     </span>
                   </div>
-                ) : !isValidated ? (
-                  !isPinGenerated ? (
-                    <button
-                      type="button"
-                      onClick={handleGeneratePin}
-                      disabled={isGeneratingPin}
-                      className="shrink-0 bg-black text-white hover:bg-neutral-800 active:scale-95 border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md transition-all cursor-pointer flex items-center justify-center font-bold text-xs sm:text-sm tracking-wide group"
-                    >
-                      {isGeneratingPin ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Loader2 size={15} className="animate-spin text-white" />
-                          <span>Revealing...</span>
-                        </div>
-                      ) : (
-                        <span>Reveal PIN</span>
-                      )}
-                    </button>
-                  ) : (
-                    <div
-                      className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
-                    >
-                      <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
-                        {formattedOtp}
+                ) : isCompleted ? (
+                  <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                      <span className="size-2 rounded-full bg-emerald-500" />
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
+                        Order Completed
                       </span>
                     </div>
-                  )
-                ) : null}
+                    <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
+                      <CheckCircle2 size={13} className="text-emerald-400" />
+                      <span>Garment Collected</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                      ✓ Fulfilled &bull; Closed
+                    </span>
+                  </div>
+                ) : !isPinGenerated ? (
+                  <button
+                    type="button"
+                    onClick={handleGeneratePin}
+                    disabled={isGeneratingPin}
+                    className="shrink-0 bg-black text-white hover:bg-neutral-800 active:scale-95 border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md transition-all cursor-pointer flex items-center justify-center font-bold text-xs sm:text-sm tracking-wide group"
+                  >
+                    {isGeneratingPin ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 size={15} className="animate-spin text-white" />
+                        <span>Revealing...</span>
+                      </div>
+                    ) : (
+                      <span>Reveal PIN</span>
+                    )}
+                  </button>
+                ) : (
+                  <div
+                    className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
+                  >
+                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
+                      {formattedOtp}
+                    </span>
+                  </div>
+                )}
 
               </div>
 
@@ -1037,10 +1143,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
 
             {/* Note Strip */}
-            {!isValidated && !isCancelled && (
+            {!isCompleted && !isCancelled && (
               <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-medium text-gray-500">
                 <span className="text-gray-600">
-                  <strong className="text-black font-bold">NOTE:</strong> Give this PIN to the tailor for confirming the order.
+                  <strong className="text-black font-bold">NOTE:</strong> {isReady ? 'Give this PIN to the tailor for collecting your completed garment.' : 'Give this PIN to the tailor for confirming the order.'}
                 </span>
                 <span className="font-bold text-black">Darzi</span>
               </div>
