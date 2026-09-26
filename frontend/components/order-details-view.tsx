@@ -440,10 +440,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }, [userCoords, destinationCoords.lat, destinationCoords.lng])
 
   const handleCopyPin = () => {
+    const pinToCopy = isReady ? (order?.otp || '') : formattedOtp
+    if (!pinToCopy) return
     if (typeof window !== 'undefined') {
-      navigator.clipboard.writeText(formattedOtp)
+      navigator.clipboard.writeText(pinToCopy)
       setPinCopied(true)
-      toast.success(`4-Digit PIN (${formattedOtp}) copied to clipboard!`, { position: 'top-center', autoClose: 2000 })
+      toast.success(`4-Digit PIN (${pinToCopy}) copied to clipboard!`, { position: 'top-center', autoClose: 2000 })
       setTimeout(() => setPinCopied(false), 2000)
     }
   }
@@ -687,6 +689,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
   }
 
+  const isPickupOtpActive = Boolean(order?.otp && order.otp.trim() !== '')
+
   // Dynamic PIN Box Label
   let pinBoxTitle = 'GIVE PIN TO TAILOR'
   if (pinCopied) {
@@ -694,7 +698,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   } else if (isInProgress) {
     pinBoxTitle = 'VERIFIED AT BENCH'
   } else if (isReady) {
-    pinBoxTitle = 'SHOW PICKUP PIN'
+    pinBoxTitle = isPickupOtpActive ? 'SHOW PICKUP PIN' : 'AWAITING STUDIO OTP'
   } else if (isCompleted) {
     pinBoxTitle = 'ORDER COMPLETED'
   }
@@ -728,495 +732,509 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           </button>
         </div>
 
-        <div className="w-full flex-1 flex flex-col">
 
-          {/* Notification Alert if Request Not Accepted / Cancelled */}
-          {isCancelled && (
-            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-2xs">
-              <div className="flex items-start gap-4">
-                <div className="size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
-                  <XCircle size={22} />
-                </div>
-                <div className="space-y-1 min-w-0 flex-1">
-                  <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
-                  <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
-                    No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
-                  </p>
-                  <div className="pt-3 flex flex-wrap items-center gap-3">
-                    <button
-                      type="button"
-                      disabled={isRebooking}
-                      onClick={handleRebookSameRequest}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-5 py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
-                    >
-                      <RotateCcw size={14} className={isRebooking ? 'animate-spin' : ''} />
-                      <span>{isRebooking ? 'Re-submitting Request...' : 'Try Booking Again'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => { window.location.href = '/book' }}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
-                    >
-                      <span>Book Different Fitting</span> &rarr;
-                    </button>
-                  </div>
-                </div>
-              </div>
+      {/* Notification Alert if Request Not Accepted / Cancelled */}
+      {isCancelled && (
+        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-2xs">
+          <div className="flex items-start gap-4">
+            <div className="size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+              <XCircle size={22} />
             </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
-          {/* ========================================================================= */}
-          <div className="grid lg:grid-cols-12 gap-5 items-stretch">
-
-            {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* LEFT COLUMN: Order Status, Atelier Info, High-Visibility PIN, Work & Meas */}
-            {/* ───────────────────────────────────────────────────────────────────────── */}
-            <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
-
-              <div>
-                {/* 1. Integrated Order ID & Cancel Button */}
-                <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-gray-100">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-0.5">
-                      Order ID
-                    </span>
-                    <span className="text-xs sm:text-[13px] font-mono font-bold text-[#0F1115] tracking-wide block">
-                      #{order?.id || slugId}
-                    </span>
-                  </div>
-
-                  {!isCancelled && !isCompleted && (
-                    <button
-                      type="button"
-                      onClick={() => setShowCancelModal(true)}
-                      className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-full bg-red-600 hover:bg-red-700 text-xs sm:text-sm font-bold text-white transition-all shadow-sm cursor-pointer active:scale-95 shrink-0"
-                    >
-                      Cancel Order
-                    </button>
-                  )}
-                </div>
-
-                {/* 2. Matched Studio Info & PIN Box */}
-                <div className="flex items-start justify-between gap-4 py-4 border-b border-gray-100">
-
-                  {/* Store Info */}
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] truncate leading-tight tracking-tight">
-                      {storeNameDisplay}
-                    </h2>
-                    <div className="flex items-center gap-1.5 mt-1.5 text-xs font-medium text-gray-600">
-                      <MapPin size={14} className="text-[#9E593B] shrink-0" />
-                      <span className="truncate">{storeAddressDisplay}</span>
-                    </div>
-
-                    {/* Studio Direct Contact Phone & Details */}
-                    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                      <a
-                        href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition-colors text-xs font-bold cursor-pointer"
-                        title="Click to call studio"
-                      >
-                        <Phone size={13} className="text-emerald-600" />
-                        <span>{storePhoneDisplay}</span>
-                      </a>
-                      <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80">
-                        🕒 {storeHoursDisplay}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Uber-Style Top-Right Badge: Completed / Cancelled / In Progress / PIN */}
-                  {isCompleted ? (
-                    <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
-                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                        <span className="size-2 rounded-full bg-emerald-500" />
-                        <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
-                          Order Completed
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
-                        <CheckCircle2 size={13} className="text-emerald-400" />
-                        <span>Garment Collected</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400 block mt-1 font-medium">
-                        ✓ Fulfilled &bull; Closed
-                      </span>
-                    </div>
-                  ) : isCancelled ? (
-                    <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
-                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                        <span className="size-2 rounded-full bg-red-500" />
-                        <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-red-400">
-                          Cancelled
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
-                        <XCircle size={13} className="text-red-400" />
-                        <span>Order Cancelled</span>
-                      </div>
-                      <span className="text-[10px] text-red-300/80 block mt-1 font-medium">
-                        No PIN Required
-                      </span>
-                    </div>
-                  ) : isInProgress ? (
-                    <div
-                      className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]"
-                    >
-                      <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
-                        </span>
-                        <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
-                          Work in Progress
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-white mt-1">
-                        <Scissors size={13} className="text-[#9E593B]" />
-                        <span>Tailoring Active</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400 block mt-1 font-medium">
-                        PIN Expired &bull; On Bench
-                      </span>
-                    </div>
-                  ) : isGeneratingPin ? (
-                    <div
-                      className="shrink-0 bg-black text-white border border-black rounded-2xl px-4 py-3 text-center shadow-md min-w-[155px] flex items-center justify-center gap-2"
-                    >
-                      <Loader2 size={16} className="animate-spin text-white" />
-                      <span className="text-xs sm:text-sm font-extrabold text-white">Generating...</span>
-                    </div>
-                  ) : !isPinGenerated ? (
-                    <button
-                      type="button"
-                      onClick={handleGeneratePin}
-                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-3 text-center shadow-md transition-all active:scale-95 cursor-pointer group min-w-[155px] flex items-center justify-center"
-                      title="Click to generate 4-digit PIN"
-                    >
-                      <span className="text-xs sm:text-sm font-extrabold text-white">
-                        Generate PIN
-                      </span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleCopyPin}
-                      className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-all active:scale-95 cursor-pointer group min-w-[155px] animate-in zoom-in-95 duration-150"
-                      title="Click to copy PIN"
-                    >
-                      <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
-                        {pinBoxTitle}
-                      </span>
-                      <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
-                        {formattedOtp}
-                      </span>
-                    </button>
-                  )}
-
-                </div>
-
-                {/* Middle Row: Itemized Work & Garment Cards (Uber Clean) */}
-                <div className="grid grid-cols-2 gap-3 py-4 border-b border-gray-100">
-
-                  {/* Cloth Type */}
-                  <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
-                    <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
-                      Garment / Cloth Type
-                    </span>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#0F1115]">
-                      <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0">
-                        <GarmentCategoryIcon categoryId={order?.garmentId} className="size-3.5 text-white" />
-                      </div>
-                      <span className="truncate">{garmentDisplay}</span>
-                    </div>
-                  </div>
-
-                  {/* Your Work */}
-                  <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
-                    <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
-                      Requested Alteration
-                    </span>
-                    <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#0F1115]">
-                      <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0">
-                        <Ruler size={13} className="text-white" />
-                      </div>
-                      <span className="truncate">{serviceDisplay}</span>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Lower Section: Measurements Spec */}
-                <div className="pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <Scissors size={14} className="text-[#9E593B]" />
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-[#0F1115]">
-                        Your Measurements:
-                      </span>
-                    </div>
-
-                    {!isInProgress && !isReady && !isCompleted && !isCancelled && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const parsed = parseOrderMeasurements(order)
-                          const entries = Object.entries(parsed)
-                          if (entries.length > 0) {
-                            setEditMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
-                          } else {
-                            setEditMeasFields([
-                              { key: 'hem', label: 'Hem Adjustment', value: '' },
-                              { key: 'waist', label: 'Waist / Seat', value: '' },
-                              { key: 'sleeve', label: 'Sleeve Length', value: '' },
-                              { key: 'length', label: 'Shirt / Garment Length', value: '' },
-                            ])
-                          }
-                          setIsEditingMeas(!isEditingMeas)
-                        }}
-                        className="text-[11px] font-bold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Edit3 size={11} />
-                        <span>{isEditingMeas ? 'Close Editor' : 'Edit Measurements'}</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {isEditingMeas && (
-                    /* Customer Inline Measurement Editor */
-                    <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3 mb-3 animate-in fade-in duration-150">
-                      <p className="text-[11px] text-gray-600 font-medium">
-                        Update your fit requests before visiting the studio for drop-off:
-                      </p>
-                      <div className="grid sm:grid-cols-2 gap-2">
-                        {editMeasFields.map((field, idx) => (
-                          <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200">
-                            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                              {field.label}
-                            </label>
-                            <input
-                              type="text"
-                              value={field.value}
-                              onChange={(e) => {
-                                const val = e.target.value
-                                setEditMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
-                              }}
-                              placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
-                              className="w-full px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none"
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newKey = `custom_${Date.now()}`
-                            setEditMeasFields(prev => [...prev, { key: newKey, label: 'Custom Note', value: '' }])
-                          }}
-                          className="text-[11px] text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus size={11} />
-                          <span>Add Field</span>
-                        </button>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setIsEditingMeas(false)}
-                            className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isSavingMeas}
-                            onClick={handleSaveCustomerMeasurements}
-                            className="px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
-                          >
-                            {isSavingMeas ? 'Saving…' : '✓ Save Fit Specs'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {(() => {
-                    const parsed = parseOrderMeasurements(order)
-                    const entries = Object.entries(parsed)
-                    if (entries.length > 0) {
-                      return (
-                        <div className="flex flex-wrap gap-2">
-                          {entries.map(([key, val]) => (
-                            <span
-                              key={key}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F8F8] border border-gray-200/90 text-xs font-bold text-black"
-                            >
-                              <span className="capitalize text-gray-500 font-semibold">{formatMeasurementKey(key)}:</span>
-                              <span>{String(val)}</span>
-                            </span>
-                          ))}
-                        </div>
-                      )
-                    }
-                    return (
-                      <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
-                        <p className="text-xs text-amber-900 font-medium">
-                          Tailor will measure your fit upon drop-off.
-                        </p>
-                      </div>
-                    )
-                  })()}
-
-                  {order?.notes && (
-                    <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200/70 font-medium">
-                      <span className="font-bold text-black">Tailoring Notes:</span> {order.notes}
-                    </p>
-                  )}
-
-                  {(() => {
-                    const photos = getAllGarmentPhotos(order)
-                    return (
-                      <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
-                        <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
-                          Reference Garment Photo:
-                        </span>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {photos.map((url, idx) => (
-                            <img
-                              key={idx}
-                              src={url}
-                              alt={`${order?.garmentName || 'Garment'} Reference`}
-                              className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
-
-              </div>
-
-              {/* Quality Guarantee Strip */}
-              <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-semibold text-gray-500">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck size={14} className="text-emerald-600" />
-                  <span>100% Perfect Fit Guarantee &bull; Insured Work</span>
-                </span>
-                <span className="font-bold text-black">Darzi</span>
-              </div>
-
-            </div>
-
-            {/* ───────────────────────────────────────────────────────────────────────── */}
-            {/* RIGHT COLUMN: Real Interactive Google Map & Action Buttons */}
-            {/* ───────────────────────────────────────────────────────────────────────── */}
-            <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
-
-              <div className="flex-1 flex flex-col">
-                {/* Map Header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <Navigation size={15} className="text-black fill-black" />
-                    <span className="text-xs font-extrabold text-[#0F1115] uppercase tracking-wider">
-                      Studio Map &amp; Route
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200">
-                    {dynamicDistanceBadge}
-                  </span>
-                </div>
-
-                {/* Tailor Studio Map Canvas (Google Maps JS API / Clean Styled) */}
-                <div
-                  onClick={handleOpenAppMap}
-                  className="flex-1 min-h-[320px] sm:min-h-[360px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
-                  title="Click map to start car navigation in your map app"
-                >
-                  <CleanGoogleMap
-                    lat={customerCoords.lat}
-                    lng={customerCoords.lng}
-                    storeName={storeNameDisplay}
-                    storeAddress={storeAddressDisplay}
-                    origin={order?.customerAddress || order?.address || order?.city}
-                    userCoords={customerCoords}
-                    stores={[{
-                      ...assignedStoreOption,
-                      coords: tailorCoords,
-                    }]}
-                    selectedStoreId={assignedStoreOption.id}
-                    showRadiusCircle={false}
-                    showCurvedConnection={true}
-                    onMapClick={handleOpenAppMap}
-                  />
-
-                  {/* Floating Blue GPS Target Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleFetchCurrentLocation()
-                    }}
-                    disabled={isLocating}
-                    className="absolute bottom-4 right-4 z-30 size-11 rounded-2xl bg-[#0066FF] hover:bg-[#0052CC] active:scale-90 text-white shadow-xl flex items-center justify-center transition-all border border-white/30 cursor-pointer group/btn"
-                    title="Find nearest studio to my location"
-                  >
-                    <Navigation size={18} className={`fill-white ${isLocating ? 'animate-spin text-amber-300' : 'group-hover/btn:scale-110'} transition-transform`} />
-                  </button>
-
-                  {/* Copy Toast Alert */}
-                  {copiedToast && (
-                    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-black text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 animate-in fade-in zoom-in pointer-events-none">
-                      <Check size={13} className="text-emerald-400" />
-                      <span>Tracking link copied to clipboard!</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Uber-Style Action Buttons Row */}
-              <div className="grid grid-cols-3 gap-2 mt-5 pt-3 border-t border-gray-100 mt-auto">
-                <a
-                  href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
-                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 text-center truncate"
-                  title="Call Partner Studio"
-                >
-                  <Phone size={14} />
-                  <span className="truncate">Call Studio</span>
-                </a>
-
+            <div className="space-y-1 min-w-0 flex-1">
+              <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
+              <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
+                No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
+              </p>
+              <div className="pt-3 flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={handleShareMap}
-                  className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95 truncate"
+                  disabled={isRebooking}
+                  onClick={handleRebookSameRequest}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-5 py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
                 >
-                  <Share2 size={14} />
-                  <span className="truncate">Share Map</span>
+                  <RotateCcw size={14} className={isRebooking ? 'animate-spin' : ''} />
+                  <span>{isRebooking ? 'Re-submitting Request...' : 'Try Booking Again'}</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleOpenAppMap}
-                  className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-md active:scale-95 truncate"
-                  title="Open in Map app"
+                  onClick={() => { window.location.href = '/book' }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
                 >
-                  <Navigation size={14} className="fill-white" />
-                  <span className="truncate">Open App</span>
+                  <span>Book Different Fitting</span> &rarr;
                 </button>
               </div>
-
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
+      {/* ========================================================================= */}
+      <div className="grid lg:grid-cols-12 gap-5 items-stretch">
+
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        {/* LEFT COLUMN: Order Status, Atelier Info, High-Visibility PIN, Work & Meas */}
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+
+          <div>
+            {/* 1. Integrated Order ID & Cancel Button */}
+            <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-gray-100">
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-0.5">
+                  Order ID
+                </span>
+                <span className="text-xs sm:text-[13px] font-mono font-bold text-[#0F1115] tracking-wide block">
+                  #{order?.id || slugId}
+                </span>
+              </div>
+
+              {!isCancelled && !isCompleted && (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-full bg-red-600 hover:bg-red-700 text-xs sm:text-sm font-bold text-white transition-all shadow-sm cursor-pointer active:scale-95 shrink-0"
+                >
+                  Cancel Order
+                </button>
+              )}
+            </div>
+
+            {/* 2. Matched Studio Info & PIN Box */}
+            <div className="flex items-start justify-between gap-4 py-4 border-b border-gray-100">
+
+              {/* Store Info */}
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] truncate leading-tight tracking-tight">
+                  {storeNameDisplay}
+                </h2>
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs font-medium text-gray-600">
+                  <MapPin size={14} className="text-[#9E593B] shrink-0" />
+                  <span className="truncate">{storeAddressDisplay}</span>
+                </div>
+
+                {/* Studio Direct Contact Phone & Details */}
+                <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                  <a
+                    href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition-colors text-xs font-bold cursor-pointer"
+                    title="Click to call studio"
+                  >
+                    <Phone size={13} className="text-emerald-600" />
+                    <span>{storePhoneDisplay}</span>
+                  </a>
+                  <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80">
+                    🕒 {storeHoursDisplay}
+                  </span>
+                </div>
+              </div>
+
+              {/* Uber-Style Top-Right Badge: Completed / Cancelled / In Progress / PIN */}
+              {isCompleted ? (
+                <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                  <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span className="size-2 rounded-full bg-emerald-500" />
+                    <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
+                      Order Completed
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
+                    <CheckCircle2 size={13} className="text-emerald-400" />
+                    <span>Garment Collected</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                    ✓ Fulfilled &bull; Closed
+                  </span>
+                </div>
+              ) : isCancelled ? (
+                <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                  <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span className="size-2 rounded-full bg-red-500" />
+                    <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-red-400">
+                      Cancelled
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1 text-xs font-bold text-white mt-1">
+                    <XCircle size={13} className="text-red-400" />
+                    <span>Order Cancelled</span>
+                  </div>
+                  <span className="text-[10px] text-red-300/80 block mt-1 font-medium">
+                    No PIN Required
+                  </span>
+                </div>
+              ) : isInProgress ? (
+                <div
+                  className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]"
+                >
+                  <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500" />
+                    </span>
+                    <span className="text-[9px] font-extrabold uppercase tracking-widest text-blue-400">
+                      Work in Progress
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-white mt-1">
+                    <Scissors size={13} className="text-[#9E593B]" />
+                    <span>Tailoring Active</span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                    PIN Expired &bull; On Bench
+                  </span>
+                </div>
+              ) : isReady ? (
+                isPickupOtpActive ? (
+                  <button
+                    type="button"
+                    onClick={handleCopyPin}
+                    className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-transform active:scale-95 cursor-pointer group"
+                    title="Click to copy PIN"
+                  >
+                    <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                      {pinBoxTitle}
+                    </span>
+                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
+                      {order.otp}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                      </span>
+                      <span className="text-[9px] font-extrabold uppercase tracking-widest text-amber-400">
+                        Awaiting Studio OTP
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono font-bold text-gray-300 mt-1">
+                      OTP PENDING
+                    </div>
+                    <span className="text-[10px] text-gray-400 block mt-1 font-medium">
+                      Tailor generates on pickup
+                    </span>
+                  </div>
+                )
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleCopyPin}
+                  className="shrink-0 bg-black text-white hover:bg-neutral-900 border border-black rounded-2xl px-4 py-2.5 text-center shadow-md transition-all active:scale-95 cursor-pointer group min-w-[155px] animate-in zoom-in-95 duration-150"
+                  title="Click to copy PIN"
+                >
+                  <span className="block text-[9px] font-extrabold uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                    {pinBoxTitle}
+                  </span>
+                  <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none mt-1 block">
+                    {formattedOtp}
+                  </span>
+                </button>
+              )}
+
+            </div>
+
+            {/* Middle Row: Itemized Work & Garment Cards (Uber Clean) */}
+            <div className="grid grid-cols-2 gap-3 py-4 border-b border-gray-100">
+
+              {/* Cloth Type */}
+              <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
+                  Garment / Cloth Type
+                </span>
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#0F1115]">
+                  <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0">
+                    <GarmentCategoryIcon categoryId={order?.garmentId} className="size-3.5 text-white" />
+                  </div>
+                  <span className="truncate">{garmentDisplay}</span>
+                </div>
+              </div>
+
+              {/* Your Work */}
+              <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
+                  Requested Alteration
+                </span>
+                <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#0F1115]">
+                  <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0">
+                    <Ruler size={13} className="text-white" />
+                  </div>
+                  <span className="truncate">{serviceDisplay}</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Lower Section: Measurements Spec */}
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Scissors size={14} className="text-[#9E593B]" />
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#0F1115]">
+                    Your Measurements:
+                  </span>
+                </div>
+
+                {!isInProgress && !isReady && !isCompleted && !isCancelled && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const parsed = parseOrderMeasurements(order)
+                      const entries = Object.entries(parsed)
+                      if (entries.length > 0) {
+                        setEditMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
+                      } else {
+                        setEditMeasFields([
+                          { key: 'hem', label: 'Hem Adjustment', value: '' },
+                          { key: 'waist', label: 'Waist / Seat', value: '' },
+                          { key: 'sleeve', label: 'Sleeve Length', value: '' },
+                          { key: 'length', label: 'Shirt / Garment Length', value: '' },
+                        ])
+                      }
+                      setIsEditingMeas(!isEditingMeas)
+                    }}
+                    className="text-[11px] font-bold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Edit3 size={11} />
+                    <span>{isEditingMeas ? 'Close Editor' : 'Edit Measurements'}</span>
+                  </button>
+                )}
+              </div>
+
+              {isEditingMeas && (
+                /* Customer Inline Measurement Editor */
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3 mb-3 animate-in fade-in duration-150">
+                  <p className="text-[11px] text-gray-600 font-medium">
+                    Update your fit requests before visiting the studio for drop-off:
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    {editMeasFields.map((field, idx) => (
+                      <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                          {field.label}
+                        </label>
+                        <input
+                          type="text"
+                          value={field.value}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setEditMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
+                          }}
+                          placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
+                          className="w-full px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newKey = `custom_${Date.now()}`
+                        setEditMeasFields(prev => [...prev, { key: newKey, label: 'Custom Note', value: '' }])
+                      }}
+                      className="text-[11px] text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={11} />
+                      <span>Add Field</span>
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingMeas(false)}
+                        className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSavingMeas}
+                        onClick={handleSaveCustomerMeasurements}
+                        className="px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                      >
+                        {isSavingMeas ? 'Saving…' : '✓ Save Fit Specs'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                const parsed = parseOrderMeasurements(order)
+                const entries = Object.entries(parsed)
+                if (entries.length > 0) {
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {entries.map(([key, val]) => (
+                        <span
+                          key={key}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F8F8] border border-gray-200/90 text-xs font-bold text-black"
+                        >
+                          <span className="capitalize text-gray-500 font-semibold">{formatMeasurementKey(key)}:</span>
+                          <span>{String(val)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )
+                }
+                return (
+                  <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
+                    <p className="text-xs text-amber-900 font-medium">
+                      Tailor will measure your fit upon drop-off.
+                    </p>
+                  </div>
+                )
+              })()}
+
+              {order?.notes && (
+                <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200/70 font-medium">
+                  <span className="font-bold text-black">Tailoring Notes:</span> {order.notes}
+                </p>
+              )}
+
+              {(() => {
+                const photos = getAllGarmentPhotos(order)
+                return (
+                  <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
+                    <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
+                      Reference Garment Photo:
+                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {photos.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`${order?.garmentName || 'Garment'} Reference`}
+                          className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+
+          </div>
+
+          {/* Quality Guarantee Strip */}
+          <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-emerald-600" />
+              <span>100% Perfect Fit Guarantee &bull; Insured Work</span>
+            </span>
+            <span className="font-bold text-black">Darzi</span>
+          </div>
+
+        </div>
+
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        {/* RIGHT COLUMN: Real Interactive Google Map & Action Buttons */}
+        {/* ───────────────────────────────────────────────────────────────────────── */}
+        <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+
+          <div className="flex-1 flex flex-col">
+            {/* Map Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <Navigation size={15} className="text-black fill-black" />
+                <span className="text-xs font-extrabold text-[#0F1115] uppercase tracking-wider">
+                  Studio Map &amp; Route
+                </span>
+              </div>
+              <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200">
+                {dynamicDistanceBadge}
+              </span>
+            </div>
+
+            {/* Tailor Studio Map Canvas (Google Maps JS API / Clean Styled) */}
+            <div
+              onClick={handleOpenAppMap}
+              className="flex-1 min-h-[320px] sm:min-h-[360px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
+              title="Click map to start car navigation in your map app"
+            >
+              <CleanGoogleMap
+                lat={customerCoords.lat}
+                lng={customerCoords.lng}
+                storeName={storeNameDisplay}
+                storeAddress={storeAddressDisplay}
+                origin={order?.customerAddress || order?.address || order?.city}
+                userCoords={customerCoords}
+                stores={[{
+                  ...assignedStoreOption,
+                  coords: tailorCoords,
+                }]}
+                selectedStoreId={assignedStoreOption.id}
+                showRadiusCircle={false}
+                showCurvedConnection={true}
+                onMapClick={handleOpenAppMap}
+              />
+
+              {/* Floating Blue GPS Target Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleFetchCurrentLocation()
+                }}
+                disabled={isLocating}
+                className="absolute bottom-4 right-4 z-30 size-11 rounded-2xl bg-[#0066FF] hover:bg-[#0052CC] active:scale-90 text-white shadow-xl flex items-center justify-center transition-all border border-white/30 cursor-pointer group/btn"
+                title="Find nearest studio to my location"
+              >
+                <Navigation size={18} className={`fill-white ${isLocating ? 'animate-spin text-amber-300' : 'group-hover/btn:scale-110'} transition-transform`} />
+              </button>
+
+              {/* Copy Toast Alert */}
+              {copiedToast && (
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-black text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 animate-in fade-in zoom-in pointer-events-none">
+                  <Check size={13} className="text-emerald-400" />
+                  <span>Tracking link copied to clipboard!</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Uber-Style Action Buttons Row */}
+          <div className="grid grid-cols-3 gap-2 mt-5 pt-3 border-t border-gray-100 mt-auto">
+            <a
+              href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
+              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 text-center truncate"
+              title="Call Partner Studio"
+            >
+              <Phone size={14} />
+              <span className="truncate">Call Studio</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={handleShareMap}
+              className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95 truncate"
+            >
+              <Share2 size={14} />
+              <span className="truncate">Share Map</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenAppMap}
+              className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-md active:scale-95 truncate"
+              title="Open in Map app"
+            >
+              <Navigation size={14} className="fill-white" />
+              <span className="truncate">Open App</span>
+            </button>
+          </div>
+
+        </div>
       </div>
+    </div>
 
       {/* Cancel Order Modal */}
       {showCancelModal && (
