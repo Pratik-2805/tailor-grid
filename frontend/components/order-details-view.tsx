@@ -1187,6 +1187,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                   {(() => {
                     const photos = getAllGarmentPhotos(order)
+                    if (!photos.length) return null
                     return (
                       <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
                         <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
@@ -1200,7 +1201,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                               alt={`${order?.garmentName || 'Garment'} Reference`}
                               className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
                               onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                                (e.currentTarget as HTMLImageElement).style.display = 'none'
                               }}
                             />
                           ))}

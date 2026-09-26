@@ -1659,6 +1659,16 @@ export default function BookPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150 text-center">
 
+            {/* Close / Cut ('X') Button */}
+            <button
+              type="button"
+              onClick={() => setIsNoTailorsModalOpen(false)}
+              className="absolute top-4 right-4 size-9 rounded-full bg-[#F3F3F3] hover:bg-gray-200 text-black flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+
             {/* Header Icon */}
             <div className="mx-auto size-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shadow-2xs">
               <Scissors size={26} className="rotate-45" />
