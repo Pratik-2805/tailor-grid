@@ -8,7 +8,7 @@ import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { CustomLoader } from '@/components/custom-loader'
-import { getCurrentUser, CUSTOMER_SITE_URL, loginWithGoogle } from '@/lib/api'
+import { getCurrentUser, CUSTOMER_SITE_URL, loginWithGoogle, logoutUser } from '@/lib/api'
 import { setAuthToken, setAuthUser, getAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
 
 export default function StudioPage() {
@@ -245,8 +245,12 @@ export default function StudioPage() {
     })
   }
 
-  const handleSignOut = () => {
-    clearAllAuth()
+  const handleSignOut = async () => {
+    try {
+      await logoutUser()
+    } catch {
+      clearAllAuth()
+    }
     setUser(null)
     setPartnerTab('cockpit')
     setAuthType('signin')
