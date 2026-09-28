@@ -314,7 +314,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               try {
                 localStorage.removeItem(`tg_order_${slugId}`)
                 localStorage.removeItem('tg_latest_order')
-              } catch {}
+              } catch { }
             }
             setOrder(null)
             if (isInitial) {

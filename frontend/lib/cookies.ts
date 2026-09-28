@@ -39,7 +39,7 @@ export function setCookie(
 
 export function deleteCookie(name: string, path: string = '/'): void {
   if (typeof document === 'undefined') return
-  
+
   const rawName = name.trim()
   const encodedName = encodeURIComponent(rawName)
   const paths = [path, '', '/']
@@ -60,7 +60,7 @@ export function deleteCookie(name: string, path: string = '/'): void {
     document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`
     document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
     document.cookie = `${rawName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-    
+
     // Domain variations
     for (const d of domainVariants) {
       if (d) {
@@ -160,7 +160,7 @@ export function getAuthUser<T = any>(): T | null {
     if (fullUser) {
       try {
         return JSON.parse(fullUser) as T
-      } catch {}
+      } catch { }
     }
   }
   return null
@@ -216,7 +216,7 @@ export function clearUnnecessaryDataOnLogin(): void {
       allKeys.forEach((key) => {
         try {
           localStorage.removeItem(key)
-        } catch {}
+        } catch { }
       })
 
       // Wipe sessionStorage completely
@@ -243,7 +243,7 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
   try {
     const val = localStorage.getItem(key)
     if (val !== null) return val
-    
+
     // Clean up legacy cookie if found and migrate to localStorage
     const legacyCookie = getCookie(key)
     if (legacyCookie !== null) {
@@ -251,12 +251,69 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
       deleteCookie(key, '/')
       return legacyCookie
     }
-  } catch {}
+  } catch { }
   return defaultValue
+}
+
+// Helper to safely prune old tg_order_ cache items when storage gets full
+function pruneStaleOrderStorage(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const keys = Object.keys(localStorage)
+    const orderKeys = keys.filter((k) => k.startsWith('tg_order_'))
+    // Keep at most 3 newest order keys, remove the rest
+    if (orderKeys.length > 3) {
+      const keysToRemove = orderKeys.slice(0, orderKeys.length - 3)
+      for (const k of keysToRemove) {
+        localStorage.removeItem(k)
+      }
+    }
+  } catch { }
+}
+
+// Strip huge base64 data URLs from cached JSON strings to prevent quota exhaustion
+function sanitizePayloadForLocalStorage(value: string): string {
+  if (!value || typeof value !== 'string') return value
+  if (!value.includes('data:image/') && value.length < 150000) return value
+
+  try {
+    const parsed = JSON.parse(value)
+    let modified = false
+
+    if (Array.isArray(parsed.images)) {
+      parsed.images = parsed.images.map((img: any) => {
+        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 500) {
+          modified = true
+          return '[cached-image-omitted]'
+        }
+        return img
+      })
+    }
+
+    if (typeof parsed.imageUrl === 'string' && parsed.imageUrl.startsWith('data:image/') && parsed.imageUrl.length > 500) {
+      parsed.imageUrl = '[cached-image-omitted]'
+      modified = true
+    }
+
+    if (typeof parsed.intakePhotoUrl === 'string' && parsed.intakePhotoUrl.startsWith('data:image/') && parsed.intakePhotoUrl.length > 500) {
+      parsed.intakePhotoUrl = '[cached-image-omitted]'
+      modified = true
+    }
+
+    return modified ? JSON.stringify(parsed) : value
+  } catch {
+    return value
+  }
 }
 
 export function setStorageCookie(key: string, value: string, _days?: number): void {
   if (typeof window === 'undefined') return
+
+  // Automatically keep payload lean if storing order cache
+  const cleanValue = (key.startsWith('tg_order_') || key === 'tg_latest_order')
+    ? sanitizePayloadForLocalStorage(value)
+    : value
+
   try {
     localStorage.setItem(key, value)
     deleteCookie(key, '/')

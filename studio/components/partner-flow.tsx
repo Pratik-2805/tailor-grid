@@ -45,6 +45,7 @@ import {
   TrendingUp,
   User,
   X,
+  XCircle,
   Zap,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
@@ -130,6 +131,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
   Ready: { label: 'Ready', bg: 'bg-emerald-50', text: 'text-emerald-800 border-emerald-300', dot: 'bg-emerald-500' },
   Collected: { label: 'Picked Up', bg: 'bg-teal-50', text: 'text-teal-800 border-teal-200', dot: 'bg-teal-500' },
   Closed: { label: 'Completed', bg: 'bg-stone-50', text: 'text-stone-700 border-stone-200', dot: 'bg-stone-400' },
+  Cancelled: { label: 'Cancelled', bg: 'bg-red-50', text: 'text-red-800 border-red-200', dot: 'bg-red-500' },
 }
 
 interface PartnerFlowProps {
@@ -483,6 +485,8 @@ export function PartnerFlow({
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('Accepted')
   const [refreshing, setRefreshing] = useState(false)
+  const [justSynced, setJustSynced] = useState(false)
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>('Just now')
   const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
 
 
@@ -646,6 +650,11 @@ export function PartnerFlow({
   const [retailCategoryInput, setRetailCategoryInput] = useState('Accessories & Ties')
   const [pickupCompleted, setPickupCompleted] = useState(false)
 
+  // Cancel Order Modal State (Allowed only till first PIN / drop-off intake)
+  const [orderToCancel, setOrderToCancel] = useState<FittingBooking | null>(null)
+  const [cancelReason, setCancelReason] = useState<string>('Studio capacity reached / unable to service')
+  const [isCancellingOrder, setIsCancellingOrder] = useState<boolean>(false)
+
   // Workshop Controls State
   const [hoursWeekday, setHoursWeekday] = useState(() => {
     if (typeof window !== 'undefined') return getStorageCookie('tg_studio_hours_wd', '09:00 AM – 07:00 PM')
@@ -761,10 +770,20 @@ export function PartnerFlow({
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      const fetched = await fetchStudioOrders(currentStudioId)
+      const [fetched, pending] = await Promise.all([
+        currentStudioId ? fetchStudioOrders(currentStudioId) : Promise.resolve(null),
+        currentStudioId ? fetchPendingDispatches(currentStudioId) : Promise.resolve(null),
+      ])
       if (fetched) {
         updateOrdersAndSelected(fetched)
       }
+      if (Array.isArray(pending)) {
+        setPendingDispatches(pending)
+      }
+      setJustSynced(true)
+      setTimeout(() => setJustSynced(false), 2000)
+      const now = new Date()
+      setLastSyncedTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     } catch { }
     setRefreshing(false)
   }
@@ -1248,6 +1267,82 @@ export function PartnerFlow({
     }, 1200)
   }
 
+  // Cancel Order Handlers (Only allowed before first PIN is entered / drop-off intake)
+  const handleInitiateCancelOrder = (order: FittingBooking) => {
+    setOrderToCancel(order)
+    setCancelReason('Studio capacity reached / unable to service')
+  }
+
+  const handleConfirmCancelOrder = async () => {
+    if (!orderToCancel) return
+    setIsCancellingOrder(true)
+    const targetId = orderToCancel.id
+    const targetCust = orderToCancel.customerName
+    const reasonText = cancelReason.trim() || 'Studio unable to service alteration before drop-off'
+
+    try {
+      // 1. Update status to Cancelled in PostgreSQL database
+      await updateOrder(targetId, {
+        status: 'Cancelled',
+        fabricConditionNotes: `Cancelled by Studio: ${reasonText}`,
+      }).catch((e) => console.warn('Backend cancel update error:', e))
+
+      // 2. Broadcast cancellation via BroadcastChannel to customer's live tracking view (instant 0ms)
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const bc = new BroadcastChannel('tg_dispatch_channel')
+          bc.postMessage({
+            type: 'ORDER_CANCELLED',
+            orderId: targetId,
+            customerName: targetCust,
+            by: 'STUDIO',
+            reason: reasonText,
+          })
+          bc.postMessage({
+            type: 'DISPATCH_CANCELLED',
+            orderId: targetId,
+          })
+          bc.close()
+        } catch { }
+      }
+
+      // 3. Update localStorage and dispatch event for cross-tab and local consumers
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem(`tg_order_${targetId}`)
+          if (saved) {
+            const parsed = JSON.parse(saved)
+            parsed.status = 'Cancelled'
+            parsed.cancelledBy = 'STUDIO'
+            parsed.cancelReason = reasonText
+            localStorage.setItem(`tg_order_${targetId}`, JSON.stringify(parsed))
+          }
+          window.dispatchEvent(
+            new CustomEvent('tg_order_status_change', {
+              detail: { orderId: targetId, status: 'Cancelled', by: 'STUDIO', reason: reasonText },
+            })
+          )
+        } catch { }
+      }
+
+      // 4. Update Studio local state so order is marked Cancelled
+      setOrders((prev) =>
+        prev.map((o) => (o.id === targetId ? { ...o, status: 'Cancelled' as OrderStatus } : o))
+      )
+      if (selectedOrder?.id === targetId) {
+        setSelectedOrder((prev) => (prev ? { ...prev, status: 'Cancelled' as OrderStatus } : null))
+      }
+
+      setBroadcastToast(`✓ Order #${targetId} cancelled. Client ${targetCust} has been notified.`)
+      setTimeout(() => setBroadcastToast(null), 5000)
+    } catch (err) {
+      console.error('Failed to cancel order:', err)
+    } finally {
+      setIsCancellingOrder(false)
+      setOrderToCancel(null)
+    }
+  }
+
   // Edit measurements
   const handleOpenEditMeasurements = (order: FittingBooking) => {
     setEditTargetOrder(order)
@@ -1483,39 +1578,7 @@ export function PartnerFlow({
           )}
         </div>
 
-        {/* Online Status Toggle Capsule */}
-        <div className={`p-3.5 border-b border-slate-800/60 shrink-0 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
-          {!sidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${online
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50 hover:bg-emerald-900/50 shadow-xs'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
-                }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative flex items-center justify-center shrink-0">
-                  <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                  {online && <span className="absolute size-4 rounded-full bg-emerald-400/40 animate-ping" />}
-                </div>
-                <span className="truncate">{online ? 'Workshop Active' : 'Workshop Offline'}</span>
-              </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold tracking-wider shrink-0 ${online ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}`}>
-                {online ? 'RECEIVING' : 'PAUSED'}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className="grid place-items-center cursor-pointer p-2.5 rounded-xl hover:bg-white/10"
-              title={online ? 'Workshop Active — Click to pause' : 'Workshop Offline — Click to activate'}
-            >
-              <span className={`size-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-            </button>
-          )}
-        </div>
+
 
         {/* Nav Items — The 4 Core Workshop Pillars */}
         <nav className="flex-1 p-3.5 pt-4 space-y-3 overflow-y-auto scrollbar-none">
@@ -1560,7 +1623,20 @@ export function PartnerFlow({
 
         {/* User / Studio Footer */}
         <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
-          {!sidebarCollapsed && (
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              title={tailorName}
+              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
+              ) : (
+                tailorName.charAt(0)
+              )}
+            </button>
+          ) : (
             <div
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
@@ -1578,17 +1654,6 @@ export function PartnerFlow({
               </div>
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            title="Refresh Order Feed"
-            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
-            {!sidebarCollapsed && <span>Sync Feed</span>}
-          </button>
 
           <button
             type="button"
@@ -1663,31 +1728,6 @@ export function PartnerFlow({
               </div>
             </div>
 
-
-            {/* Refresh Feed */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              title="Sync Feed with Cloud"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
-            >
-              <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#9E593B]' : 'text-slate-500'} />
-              <span className="hidden md:inline">Sync</span>
-            </button>
-
-            {/* Online Toggle Switch */}
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs ${online
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-              }`}
-              title={online ? 'Studio Active · Click to pause' : 'Studio Inactive · Click to activate'}
-            >
-              <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span className="hidden sm:inline">{online ? 'Active' : 'Paused'}</span>
-            </button>
 
             {/* Master Tailor Profile Pill */}
             <button
@@ -2378,16 +2418,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              1
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Scheduled Arrivals
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Clients arriving today</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Scheduled Arrivals
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Clients arriving today</p>
                           </div>
                           <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {pendingDropOffs} expected
@@ -2405,38 +2440,57 @@ export function PartnerFlow({
                                   className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <h4 className="font-bold text-xs text-slate-900 truncate">
-                                        {ord.customerName}
-                                      </h4>
-                                      <p className="text-[11px] text-slate-500 truncate">
-                                        {ord.garmentName} &bull; {ord.serviceName}
-                                      </p>
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                        <img
+                                          src={getGarmentPhoto(ord)}
+                                          alt={ord.garmentName}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="font-bold text-xs text-slate-900 truncate">
+                                          {ord.customerName}
+                                        </h4>
+                                        <p className="text-[11px] text-slate-500 truncate">
+                                          {ord.garmentName} &bull; {ord.serviceName}
+                                        </p>
+                                      </div>
                                     </div>
                                     <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">
                                       Drop-off Today
                                     </span>
                                   </div>
 
-                                  <div className="flex items-center justify-between pt-1">
+                                  <div className="flex items-center justify-between pt-1 gap-2">
                                     <span className="text-[11px] font-semibold text-emerald-700">
                                       ${ord.partnerPayout || Math.round((ord.price || 35) * 0.75)} Net Payout
                                     </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setPinInput('')
-                                        setPinError('')
-                                        const el = document.getElementById('studio-counter-pin-input')
-                                        if (el) {
-                                          el.focus()
-                                          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
-                                    >
-                                      Enter Customer PIN →
-                                    </button>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleInitiateCancelOrder(ord)}
+                                        className="px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 hover:text-red-700 text-[11px] font-semibold shrink-0 transition-colors cursor-pointer"
+                                        title="Cancel order before drop-off"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPinInput('')
+                                          setPinError('')
+                                          const el = document.getElementById('studio-counter-pin-input')
+                                          if (el) {
+                                            el.focus()
+                                            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                          }
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                                      >
+                                        Enter Customer PIN →
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               ))
@@ -2456,16 +2510,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              2
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Sewing Bench
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Under needle right now</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Sewing Bench
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Under needle right now</p>
                           </div>
                           <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">
                             <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -2577,16 +2626,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              3
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Ready on Rack
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Customer pickup stage</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Ready on Rack
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Customer pickup stage</p>
                           </div>
                           <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {readyOnRack} on rack
@@ -2604,13 +2648,22 @@ export function PartnerFlow({
                                   className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <h4 className="font-bold text-xs text-slate-900 truncate">
-                                        {order.customerName}
-                                      </h4>
-                                      <p className="text-[11px] text-slate-500 truncate">
-                                        {order.garmentName} &bull; {order.serviceName}
-                                      </p>
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                        <img
+                                          src={getGarmentPhoto(order)}
+                                          alt={order.garmentName}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="font-bold text-xs text-slate-900 truncate">
+                                          {order.customerName}
+                                        </h4>
+                                        <p className="text-[11px] text-slate-500 truncate">
+                                          {order.garmentName} &bull; {order.serviceName}
+                                        </p>
+                                      </div>
                                     </div>
                                     <span className="text-[10px] font-mono font-bold bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md shrink-0">
                                       {order.hangTagNo || 'Rack A-1'}
@@ -2759,7 +2812,17 @@ export function PartnerFlow({
                               </button>
                               <div className="flex items-center gap-2">
                                 {order.status === 'Accepted' && (
-                                  <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">Awaiting Drop-Off</span>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleInitiateCancelOrder(order)}
+                                      className="text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded-full flex items-center gap-1 cursor-pointer transition-colors active:scale-95"
+                                      title="Cancel order before garment drop-off"
+                                    >
+                                      <XCircle size={11} /> Cancel Order
+                                    </button>
+                                    <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">Awaiting Drop-Off</span>
+                                  </>
                                 )}
                                 {order.status === 'Work in Progress' && (
                                   <button onClick={() => handleMarkAlterationDone(order.id)} className="text-xs font-semibold text-white bg-[#0F1115] hover:bg-[#9E593B] px-3 py-1 rounded-xl flex items-center gap-1 cursor-pointer shadow-xs">
@@ -2922,6 +2985,29 @@ export function PartnerFlow({
                             </div>
                           )
                         })()}
+
+                        {/* Order Cancellation Control (Only before First PIN / Drop-Off Intake) */}
+                        {activeSelectedOrder.status === 'Accepted' && (
+                          <div className="p-4 rounded-xl bg-red-50/70 border border-red-200 flex items-center justify-between gap-3 animate-fadeIn">
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-red-950 flex items-center gap-1.5">
+                                <AlertCircle size={14} className="text-red-600 shrink-0" />
+                                <span>Awaiting Garment Drop-Off</span>
+                              </div>
+                              <p className="text-[11px] text-red-700 mt-0.5 leading-snug">
+                                You can decline or cancel this order before the client provides their intake PIN.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleInitiateCancelOrder(activeSelectedOrder)}
+                              className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer active:scale-95 flex items-center gap-1.5"
+                            >
+                              <XCircle size={13} />
+                              <span>Cancel Order</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -3306,6 +3392,126 @@ export function PartnerFlow({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Cancel Order Confirmation Modal (Before First PIN / Drop-Off Intake) ── */}
+      {orderToCancel && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => {
+            if (!isCancellingOrder) setOrderToCancel(null)
+          }}
+        >
+          <div
+            className="bg-white border border-[#E8E1D5] rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-2xl bg-red-50 text-red-600 border border-red-200 flex items-center justify-center shrink-0">
+                  <XCircle size={22} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#1E2229]">Cancel Alteration Order</h3>
+                  <p className="text-xs text-[#6B7280]">
+                    Order #{orderToCancel.id} &bull; {orderToCancel.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={() => setOrderToCancel(null)}
+                className="p-1.5 rounded-xl text-[#6B7280] hover:text-[#1E2229] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Info notice */}
+            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                <span>Garment Awaiting Drop-Off (No PIN Entered)</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800">
+                This alteration has not been dropped off or checked in at the sewing bench. Cancelling will immediately notify{' '}
+                <span className="font-semibold">{orderToCancel.customerName}</span> on their live tracking dashboard and release any card holds.
+              </p>
+            </div>
+
+            {/* Garment summary */}
+            <div className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] text-xs flex items-center justify-between">
+              <div>
+                <div className="font-bold text-[#1E2229]">{orderToCancel.garmentName}</div>
+                <div className="text-[11px] text-[#6B7280]">{orderToCancel.serviceName}</div>
+              </div>
+              <span className="font-bold text-sm text-[#1E2229]">
+                ${orderToCancel.partnerPayout || Math.round((orderToCancel.price || 35) * 0.75)}
+              </span>
+            </div>
+
+            {/* Reason selector */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-[#1E2229]">
+                Reason for Cancellation
+              </label>
+              <select
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                disabled={isCancellingOrder}
+                className="w-full text-xs font-medium px-3 py-2.5 rounded-xl border border-[#E8E1D5] bg-[#FAF8F5] text-[#1E2229] focus:outline-none focus:border-[#9E593B]"
+              >
+                <option value="Studio capacity reached / unable to service">
+                  Studio capacity reached / fully booked
+                </option>
+                <option value="Fabric / alteration type cannot be fulfilled">
+                  Fabric or alteration complexity cannot be fulfilled
+                </option>
+                <option value="Customer requested cancellation before arrival">
+                  Client requested cancellation before arrival
+                </option>
+                <option value="Customer no-show / did not arrive for scheduled slot">
+                  Customer no-show / missed arrival window
+                </option>
+                <option value="Workshop maintenance / emergency closure">
+                  Workshop maintenance / temporary closure
+                </option>
+              </select>
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-2 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={() => setOrderToCancel(null)}
+                className="px-4 py-2.5 rounded-xl border border-[#E8E1D5] text-xs font-bold text-[#6B7280] hover:text-[#1E2229] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                disabled={isCancellingOrder}
+                onClick={handleConfirmCancelOrder}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              >
+                {isCancellingOrder ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>Cancelling &amp; Notifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle size={14} />
+                    <span>Cancel Order &amp; Send Message</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
