@@ -687,16 +687,19 @@ export default function CleanGoogleMap({
         })
         setTimeout(() => google.maps.event.removeListener(listener), 1500)
       }
-    } else if (!isFixed && validStoresInRadius.length > 1) {
-      // If map is NOT fixed and stores exist, fit bounds to show all pins
-      const bounds = new google.maps.LatLngBounds()
-      bounds.extend(new google.maps.LatLng(lat, lng))
-      validStoresInRadius.forEach((st) => {
-        bounds.extend(new google.maps.LatLng(st.coords.lat, st.coords.lng))
-      })
-      map.fitBounds(bounds, 36)
+    } else if (validStoresInRadius.length > 0 && !showCurvedConnection && !isChoosing) {
+      const halfMiles = (radiusMiles || fixedBoxMiles) / 2.0
+      const deltaLat = halfMiles / 69.0
+      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+
+      const boundsBox = new google.maps.LatLngBounds(
+        new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
+        new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
+      )
+      map.fitBounds(boundsBox, 0)
+      map.setCenter({ lat, lng })
     }
-  }, [stores, selectedStoreId, lat, lng, radiusMiles, disableNavigation, isReady, origin, userCoords, isFixed, fixedBoxMiles, showUserPin, userPinLabel, showCurvedConnection, onSelectStore, onStoresFound])
+  }, [stores, selectedStoreId, lat, lng, radiusMiles, disableNavigation, isReady, origin, userCoords, isFixed, fixedBoxMiles, showUserPin, userPinLabel, showCurvedConnection, isChoosing, onSelectStore, onStoresFound])
 
   const handleZoomIn = (e: React.MouseEvent) => {
     e.stopPropagation()
