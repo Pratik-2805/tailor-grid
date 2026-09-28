@@ -715,8 +715,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
 
   if (isCancelled) {
-    headerTitle = 'Order Cancelled'
-    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
+    headerTitle = order?.cancelledBy === 'STUDIO' ? 'Order Cancelled by Studio' : 'Order Cancelled'
+    headerSubtitle = order?.cancelledBy === 'STUDIO'
+      ? `${storeNameDisplay} cancelled this booking before drop-off • Order #${order?.id || slugId}`
+      : `This alteration request was cancelled • Order #${order?.id || slugId}`
   } else if (isAllocated) {
     headerTitle = 'Request Broadcast'
     headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
