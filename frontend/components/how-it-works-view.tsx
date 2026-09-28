@@ -17,6 +17,8 @@ import {
   UserCheck,
   ChevronRight,
 } from 'lucide-react'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 import { FaqAccordion } from './faq-accordion'
 import { type Screen } from './data'
 import {
@@ -41,6 +43,9 @@ interface HowItWorksViewProps {
 }
 
 export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWorksViewProps) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
+
   const handleSuggestionClick = (garmentId: string) => {
     if (onQuickSearch) {
       onQuickSearch('W8 4EP', garmentId)
@@ -459,12 +464,14 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
                 <ArrowRight size={15} />
               </button>
 
-              <button
-                onClick={() => go('for-partners')}
-                className="rounded-full border border-white/30 px-7 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
-              >
-                For Partner Studios
-              </button>
+              {!isCustomer && (
+                <button
+                  onClick={() => go('for-partners')}
+                  className="rounded-full border border-white/30 px-7 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
+                >
+                  For Partner Studios
+                </button>
+              )}
             </div>
           </div>
 

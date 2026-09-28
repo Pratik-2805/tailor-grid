@@ -21,12 +21,16 @@ import {
   X,
 } from 'lucide-react'
 import { type Screen } from './data'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 
 interface AboutViewProps {
   go: (s: Screen) => void
 }
 
 export function AboutView({ go }: AboutViewProps) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const [showCeoLetter, setShowCeoLetter] = useState(false)
 
   return (
@@ -273,10 +277,10 @@ export function AboutView({ go }: AboutViewProps) {
                   We&apos;re building a culture within Darzi that emphasizes doing the right thing, period, for customers, studio partners, and our engineering team. Find out more about the craftsmen leading the way.
                 </p>
                 <button
-                  onClick={() => go('for-partners')}
+                  onClick={() => go(isCustomer ? 'book' : 'for-partners')}
                   className="text-xs font-bold text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
                 >
-                  See our studio network
+                  {isCustomer ? 'Explore our local atelier network' : 'See our studio network'}
                 </button>
               </div>
             </div>
@@ -336,7 +340,7 @@ export function AboutView({ go }: AboutViewProps) {
                 Get announcements about studio partnerships, new neighborhood launches, and sustainable fashion initiatives near you.
               </p>
               <button
-                onClick={() => go('for-partners')}
+                onClick={() => go(isCustomer ? 'how-it-works' : 'for-partners')}
                 className="text-xs font-bold text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
               >
                 Go to Newsroom
@@ -372,10 +376,10 @@ export function AboutView({ go }: AboutViewProps) {
                 Discover how our direct payout model keeps local artisan shops vibrant, fueling neighborhood retail footfall.
               </p>
               <button
-                onClick={() => go('for-partners')}
+                onClick={() => go(isCustomer ? 'how-it-works' : 'for-partners')}
                 className="text-xs font-bold text-[#0F1115] underline hover:text-[#9E593B] transition-colors"
               >
-                View partner economics
+                {isCustomer ? 'Learn about our craft standards' : 'View partner economics'}
               </button>
             </div>
 
@@ -402,10 +406,10 @@ export function AboutView({ go }: AboutViewProps) {
 
                 <div className="mt-8">
                   <button
-                    onClick={() => go('for-partners')}
+                    onClick={() => go(isCustomer ? 'book' : 'for-partners')}
                     className="rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-8 py-4 text-xs font-extrabold uppercase tracking-wider text-white transition-all active:scale-95 shadow-md"
                   >
-                    Search open roles
+                    {isCustomer ? 'Explore Alteration Services' : 'Search open roles'}
                   </button>
                 </div>
               </div>

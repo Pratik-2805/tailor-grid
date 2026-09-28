@@ -12,8 +12,12 @@ import {
   X,
 } from 'lucide-react'
 import { type Screen } from './data'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 
 export function Footer({ go }: { go: (s: Screen) => void }) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'guarantee' | 'contact' | null>(null)
@@ -114,7 +118,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
                 <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
                 <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
-                <li><button onClick={() => nav('for-partners')} className="hover:text-white transition-colors">Partner With Us</button></li>
+                <li><button onClick={() => isCustomer ? nav('book') : nav('for-partners')} className="hover:text-white transition-colors">{isCustomer ? 'Book Alterations' : 'Partner With Us'}</button></li>
                 <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Digital Fit Passport</button></li>
               </ul>
             </div>
@@ -125,11 +129,13 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 Portals & Help
               </h5>
               <ul className="space-y-2 text-xs text-[#9CA3AF]">
-                <li>
-                  <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
-                    Partner Studio Portal
-                  </button>
-                </li>
+                {!isCustomer && (
+                  <li>
+                    <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
+                      Partner Studio Portal
+                    </button>
+                  </li>
+                )}
                 <li>
                   <button onClick={() => setActiveModal('contact')} className="hover:text-white transition-colors text-left">
                     Contact & Support

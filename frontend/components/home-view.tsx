@@ -73,7 +73,9 @@ export function HomeView({
       <FitProfileSection go={go} />
 
       {/* 8. Partner Banner for Master Tailors (Rapido Captain / Uber Driver style) */}
-      <PartnerBanner go={go} />
+      {!(user && (user.role === 'CUSTOMER' || user.role !== 'STUDIO')) && (
+        <PartnerBanner go={go} />
+      )}
 
       {/* 9. Client Stories & Craftsmanship Standards */}
       <TestimonialsSection />
