@@ -138,8 +138,8 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
     },
     {
       key: 'waistSuppression',
-      label: 'Waist Suppression (Sides & Back)',
-      whatItMeans: 'Taking in waist suppression seams for an hourglass silhouette.',
+      label: 'Waist & Sides Slimming',
+      whatItMeans: 'Taking in side and back seams for a closer, tailored fit.',
       placeholder: 'e.g. Take in 1.5 in',
     },
     {
@@ -158,9 +158,9 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
     },
     {
       key: 'bodiceFit',
-      label: 'Bodice & Bust Adjustment',
-      whatItMeans: 'Contouring darts and side seams around bust and ribcage.',
-      placeholder: 'e.g. Take in 0.5 in at princess seams',
+      label: 'Top & Bust Fit',
+      whatItMeans: 'Adjusting side seams and bust seams for a comfortable, flattering fit.',
+      placeholder: 'e.g. Take in 0.5 in at sides',
     },
     {
       key: 'strapsShoulders',
@@ -172,8 +172,8 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
   skirts: [
     {
       key: 'waistHips',
-      label: 'Waistband & Hip Contouring',
-      whatItMeans: 'Adjusting waistband and tapering hips.',
+      label: 'Waistband & Hips Adjustment',
+      whatItMeans: 'Adjusting waistband and slimming hips for a clean fit.',
       placeholder: 'e.g. Take in waist 1 in, hips 0.5 in',
     },
     {

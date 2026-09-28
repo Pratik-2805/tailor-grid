@@ -442,10 +442,10 @@ export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null):
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: string }[] = [
-  { id: 'cockpit', label: 'Workshop Cockpit', icon: Zap, shortLabel: 'Workshop' },
-  { id: 'pipeline', label: 'Alterations Pipeline', icon: Layers, shortLabel: 'Orders' },
-  { id: 'payouts', label: 'Payouts & Escrow', icon: CreditCard, shortLabel: 'Payouts' },
-  { id: 'profile', label: 'Studio Configuration', icon: Sliders, shortLabel: 'Profile' },
+  { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard' },
+  { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders' },
+  { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings' },
+  { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings' },
 ]
 
 export function PartnerFlow({
@@ -1544,7 +1544,7 @@ export function PartnerFlow({
                 </div>
                 <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
                   <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span className="text-slate-300 font-medium">Workshop Node</span>
+                  <span className="text-slate-300 font-medium">Active Studio</span>
                   <span className="text-slate-500 font-mono text-[10px]">#{currentStudioId.slice(-6)}</span>
                 </div>
               </div>
@@ -1690,21 +1690,21 @@ export function PartnerFlow({
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                {activeTab === 'cockpit' && 'Workshop Cockpit'}
-                {activeTab === 'pipeline' && 'Alterations Pipeline'}
-                {activeTab === 'payouts' && 'Payouts & Escrow Ledger'}
-                {activeTab === 'profile' && 'Studio Node Configuration'}
+                {activeTab === 'cockpit' && 'Workshop Dashboard'}
+                {activeTab === 'pipeline' && 'Orders & Alterations'}
+                {activeTab === 'payouts' && 'Earnings & Payouts'}
+                {activeTab === 'profile' && 'Studio Settings'}
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Live Node
+                Online
               </span>
             </div>
             <span className="text-[11px] text-slate-500 truncate hidden sm:block">
-              {activeTab === 'cockpit' && 'Express counter intake, PIN verification & active bench SLA clock'}
-              {activeTab === 'pipeline' && 'Manage orders across intake, sewing bench, QA, and customer collection'}
-              {activeTab === 'payouts' && 'Daily payouts with 80% net guaranteed via instant bank settlement'}
-              {activeTab === 'profile' && 'Manage atelier equipment, specialisms, operating hours & contact info'}
+              {activeTab === 'cockpit' && 'Quick order check-in, customer PIN verification, and active alteration orders'}
+              {activeTab === 'pipeline' && 'Manage orders from customer drop-off to tailoring and final pickup'}
+              {activeTab === 'payouts' && 'Track your daily earnings and direct payouts to your bank account'}
+              {activeTab === 'profile' && 'Manage your shop details, opening hours, equipment, and contact info'}
             </span>
           </div>
 
@@ -1867,7 +1867,7 @@ export function PartnerFlow({
                     </div>
                     <p className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1.5">
                       <span className="size-1.5 rounded-full bg-emerald-500" />
-                      Rolling Escrow &bull; Instant Settlement
+                      Direct Bank Transfer &bull; Safe Payment
                     </p>
                   </div>
 
@@ -1889,7 +1889,7 @@ export function PartnerFlow({
                     </div>
                     <p className="text-[11px] text-amber-700 mt-2 font-semibold flex items-center gap-1.5">
                       <span className={`size-1.5 rounded-full ${activeOnBench > 0 ? 'bg-amber-500 animate-pulse' : 'bg-slate-400'}`} />
-                      {activeOnBench > 0 ? 'Live SLA Timers Running' : 'All Workstations Ready'}
+                      {activeOnBench > 0 ? 'Work in progress' : 'Ready for new orders'}
                     </p>
                   </div>
 
@@ -1897,7 +1897,7 @@ export function PartnerFlow({
                   <div className="uiverse-stat-card uiverse-stat-sky group cursor-default">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        Drop-Off Queue
+                        Drop-Offs Today
                       </span>
                       <div className="size-8 rounded-xl bg-sky-50 text-sky-600 border border-sky-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
                         <Package size={15} />
@@ -1907,11 +1907,11 @@ export function PartnerFlow({
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                         {pendingDropOffs}
                       </span>
-                      <span className="text-xs font-medium text-slate-500">scheduled</span>
+                      <span className="text-xs font-medium text-slate-500">expected</span>
                     </div>
                     <p className="text-[11px] text-sky-700 mt-2 font-semibold flex items-center gap-1.5">
                       <span className="size-1.5 rounded-full bg-sky-500" />
-                      Counter PIN Ingress Active
+                      Ready for customer check-in
                     </p>
                   </div>
 
@@ -1919,7 +1919,7 @@ export function PartnerFlow({
                   <div className="uiverse-stat-card uiverse-stat-purple group cursor-default">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        Ready on Rack
+                        Ready for Pickup
                       </span>
                       <div className="size-8 rounded-xl bg-purple-50 text-purple-600 border border-purple-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
                         <CheckCircle2 size={16} />
@@ -1929,11 +1929,11 @@ export function PartnerFlow({
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
                         {readyOnRack}
                       </span>
-                      <span className="text-xs font-medium text-slate-500">finished</span>
+                      <span className="text-xs font-medium text-slate-500">completed</span>
                     </div>
                     <p className="text-[11px] text-purple-700 mt-2 font-semibold flex items-center gap-1.5">
                       <span className="size-1.5 rounded-full bg-purple-500" />
-                      {readyOnRack > 0 ? 'Pickup Alerts Dispatched' : 'Rack Clear & Calibrated'}
+                      {readyOnRack > 0 ? 'Customer notified for pickup' : 'No orders on rack'}
                     </p>
                   </div>
                 </div>
@@ -2294,15 +2294,15 @@ export function PartnerFlow({
                           <div>
                             <div className="flex items-center gap-2">
                               <h2 className="text-base font-bold text-slate-900">
-                                Express Drop-Off Ingress
+                                Customer Drop-Off Check-In
                               </h2>
                               <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                                 <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Counter Online
+                                Ready at Counter
                               </span>
                             </div>
                             <p className="text-xs text-slate-500 mt-0.5">
-                              Key in client's 4-digit drop-off PIN to verify booking, inspect garment, and queue to bench.
+                              Enter the customer&apos;s 4-digit PIN to confirm the order and begin alterations.
                             </p>
                           </div>
                         </div>
@@ -2359,7 +2359,7 @@ export function PartnerFlow({
                             }`}
                           >
                             <ShieldCheck size={16} />
-                            <span>Verify Drop-off →</span>
+                            <span>Check In Order →</span>
                           </button>
 
                           <button
@@ -2420,9 +2420,9 @@ export function PartnerFlow({
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
                           <div className="min-w-0">
                             <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                              Scheduled Arrivals
+                              Scheduled Drop-Offs
                             </h3>
-                            <p className="text-[11px] text-slate-400">Clients arriving today</p>
+                            <p className="text-[11px] text-slate-400">Customers arriving today</p>
                           </div>
                           <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {pendingDropOffs} expected
@@ -2497,9 +2497,9 @@ export function PartnerFlow({
                           ) : (
                             <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <Package size={24} className="mx-auto text-slate-400" />
-                              <div className="text-xs font-bold text-slate-700">All Scheduled Drop-Offs Received</div>
+                              <div className="text-xs font-bold text-slate-700">No Drop-Offs Waiting</div>
                               <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
-                                New bookings for today will populate here immediately upon client confirmation.
+                                New customer bookings for today will appear here.
                               </p>
                             </div>
                           )}
@@ -2514,11 +2514,11 @@ export function PartnerFlow({
                             <h3 className="text-sm font-bold text-slate-900 leading-tight">
                               Sewing Bench
                             </h3>
-                            <p className="text-[11px] text-slate-400">Under needle right now</p>
+                            <p className="text-[11px] text-slate-400">In progress right now</p>
                           </div>
                           <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">
                             <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            {activeOnBench} active
+                            {activeOnBench} in progress
                           </span>
                         </div>
 
@@ -2613,9 +2613,9 @@ export function PartnerFlow({
                           ) : (
                             <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <Scissors size={24} className="mx-auto text-slate-400" />
-                              <div className="text-xs font-bold text-slate-700">Sewing Bench Clear</div>
+                              <div className="text-xs font-bold text-slate-700">No Orders in Progress</div>
                               <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
-                                No alterations currently in needle. Check in garments from the drop-off queue to start live SLA tracking.
+                                No alterations are currently being worked on. Check in a dropped-off garment to start tailoring.
                               </p>
                             </div>
                           )}
@@ -2630,7 +2630,7 @@ export function PartnerFlow({
                             <h3 className="text-sm font-bold text-slate-900 leading-tight">
                               Ready on Rack
                             </h3>
-                            <p className="text-[11px] text-slate-400">Customer pickup stage</p>
+                            <p className="text-[11px] text-slate-400">Ready for customer pickup</p>
                           </div>
                           <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {readyOnRack} on rack
@@ -2685,16 +2685,16 @@ export function PartnerFlow({
                                     className="w-full py-2 bg-slate-900 hover:bg-[#9E593B] text-white font-bold text-xs rounded-xl cursor-pointer transition-colors shadow-2xs flex items-center justify-center gap-1.5"
                                   >
                                     <CheckCircle2 size={13} />
-                                    <span>Verify Pickup PIN &amp; Settle →</span>
+                                    <span>Enter Pickup PIN &amp; Hand Over →</span>
                                   </button>
                                 </div>
                               ))
                           ) : (
                             <div className="py-8 px-4 rounded-xl bg-slate-50/60 border border-dashed border-slate-200 text-center space-y-2 flex-1 flex flex-col items-center justify-center min-h-[200px]">
                               <CheckCircle2 size={24} className="mx-auto text-slate-400" />
-                              <div className="text-xs font-bold text-slate-700">Rack Clear &amp; Calibrated</div>
+                              <div className="text-xs font-bold text-slate-700">Rack is Empty</div>
                               <p className="text-[11px] text-slate-400 leading-relaxed max-w-[240px] mx-auto">
-                                Alterations marked finished on the sewing bench will appear here ready for client collection.
+                                Finished garments will appear here waiting for customer collection.
                               </p>
                             </div>
                           )}
