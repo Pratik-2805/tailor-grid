@@ -103,7 +103,9 @@ async function fetchEligible5MilePool(lat, lng) {
  * Start or initialize a single dispatch session in server cache (WITHOUT creating unconfirmed DB order)
  */
 async function startOrderDispatch(order) {
-  const orderId = order.id || `TG-${Math.floor(100000 + Math.random() * 900000)}`;
+  const uniqueTs = Date.now().toString().slice(-6);
+  const uniqueRand = Math.floor(100 + Math.random() * 900);
+  const orderId = order.id || `TG-${uniqueTs}${uniqueRand}`;
   const lat = parseFloat(order.customerLat) || 51.5074;
   const lng = parseFloat(order.customerLng) || -0.1278;
 
@@ -207,11 +209,11 @@ function activateStage(session, stageNum) {
     return t.distanceMiles <= config.maxRadius;
   });
 
-  // If no tailor is within the strict initial radius, activate the closest available tailor(s) in pool
+  // If no tailor is within the strict initial radius, activate all available tailor(s) in pool
   if (currentCandidates.length === 0 && session.tailorPool.length > 0) {
     const available = session.tailorPool.filter((t) => !session.declinedTailorIds.has(t.tailorId));
     if (available.length > 0) {
-      currentCandidates = [available[0]];
+      currentCandidates = available;
     }
   }
 
@@ -498,7 +500,10 @@ function getPendingRequestsForTailor(tailorId) {
         Array.from(session.activeCandidateTailorIds).some(
           (id) => String(id).toLowerCase() === cleanTailorId.toLowerCase()
         ) ||
-        (session.tailorPool.length === 1 && !session.declinedTailorIds.has(cleanTailorId));
+        session.tailorPool.some(
+          (t) => String(t.tailorId).toLowerCase() === cleanTailorId.toLowerCase()
+        ) ||
+        !session.declinedTailorIds.has(cleanTailorId);
 
       if (isCandidate && !session.declinedTailorIds.has(cleanTailorId)) {
         const tailorInfo =
