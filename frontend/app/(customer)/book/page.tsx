@@ -810,9 +810,7 @@ export default function BookPage() {
   // Nearby partner stores for selected city / location
   const [nearbyStores, setNearbyStores] = useState<StoreOption[]>([])
 
-  const [selectedStore, setSelectedStore] = useState<StoreOption | null>(() => {
-    return prefilledStore || getClosestStoreForLocation(selectedCity)
-  })
+  const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
   // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
   useEffect(() => {
