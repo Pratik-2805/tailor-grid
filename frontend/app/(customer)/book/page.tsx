@@ -847,24 +847,6 @@ export default function BookPage() {
       }
       reader.readAsDataURL(file)
     })
-  }
-
-  // Handle Photo Upload with fast compression
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    const fileList = Array.from(files)
-    for (const file of fileList) {
-      try {
-        const compressed = await compressImageFile(file)
-        if (compressed) {
-          setUploadedImages((prev) => [...prev, compressed])
-        }
-      } catch (err) {
-        console.warn('Image compression skipped, falling back to direct reader:', err)
-      }
-    }
     e.target.value = ''
   }
 
