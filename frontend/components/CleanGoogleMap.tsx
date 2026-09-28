@@ -68,6 +68,7 @@ type Props = {
   fixedBoxMiles?: number
   showUserPin?: boolean
   isLiveLocation?: boolean
+  isLocationSaved?: boolean
   userPinLabel?: string
   stores?: StoreOption[]
   selectedStoreId?: string
@@ -105,6 +106,70 @@ export function generateCurvedPoints(
   return points
 }
 
+const MINIMALIST_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  {
+    featureType: 'all',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ lightness: 20 }, { visibility: 'simplified' }],
+  },
+  {
+    featureType: 'transit',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'poi',
+    stylers: [{ visibility: 'off' }],
+  },
+]
+
+const CHOOSING_MAP_STYLES: google.maps.MapTypeStyle[] = [
+  {
+    featureType: 'all',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+  {
+    featureType: 'all',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#111827' }],
+  },
+  {
+    featureType: 'all',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#ffffff' }, { weight: 3 }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ visibility: 'on' }, { lightness: 10 }],
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+]
+
 export default function CleanGoogleMap({
   lat,
   lng,
@@ -117,13 +182,14 @@ export default function CleanGoogleMap({
   showZoomControls = false,
   disableNavigation = false,
   isFixed = false,
-  fixedBoxMiles = 6.0,
+  fixedBoxMiles = 5.0,
   showUserPin = true,
   isLiveLocation = false,
+  isLocationSaved = false,
   userPinLabel = 'You',
   stores = [],
   selectedStoreId,
-  radiusMiles = 3.0,
+  radiusMiles = 5.0,
   showRadiusCircle = false,
   showCurvedConnection = false,
   onSelectStore,
@@ -134,9 +200,12 @@ export default function CleanGoogleMap({
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<any[]>([])
+  const userMarkerRef = useRef<any>(null)
 
   const [loadError, setLoadError] = useState(false)
   const [isReady, setIsReady] = useState(false)
+
+  const isChoosing = !isLiveLocation && !isLocationSaved
 
   // 1. Initial Google Maps Engine Mount (RUNS ONCE ONLY - prevents unneeded re-renders)
   useEffect(() => {
@@ -170,25 +239,25 @@ export default function CleanGoogleMap({
 
         if (!isMounted || !mapRef.current) return
 
-        // Calculate 8 miles by 8 miles bounding box around center (4 miles in each cardinal direction)
+        // Calculate 5 miles by 5 miles bounding box around center (2.5 miles in each cardinal direction)
         const halfMiles = fixedBoxMiles / 2.0
         const deltaLat = halfMiles / 69.0
         const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
 
-        const bounds8x8 = new google.maps.LatLngBounds(
+        const boundsBox = new google.maps.LatLngBounds(
           new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
           new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
         )
 
-        // When NOT live GPS location, enable zooming and panning to select actual location
-        const isInteractive = !isLiveLocation
+        // When choosing location, enable zooming and panning to select actual location
+        const isInteractive = isChoosing
 
         // Create persistent clean Google Map instance
         const map = new Map(mapRef.current, {
           center: { lat, lng },
-          zoom: isLiveLocation ? 13 : 15,
-          minZoom: isLiveLocation ? 13 : 10,
-          maxZoom: isLiveLocation ? 13 : 20,
+          zoom: isChoosing ? 16 : 13,
+          minZoom: isChoosing ? 10 : 13,
+          maxZoom: isChoosing ? 21 : 13,
           scrollwheel: isInteractive,
           disableDoubleClickZoom: !isInteractive,
           draggable: isInteractive,
@@ -196,30 +265,11 @@ export default function CleanGoogleMap({
           disableDefaultUI: true,
           clickableIcons: false,
           gestureHandling: isInteractive ? 'cooperative' : 'none',
-          styles: [
-            {
-              featureType: 'all',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }],
-            },
-            {
-              featureType: 'road',
-              elementType: 'geometry',
-              stylers: [{ lightness: 20 }, { visibility: 'simplified' }],
-            },
-            {
-              featureType: 'transit',
-              stylers: [{ visibility: 'off' }],
-            },
-            {
-              featureType: 'poi',
-              stylers: [{ visibility: 'off' }],
-            },
-          ],
+          styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
         })
 
-        if (isFixed && isLiveLocation) {
-          map.fitBounds(bounds8x8, 0)
+        if ((isFixed || isLocationSaved || isLiveLocation) && !isChoosing) {
+          map.fitBounds(boundsBox, 0)
           map.setCenter({ lat, lng })
         }
 
@@ -247,58 +297,85 @@ export default function CleanGoogleMap({
     }
   }, [])
 
-  // Update map interactive gestures dynamically when isLiveLocation changes
+  // Update map interactive gestures and style labels dynamically when isChoosing changes
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map || !isReady) return
 
-    const isInteractive = !isLiveLocation
+    const isInteractive = isChoosing
     map.setOptions({
       draggable: isInteractive,
       scrollwheel: isInteractive,
       disableDoubleClickZoom: !isInteractive,
       gestureHandling: isInteractive ? 'cooperative' : 'none',
-      minZoom: isLiveLocation ? 13 : 10,
-      maxZoom: isLiveLocation ? 13 : 20,
+      minZoom: isChoosing ? 10 : 13,
+      maxZoom: isChoosing ? 21 : 13,
+      styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
     })
-  }, [isLiveLocation, isReady])
 
-  // Click on map to fine-tune/select actual location drop pin when not in live GPS mode
+    if (!isChoosing) {
+      const halfMiles = fixedBoxMiles / 2.0
+      const deltaLat = halfMiles / 69.0
+      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+
+      const boundsBox = new google.maps.LatLngBounds(
+        new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
+        new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
+      )
+      map.fitBounds(boundsBox, 0)
+      map.setCenter({ lat, lng })
+    }
+  }, [isChoosing, isReady, lat, lng, fixedBoxMiles])
+
+  // Move the map or click on map to fine-tune/select actual desired location drop pin when in choosing mode
   useEffect(() => {
     const map = mapInstanceRef.current
-    if (!map || !isReady || isLiveLocation) return
+    if (!map || !isReady || !isChoosing) return
+
+    const dragListener = map.addListener('dragend', () => {
+      const center = map.getCenter()
+      if (center && onPinLocationChange) {
+        onPinLocationChange({ lat: center.lat(), lng: center.lng() })
+      }
+    })
 
     const clickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       if (e.latLng && onPinLocationChange) {
+        map.panTo(e.latLng)
         onPinLocationChange({ lat: e.latLng.lat(), lng: e.latLng.lng() })
       }
     })
 
     return () => {
+      google.maps.event.removeListener(dragListener)
       google.maps.event.removeListener(clickListener)
     }
-  }, [isReady, isLiveLocation, onPinLocationChange])
+  }, [isReady, isChoosing, onPinLocationChange])
 
   // 2. Pan or Lock center coordinates when lat/lng change
   useEffect(() => {
     const map = mapInstanceRef.current
     if (!map || !isReady) return
 
-    if (isFixed) {
-      const halfMiles = fixedBoxMiles / 2.0
+    if (!isChoosing) {
+      const halfMiles = (radiusMiles || fixedBoxMiles) / 2.0
       const deltaLat = halfMiles / 69.0
       const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
 
-      const bounds8x8 = new google.maps.LatLngBounds(
+      const boundsBox = new google.maps.LatLngBounds(
         new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
         new google.maps.LatLng(lat + deltaLat, lng + deltaLng)
       )
-      map.fitBounds(bounds8x8, 0)
+      map.fitBounds(boundsBox, 0)
       map.setCenter({ lat, lng })
     } else if (!showCurvedConnection) {
-      map.panTo({ lat, lng })
+      const currentCenter = map.getCenter()
+      // Only pan if coordinate significantly changed (> 10 meters)
+      if (!currentCenter || Math.hypot(currentCenter.lat() - lat, currentCenter.lng() - lng) > 0.0001) {
+        map.panTo({ lat, lng })
+      }
     }
-  }, [lat, lng, isReady, isFixed, fixedBoxMiles, showCurvedConnection])
+  }, [lat, lng, isReady, isChoosing, fixedBoxMiles, radiusMiles, showCurvedConnection])
 
   // 3. Filter stores strictly within radius and render pins
   useEffect(() => {
@@ -311,13 +388,13 @@ export default function CleanGoogleMap({
     })
     markersRef.current = []
 
-    // Filter stores strictly to those within the service radius (or 8x8 box)
+    // Filter stores strictly to those within the 5-mile service radius
     const validStoresInRadius = stores.filter((st) => {
       const stLat = st.coords?.lat
       const stLng = st.coords?.lng
       if (typeof stLat !== 'number' || typeof stLng !== 'number') return false
       const dist = calculateDistanceInMiles(lat, lng, stLat, stLng)
-      return dist <= (radiusMiles || fixedBoxMiles / 2.0)
+      return dist <= (radiusMiles || fixedBoxMiles)
     })
 
     if (onStoresFound && validStoresInRadius.length !== stores.length) {
@@ -326,104 +403,129 @@ export default function CleanGoogleMap({
 
     // A. Custom Center Marker: Customer Location Pin ("You" GPS pulse vs Searched Blue Pin Point)
     if (showUserPin) {
-      class CustomerLocationMarkerOverlay extends google.maps.OverlayView {
-        private position: google.maps.LatLng
-        private div: HTMLDivElement | null = null
-        private isLiveGps: boolean
-
-        constructor(position: google.maps.LatLng, isLiveGps: boolean = false) {
-          super()
-          this.position = position
-          this.isLiveGps = isLiveGps
+      if (userMarkerRef.current && userMarkerRef.current.isLiveGps === isLiveLocation) {
+        userMarkerRef.current.updatePosition(new google.maps.LatLng(lat, lng))
+      } else {
+        if (userMarkerRef.current) {
+          userMarkerRef.current.setMap(null)
+          userMarkerRef.current = null
         }
 
-        onAdd() {
-          this.div = document.createElement('div')
-          this.div.style.position = 'absolute'
-          this.div.style.zIndex = '50'
-          this.div.style.pointerEvents = 'none'
+        class CustomerLocationMarkerOverlay extends google.maps.OverlayView {
+          public position: google.maps.LatLng
+          private div: HTMLDivElement | null = null
+          public isLiveGps: boolean
 
-          if (this.isLiveGps) {
-            // 1. LIVE GPS LOCATION: Pulsating Google Maps blue dot & accuracy disc
-            this.div.style.transform = 'translate(-50%, -50%)'
-            this.div.innerHTML = `
-              <style>
-                @keyframes gmaps-ring-pulse {
-                  0%   { transform: scale(1);   opacity: 1; }
-                  100% { transform: scale(3.2); opacity: 0; }
-                }
-              </style>
-              <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;">
-                <div style="
-                  position: absolute;
-                  inset: 0;
-                  border-radius: 50%;
-                  background: rgba(66, 133, 244, 0.15);
-                "></div>
-                <div style="
-                  position: absolute;
-                  width: 18px;
-                  height: 18px;
-                  border-radius: 50%;
-                  background: rgba(66, 133, 244, 0.4);
-                  animation: gmaps-ring-pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-                "></div>
-                <div style="
-                  position: relative;
-                  z-index: 2;
-                  width: 18px;
-                  height: 18px;
-                  border-radius: 50%;
-                  background: #4285F4;
-                  border: 3px solid #FFFFFF;
-                  box-shadow:
-                    0 1px 4px rgba(0,0,0,0.3),
-                    0 0 0 1px rgba(66,133,244,0.3);
-                "></div>
-              </div>
-            `
-          } else {
-            // 2. SEARCHED / PINNED LOCATION: Classic Google Blue Pin Point marker
-            this.div.style.transform = 'translate(-50%, -100%)'
-            this.div.innerHTML = `
-              <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
-                <div style="width: 28px; height: 38px; position: relative; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.32));">
-                  <svg width="28" height="38" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1"/>
-                    <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
-                    <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8"/>
-                  </svg>
+          constructor(position: google.maps.LatLng, isLiveGps: boolean = false) {
+            super()
+            this.position = position
+            this.isLiveGps = isLiveGps
+          }
+
+          updatePosition(newPos: google.maps.LatLng) {
+            this.position = newPos
+            this.draw()
+          }
+
+          onAdd() {
+            this.div = document.createElement('div')
+            this.div.style.position = 'absolute'
+            this.div.style.zIndex = '50'
+            this.div.style.pointerEvents = 'none'
+            this.div.style.transition = 'left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)'
+
+            if (this.isLiveGps) {
+              // 1. LIVE GPS LOCATION: Pulsating Google Maps blue dot & accuracy disc
+              this.div.style.transform = 'translate(-50%, -50%)'
+              this.div.innerHTML = `
+                <style>
+                  @keyframes gmaps-ring-pulse {
+                    0%   { transform: scale(1);   opacity: 1; }
+                    100% { transform: scale(3.2); opacity: 0; }
+                  }
+                </style>
+                <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;">
+                  <div style="
+                    position: absolute;
+                    inset: 0;
+                    border-radius: 50%;
+                    background: rgba(66, 133, 244, 0.15);
+                  "></div>
+                  <div style="
+                    position: absolute;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    background: rgba(66, 133, 244, 0.4);
+                    animation: gmaps-ring-pulse 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+                  "></div>
+                  <div style="
+                    position: relative;
+                    z-index: 2;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 50%;
+                    background: #4285F4;
+                    border: 3px solid #FFFFFF;
+                    box-shadow:
+                      0 1px 4px rgba(0,0,0,0.3),
+                      0 0 0 1px rgba(66,133,244,0.3);
+                  "></div>
                 </div>
-                <div style="width: 10px; height: 3px; background: rgba(0,0,0,0.3); border-radius: 50%; filter: blur(0.8px); margin-top: -1px;"></div>
-              </div>
-            `
+              `
+            } else {
+              // 2. SEARCHED / PINNED LOCATION: Smooth Fluid Google Blue Pin Point marker
+              this.div.style.transform = 'translate(-50%, -100%)'
+              this.div.innerHTML = `
+                <style>
+                  @keyframes gmaps-pin-drop {
+                    0%   { transform: translateY(-18px) scale(1.15); opacity: 0.7; }
+                    60%  { transform: translateY(2px) scale(0.96); opacity: 1; }
+                    100% { transform: translateY(0) scale(1); opacity: 1; }
+                  }
+                </style>
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative; animation: gmaps-pin-drop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                  <div style="width: 30px; height: 40px; position: relative; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.35));">
+                    <svg width="30" height="40" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1"/>
+                      <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
+                      <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8"/>
+                    </svg>
+                  </div>
+                  <div style="width: 12px; height: 3.5px; background: rgba(0,0,0,0.35); border-radius: 50%; filter: blur(1px); margin-top: -1px;"></div>
+                </div>
+              `
+            }
+
+            const panes = this.getPanes()
+            panes?.overlayMouseTarget.appendChild(this.div)
           }
 
-          const panes = this.getPanes()
-          panes?.overlayMouseTarget.appendChild(this.div)
-        }
+          draw() {
+            const projection = this.getProjection()
+            if (!projection || !this.div) return
+            const point = projection.fromLatLngToDivPixel(this.position)
+            if (point) {
+              this.div.style.left = `${point.x}px`
+              this.div.style.top = `${point.y}px`
+            }
+          }
 
-        draw() {
-          const projection = this.getProjection()
-          if (!projection || !this.div) return
-          const point = projection.fromLatLngToDivPixel(this.position)
-          if (point) {
-            this.div.style.left = `${point.x}px`
-            this.div.style.top = `${point.y}px`
+          onRemove() {
+            if (this.div && this.div.parentNode) {
+              this.div.parentNode.removeChild(this.div)
+              this.div = null
+            }
           }
         }
 
-        onRemove() {
-          if (this.div && this.div.parentNode) {
-            this.div.parentNode.removeChild(this.div)
-            this.div = null
-          }
-        }
+        const userMarker = new CustomerLocationMarkerOverlay(new google.maps.LatLng(lat, lng), isLiveLocation)
+        userMarker.setMap(map)
+        userMarkerRef.current = userMarker
       }
-
-      const userMarker = new CustomerLocationMarkerOverlay(new google.maps.LatLng(lat, lng), isLiveLocation)
-      userMarker.setMap(map)
-      markersRef.current.push(userMarker)
+    } else if (userMarkerRef.current) {
+      userMarkerRef.current.setMap(null)
+      userMarkerRef.current = null
     }
 
     // B. Custom Tailor Studio Pin Overlay
@@ -632,8 +734,8 @@ export default function CleanGoogleMap({
         <div ref={mapRef} className="w-full h-full rounded-[28px]" />
       )}
 
-      {/* Zoom Controls (Active when selecting/fine-tuning searched location) */}
-      {!isLiveLocation && isReady && !loadError && (
+      {/* Zoom Controls (Active only when actively choosing location) */}
+      {isChoosing && isReady && !loadError && (
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-1.5 shadow-sm">
           <button
             type="button"
@@ -650,25 +752,6 @@ export default function CleanGoogleMap({
             title="Zoom out"
           >
             &minus;
-          </button>
-        </div>
-      )}
-
-      {/* Floating Confirm Location Point Button (Active when in searched location mode) */}
-      {!isLiveLocation && isReady && !loadError && (
-        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 w-auto max-w-[90%] flex items-center justify-center animate-in slide-in-from-bottom-3 duration-200 pointer-events-auto">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (onConfirmPinLocation) {
-                onConfirmPinLocation({ lat, lng }, origin)
-              }
-            }}
-            className="px-5 py-3 rounded-full bg-black hover:bg-neutral-800 text-white text-[14px] font-bold shadow-[0_8px_24px_rgba(0,0,0,0.35)] flex items-center gap-2 transition-all active:scale-95 cursor-pointer border border-white/20 whitespace-nowrap"
-          >
-            <Check size={16} className="text-[#276EF1]" />
-            <span>Confirm location</span>
           </button>
         </div>
       )}

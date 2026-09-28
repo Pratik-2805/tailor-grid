@@ -20,7 +20,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { CityModal } from './city-modal'
-import { useCityLocation } from './use-city-location'
+import { useCityLocation, formatLocationDisplay } from './use-city-location'
 import { GARMENT_CATEGORIES, type Screen, type User } from './data'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
@@ -440,7 +440,9 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
             {/* 1. Location Header */}
             <div className="relative mb-3.5 flex items-center gap-1.5 text-[15px] font-medium text-black">
               <MapPin size={18} className="text-[#0F1115] shrink-0" />
-              <span className="font-bold">{selectedCity}</span>
+              <span className="font-bold truncate max-w-[280px]" title={selectedCity}>
+                {formatLocationDisplay(selectedCity)}
+              </span>
               <button
                 type="button"
                 onClick={() => {
@@ -449,7 +451,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                   setShowGarmentPicker(false)
                   setShowAlterationPicker(false)
                 }}
-                className="underline text-[#9E593B] font-semibold hover:text-[#0F1115] ml-1 transition-colors cursor-pointer"
+                className="underline text-[#9E593B] font-semibold hover:text-[#0F1115] ml-1 transition-colors cursor-pointer shrink-0"
               >
                 Change city
               </button>

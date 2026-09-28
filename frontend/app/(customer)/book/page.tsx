@@ -17,14 +17,15 @@ import {
   Sparkles,
   Shirt,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
-import { useCityLocation, getCityCoordinates, setStoredCity } from '@/components/use-city-location'
+import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
-import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors } from '@/lib/api'
+import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
@@ -533,10 +534,66 @@ function DropdownSelector({
   )
 }
 
+export interface CustomerAddressDetails {
+  houseNo: string
+  apartment: string
+  locality: string
+  city: string
+  landmark?: string
+}
+
+function parseGoogleAddressComponents(results: any[]): CustomerAddressDetails {
+  if (!results || !Array.isArray(results) || results.length === 0) {
+    return { houseNo: '', apartment: '', locality: '', city: '' }
+  }
+
+  const first = results[0]
+  const comps = first?.address_components || []
+
+  const streetNumber = comps.find((c: any) => c.types.includes('street_number'))?.long_name || ''
+  const subpremise = comps.find((c: any) => c.types.includes('subpremise'))?.long_name || ''
+  const premise = comps.find((c: any) => c.types.includes('premise'))?.long_name || ''
+  const route = comps.find((c: any) => c.types.includes('route'))?.long_name || ''
+  const sublocality2 = comps.find((c: any) => c.types.includes('sublocality_level_2'))?.long_name || ''
+  const sublocality1 = comps.find((c: any) => c.types.includes('sublocality_level_1') || c.types.includes('sublocality'))?.long_name || ''
+  const neighborhood = comps.find((c: any) => c.types.includes('neighborhood'))?.long_name || ''
+  const locality = comps.find((c: any) => c.types.includes('locality'))?.long_name || ''
+  const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))?.long_name || ''
+  const admin1 = comps.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || ''
+  const poi = comps.find((c: any) => c.types.includes('point_of_interest') || c.types.includes('establishment'))?.long_name || ''
+
+  // House / Flat No.
+  const houseNo = subpremise || streetNumber || ''
+
+  // Apartment / Society / Building
+  let apartment = ''
+  if (premise && premise !== houseNo) {
+    apartment = premise
+  } else if (poi) {
+    apartment = poi
+  }
+
+  // Locality / Street / Area
+  const localityParts = [route, sublocality2, sublocality1 || neighborhood].filter(Boolean)
+  const localityStr = localityParts.length > 0 ? Array.from(new Set(localityParts)).join(', ') : (neighborhood || sublocality1 || '')
+
+  // City / State
+  const cityPart = locality || admin2 || ''
+  const cityStr = cityPart && admin1 ? `${cityPart}, ${admin1}` : (cityPart || admin1 || '')
+
+  return {
+    houseNo,
+    apartment,
+    locality: localityStr,
+    city: cityStr,
+  }
+}
+
 export default function BookPage() {
   const router = useRouter()
   const {
     user,
+    setUser,
     isAuthLoading,
     navigate,
     openAuth,
@@ -560,6 +617,95 @@ export default function BookPage() {
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
   const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [isLiveLocation, setIsLiveLocation] = useState(false)
+  const [isLocationSaved, setIsLocationSaved] = useState(false)
+
+  // 3D Card Flip state for Address Details input
+  const [isCardFlipped, setIsCardFlipped] = useState(false)
+
+  // Address Details for Searched / Dropped Pin Location (House No., Apartment, Locality, City)
+  const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>({
+    houseNo: '',
+    apartment: '',
+    locality: '',
+    city: 'Vasai, IN-MH',
+    landmark: '',
+  })
+
+  const handleAddressFieldChange = (field: keyof CustomerAddressDetails, value: string) => {
+    setAddressDetails((prev) => {
+      const updated = { ...prev, [field]: value }
+      if (field === 'city' && value.trim()) {
+        setSelectedCity(value)
+      }
+      return updated
+    })
+  }
+
+  // Handle Save Address & Update Radius Centers & User Profile
+  const handleSaveAddress = async () => {
+    const fullAddress = [
+      addressDetails.houseNo,
+      addressDetails.apartment,
+      addressDetails.locality,
+      addressDetails.city || selectedCity,
+    ].filter(Boolean).join(', ') || selectedCity
+
+    const targetCoords = userGpsCoords || getCityCoordinates(selectedCity)
+    const activeCityName = addressDetails.city?.trim() || selectedCity
+
+    // 1. Save Coordinates & City
+    setSelectedCity(activeCityName)
+    setStoredCity(activeCityName, targetCoords)
+    setUserGpsCoords(targetCoords)
+    setIsLiveLocation(false)
+    setIsLocationSaved(true)
+
+    // 2. Fetch tailors from database taking this exact saved pinned location as center of 5.0-mile radius
+    try {
+      const data = await fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+      if (data.tailors && Array.isArray(data.tailors)) {
+        setNearbyStores(data.tailors)
+        if (data.tailors.length > 0) {
+          setSelectedStore(data.tailors[0])
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching tailors for saved pinned location:', err)
+    }
+
+    // 3. Save this address to User Profile in Backend & Client session
+    if (user) {
+      const updatedUserPayload = {
+        ...user,
+        address: fullAddress,
+        postcode: addressDetails.locality || addressDetails.city || selectedCity,
+      }
+      setUser(updatedUserPayload)
+
+      try {
+        await updateUserProfile({
+          address: fullAddress,
+          postcode: addressDetails.locality || addressDetails.city || selectedCity,
+        })
+      } catch (err) {
+        console.warn('Error saving address to user profile in backend:', err)
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`tg_saved_address_${user?.id || 'guest'}`, JSON.stringify({
+          address: fullAddress,
+          details: addressDetails,
+          coords: targetCoords,
+        }))
+      } catch {}
+    }
+
+    // 4. Flip card back to order request face
+    setIsCardFlipped(false)
+    toast.success('Address saved to profile & nearby ateliers updated!', { position: 'top-center' })
+  }
 
   // Selection states initialized from prefilled context
   const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
@@ -588,6 +734,15 @@ export default function BookPage() {
             const geocoder = new google.maps.Geocoder()
             geocoder.geocode({ location: liveCoords }, (results, status) => {
               if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                const parsed = parseGoogleAddressComponents(results)
+                setAddressDetails((prev) => ({
+                  ...prev,
+                  houseNo: parsed.houseNo || prev.houseNo,
+                  apartment: parsed.apartment || prev.apartment,
+                  locality: parsed.locality || prev.locality,
+                  city: parsed.city || prev.city,
+                }))
+
                 const comps = results[0]?.address_components || []
                 const locality = comps.find((c: any) => c.types.includes('locality'))
                 const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
@@ -659,12 +814,13 @@ export default function BookPage() {
     return prefilledStore || getClosestStoreForLocation(selectedCity)
   })
 
-  // Fetch partner studios purely by lat/lng within 8 miles directly from backend API
+  // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
   useEffect(() => {
+    if (!isLiveLocation) return
     let isCurrent = true
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
-    fetchNearbyTailors(coords.lat, coords.lng, 8.0)
+    fetchNearbyTailors(coords.lat, coords.lng, 5.0)
       .then((data) => {
         if (!isCurrent) return
         if (data.tailors && Array.isArray(data.tailors)) {
@@ -963,6 +1119,12 @@ export default function BookPage() {
     const measurementsData = finalMeasurements
 
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
+    const fullCustomerAddress = [
+      addressDetails.houseNo,
+      addressDetails.apartment,
+      addressDetails.locality,
+      addressDetails.city || selectedCity,
+    ].filter(Boolean).join(', ') || selectedCity
 
     const orderData = {
       id: newOrderId,
@@ -973,6 +1135,8 @@ export default function BookPage() {
       userId: user?.id || null,
       customerLat: coords.lat,
       customerLng: coords.lng,
+      customerAddress: fullCustomerAddress,
+      addressDetails: addressDetails,
       storeId: closestStore?.id || null,
       storeName: closestStore?.name || 'Awaiting Studio Acceptance',
       storePhone: closestStore?.phone || null,
@@ -1190,359 +1354,494 @@ export default function BookPage() {
         {/* Uber Side-by-Side Placement Grid Layout */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
 
-          {/* LEFT COLUMN: Single Unified Booking & Measurement Card */}
-          <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0">
+          {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
+          <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0 [perspective:1400px]">
+            <div
+              className="relative w-full"
+              style={{
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.65s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                transform: isCardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }}
+            >
+              {/* FRONT FACE: Request an Alteration Form */}
+              <div
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+                className={`bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6 transition-opacity duration-300 ${
+                  isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                }`}
+              >
 
-            <div className="bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6">
-
-              {/* City Pill Header */}
-              <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
-                <MapPin size={16} className="text-black shrink-0" />
-                <span className="font-extrabold">{selectedCity}</span>
-                <button
-                  type="button"
-                  onClick={() => setIsCityModalOpen(true)}
-                  className="text-xs text-neutral-500 hover:text-black underline underline-offset-2 transition-colors cursor-pointer font-semibold ml-1"
-                >
-                  Change city
-                </button>
-              </div>
-
-              {/* Heading */}
-              <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
-                Request an alteration
-              </h1>
-
-              {/* 1. Category of Clothes Dropdown */}
-              <div className="relative" ref={categoryRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
-                    setIsServiceDropdownOpen(false)
-                  }}
-                  className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <GarmentCategoryIcon categoryId={currentCategory.id} className="size-4 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                        CATEGORY OF CLOTHES
-                      </p>
-                      <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                        {currentCategory.name} (from ${currentCategory.startingPrice})
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown
-                    size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                  />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isCategoryDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                    {GARMENT_CATEGORIES.map((cat) => {
-                      const isSelected = cat.id === selectedGarmentId
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => handleSelectCategory(cat.id)}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                            }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="size-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
-                              <GarmentCategoryIcon categoryId={cat.id} className="size-3.5" />
-                            </div>
-                            <div>
-                              <p className="text-xs sm:text-sm text-black font-extrabold">{cat.name}</p>
-                              <p className="text-[11px] text-gray-500">From ${cat.startingPrice} • {cat.avgTurnaround}</p>
-                            </div>
-                          </div>
-                          {isSelected && <Check size={16} className="text-black shrink-0" />}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* 2. What Needs to be Done? Dropdown */}
-              <div className="relative" ref={serviceRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsServiceDropdownOpen(!isServiceDropdownOpen)
-                    setIsCategoryDropdownOpen(false)
-                  }}
-                  className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <Scissors className="size-4 text-white" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                        WHAT NEEDS TO BE DONE?
-                      </p>
-                      <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                        {currentService.name} (${currentService.customerPrice})
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown
-                    size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                  />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isServiceDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                    {currentCategory.popularServices.map((srv) => {
-                      const isSelected = srv.id === selectedServiceId
-                      return (
-                        <button
-                          key={srv.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedServiceId(srv.id)
-                            setIsServiceDropdownOpen(false)
-                          }}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                            }`}
-                        >
-                          <div>
-                            <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
-                            <p className="text-[11px] text-gray-500">{srv.description}</p>
-                          </div>
-                          <div className="text-right shrink-0 ml-3">
-                            <p className="text-xs sm:text-sm font-black text-black">${srv.customerPrice}</p>
-                            <p className="text-[10px] text-gray-400">{srv.turnaroundDays}d SLA</p>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Garment Photo / Reference Fit (Required - Max 4) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
-                    <span>GARMENT PHOTO / REFERENCE FIT</span>
-                    <span className="text-red-500 font-bold">* (REQUIRED)</span>
-                  </p>
-                  <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-                    {uploadedImages.length}/4 Photos
+                {/* City Pill Header */}
+                <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
+                  <MapPin size={16} className="text-black shrink-0" />
+                  <span className="font-extrabold truncate max-w-[320px]" title={selectedCity}>
+                    {formatLocationDisplay(selectedCity)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsCityModalOpen(true)}
+                    className="text-xs text-neutral-500 hover:text-black underline underline-offset-2 transition-colors cursor-pointer font-semibold ml-1 shrink-0"
+                  >
+                    Change city
+                  </button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                  />
+                {/* Heading */}
+                <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                  Request an alteration
+                </h1>
 
-                  {uploadedImages.length < 4 && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
-                    >
-                      <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                        <Camera size={14} className="text-white" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-black">Add photo</span>
-                      <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
-                    </button>
-                  )}
-
-                  {/* Thumbnail List */}
-                  {uploadedImages.map((imgUrl, idx) => (
-                    <div key={idx} className="relative size-24 rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
-                      <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => removeImage(idx)}
-                        className="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center shadow-sm transition-all z-20 cursor-pointer"
-                        title="Remove photo"
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 4. Your Measurement Collapsible Section with Smooth Slide Transition */}
-              <div className="pt-3 border-t border-gray-100">
-                {/* Header Row */}
-                <div className="flex items-center justify-between gap-2">
+                {/* 1. Category of Clothes Dropdown */}
+                <div className="relative" ref={categoryRef}>
                   <button
                     type="button"
                     onClick={() => {
-                      setIsMeasurementOpen(!isMeasurementOpen)
-                      if (isMeasurementOpen) setIsEditingMeasurements(false)
+                      setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
+                      setIsServiceDropdownOpen(false)
                     }}
-                    className="py-1 text-left text-neutral-500 hover:text-black transition-colors cursor-pointer group flex-1 min-w-0"
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
                   >
-                    <p className="text-[11px] font-black uppercase tracking-wider text-neutral-500 group-hover:text-black transition-colors truncate">
-                      YOUR MEASUREMENT <span className="text-gray-400 font-semibold">({currentCategory.name})</span>
-                    </p>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <GarmentCategoryIcon categoryId={currentCategory.id} className="size-4 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                          CATEGORY OF CLOTHES
+                        </p>
+                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                          {currentCategory.name} (from ${currentCategory.startingPrice})
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      size={18}
+                      className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                    />
                   </button>
 
-                  {/* Right Side: Edit button & collapse chevron (Unit Toggle only visible when editing) */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isMeasurementOpen ? (
-                      <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
-                        {/* Unit Switcher: only visible when clicking Edit values */}
-                        {isEditingMeasurements && (
-                          <div className="flex items-center p-0.5 bg-neutral-100 rounded-lg border border-gray-200 mr-0.5 animate-in fade-in zoom-in-95 duration-150">
-                            <button
-                              type="button"
-                              onClick={() => handleUnitChange('in')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'in'
-                                ? 'bg-black text-white shadow-xs'
-                                : 'text-neutral-500 hover:text-black'
-                                }`}
-                              title="Inches"
-                            >
-                              in
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUnitChange('cm')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'cm'
-                                ? 'bg-black text-white shadow-xs'
-                                : 'text-neutral-500 hover:text-black'
-                                }`}
-                              title="Centimeters"
-                            >
-                              cm
-                            </button>
-                          </div>
-                        )}
+                  {/* Dropdown Menu */}
+                  {isCategoryDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                      {GARMENT_CATEGORIES.map((cat) => {
+                        const isSelected = cat.id === selectedGarmentId
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => handleSelectCategory(cat.id)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="size-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
+                                <GarmentCategoryIcon categoryId={cat.id} className="size-3.5" />
+                              </div>
+                              <div>
+                                <p className="text-xs sm:text-sm text-black font-extrabold">{cat.name}</p>
+                                <p className="text-[11px] text-gray-500">From ${cat.startingPrice} • {cat.avgTurnaround}</p>
+                              </div>
+                            </div>
+                            {isSelected && <Check size={16} className="text-black shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingMeasurements(!isEditingMeasurements)}
-                          className="text-xs font-bold text-neutral-700 hover:text-black flex items-center gap-1 cursor-pointer transition-colors py-1 px-2.5 rounded-lg hover:bg-neutral-100 bg-neutral-50"
-                        >
-                          <Edit3 size={13} />
-                          <span>{isEditingMeasurements ? 'Done editing' : 'Edit values'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMeasurementOpen(false)
-                            setIsEditingMeasurements(false)
-                          }}
-                          className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
-                          title="Close measurements"
-                        >
-                          <ChevronDown size={18} className="rotate-180 transition-transform duration-300" />
-                        </button>
+                {/* 2. What Needs to be Done? Dropdown */}
+                <div className="relative" ref={serviceRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsServiceDropdownOpen(!isServiceDropdownOpen)
+                      setIsCategoryDropdownOpen(false)
+                    }}
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Scissors className="size-4 text-white" />
                       </div>
-                    ) : (
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                          WHAT NEEDS TO BE DONE?
+                        </p>
+                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                          {currentService.name} (${currentService.customerPrice})
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      size={18}
+                      className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                    />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isServiceDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                      {currentCategory.popularServices.map((srv) => {
+                        const isSelected = srv.id === selectedServiceId
+                        return (
+                          <button
+                            key={srv.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedServiceId(srv.id)
+                              setIsServiceDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                              }`}
+                          >
+                            <div>
+                              <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
+                              <p className="text-[11px] text-gray-500">{srv.description}</p>
+                            </div>
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-xs sm:text-sm font-black text-black">${srv.customerPrice}</p>
+                              <p className="text-[10px] text-gray-400">{srv.turnaroundDays}d SLA</p>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Garment Photo / Reference Fit (Required - Max 4) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                      <span>GARMENT PHOTO / REFERENCE FIT</span>
+                      <span className="text-red-500 font-bold">* (REQUIRED)</span>
+                    </p>
+                    <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                      {uploadedImages.length}/4 Photos
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                    />
+
+                    {uploadedImages.length < 4 && (
                       <button
                         type="button"
-                        onClick={() => setIsMeasurementOpen(true)}
-                        className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
-                        title="Open measurements"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
                       >
-                        <ChevronDown size={18} className="rotate-0 transition-transform duration-300" />
+                        <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                          <Camera size={14} className="text-white" />
+                        </div>
+                        <span className="text-[11px] font-extrabold text-black">Add photo</span>
+                        <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
                       </button>
                     )}
+
+                    {/* Thumbnail List */}
+                    {uploadedImages.map((imgUrl, idx) => (
+                      <div key={idx} className="relative size-24 rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
+                        <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center shadow-sm transition-all z-20 cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                {/* Smooth Animated Dropdown Body (overflow-visible when open so dropdown menus are never clipped) */}
-                <div
-                  className={`transition-all duration-300 ease-in-out ${isMeasurementOpen
-                    ? 'max-h-[900px] opacity-100 pt-2.5 overflow-visible pb-2'
-                    : 'max-h-0 opacity-0 pt-0 overflow-hidden pointer-events-none'
-                    }`}
-                >
-                  <div className="space-y-2">
-                    {activeMeasurementFields.map((field) => {
-                      const customVal = customMeasurements[field.key] || ''
-                      const fieldPlaceholder = getFieldPlaceholder(field.placeholder, measUnit)
+                {/* 4. Your Measurement Collapsible Section with Smooth Slide Transition */}
+                <div className="pt-3 border-t border-gray-100">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMeasurementOpen(!isMeasurementOpen)
+                        if (isMeasurementOpen) setIsEditingMeasurements(false)
+                      }}
+                      className="py-1 text-left text-neutral-500 hover:text-black transition-colors cursor-pointer group flex-1 min-w-0"
+                    >
+                      <p className="text-[11px] font-black uppercase tracking-wider text-neutral-500 group-hover:text-black transition-colors truncate">
+                        YOUR MEASUREMENT <span className="text-gray-400 font-semibold">({currentCategory.name})</span>
+                      </p>
+                    </button>
 
-                      return (
-                        <div
-                          key={field.key}
-                          className="flex items-center justify-between gap-3 py-1.5 px-1 hover:bg-neutral-50/80 rounded-xl transition-colors"
-                        >
-                          <span className="text-xs sm:text-sm font-bold text-[#0F1115]">{field.label}</span>
-
-                          {/* Right: Badge or Edit input */}
-                          <div className="shrink-0 flex items-center">
-                            {isEditingMeasurements ? (
-                              field.type === 'select' && field.options ? (
-                                <MeasurementOptionDropdown
-                                  value={customVal}
-                                  options={field.options}
-                                  placeholder={fieldPlaceholder}
-                                  onChange={(val) => handleMeasurementChange(field.key, val)}
-                                />
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={customVal}
-                                  placeholder={fieldPlaceholder}
-                                  onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
-                                  className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all"
-                                />
-                              )
-                            ) : (
+                    {/* Right Side: Edit button & collapse chevron (Unit Toggle only visible when editing) */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isMeasurementOpen ? (
+                        <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
+                          {/* Unit Switcher: only visible when clicking Edit values */}
+                          {isEditingMeasurements && (
+                            <div className="flex items-center p-0.5 bg-neutral-100 rounded-lg border border-gray-200 mr-0.5 animate-in fade-in zoom-in-95 duration-150">
                               <button
                                 type="button"
-                                onClick={() => setIsEditingMeasurements(true)}
-                                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-[#F3F3F3] hover:bg-[#EBEBEB] text-black text-xs font-bold transition-colors cursor-pointer"
+                                onClick={() => handleUnitChange('in')}
+                                className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'in'
+                                  ? 'bg-black text-white shadow-xs'
+                                  : 'text-neutral-500 hover:text-black'
+                                  }`}
+                                title="Inches"
                               >
-                                <Scissors size={12} className="text-neutral-600" />
-                                <span>{customVal || 'To be Measured by Tailor'}</span>
+                                in
                               </button>
-                            )}
-                          </div>
+                              <button
+                                type="button"
+                                onClick={() => handleUnitChange('cm')}
+                                className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'cm'
+                                  ? 'bg-black text-white shadow-xs'
+                                  : 'text-neutral-500 hover:text-black'
+                                  }`}
+                                title="Centimeters"
+                              >
+                                cm
+                              </button>
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingMeasurements(!isEditingMeasurements)}
+                            className="text-xs font-bold text-neutral-700 hover:text-black flex items-center gap-1 cursor-pointer transition-colors py-1 px-2.5 rounded-lg hover:bg-neutral-100 bg-neutral-50"
+                          >
+                            <Edit3 size={13} />
+                            <span>{isEditingMeasurements ? 'Done editing' : 'Edit values'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsMeasurementOpen(false)
+                              setIsEditingMeasurements(false)
+                            }}
+                            className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+                            title="Close measurements"
+                          >
+                            <ChevronDown size={18} className="rotate-180 transition-transform duration-300" />
+                          </button>
                         </div>
-                      )
-                    })}
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setIsMeasurementOpen(true)}
+                          className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
+                          title="Open measurements"
+                        >
+                          <ChevronDown size={18} className="rotate-0 transition-transform duration-300" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Smooth Animated Dropdown Body (overflow-visible when open so dropdown menus are never clipped) */}
+                  <div
+                    className={`transition-all duration-300 ease-in-out ${isMeasurementOpen
+                      ? 'max-h-[900px] opacity-100 pt-2.5 overflow-visible pb-2'
+                      : 'max-h-0 opacity-0 pt-0 overflow-hidden pointer-events-none'
+                      }`}
+                  >
+                    <div className="space-y-2">
+                      {activeMeasurementFields.map((field) => {
+                        const customVal = customMeasurements[field.key] || ''
+                        const fieldPlaceholder = getFieldPlaceholder(field.placeholder, measUnit)
+
+                        return (
+                          <div
+                            key={field.key}
+                            className="flex items-center justify-between gap-3 py-1.5 px-1 hover:bg-neutral-50/80 rounded-xl transition-colors"
+                          >
+                            <span className="text-xs sm:text-sm font-bold text-[#0F1115]">{field.label}</span>
+
+                            {/* Right: Badge or Edit input */}
+                            <div className="shrink-0 flex items-center">
+                              {isEditingMeasurements ? (
+                                field.type === 'select' && field.options ? (
+                                  <MeasurementOptionDropdown
+                                    value={customVal}
+                                    options={field.options}
+                                    placeholder={fieldPlaceholder}
+                                    onChange={(val) => handleMeasurementChange(field.key, val)}
+                                  />
+                                ) : (
+                                  <input
+                                    type="text"
+                                    value={customVal}
+                                    placeholder={fieldPlaceholder}
+                                    onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
+                                    className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all"
+                                  />
+                                )
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsEditingMeasurements(true)}
+                                  className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-[#F3F3F3] hover:bg-[#EBEBEB] text-black text-xs font-bold transition-colors cursor-pointer"
+                                >
+                                  <Scissors size={12} className="text-neutral-600" />
+                                  <span>{customVal || 'To be Measured by Tailor'}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
+
+                {/* 5. Action Buttons Row */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={handleBookNow}
+                    className="flex-1 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
+                  >
+                    Book now
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="flex-1 sm:flex-initial rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold px-5 py-3.5 text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                  >
+                    <Calendar size={18} className="text-black" />
+                    <span>Schedule for later</span>
+                  </button>
+                </div>
+
               </div>
 
-              {/* 5. Action Buttons Row */}
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleBookNow}
-                  className="flex-1 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
-                >
-                  Book now
-                </button>
+              {/* BACK FACE: Address Details Form (Flips with identical font type & Uber/Atelier styling) */}
+              <div
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                }}
+                className={`absolute inset-0 bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 flex flex-col justify-between overflow-y-auto ${
+                  isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
+                }`}
+              >
+                <div className="space-y-4 sm:space-y-5">
+                  {/* Top Bar: Back button */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setIsCardFlipped(false)}
+                      className="inline-flex items-center gap-1.5 text-xs font-extrabold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
+                    >
+                      <ArrowLeft size={14} className="text-black" />
+                      <span>Back to Request</span>
+                    </button>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsScheduleModalOpen(true)}
-                  className="flex-1 sm:flex-initial rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold px-5 py-3.5 text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
-                >
-                  <Calendar size={18} className="text-black" />
-                  <span>Schedule for later</span>
-                </button>
+                  <div>
+                    <h2 className="text-2xl sm:text-[28px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                      Address Details
+                    </h2>
+                    <p className="text-xs text-neutral-500 font-medium mt-1">
+                      Specify your flat number, apartment, and landmark for precision doorstep fitting.
+                    </p>
+                  </div>
+
+                  {/* Input Fields (Identical font style & spacing) */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        House No. / Flat No. <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.houseNo}
+                        onChange={(e) => handleAddressFieldChange('houseNo', e.target.value)}
+                        placeholder="e.g. Flat 402, B-Wing, 4th Floor"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Apartment / Society / Building Name
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.apartment}
+                        onChange={(e) => handleAddressFieldChange('apartment', e.target.value)}
+                        placeholder="e.g. Royal Palms Apartment / Green Valley"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Locality / Street / Area
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.locality}
+                        onChange={(e) => handleAddressFieldChange('locality', e.target.value)}
+                        placeholder="e.g. Bandra West, Hill Road"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        City / Region
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.city}
+                        onChange={(e) => handleAddressFieldChange('city', e.target.value)}
+                        placeholder="e.g. Mumbai, MH"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Landmark / Instructions <span className="text-gray-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.landmark || ''}
+                        onChange={(e) => handleAddressFieldChange('landmark', e.target.value)}
+                        placeholder="e.g. Opposite Starbucks / Gate 2"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Back Face Footer */}
+                <div className="pt-3 border-t border-gray-100 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveAddress}
+                    className="w-full rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center flex items-center justify-center gap-2"
+                  >
+                    <span>Save & Continue to Order</span>
+                    <Check size={18} />
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -1561,11 +1860,12 @@ export default function BookPage() {
                 className="w-full h-full"
                 showZoomControls={false}
                 disableNavigation={true}
-                isFixed={true}
-                fixedBoxMiles={8.0}
-                radiusMiles={8.0}
+                isFixed={isLiveLocation || isLocationSaved}
+                fixedBoxMiles={5.0}
+                radiusMiles={5.0}
                 showUserPin={true}
                 isLiveLocation={isLiveLocation}
+                isLocationSaved={isLocationSaved}
                 userPinLabel={isLiveLocation ? 'You' : (selectedCity.split(',')[0] || 'Pinned Location')}
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
@@ -1578,19 +1878,30 @@ export default function BookPage() {
                 onPinLocationChange={(newCoords) => {
                   setUserGpsCoords(newCoords)
                   setIsLiveLocation(false)
+                  setIsLocationSaved(false)
+
                   if (typeof google !== 'undefined' && google.maps?.Geocoder) {
                     try {
                       const geocoder = new google.maps.Geocoder()
                       geocoder.geocode({ location: newCoords }, (results, status) => {
                         if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                          const parsed = parseGoogleAddressComponents(results)
+                          setAddressDetails((prev) => ({
+                            ...prev,
+                            houseNo: parsed.houseNo || prev.houseNo,
+                            apartment: parsed.apartment || prev.apartment,
+                            locality: parsed.locality || prev.locality,
+                            city: parsed.city || prev.city || selectedCity,
+                          }))
+
                           const comps = results[0]?.address_components || []
                           const locality = comps.find((c: any) => c.types.includes('locality'))
                           const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
                           const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
                           const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
-                          const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || selectedCity
+                          const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || parsed.city || selectedCity
                           const stateCode = state?.short_name || ''
-                          const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                          const formatted = stateCode && !cityName.includes(stateCode) ? `${cityName}, ${stateCode}` : cityName
                           setSelectedCity(formatted)
                           setStoredCity(formatted, newCoords)
                         }
@@ -1599,12 +1910,6 @@ export default function BookPage() {
                   } else {
                     setStoredCity(selectedCity, newCoords)
                   }
-                }}
-                onConfirmPinLocation={(confirmedCoords) => {
-                  setUserGpsCoords(confirmedCoords)
-                  setIsLiveLocation(false)
-                  setStoredCity(selectedCity, confirmedCoords)
-                  toast.success(`Location point confirmed: ${selectedCity.split(',')[0]}`, { position: 'top-center' })
                 }}
               />
             </div>
@@ -1623,7 +1928,53 @@ export default function BookPage() {
           const targetCoords = coords || getCityCoordinates(c)
           setUserGpsCoords(targetCoords)
           setIsLiveLocation(isGps === true)
+          setIsLocationSaved(isGps === true)
           setStoredCity(c, targetCoords)
+
+          if (isGps === true) {
+            // Live current location: immediately fetch nearby atelier locations
+            fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+              .then((data) => {
+                if (data.tailors && Array.isArray(data.tailors)) {
+                  setNearbyStores(data.tailors)
+                  if (data.tailors.length > 0) {
+                    setSelectedStore(data.tailors[0])
+                  }
+                }
+              })
+              .catch((err) => console.warn('Fetch tailors error on current location select:', err))
+          } else {
+            // Custom search: clear stores and wait until user confirms/saves address
+            setNearbyStores([])
+            setIsCardFlipped(true)
+          }
+
+          if (isGps !== true && typeof google !== 'undefined' && google.maps?.Geocoder) {
+            try {
+              const geocoder = new google.maps.Geocoder()
+              geocoder.geocode({ location: targetCoords }, (results, status) => {
+                if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                  const parsed = parseGoogleAddressComponents(results)
+                  setAddressDetails({
+                    houseNo: parsed.houseNo || '',
+                    apartment: parsed.apartment || '',
+                    locality: parsed.locality || '',
+                    city: parsed.city || c,
+                  })
+                } else {
+                  setAddressDetails((prev) => ({
+                    ...prev,
+                    city: c,
+                  }))
+                }
+              })
+            } catch {
+              setAddressDetails((prev) => ({
+                ...prev,
+                city: c,
+              }))
+            }
+          }
         }}
       />
 
