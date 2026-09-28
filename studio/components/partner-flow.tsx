@@ -507,6 +507,8 @@ export function PartnerFlow({
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('Accepted')
   const [refreshing, setRefreshing] = useState(false)
+  const [justSynced, setJustSynced] = useState(false)
+  const [lastSyncedTime, setLastSyncedTime] = useState<string>('Just now')
   const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
 
 
@@ -790,10 +792,20 @@ export function PartnerFlow({
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      const fetched = await fetchStudioOrders(currentStudioId)
+      const [fetched, pending] = await Promise.all([
+        currentStudioId ? fetchStudioOrders(currentStudioId) : Promise.resolve(null),
+        currentStudioId ? fetchPendingDispatches(currentStudioId) : Promise.resolve(null),
+      ])
       if (fetched) {
         updateOrdersAndSelected(fetched)
       }
+      if (Array.isArray(pending)) {
+        setPendingDispatches(pending)
+      }
+      setJustSynced(true)
+      setTimeout(() => setJustSynced(false), 2000)
+      const now = new Date()
+      setLastSyncedTime(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
     } catch { }
     setRefreshing(false)
   }
@@ -1588,39 +1600,7 @@ export function PartnerFlow({
           )}
         </div>
 
-        {/* Online Status Toggle Capsule */}
-        <div className={`p-3.5 border-b border-slate-800/60 shrink-0 ${sidebarCollapsed ? 'flex justify-center' : ''}`}>
-          {!sidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${online
-                ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50 hover:bg-emerald-900/50 shadow-xs'
-                : 'bg-slate-900 text-slate-400 border-slate-800 hover:bg-slate-800'
-                }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative flex items-center justify-center shrink-0">
-                  <span className={`size-2.5 rounded-full ${online ? 'bg-emerald-400' : 'bg-slate-500'}`} />
-                  {online && <span className="absolute size-4 rounded-full bg-emerald-400/40 animate-ping" />}
-                </div>
-                <span className="truncate">{online ? 'Workshop Active' : 'Workshop Offline'}</span>
-              </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-md font-mono font-bold tracking-wider shrink-0 ${online ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'}`}>
-                {online ? 'RECEIVING' : 'PAUSED'}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className="grid place-items-center cursor-pointer p-2.5 rounded-xl hover:bg-white/10"
-              title={online ? 'Workshop Active — Click to pause' : 'Workshop Offline — Click to activate'}
-            >
-              <span className={`size-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`} />
-            </button>
-          )}
-        </div>
+
 
         {/* Nav Items — The 4 Core Workshop Pillars */}
         <nav className="flex-1 p-3.5 pt-4 space-y-3 overflow-y-auto scrollbar-none">
@@ -1665,7 +1645,20 @@ export function PartnerFlow({
 
         {/* User / Studio Footer */}
         <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
-          {!sidebarCollapsed && (
+          {sidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              title={tailorName}
+              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
+              ) : (
+                tailorName.charAt(0)
+              )}
+            </button>
+          ) : (
             <div
               onClick={() => setActiveTab('profile')}
               className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
@@ -1683,17 +1676,6 @@ export function PartnerFlow({
               </div>
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={handleRefresh}
-            title="Refresh Order Feed"
-            className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 rounded-xl transition-all cursor-pointer
-              ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
-            {!sidebarCollapsed && <span>Sync Feed</span>}
-          </button>
 
           <button
             type="button"
@@ -1768,31 +1750,6 @@ export function PartnerFlow({
               </div>
             </div>
 
-
-            {/* Refresh Feed */}
-            <button
-              type="button"
-              onClick={handleRefresh}
-              title="Sync Feed with Cloud"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-2xs transition-colors cursor-pointer"
-            >
-              <RefreshCw size={13} className={refreshing ? 'animate-spin text-[#9E593B]' : 'text-slate-500'} />
-              <span className="hidden md:inline">Sync</span>
-            </button>
-
-            {/* Online Toggle Switch */}
-            <button
-              type="button"
-              onClick={() => setOnline(!online)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs ${online
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-              }`}
-              title={online ? 'Studio Active · Click to pause' : 'Studio Inactive · Click to activate'}
-            >
-              <span className={`size-2 rounded-full shrink-0 ${online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-              <span className="hidden sm:inline">{online ? 'Active' : 'Paused'}</span>
-            </button>
 
             {/* Master Tailor Profile Pill */}
             <button
@@ -2479,16 +2436,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              1
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Scheduled Arrivals
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Clients arriving today</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Scheduled Arrivals
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Clients arriving today</p>
                           </div>
                           <span className="text-xs font-bold text-sky-800 bg-sky-50 border border-sky-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {pendingDropOffs} expected
@@ -2506,13 +2458,22 @@ export function PartnerFlow({
                                   className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <h4 className="font-bold text-xs text-slate-900 truncate">
-                                        {ord.customerName}
-                                      </h4>
-                                      <p className="text-[11px] text-slate-500 truncate">
-                                        {ord.garmentName} &bull; {ord.serviceName}
-                                      </p>
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                        <img
+                                          src={getGarmentPhoto(ord)}
+                                          alt={ord.garmentName}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="font-bold text-xs text-slate-900 truncate">
+                                          {ord.customerName}
+                                        </h4>
+                                        <p className="text-[11px] text-slate-500 truncate">
+                                          {ord.garmentName} &bull; {ord.serviceName}
+                                        </p>
+                                      </div>
                                     </div>
                                     <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">
                                       Drop-off Today
@@ -2567,16 +2528,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              2
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Sewing Bench
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Under needle right now</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Sewing Bench
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Under needle right now</p>
                           </div>
                           <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 shrink-0">
                             <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -2688,16 +2644,11 @@ export function PartnerFlow({
                       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-sm flex flex-col h-full w-full min-h-[340px]">
                         {/* Header */}
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0 mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0">
-                              3
-                            </div>
-                            <div className="min-w-0">
-                              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                                Ready on Rack
-                              </h3>
-                              <p className="text-[11px] text-slate-400">Customer pickup stage</p>
-                            </div>
+                          <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                              Ready on Rack
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Customer pickup stage</p>
                           </div>
                           <span className="text-xs font-bold text-purple-800 bg-purple-50 border border-purple-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                             {readyOnRack} on rack
@@ -2715,13 +2666,22 @@ export function PartnerFlow({
                                   className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300 transition-all space-y-2.5 shadow-2xs"
                                 >
                                   <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <h4 className="font-bold text-xs text-slate-900 truncate">
-                                        {order.customerName}
-                                      </h4>
-                                      <p className="text-[11px] text-slate-500 truncate">
-                                        {order.garmentName} &bull; {order.serviceName}
-                                      </p>
+                                    <div className="flex items-start gap-2.5 min-w-0">
+                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                        <img
+                                          src={getGarmentPhoto(order)}
+                                          alt={order.garmentName}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h4 className="font-bold text-xs text-slate-900 truncate">
+                                          {order.customerName}
+                                        </h4>
+                                        <p className="text-[11px] text-slate-500 truncate">
+                                          {order.garmentName} &bull; {order.serviceName}
+                                        </p>
+                                      </div>
                                     </div>
                                     <span className="text-[10px] font-mono font-bold bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md shrink-0">
                                       {order.hangTagNo || 'Rack A-1'}
