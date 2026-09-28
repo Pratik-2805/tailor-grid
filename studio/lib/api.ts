@@ -10,6 +10,7 @@ import {
   setAuthRole,
   removeAuthRole,
   clearAllAuth,
+  clearUnnecessaryDataOnLogin,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
@@ -90,6 +91,7 @@ export async function verifyOtp(params: {
 
     const data = await res.json()
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
@@ -125,6 +127,7 @@ export async function linkPhone(params: {
 
     const data = await res.json()
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
     }
     if (data.user) {
@@ -158,6 +161,7 @@ export async function loginWithGoogle(params: {
 
     const data = await res.json()
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
@@ -214,6 +218,7 @@ export async function signUpUser(data: {
 
     const result = await res.json()
     if (result.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)
@@ -246,6 +251,7 @@ export async function loginUser(data: {
 
     const result = await res.json()
     if (result.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)

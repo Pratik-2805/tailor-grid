@@ -193,39 +193,46 @@ export function removeAuthUser(): void {
   }
 }
 
+export function clearUnnecessaryDataOnLogin(): void {
+  // 1. Wipe all existing cookies
+  clearAllCookies()
+
+  // 2. Clear all previous user, session, and cached order data from localStorage
+  if (typeof window !== 'undefined') {
+    try {
+      const keysToPreserve = new Set<string>([
+        // Preserved non-sensitive global UI preferences if needed
+        'tg_selected_city',
+      ])
+
+      const allKeys: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && !keysToPreserve.has(key)) {
+          allKeys.push(key)
+        }
+      }
+
+      allKeys.forEach((key) => {
+        try {
+          localStorage.removeItem(key)
+        } catch {}
+      })
+
+      // Wipe sessionStorage completely
+      sessionStorage.clear()
+    } catch (e) {
+      console.warn('Error clearing localStorage on login:', e)
+    }
+  }
+}
+
 export function clearAllAuth(): void {
+  clearUnnecessaryDataOnLogin()
   removeAuthToken()
   removeAuthUser()
   removeAuthRole()
   clearAllCookies()
-
-  if (typeof window !== 'undefined') {
-    const keysToRemove = [
-      'tg_token',
-      'tg_user',
-      'tg_user_data',
-      'tg_user_role',
-      'tg_screen',
-      'tg_pending_google',
-      'tg_onboard_step',
-      'tg_onboard_form',
-      'tg_onboard_email',
-      'tg_phone_verified',
-      'tg_verified_phone',
-      'tg_pending_mobile',
-      'token',
-      'auth_token',
-      'user',
-      'session'
-    ]
-
-    keysToRemove.forEach((key) => {
-      try {
-        localStorage.removeItem(key)
-        sessionStorage.removeItem(key)
-      } catch {}
-    })
-  }
 }
 
 // ================= LOCAL STORAGE HELPERS (REPLACES STORAGE COOKIES) =================
@@ -252,10 +259,26 @@ export function setStorageCookie(key: string, value: string, _days?: number): vo
   if (typeof window === 'undefined') return
   try {
     localStorage.setItem(key, value)
-    // Always delete any existing cookie for this key to keep HTTP headers clean
     deleteCookie(key, '/')
-  } catch (err) {
-    console.warn(`Error setting localStorage for key ${key}:`, err)
+  } catch (err: any) {
+    // If quota exceeded, clean old temporary/cached orders and retry
+    if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.number === -2147024882) {
+      try {
+        const keysToPrune: string[] = []
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i)
+          if (k && (k.startsWith('tg_order_') || k.startsWith('tg_draft_') || k.startsWith('tg_temp_'))) {
+            keysToPrune.push(k)
+          }
+        }
+        keysToPrune.forEach((k) => localStorage.removeItem(k))
+        localStorage.setItem(key, value)
+        deleteCookie(key, '/')
+        return
+      } catch (retryErr) {
+        // Safe degrade: ignore write failure rather than throwing uncaught error
+      }
+    }
   }
 }
 

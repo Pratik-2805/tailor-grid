@@ -974,10 +974,14 @@ export default function BookPage() {
       status: 'Allocated',
     }
 
-    // Save instant local cache
+    // Save instant local cache (strip massive base64 image strings to stay well within browser storage limits)
     if (typeof window !== 'undefined') {
-      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(orderData))
-      setStorageCookie('tg_latest_order', JSON.stringify(orderData))
+      const storagePayload = {
+        ...orderData,
+        images: (uploadedImages || []).filter((img: string) => !img.startsWith('data:')),
+      }
+      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storagePayload))
+      setStorageCookie('tg_latest_order', JSON.stringify(storagePayload))
 
       // Auto-update profile measurements with any sizes filled or edited during booking
       const existingProfile = loadProfileMeasurements(user) || {}
@@ -1095,8 +1099,12 @@ export default function BookPage() {
             }
 
             if (typeof window !== 'undefined') {
-              setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(updatedOrder))
-              setStorageCookie('tg_latest_order', JSON.stringify(updatedOrder))
+              const storageUpdatedOrder = {
+                ...updatedOrder,
+                images: (updatedOrder.images || []).filter((img: string) => typeof img === 'string' && !img.startsWith('data:')),
+              }
+              setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storageUpdatedOrder))
+              setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
             }
 
             toast.success(`Request accepted by ${winningStore?.name || 'Partner Atelier'}!`, {
