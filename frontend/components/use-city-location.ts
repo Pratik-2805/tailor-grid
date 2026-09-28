@@ -23,6 +23,23 @@ export function getSessionCoordinates(): { lat: number; lng: number } | null {
   return null
 }
 
+export function formatLocationDisplay(locationStr?: string): string {
+  if (!locationStr) return 'Vasai'
+
+  const parts = locationStr.split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length <= 1) return locationStr
+
+  const first = parts[0]
+  const second = parts[1]
+
+  // If first part is a flat/unit/house number (e.g. "Flat 204", "B-12", "House No. 5", "#4B"), combine with 2nd part (apartment/building name)
+  if (/^(flat|apt|apartment|house|room|bldg|building|plot|no|#|\d+[\w-]*)\b/i.test(first) && parts.length >= 2) {
+    return `${first}, ${second}`
+  }
+
+  return first
+}
+
 export function setStoredCity(city: string, coords?: { lat: number; lng: number }) {
   if (typeof window === 'undefined') return
   try {
