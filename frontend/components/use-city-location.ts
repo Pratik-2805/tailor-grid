@@ -1,96 +1,104 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { deleteCookie } from '../lib/cookies'
 
-const STORAGE_KEY = 'tg_selected_city'
+const SESSION_CITY_KEY = 'tg_session_city'
+const SESSION_COORDS_KEY = 'tg_session_coords'
 
 export function getStoredCity(): string {
-  if (typeof window === 'undefined') return 'New York City, NY'
+  if (typeof window === 'undefined') return 'Vasai, IN-MH'
   try {
-    const local = localStorage.getItem(STORAGE_KEY)
-    if (local) return local
-    // Clean up legacy cookie if it exists
-    deleteCookie(STORAGE_KEY, '/')
-    return 'New York City, NY'
+    return sessionStorage.getItem(SESSION_CITY_KEY) || 'Vasai, IN-MH'
   } catch {
-    return 'New York City, NY'
+    return 'Vasai, IN-MH'
   }
 }
 
-export function setStoredCity(city: string) {
+export function getSessionCoordinates(): { lat: number; lng: number } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_COORDS_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+export function setStoredCity(city: string, coords?: { lat: number; lng: number }) {
   if (typeof window === 'undefined') return
   try {
-    localStorage.setItem(STORAGE_KEY, city)
-    deleteCookie(STORAGE_KEY, '/')
+    sessionStorage.setItem(SESSION_CITY_KEY, city)
+    const effectiveCoords = coords || getCityCoordinates(city)
+    sessionStorage.setItem(SESSION_COORDS_KEY, JSON.stringify(effectiveCoords))
     window.dispatchEvent(new CustomEvent('tg_city_changed', { detail: city }))
   } catch (err) {
-    console.warn('Error saving city to localStorage:', err)
+    console.warn('Error saving session city:', err)
   }
 }
 
-export function useCityLocation(defaultCity: string = 'New York City, NY') {
-  const [city, setCityState] = useState<string>(defaultCity)
+export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
+  const [city, setCityState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const inSession = sessionStorage.getItem(SESSION_CITY_KEY)
+        if (inSession) return inSession
+      } catch {}
+    }
+    return defaultCity
+  })
 
-  // Initialize from storage & check permission on mount
+  // On page mount, if no session city was manually picked, detect live GPS
   useEffect(() => {
-    const stored = getStoredCity()
-    if (stored) {
-      setCityState(stored)
-    }
+    const sessionCity = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_CITY_KEY) : null
 
-    // Check if geolocation permission is already granted
-    if (typeof navigator !== 'undefined' && navigator.permissions && navigator.geolocation) {
-      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-        if (result.state === 'granted') {
-          navigator.geolocation.getCurrentPosition(
-            async (position) => {
-              try {
-                const { latitude, longitude } = position.coords
-                const res = await fetch(
-                  `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-                )
-                if (res.ok) {
-                  const data = await res.json()
-                  const cityName = data.city || data.locality || data.principalSubdivision || 'New York'
-                  const stateCode = data.principalSubdivisionCode?.replace('US-', '') || 'NY'
-                  const formatted = `${cityName}, ${stateCode}`
-                  setStoredCity(formatted)
-                  setCityState(formatted)
-                }
-              } catch {
-                // Ignore silent failure
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude } = position.coords
+            const liveCoords = { lat: latitude, lng: longitude }
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+            )
+            if (res.ok) {
+              const data = await res.json()
+              const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
+              const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
+              const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+              
+              if (!sessionCity) {
+                setStoredCity(formatted, liveCoords)
+                setCityState(formatted)
               }
-            },
-            () => {},
-            { timeout: 5000 }
-          )
-        }
-      }).catch(() => {})
+            }
+          } catch {
+            // Ignore silent fallback
+          }
+        },
+        (err) => {
+          console.warn('Live location detection skipped/denied:', err)
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      )
     }
 
-    // Sync state if city changes anywhere in app
+    // Sync state if city changes anywhere in app in the current active session
     const handleSync = (e: Event) => {
       const customEvent = e as CustomEvent<string>
       if (customEvent.detail) {
         setCityState(customEvent.detail)
-      } else {
-        setCityState(getStoredCity())
       }
     }
 
     window.addEventListener('tg_city_changed', handleSync)
-    window.addEventListener('storage', handleSync)
 
     return () => {
       window.removeEventListener('tg_city_changed', handleSync)
-      window.removeEventListener('storage', handleSync)
     }
   }, [])
 
-  const updateCity = useCallback((newCity: string) => {
+  const updateCity = useCallback((newCity: string, coords?: { lat: number; lng: number }) => {
     setCityState(newCity)
-    setStoredCity(newCity)
+    setStoredCity(newCity, coords)
   }, [])
 
   return [city, updateCity] as const
@@ -101,6 +109,7 @@ export const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
   'Mumbai, IN': { lat: 19.0760, lng: 72.8777 },
   'Delhi NCR, IN': { lat: 28.6139, lng: 77.2090 },
   'Bengaluru, IN': { lat: 12.9716, lng: 77.5946 },
+  'London, UK': { lat: 51.5074, lng: -0.1278 },
   'New York City, NY': { lat: 40.7128, lng: -74.0060 },
   'New York, NY': { lat: 40.7128, lng: -74.0060 },
   'Los Angeles, CA': { lat: 34.0522, lng: -118.2437 },
@@ -114,7 +123,10 @@ export const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
   'Boston, MA': { lat: 42.3601, lng: -71.0589 },
   'Austin, TX': { lat: 30.2672, lng: -97.7431 },
   'Las Vegas, NV': { lat: 36.1699, lng: -115.1398 },
-  'London, UK': { lat: 51.5074, lng: -0.1278 },
+  'Atlanta, GA': { lat: 33.7490, lng: -84.3880 },
+  'Denver, CO': { lat: 39.7392, lng: -104.9903 },
+  'Phoenix, AZ': { lat: 33.4484, lng: -112.0740 },
+  'Philadelphia, PA': { lat: 39.9526, lng: -75.1652 },
 }
 
 export function getCityCoordinates(cityStr?: string): { lat: number; lng: number } {
@@ -122,32 +134,47 @@ export function getCityCoordinates(cityStr?: string): { lat: number; lng: number
   if (CITY_COORDINATES[cityStr]) return CITY_COORDINATES[cityStr]
 
   const lower = cityStr.toLowerCase()
-  if (lower.includes('vasai') || lower.includes('manickpur') || lower.includes('virar')) {
+  if (lower.includes('vasai') || lower.includes('manickpur') || lower.includes('virar') || lower.includes('palghar')) {
     return CITY_COORDINATES['Vasai, IN-MH']
   }
-  if (lower.includes('mumbai') || lower.includes('in-mh') || lower.includes('bombay')) {
+  if (lower.includes('mumbai') || lower.includes('in-mh') || lower.includes('bombay') || lower.includes('bandra') || lower.includes('andheri')) {
     return CITY_COORDINATES['Mumbai, IN']
   }
-  if (lower.includes('new york') || lower.includes('ny') || lower.includes('soho')) {
-    return CITY_COORDINATES['New York, NY']
-  }
-  if (lower.includes('los angeles') || lower.includes('beverly') || lower.includes('la') || lower.includes('ca')) {
-    return CITY_COORDINATES['Los Angeles, CA']
-  }
-  if (lower.includes('london') || lower.includes('uk')) {
-    return CITY_COORDINATES['London, UK']
-  }
-  if (lower.includes('delhi')) {
+  if (lower.includes('delhi') || lower.includes('ncr') || lower.includes('gurgaon') || lower.includes('noida')) {
     return CITY_COORDINATES['Delhi NCR, IN']
   }
   if (lower.includes('bengaluru') || lower.includes('bangalore')) {
     return CITY_COORDINATES['Bengaluru, IN']
+  }
+  if (lower.includes('london') || lower.includes('uk') || lower.includes('kensington') || lower.includes('chelsea')) {
+    return CITY_COORDINATES['London, UK']
+  }
+  if (lower.includes('new york') || lower.includes('ny') || lower.includes('soho') || lower.includes('manhattan') || lower.includes('brooklyn')) {
+    return CITY_COORDINATES['New York, NY']
+  }
+  if (lower.includes('los angeles') || lower.includes('beverly') || lower.includes('la') || lower.includes('hollywood')) {
+    return CITY_COORDINATES['Los Angeles, CA']
   }
   if (lower.includes('chicago')) {
     return CITY_COORDINATES['Chicago, IL']
   }
   if (lower.includes('san francisco') || lower.includes('sf')) {
     return CITY_COORDINATES['San Francisco, CA']
+  }
+  if (lower.includes('miami')) {
+    return CITY_COORDINATES['Miami, FL']
+  }
+  if (lower.includes('houston')) {
+    return CITY_COORDINATES['Houston, TX']
+  }
+  if (lower.includes('seattle')) {
+    return CITY_COORDINATES['Seattle, WA']
+  }
+  if (lower.includes('austin')) {
+    return CITY_COORDINATES['Austin, TX']
+  }
+  if (lower.includes('boston')) {
+    return CITY_COORDINATES['Boston, MA']
   }
 
   return { lat: 19.3919, lng: 72.8397 }

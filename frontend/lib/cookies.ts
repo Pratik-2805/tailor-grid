@@ -202,7 +202,6 @@ export function clearUnnecessaryDataOnLogin(): void {
     try {
       const keysToPreserve = new Set<string>([
         // Preserved non-sensitive global UI preferences if needed
-        'tg_selected_city',
       ])
 
       const allKeys: string[] = []

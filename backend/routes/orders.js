@@ -48,7 +48,9 @@ router.post('/dispatch/start', async (req, res) => {
     }
 
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    const orderId = req.body.id || `TG-${Math.floor(100000 + Math.random() * 900000)}`;
+    const uniqueTs = Date.now().toString().slice(-6);
+    const uniqueRand = Math.floor(100 + Math.random() * 900);
+    const orderId = req.body.id || `TG-${uniqueTs}${uniqueRand}`;
     const parsedPrice = price ? parseFloat(price) : 25;
     const partnerPayout = Math.round(parsedPrice * 0.75 * 100) / 100;
 
