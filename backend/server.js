@@ -10,11 +10,12 @@ const servicesRoutes = require('./routes/services');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for frontend requests
+// Enable CORS for frontend and studio requests with cookie/credentials support
 app.use(cors({
-  origin: '*',
+  origin: true,
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 
 app.use(express.json({ limit: '50mb' }));

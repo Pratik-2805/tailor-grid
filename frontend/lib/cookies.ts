@@ -39,7 +39,59 @@ export function setCookie(
 
 export function deleteCookie(name: string, path: string = '/'): void {
   if (typeof document === 'undefined') return
-  document.cookie = `${encodeURIComponent(name)}=; path=${path}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+  
+  const rawName = name.trim()
+  const encodedName = encodeURIComponent(rawName)
+  const paths = [path, '', '/']
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
+  const hostParts = hostname ? hostname.split('.') : []
+  const domainVariants = [
+    '',
+    hostname,
+    `.${hostname}`,
+    hostParts.length > 1 ? `.${hostParts.slice(-2).join('.')}` : '',
+  ].filter((v, i, a) => a.indexOf(v) === i)
+
+  // Expire cookies across all possible domain & path permutations
+  for (const p of paths) {
+    const pathAttr = p ? `; path=${p}` : ''
+    // Host-only deletions
+    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`
+    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
+    document.cookie = `${rawName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+    
+    // Domain variations
+    for (const d of domainVariants) {
+      if (d) {
+        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`
+        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
+      }
+    }
+  }
+}
+
+/**
+ * Sweep and erase all cookies found on document.cookie
+ */
+export function clearAllCookies(): void {
+  if (typeof document === 'undefined') return
+  try {
+    const rawCookies = document.cookie.split(';')
+    for (let i = 0; i < rawCookies.length; i++) {
+      const cookie = rawCookies[i].trim()
+      if (!cookie) continue
+      const eqIdx = cookie.indexOf('=')
+      const name = eqIdx > -1 ? cookie.substring(0, eqIdx).trim() : cookie
+      if (name) {
+        deleteCookie(name, '/')
+        deleteCookie(name, '')
+      }
+    }
+  } catch (e) {
+    console.error('Error sweeping cookies:', e)
+  }
 }
 
 // ================= AUTH COOKIE HELPERS =================
@@ -67,8 +119,11 @@ export function setAuthToken(token: string): void {
 
 export function removeAuthToken(): void {
   deleteCookie('tg_token', '/')
+  deleteCookie('token', '/')
+  deleteCookie('auth_token', '/')
   if (typeof window !== 'undefined') {
     localStorage.removeItem('tg_token')
+    localStorage.removeItem('token')
   }
 }
 
@@ -142,13 +197,34 @@ export function clearAllAuth(): void {
   removeAuthToken()
   removeAuthUser()
   removeAuthRole()
+  clearAllCookies()
+
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_token')
-    localStorage.removeItem('tg_user')
-    localStorage.removeItem('tg_user_data')
-    localStorage.removeItem('tg_user_role')
-    localStorage.removeItem('tg_screen')
-    sessionStorage.removeItem('tg_pending_google')
+    const keysToRemove = [
+      'tg_token',
+      'tg_user',
+      'tg_user_data',
+      'tg_user_role',
+      'tg_screen',
+      'tg_pending_google',
+      'tg_onboard_step',
+      'tg_onboard_form',
+      'tg_onboard_email',
+      'tg_phone_verified',
+      'tg_verified_phone',
+      'tg_pending_mobile',
+      'token',
+      'auth_token',
+      'user',
+      'session'
+    ]
+
+    keysToRemove.forEach((key) => {
+      try {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      } catch {}
+    })
   }
 }
 

@@ -152,6 +152,7 @@ model Order {
   status                String        @default("Allocated") // Allocated, Accepted, Customer Arrived, Fitting Completed, Work in Progress, Ready, Collected, Closed
   price                 Float
   otp                   String
+  otpExpiresAt          DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
