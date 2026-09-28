@@ -76,17 +76,7 @@ interface BroadcastRequest {
   stage?: number
 }
 
-const GARMENT_FALLBACK_IMAGES: Record<string, string> = {
-  trousers: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&auto=format&fit=crop&q=80',
-  suits: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&auto=format&fit=crop&q=80',
-  jackets: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=600&auto=format&fit=crop&q=80',
-  dresses: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=600&auto=format&fit=crop&q=80',
-  denim: 'https://images.unsplash.com/photo-1582552938357-32b906df40cb?w=600&auto=format&fit=crop&q=80',
-  shirts: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=600&auto=format&fit=crop&q=80',
-  coats: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=600&auto=format&fit=crop&q=80',
-}
-
-function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
+function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | undefined {
   const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
   if (photo && typeof photo === 'string') {
     if (photo.startsWith('http') || photo.startsWith('data:')) return photo
@@ -94,31 +84,21 @@ function getGarmentPhoto(order?: Partial<FittingBooking> | null): string {
       try {
         const parsed = JSON.parse(photo)
         if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-          return parsed[0]
+          if (parsed[0].startsWith('http') || parsed[0].startsWith('data:')) return parsed[0]
         }
       } catch { }
     }
   }
-  const gid = order?.garmentId?.toLowerCase() || ''
-  const gname = order?.garmentName?.toLowerCase() || ''
-  if (gid.includes('dress') || gname.includes('dress') || gname.includes('gown')) return GARMENT_FALLBACK_IMAGES.dresses
-  if (gid.includes('denim') || gname.includes('denim') || gname.includes('jean')) return GARMENT_FALLBACK_IMAGES.denim
-  if (gid.includes('suit') || gname.includes('suit') || gname.includes('blazer') || gname.includes('jacket'))
-    return GARMENT_FALLBACK_IMAGES.suits
-  if (gid.includes('shirt') || gname.includes('shirt')) return GARMENT_FALLBACK_IMAGES.shirts
-  if (gid.includes('coat') || gname.includes('coat')) return GARMENT_FALLBACK_IMAGES.coats
-  return GARMENT_FALLBACK_IMAGES.trousers
+  return undefined
 }
 
 function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
-  if (!order) return [GARMENT_FALLBACK_IMAGES.trousers]
+  if (!order) return []
   const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
-  const fallback = getGarmentPhoto(order)
-  if (!raw) return [fallback]
+  if (!raw) return []
 
   if (Array.isArray(raw)) {
-    const list = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
-    return list.length > 0 ? list : [fallback]
+    return raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
   }
 
   if (typeof raw === 'string') {
@@ -126,21 +106,19 @@ function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
       try {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          const list = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
-          if (list.length > 0) return list
+          return parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
         }
       } catch { }
     }
     if (raw.includes('||')) {
-      const list = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
-      if (list.length > 0) return list
+      return raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
     }
     if (raw.startsWith('http') || raw.startsWith('data:')) {
       return [raw]
     }
   }
 
-  return [fallback]
+  return []
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -1746,13 +1724,15 @@ export function PartnerFlow({
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   {/* Left: Garment Info */}
                   <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
-                      <img
-                        src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                        alt={currentBroadcast.garmentName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                    {getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName }) && (
+                      <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+                        <img
+                          src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })!}
+                          alt={currentBroadcast.garmentName}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
 
                     <div className="space-y-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1961,13 +1941,15 @@ export function PartnerFlow({
                         {/* Garment Summary Card */}
                         <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
                           <div className="flex items-start gap-4">
-                            <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
-                              <img
-                                src={getGarmentPhoto(activeIntake)}
-                                alt={activeIntake.garmentName}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
+                            {getGarmentPhoto(activeIntake) && (
+                              <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
+                                <img
+                                  src={getGarmentPhoto(activeIntake)!}
+                                  alt={activeIntake.garmentName}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] block mb-1">
                                 Order #{activeIntake.id.slice(0, 8)}
@@ -2737,9 +2719,11 @@ export function PartnerFlow({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3 min-w-0">
-                                <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                  <img src={getGarmentPhoto(order)} alt={order.garmentName} className="w-full h-full object-cover" />
-                                </div>
+                                {getGarmentPhoto(order) && (
+                                  <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                                    <img src={getGarmentPhoto(order)!} alt={order.garmentName} className="w-full h-full object-cover" />
+                                  </div>
+                                )}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
@@ -2803,9 +2787,11 @@ export function PartnerFlow({
                       <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
-                            <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                              <img src={getGarmentPhoto(activeSelectedOrder)} alt={activeSelectedOrder.garmentName} className="w-full h-full object-cover" />
-                            </div>
+                            {getGarmentPhoto(activeSelectedOrder) && (
+                              <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                                <img src={getGarmentPhoto(activeSelectedOrder)!} alt={activeSelectedOrder.garmentName} className="w-full h-full object-cover" />
+                              </div>
+                            )}
                             <div className="min-w-0">
                               <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>

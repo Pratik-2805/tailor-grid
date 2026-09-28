@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
+import { toast } from 'react-toastify'
 import {
   ChevronDown,
   ChevronLeft,
@@ -345,10 +346,24 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files && files.length > 0) {
-      const newUrls = Array.from(files).map((file) => URL.createObjectURL(file))
-      setUploadedImages((prev) => [...prev, ...newUrls])
+    if (!files || files.length === 0) return
+
+    if (uploadedImages.length >= 4) {
+      toast.error('You can upload a maximum of 4 garment photos.', { position: 'top-center' })
+      e.target.value = ''
+      return
     }
+
+    const availableSlots = 4 - uploadedImages.length
+    const fileList = Array.from(files).slice(0, availableSlots)
+
+    if (files.length > availableSlots) {
+      toast.info(`Only ${availableSlots} more photo(s) allowed (max 4).`, { position: 'top-center' })
+    }
+
+    const newUrls = fileList.map((file) => URL.createObjectURL(file))
+    setUploadedImages((prev) => [...prev, ...newUrls].slice(0, 4))
+    e.target.value = ''
   }
 
   const removeImage = (index: number) => {
@@ -358,6 +373,10 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
 
   const handleBookNow = () => {
+    if (uploadedImages.length === 0) {
+      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
+      return
+    }
     if (!user || !user.phone) {
       onOpenAuth?.()
       return
@@ -376,6 +395,12 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   }
 
   const handleConfirmSchedule = () => {
+    if (uploadedImages.length === 0) {
+      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
+      setIsScheduleModalOpen(false)
+      setShowTimePicker(false)
+      return
+    }
     if (!user || !user.phone) {
       setIsScheduleModalOpen(false)
       setShowTimePicker(false)
@@ -577,25 +602,32 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
 
             {/* 5. Square Product Image Upload Box Row */}
             <div className="relative mb-5">
-              <label className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
-                Garment photo / reference fit <span className="text-gray-400 font-medium">(Optional)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500">
+                  Garment photo / reference fit <span className="text-red-500 font-bold">* (Required)</span>
+                </label>
+                <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                  {uploadedImages.length}/4 Photos
+                </span>
+              </div>
               <div className="flex items-center gap-3 overflow-x-auto py-1">
-                <div className="relative size-28 rounded-[16px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border-2 border-dashed border-gray-400 hover:border-black flex flex-col items-center justify-center text-center p-2.5 transition-all cursor-pointer shrink-0 group">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleImageUpload}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    title="Upload garment photos"
-                  />
-                  <div className="size-9 rounded-full bg-black flex items-center justify-center text-white mb-1 group-hover:scale-105 transition-transform shrink-0">
-                    <Camera size={18} />
+                {uploadedImages.length < 4 && (
+                  <div className="relative size-28 rounded-[16px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border-2 border-dashed border-gray-400 hover:border-black flex flex-col items-center justify-center text-center p-2.5 transition-all cursor-pointer shrink-0 group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      title="Upload garment photos (Max 4)"
+                    />
+                    <div className="size-9 rounded-full bg-black flex items-center justify-center text-white mb-1 group-hover:scale-105 transition-transform shrink-0">
+                      <Camera size={18} />
+                    </div>
+                    <span className="text-xs font-bold text-black leading-tight">Add photo</span>
+                    <span className="text-[10px] text-gray-500 font-medium mt-0.5">JPG / PNG</span>
                   </div>
-                  <span className="text-xs font-bold text-black leading-tight">Add photo</span>
-                  <span className="text-[10px] text-gray-500 font-medium mt-0.5">JPG / PNG</span>
-                </div>
+                )}
 
                 {uploadedImages.map((imgUrl, idx) => (
                   <div key={idx} className="relative size-28 rounded-[16px] overflow-hidden border border-gray-300 shrink-0 group">
