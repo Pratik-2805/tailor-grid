@@ -559,6 +559,7 @@ export default function BookPage() {
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
   const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [isLiveLocation, setIsLiveLocation] = useState(false)
 
   // Selection states initialized from prefilled context
   const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
@@ -570,7 +571,7 @@ export default function BookPage() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Live device GPS location detection on mount
+  // Live device GPS location detection on mount: Always fetch fresh location on refresh
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) return
 
@@ -578,8 +579,9 @@ export default function BookPage() {
       async (position) => {
         const { latitude, longitude } = position.coords
         setUserGpsCoords({ lat: latitude, lng: longitude })
+        setIsLiveLocation(true)
 
-        // Auto-detect city locality if not manually overridden
+        // Auto-detect city locality
         try {
           const res = await fetch(
             `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
@@ -587,16 +589,16 @@ export default function BookPage() {
           if (res.ok) {
             const data = await res.json()
             const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
-            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || 'IN-MH'
-            const formatted = `${cityName}, ${stateCode}`
+            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
+            const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
             setSelectedCity(formatted)
           }
         } catch { }
       },
       (err) => {
-        console.warn('Geolocation prompt/access skipped or denied, fallback to city centroid:', err)
+        console.warn('Geolocation prompt/access skipped or denied, fallback to default city:', err)
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     )
   }, [setSelectedCity])
 
@@ -650,7 +652,7 @@ export default function BookPage() {
   // Fetch partner studios purely by lat/lng within 8 miles directly from backend API
   useEffect(() => {
     let isCurrent = true
-    const coords = userGpsCoords || getCityCoordinates(selectedCity)
+    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
 
     fetchNearbyTailors(coords.lat, coords.lng, 8.0)
       .then((data) => {
@@ -671,7 +673,7 @@ export default function BookPage() {
     return () => {
       isCurrent = false
     }
-  }, [selectedCity, userGpsCoords, prefilledStore])
+  }, [selectedCity, isLiveLocation, userGpsCoords, prefilledStore])
 
   // Sync prefilled state from App context / measurement draft
   useEffect(() => {
@@ -786,9 +788,9 @@ export default function BookPage() {
 
   // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
-    if (userGpsCoords) return userGpsCoords
+    if (isLiveLocation && userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [userGpsCoords, selectedCity])
+  }, [isLiveLocation, userGpsCoords, selectedCity])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -934,7 +936,9 @@ export default function BookPage() {
     })
 
     const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
-    const newOrderId = `TG-${Math.floor(100000 + Math.random() * 900000)}`
+    const uniqueTs = Date.now().toString().slice(-6)
+    const uniqueRand = Math.floor(100 + Math.random() * 900)
+    const newOrderId = `TG-${uniqueTs}${uniqueRand}`
     const otp = String(Math.floor(1000 + Math.random() * 9000))
 
     const activeSchedDate = schedDate || scheduleDateObj || new Date()
@@ -948,6 +952,8 @@ export default function BookPage() {
 
     const measurementsData = finalMeasurements
 
+    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
+
     const orderData = {
       id: newOrderId,
       otp,
@@ -955,6 +961,8 @@ export default function BookPage() {
       customerEmail: user?.email || '',
       customerPhone: user?.phone || '',
       userId: user?.id || null,
+      customerLat: coords.lat,
+      customerLng: coords.lng,
       storeId: closestStore?.id || null,
       storeName: closestStore?.name || 'Awaiting Studio Acceptance',
       storePhone: closestStore?.phone || null,
@@ -996,8 +1004,6 @@ export default function BookPage() {
       setPrefilledStore(closestStore)
     }
     setCreatedOrderId(newOrderId)
-
-    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     // CASE 1: Customer explicitly scheduled a visit time -> save to DB immediately
     if (pickupOption === 'schedule') {
@@ -1548,7 +1554,7 @@ export default function BookPage() {
                 isFixed={true}
                 fixedBoxMiles={8.0}
                 radiusMiles={8.0}
-                showUserPin={true}
+                showUserPin={isLiveLocation}
                 userPinLabel="You"
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
@@ -1570,10 +1576,15 @@ export default function BookPage() {
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         selectedCity={selectedCity}
-        onSelectCity={(c) => {
+        onSelectCity={(c, coords, isGps) => {
           setSelectedCity(c)
-          const newCoords = getCityCoordinates(c)
-          setUserGpsCoords(newCoords)
+          if (isGps && coords) {
+            setIsLiveLocation(true)
+            setUserGpsCoords(coords)
+          } else {
+            setIsLiveLocation(false)
+            setUserGpsCoords(null)
+          }
         }}
       />
 

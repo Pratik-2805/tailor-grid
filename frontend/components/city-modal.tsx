@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Navigation, Loader2 } from 'lucide-react'
-import { setStoredCity } from './use-city-location'
+import { setStoredCity, getCityCoordinates } from './use-city-location'
 
 export interface CityItem {
   name: string
@@ -14,7 +14,12 @@ export interface CityItem {
 }
 
 export const US_CITIES_LIST: CityItem[] = [
-  // Popular US Metro Cities
+  // Popular Regions & Metros
+  { name: 'Vasai', fullName: 'Vasai, IN-MH', state: 'Maharashtra', code: 'MH', countryCode: 'in', popular: true },
+  { name: 'Mumbai', fullName: 'Mumbai, IN', state: 'Maharashtra', code: 'MH', countryCode: 'in', popular: true },
+  { name: 'Delhi NCR', fullName: 'Delhi NCR, IN', state: 'Delhi', code: 'DL', countryCode: 'in', popular: true },
+  { name: 'Bengaluru', fullName: 'Bengaluru, IN', state: 'Karnataka', code: 'KA', countryCode: 'in', popular: true },
+  { name: 'London', fullName: 'London, UK', state: 'Greater London', code: 'UK', countryCode: 'gb', popular: true },
   { name: 'New York City', fullName: 'New York City, NY', state: 'New York', code: 'NY', countryCode: 'us', popular: true },
   { name: 'Los Angeles', fullName: 'Los Angeles, CA', state: 'California', code: 'CA', countryCode: 'us', popular: true },
   { name: 'Chicago', fullName: 'Chicago, IL', state: 'Illinois', code: 'IL', countryCode: 'us', popular: true },
@@ -28,7 +33,7 @@ export const US_CITIES_LIST: CityItem[] = [
   { name: 'Austin', fullName: 'Austin, TX', state: 'Texas', code: 'TX', countryCode: 'us', popular: true },
   { name: 'Las Vegas', fullName: 'Las Vegas, NV', state: 'Nevada', code: 'NV', countryCode: 'us', popular: true },
 
-  // Additional US Metropolitan Cities
+  // Additional Metropolitan Cities
   { name: 'Atlanta', fullName: 'Atlanta, GA', state: 'Georgia', code: 'GA', countryCode: 'us' },
   { name: 'Baltimore', fullName: 'Baltimore, MD', state: 'Maryland', code: 'MD', countryCode: 'us' },
   { name: 'Charlotte', fullName: 'Charlotte, NC', state: 'North Carolina', code: 'NC', countryCode: 'us' },
@@ -61,7 +66,7 @@ export interface CityModalProps {
   isOpen: boolean
   onClose: () => void
   selectedCity: string
-  onSelectCity: (formattedCity: string) => void
+  onSelectCity: (formattedCity: string, coords?: { lat: number; lng: number }, isLiveGps?: boolean) => void
 }
 
 export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityModalProps) {
@@ -69,11 +74,11 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   const [isLocating, setIsLocating] = useState(false)
 
   const currentCityDisplayName = useMemo(() => {
-    if (!selectedCity) return 'New York'
+    if (!selectedCity) return 'Vasai'
     const match = US_CITIES_LIST.find(
       (c) => c.fullName === selectedCity || selectedCity.startsWith(c.name)
     )
-    if (match) return match.name === 'New York City' ? 'New York' : match.name
+    if (match) return match.name
     return selectedCity.split(',')[0]
   }, [selectedCity])
 
@@ -91,7 +96,8 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
   const handleSelect = (c: CityItem) => {
     setStoredCity(c.fullName)
-    onSelectCity(c.fullName)
+    const cityCoords = getCityCoordinates(c.fullName)
+    onSelectCity(c.fullName, cityCoords, false)
     onClose()
   }
 
@@ -103,9 +109,6 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     setIsLocating(true)
 
     if (!navigator.geolocation) {
-      const fallback = 'New York City, NY'
-      setStoredCity(fallback)
-      onSelectCity(fallback)
       setIsLocating(false)
       onClose()
       return
@@ -115,46 +118,42 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       async (position) => {
         try {
           const { latitude, longitude } = position.coords
+          const liveCoords = { lat: latitude, lng: longitude }
+
+          let resolvedCity = selectedCity || 'Vasai, IN-MH'
           const res = await fetch(
             `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
           )
           if (res.ok) {
             const data = await res.json()
-            const cityName = data.city || data.locality || data.principalSubdivision || 'New York'
-            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || 'NY'
+            const cityName = data.city || data.locality || data.principalSubdivision || 'Current Location'
+            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
             
             const matched = US_CITIES_LIST.find(
               (c) =>
                 c.name.toLowerCase() === cityName.toLowerCase() ||
-                c.state.toLowerCase() === data.principalSubdivision?.toLowerCase()
+                (data.principalSubdivision && c.state.toLowerCase() === data.principalSubdivision.toLowerCase())
             )
             
-            const finalCity = matched ? matched.fullName : `${cityName}, ${stateCode}`
-            setStoredCity(finalCity)
-            onSelectCity(finalCity)
-          } else {
-            const fallback = 'New York City, NY'
-            setStoredCity(fallback)
-            onSelectCity(fallback)
+            resolvedCity = matched ? matched.fullName : (stateCode ? `${cityName}, ${stateCode}` : cityName)
           }
+
+          setStoredCity(resolvedCity)
+          onSelectCity(resolvedCity, liveCoords, true)
         } catch {
-          const fallback = 'New York City, NY'
-          setStoredCity(fallback)
-          onSelectCity(fallback)
+          const fallbackCoords = { lat: position.coords.latitude, lng: position.coords.longitude }
+          onSelectCity(selectedCity || 'Current Location', fallbackCoords, true)
         } finally {
           setIsLocating(false)
           onClose()
         }
       },
       (err) => {
-        console.warn('Geolocation failed:', err)
-        const fallback = 'New York City, NY'
-        setStoredCity(fallback)
-        onSelectCity(fallback)
+        console.warn('Geolocation failed or permission denied:', err)
         setIsLocating(false)
         onClose()
       },
-      { timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
     )
   }
 
