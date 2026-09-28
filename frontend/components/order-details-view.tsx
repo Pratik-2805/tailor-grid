@@ -241,9 +241,17 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     return () => clearInterval(interval)
   }, [])
 
-  const handleGeneratePin = () => {
+  const handleGeneratePin = async () => {
     if (isPinGenerated) return
     setIsGeneratingPin(true)
+    if (!order?.otp && (order?.id || slugId)) {
+      try {
+        const fresh = await fetchOrderById(order?.id || slugId)
+        if (fresh && fresh.otp) {
+          setOrder(fresh)
+        }
+      } catch { }
+    }
     setTimeout(() => {
       setIsGeneratingPin(false)
       setIsPinGenerated(true)
@@ -374,67 +382,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }, [slugId])
 
-  // Listen for instant 0ms real-time cancellation notifications from Studio
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    let bc: BroadcastChannel | null = null
-    if ('BroadcastChannel' in window) {
-      try {
-        bc = new BroadcastChannel('tg_dispatch_channel')
-        bc.onmessage = (event) => {
-          const data = event.data
-          if (
-            (data?.type === 'ORDER_CANCELLED' || data?.type === 'DISPATCH_CANCELLED') &&
-            data?.orderId &&
-            (data.orderId === slugId || data.orderId === order?.id)
-          ) {
-            setOrder((prev: any) => ({
-              ...(prev || {}),
-              status: 'Cancelled',
-              cancelledBy: data.by || 'STUDIO',
-              cancelReason: data.reason || prev?.cancelReason,
-            }))
-            toast.error(
-              data.by === 'STUDIO'
-                ? `Notice: Your order #${data.orderId} was cancelled by the atelier studio.`
-                : `Order #${data.orderId} has been cancelled.`,
-              { position: 'top-center', autoClose: 7000 }
-            )
-          }
-        }
-      } catch { }
-    }
-
-    const handleCustomChange = (e: any) => {
-      const detail = e.detail
-      if (
-        (detail?.orderId === slugId || detail?.orderId === order?.id) &&
-        detail?.status === 'Cancelled'
-      ) {
-        setOrder((prev: any) => ({
-          ...(prev || {}),
-          status: 'Cancelled',
-          cancelledBy: detail.by || 'STUDIO',
-          cancelReason: detail.reason || prev?.cancelReason,
-        }))
-        toast.error(`Notice: Your order #${detail.orderId} was cancelled by the atelier studio.`, {
-          position: 'top-center',
-          autoClose: 7000,
-        })
-      }
-    }
-
-    window.addEventListener('tg_order_status_change', handleCustomChange)
-
-    return () => {
-      if (bc) bc.close()
-      window.removeEventListener('tg_order_status_change', handleCustomChange)
-    }
-  }, [slugId, order?.id])
-
-  const rawOtp = order?.otp || (order?.id ? order.id.replace(/[^0-9]/g, '') : '0000')
-  const formattedOtp = rawOtp.slice(0, 4).padEnd(4, '0')
+  const formattedOtp = order?.otp ? String(order.otp).trim() : '----'
 
   const storeNameDisplay =
     order?.store?.name ||
