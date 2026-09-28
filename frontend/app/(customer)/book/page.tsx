@@ -20,7 +20,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
-import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
+import { useCityLocation, getCityCoordinates, setStoredCity } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
@@ -576,24 +576,34 @@ export default function BookPage() {
     if (typeof window === 'undefined' || !navigator.geolocation) return
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const { latitude, longitude } = position.coords
-        setUserGpsCoords({ lat: latitude, lng: longitude })
+        const liveCoords = { lat: latitude, lng: longitude }
+        setUserGpsCoords(liveCoords)
         setIsLiveLocation(true)
 
-        // Auto-detect city locality
-        try {
-          const res = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-          )
-          if (res.ok) {
-            const data = await res.json()
-            const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
-            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
-            const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
-            setSelectedCity(formatted)
-          }
-        } catch { }
+        // Reverse geocode via Google Geocoder if available
+        if (typeof google !== 'undefined' && google.maps?.Geocoder) {
+          try {
+            const geocoder = new google.maps.Geocoder()
+            geocoder.geocode({ location: liveCoords }, (results, status) => {
+              if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                const comps = results[0]?.address_components || []
+                const locality = comps.find((c: any) => c.types.includes('locality'))
+                const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                const country = comps.find((c: any) => c.types.includes('country'))
+
+                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
+                const stateCode = state?.short_name || country?.short_name || ''
+                const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                setSelectedCity(formatted)
+                setStoredCity(formatted, liveCoords)
+              }
+            })
+          } catch {}
+        }
       },
       (err) => {
         console.warn('Geolocation prompt/access skipped or denied, fallback to default city:', err)
@@ -652,7 +662,7 @@ export default function BookPage() {
   // Fetch partner studios purely by lat/lng within 8 miles directly from backend API
   useEffect(() => {
     let isCurrent = true
-    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     fetchNearbyTailors(coords.lat, coords.lng, 8.0)
       .then((data) => {
@@ -788,9 +798,9 @@ export default function BookPage() {
 
   // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
-    if (isLiveLocation && userGpsCoords) return userGpsCoords
+    if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [isLiveLocation, userGpsCoords, selectedCity])
+  }, [userGpsCoords, selectedCity])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -952,7 +962,7 @@ export default function BookPage() {
 
     const measurementsData = finalMeasurements
 
-    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
     const orderData = {
       id: newOrderId,
@@ -1554,8 +1564,9 @@ export default function BookPage() {
                 isFixed={true}
                 fixedBoxMiles={8.0}
                 radiusMiles={8.0}
-                showUserPin={isLiveLocation}
-                userPinLabel="You"
+                showUserPin={true}
+                isLiveLocation={isLiveLocation}
+                userPinLabel={isLiveLocation ? 'You' : (selectedCity.split(',')[0] || 'Pinned Location')}
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
                 onSelectStore={(st) => setSelectedStore(st)}
@@ -1563,6 +1574,37 @@ export default function BookPage() {
                   if (foundStores.length > 0 && (!selectedStore || !foundStores.some((s) => s.id === selectedStore.id))) {
                     setSelectedStore(foundStores[0])
                   }
+                }}
+                onPinLocationChange={(newCoords) => {
+                  setUserGpsCoords(newCoords)
+                  setIsLiveLocation(false)
+                  if (typeof google !== 'undefined' && google.maps?.Geocoder) {
+                    try {
+                      const geocoder = new google.maps.Geocoder()
+                      geocoder.geocode({ location: newCoords }, (results, status) => {
+                        if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                          const comps = results[0]?.address_components || []
+                          const locality = comps.find((c: any) => c.types.includes('locality'))
+                          const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                          const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                          const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                          const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || selectedCity
+                          const stateCode = state?.short_name || ''
+                          const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                          setSelectedCity(formatted)
+                          setStoredCity(formatted, newCoords)
+                        }
+                      })
+                    } catch {}
+                  } else {
+                    setStoredCity(selectedCity, newCoords)
+                  }
+                }}
+                onConfirmPinLocation={(confirmedCoords) => {
+                  setUserGpsCoords(confirmedCoords)
+                  setIsLiveLocation(false)
+                  setStoredCity(selectedCity, confirmedCoords)
+                  toast.success(`Location point confirmed: ${selectedCity.split(',')[0]}`, { position: 'top-center' })
                 }}
               />
             </div>
@@ -1578,13 +1620,10 @@ export default function BookPage() {
         selectedCity={selectedCity}
         onSelectCity={(c, coords, isGps) => {
           setSelectedCity(c)
-          if (isGps && coords) {
-            setIsLiveLocation(true)
-            setUserGpsCoords(coords)
-          } else {
-            setIsLiveLocation(false)
-            setUserGpsCoords(null)
-          }
+          const targetCoords = coords || getCityCoordinates(c)
+          setUserGpsCoords(targetCoords)
+          setIsLiveLocation(isGps === true)
+          setStoredCity(c, targetCoords)
         }}
       />
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Navigation, Loader2 } from 'lucide-react'
-import { setStoredCity, getCityCoordinates } from './use-city-location'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { Navigation, Loader2, Building2, MapPin } from 'lucide-react'
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
+import { setStoredCity, getCityCoordinates, getSessionCoordinates } from './use-city-location'
 
 export interface CityItem {
   name: string
@@ -11,6 +12,17 @@ export interface CityItem {
   code: string
   countryCode: string
   popular?: boolean
+}
+
+export interface PlaceResult {
+  id: string
+  title: string
+  subtitle: string
+  fullName: string
+  lat?: number
+  lng?: number
+  placeId?: string
+  type?: 'apartment' | 'building' | 'street' | 'city' | 'poi'
 }
 
 export const US_CITIES_LIST: CityItem[] = [
@@ -72,6 +84,11 @@ export interface CityModalProps {
 export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityModalProps) {
   const [search, setSearch] = useState('')
   const [isLocating, setIsLocating] = useState(false)
+  const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const googlePlacesServiceRef = useRef<any>(null)
+  const googleGeocoderRef = useRef<any>(null)
 
   const currentCityDisplayName = useMemo(() => {
     if (!selectedCity) return 'Vasai'
@@ -83,21 +100,284 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   }, [selectedCity])
 
   const popularCities = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return US_CITIES_LIST.filter((c) => c.popular && (!q || c.name.toLowerCase().includes(q) || c.state.toLowerCase().includes(q) || c.code.toLowerCase() === q))
-  }, [search])
+    return US_CITIES_LIST.filter((c) => c.popular)
+  }, [])
 
   const otherCities = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return US_CITIES_LIST.filter((c) => !c.popular && (!q || c.name.toLowerCase().includes(q) || c.state.toLowerCase().includes(q) || c.code.toLowerCase() === q))
-  }, [search])
+    return US_CITIES_LIST.filter((c) => !c.popular)
+  }, [])
+
+  // Initialize Google Maps Places Autocomplete Service
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+    if (!apiKey) return
+
+    async function loadGoogleServices() {
+      try {
+        if (typeof window !== 'undefined') {
+          const w = window as any
+          if (!w.__googleMapsOptionsConfigured) {
+            try {
+              setOptions({ key: apiKey, v: 'weekly' })
+              w.__googleMapsOptionsConfigured = true
+            } catch {}
+          }
+        }
+        const { AutocompleteService } = (await importLibrary('places')) as any
+        const { Geocoder } = (await importLibrary('geocoding')) as any
+        googlePlacesServiceRef.current = new AutocompleteService()
+        googleGeocoderRef.current = new Geocoder()
+      } catch (err) {
+        console.warn('Google Places library load skipped, using proximity geocoding:', err)
+      }
+    }
+
+    loadGoogleServices()
+  }, [])
+
+  // Haversine distance calculator in kilometers
+  const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371 // Earth's radius in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180
+    const dLon = ((lon2 - lon1) * Math.PI) / 180
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return R * c
+  }
+
+  // Live place, apartment, society, and address search powered EXCLUSIVELY by Google Maps Places Autocomplete
+  useEffect(() => {
+    const trimmed = search.trim()
+    if (trimmed.length < 2) {
+      setPlaceResults([])
+      setIsSearchingPlaces(false)
+      return
+    }
+
+    setIsSearchingPlaces(true)
+
+    // Center coordinates for Google Maps proximity biasing
+    const centerCoords = getSessionCoordinates() || getCityCoordinates(selectedCity)
+    const isIndia = centerCoords.lat > 8 && centerCoords.lat < 36 && centerCoords.lng > 68 && centerCoords.lng < 98
+    const isUS = centerCoords.lat > 24 && centerCoords.lat < 50 && centerCoords.lng > -125 && centerCoords.lng < -66
+    const isUK = centerCoords.lat > 49 && centerCoords.lat < 60 && centerCoords.lng > -8 && centerCoords.lng < 2
+
+    const timeoutId = setTimeout(async () => {
+      // 1. Modern Google Maps Places AutocompleteSuggestion API (New Places API v3.56+)
+      if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
+        try {
+          const regionCodes = isIndia ? ['in'] : isUS ? ['us'] : isUK ? ['gb'] : undefined
+          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+            input: trimmed,
+            locationBias: {
+              center: { lat: centerCoords.lat, lng: centerCoords.lng },
+              radius: 50000,
+            },
+            includedRegionCodes: regionCodes,
+          })
+
+          if (suggestions && suggestions.length > 0) {
+            const mapped: PlaceResult[] = suggestions.map((s: any, idx: number) => {
+              const p = s.placePrediction
+              const mainText = p.mainText?.text || p.text?.text?.split(',')[0] || ''
+              const secondaryText = p.secondaryText?.text || p.text?.text || ''
+              const fullName = p.text?.text || `${mainText}, ${secondaryText}`
+              const types = p.types || []
+
+              return {
+                id: `gplace-sugg-${p.placeId || idx}`,
+                title: mainText,
+                subtitle: secondaryText,
+                fullName: fullName,
+                placeId: p.placeId,
+                type: types.includes('route') ? 'street' : types.includes('locality') ? 'city' : 'building',
+              }
+            })
+
+            setPlaceResults(mapped)
+            setIsSearchingPlaces(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Google AutocompleteSuggestion API call failed, falling back to service:', err)
+        }
+      }
+
+      // 2. Google Maps Places AutocompleteService (using non-deprecated locationBias Circle)
+      const service = googlePlacesServiceRef.current || (typeof google !== 'undefined' && google.maps?.places ? new google.maps.places.AutocompleteService() : null)
+      
+      if (service && typeof google !== 'undefined' && google.maps) {
+        try {
+          const req: any = {
+            input: trimmed,
+            locationBias: new google.maps.Circle({
+              center: new google.maps.LatLng(centerCoords.lat, centerCoords.lng),
+              radius: 50000,
+            }),
+          }
+
+          if (isIndia) {
+            req.componentRestrictions = { country: 'in' }
+          } else if (isUS) {
+            req.componentRestrictions = { country: 'us' }
+          } else if (isUK) {
+            req.componentRestrictions = { country: 'gb' }
+          }
+
+          const predictions: google.maps.places.AutocompletePrediction[] = await new Promise((resolve) => {
+            service.getPlacePredictions(
+              req,
+              (results: any, status: any) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
+                  resolve(results)
+                } else {
+                  resolve([])
+                }
+              }
+            )
+          })
+
+          if (predictions.length > 0) {
+            const mapped: PlaceResult[] = predictions.map((p, idx) => ({
+              id: `gplace-${p.place_id || idx}`,
+              title: p.structured_formatting?.main_text || p.description.split(',')[0],
+              subtitle: p.structured_formatting?.secondary_text || p.description,
+              fullName: p.description,
+              placeId: p.place_id,
+              type: p.types?.includes('route') ? 'street' : p.types?.includes('locality') ? 'city' : 'building',
+            }))
+            setPlaceResults(mapped)
+            setIsSearchingPlaces(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Google Places Autocomplete error:', err)
+        }
+      }
+
+      // 2. Google Maps Geocoder as secondary Google direct resolver
+      const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
+      if (geocoder && typeof google !== 'undefined' && google.maps) {
+        try {
+          const geoResults: google.maps.GeocoderResult[] = await new Promise((resolve) => {
+            geocoder.geocode(
+              {
+                address: trimmed,
+                componentRestrictions: isIndia ? { country: 'in' } : isUS ? { country: 'us' } : undefined,
+              },
+              (results: any, status: any) => {
+                if (status === 'OK' && Array.isArray(results)) {
+                  resolve(results)
+                } else {
+                  resolve([])
+                }
+              }
+            )
+          })
+
+          if (geoResults.length > 0) {
+            const mapped: PlaceResult[] = geoResults.slice(0, 8).map((gr, idx) => {
+              const loc = gr.geometry.location
+              return {
+                id: `geocoder-${gr.place_id || idx}`,
+                title: gr.formatted_address.split(',')[0],
+                subtitle: gr.formatted_address,
+                fullName: gr.formatted_address,
+                lat: loc.lat(),
+                lng: loc.lng(),
+                placeId: gr.place_id,
+                type: gr.types?.includes('route') ? 'street' : gr.types?.includes('locality') ? 'city' : 'building',
+              }
+            })
+            setPlaceResults(mapped)
+            setIsSearchingPlaces(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Google Geocoder search fallback error:', err)
+        }
+      }
+
+      // 3. Fallback to predefined cities catalogue if offline/typing city name
+      const localMatches = US_CITIES_LIST.filter(
+        (c) =>
+          c.name.toLowerCase().includes(trimmed.toLowerCase()) ||
+          c.state.toLowerCase().includes(trimmed.toLowerCase()) ||
+          c.code.toLowerCase() === trimmed.toLowerCase()
+      ).map((c) => {
+        const coords = getCityCoordinates(c.fullName)
+        return {
+          id: `local-${c.fullName}`,
+          title: c.name,
+          subtitle: `${c.state}, ${c.countryCode === 'in' ? 'India' : c.countryCode === 'gb' ? 'United Kingdom' : 'United States'}`,
+          fullName: c.fullName,
+          lat: coords.lat,
+          lng: coords.lng,
+          type: 'city' as const,
+        }
+      })
+
+      setPlaceResults(localMatches)
+      setIsSearchingPlaces(false)
+    }, 200)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [search, selectedCity])
+
+  // Clear search input whenever modal opens or closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearch('')
+      setPlaceResults([])
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
   const handleSelect = (c: CityItem) => {
-    setStoredCity(c.fullName)
     const cityCoords = getCityCoordinates(c.fullName)
+    setStoredCity(c.fullName, cityCoords)
     onSelectCity(c.fullName, cityCoords, false)
+    setSearch('')
+    setPlaceResults([])
+    onClose()
+  }
+
+  const handleSelectPlace = async (place: PlaceResult) => {
+    let coords = place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null
+
+    // Resolve exact Google Maps Lat/Lng via Google Geocoder
+    const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
+    if (!coords && place.placeId && geocoder) {
+      try {
+        const geoRes = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+          geocoder.geocode({ placeId: place.placeId }, (results: any, status: any) => {
+            if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
+              resolve(results)
+            } else {
+              resolve(null)
+            }
+          })
+        })
+        if (geoRes && geoRes[0]?.geometry?.location) {
+          const loc = geoRes[0].geometry.location
+          coords = { lat: loc.lat(), lng: loc.lng() }
+        }
+      } catch (err) {
+        console.warn('Error resolving Google Place coordinates:', err)
+      }
+    }
+
+    const resolvedCoords = coords || getCityCoordinates(place.fullName)
+    setStoredCity(place.fullName, resolvedCoords)
+    onSelectCity(place.fullName, resolvedCoords, false)
+    setSearch('')
+    setPlaceResults([])
     onClose()
   }
 
@@ -115,35 +395,43 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     }
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords
-          const liveCoords = { lat: latitude, lng: longitude }
+      (position) => {
+        const { latitude, longitude } = position.coords
+        const liveCoords = { lat: latitude, lng: longitude }
 
-          let resolvedCity = selectedCity || 'Vasai, IN-MH'
-          const res = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+        const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
+        
+        if (geocoder) {
+          geocoder.geocode(
+            { location: { lat: latitude, lng: longitude } },
+            (results: any, status: any) => {
+              let resolvedCity = selectedCity || 'Vasai, IN-MH'
+              if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                const comps = results[0]?.address_components || []
+                const locality = comps.find((c: any) => c.types.includes('locality'))
+                const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                const country = comps.find((c: any) => c.types.includes('country'))
+
+                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
+                const stateCode = state?.short_name || country?.short_name || ''
+                resolvedCity = stateCode ? `${cityName}, ${stateCode}` : cityName
+              }
+
+              setStoredCity(resolvedCity, liveCoords)
+              onSelectCity(resolvedCity, liveCoords, true)
+              setSearch('')
+              setPlaceResults([])
+              setIsLocating(false)
+              onClose()
+            }
           )
-          if (res.ok) {
-            const data = await res.json()
-            const cityName = data.city || data.locality || data.principalSubdivision || 'Current Location'
-            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
-            
-            const matched = US_CITIES_LIST.find(
-              (c) =>
-                c.name.toLowerCase() === cityName.toLowerCase() ||
-                (data.principalSubdivision && c.state.toLowerCase() === data.principalSubdivision.toLowerCase())
-            )
-            
-            resolvedCity = matched ? matched.fullName : (stateCode ? `${cityName}, ${stateCode}` : cityName)
-          }
-
-          setStoredCity(resolvedCity)
-          onSelectCity(resolvedCity, liveCoords, true)
-        } catch {
-          const fallbackCoords = { lat: position.coords.latitude, lng: position.coords.longitude }
-          onSelectCity(selectedCity || 'Current Location', fallbackCoords, true)
-        } finally {
+        } else {
+          setStoredCity('Current Location', liveCoords)
+          onSelectCity(selectedCity || 'Current Location', liveCoords, true)
+          setSearch('')
+          setPlaceResults([])
           setIsLocating(false)
           onClose()
         }
@@ -153,7 +441,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         setIsLocating(false)
         onClose()
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     )
   }
 
@@ -202,22 +490,27 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         <div data-testid="city-search-input" className="relative mb-6">
           <div className="w-full h-[56px] rounded-full bg-[#F3F3F3] flex items-center px-5 text-black">
             <div className="shrink-0 text-black flex items-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                <path d="m22.355 20.935-4.68-4.68a8.963 8.963 0 0 0 1.97-5.61 9 9 0 1 0-9 9c2.12 0 4.07-.74 5.61-1.97l4.68 4.68 1.42-1.42Zm-11.71-3.29c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7Z" fill="currentColor"></path>
-              </svg>
+              {isSearchingPlaces ? (
+                <Loader2 size={20} className="animate-spin text-black" />
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="m22.355 20.935-4.68-4.68a8.963 8.963 0 0 0 1.97-5.61 9 9 0 1 0-9 9c2.12 0 4.07-.74 5.61-1.97l4.68 4.68 1.42-1.42Zm-11.71-3.29c-3.86 0-7-3.14-7-7s3.14-7 7-7 7 3.14 7 7-3.14 7-7 7Z" fill="currentColor"></path>
+                </svg>
+              )}
             </div>
             <input
-              aria-label="Search for a city"
+              aria-label="Search for a city or apartment"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Change city"
+              placeholder="Search apartment, street, or city"
               className="w-full bg-transparent pl-3 pr-2 text-[16px] font-medium text-black placeholder:text-[#757575] focus:outline-none"
             />
             {search && (
               <button
+                type="button"
                 onClick={() => setSearch('')}
-                className="size-6 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] flex items-center justify-center transition-colors text-[#4B5563] shrink-0"
+                className="size-6 rounded-full bg-[#E5E7EB] hover:bg-[#D1D5DB] flex items-center justify-center transition-colors text-[#4B5563] shrink-0 cursor-pointer"
               >
                 ✕
               </button>
@@ -225,118 +518,159 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           </div>
         </div>
 
-        {/* Scrollable City List: Hidden scrollbar track */}
+        {/* Scrollable City & Place List: Hidden scrollbar track */}
         <div className="overflow-y-auto flex-1 space-y-5 max-h-[480px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           
-          {/* Fetch Current Location Row (Placed right BEFORE Popular section) */}
-          <button
-            type="button"
-            onClick={handleDetectLocation}
-            disabled={isLocating}
-            className="w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer border-b border-gray-100 hover:text-[#276EF1]"
-          >
-            <div className="flex items-center gap-3.5">
-              <div className="w-7 h-7 rounded-full bg-[#F3F7FE] text-[#276EF1] flex items-center justify-center shrink-0">
-                {isLocating ? (
-                  <Loader2 size={16} className="animate-spin text-[#276EF1]" />
-                ) : (
-                  <Navigation size={15} className="text-[#276EF1]" />
-                )}
-              </div>
-              <span className="text-[16px] font-semibold text-[#276EF1]">
-                {isLocating ? 'Detecting your location…' : 'Use current location'}
-              </span>
-            </div>
-          </button>
-
-          {/* Popular Cities Section */}
-          {popularCities.length > 0 && (
+          {/* If user searched an apartment / address / city */}
+          {search.trim().length >= 2 ? (
             <div>
-              <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">Popular</div>
-              <div className="divide-y divide-gray-100">
-                {popularCities.map((c) => {
-                  const active = isSelected(c)
-                  return (
-                    <button
-                      key={c.fullName}
-                      type="button"
-                      data-testid="city-row-button"
-                      onClick={() => handleSelect(c)}
-                      className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
-                        active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
-                          <img
-                            src="https://flagcdn.com/w40/us.png"
-                            srcSet="https://flagcdn.com/w80/us.png 2x"
-                            alt="US"
-                            width="24px"
-                            data-iso="US"
-                            className="w-[24px] h-auto rounded-[2px]"
-                          />
-                        </span>
-                        <span className="text-[16px] font-medium">{c.name}</span>
-                      </div>
-                      {active && (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
-                          <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </button>
-                  )
-                })}
+              <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1 flex items-center justify-between">
+                <span>Search Results</span>
+                {isSearchingPlaces && <span className="text-xs font-normal text-gray-500">Searching…</span>}
               </div>
-            </div>
-          )}
 
-          {/* United States Section */}
-          {otherCities.length > 0 && (
-            <div>
-              <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">United States</div>
-              <div className="divide-y divide-gray-100">
-                {otherCities.map((c) => {
-                  const active = isSelected(c)
-                  return (
+              {placeResults.length > 0 ? (
+                <div className="divide-y divide-gray-100">
+                  {placeResults.map((place, idx) => (
                     <button
-                      key={c.fullName}
+                      key={`${place.id}-${idx}`}
                       type="button"
-                      data-testid="city-row-button"
-                      onClick={() => handleSelect(c)}
-                      className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
-                        active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
-                      }`}
+                      onClick={() => handleSelectPlace(place)}
+                      className="w-full text-left py-3.5 px-1 transition-colors flex items-start gap-3.5 group cursor-pointer hover:bg-[#F9FAFB] rounded-xl"
                     >
-                      <div className="flex items-center gap-3.5">
-                        <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
-                          <img
-                            src="https://flagcdn.com/w40/us.png"
-                            srcSet="https://flagcdn.com/w80/us.png 2x"
-                            alt="US"
-                            width="24px"
-                            data-iso="US"
-                            className="w-[24px] h-auto rounded-[2px]"
-                          />
-                        </span>
-                        <span className="text-[16px] font-medium">{c.name}</span>
+                      <div className="size-8 rounded-full bg-[#F3F3F3] text-black flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#276EF1]/10 group-hover:text-[#276EF1] transition-colors">
+                        {place.type === 'city' ? (
+                          <MapPin size={16} />
+                        ) : (
+                          <Building2 size={16} />
+                        )}
                       </div>
-                      {active && (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
-                          <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[16px] font-medium text-black group-hover:text-[#276EF1] transition-colors truncate">
+                          {place.title}
+                        </p>
+                        {place.subtitle && (
+                          <p className="text-[13px] text-[#5E5E5E] truncate mt-0.5">
+                            {place.subtitle}
+                          </p>
+                        )}
+                      </div>
                     </button>
-                  )
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : !isSearchingPlaces ? (
+                <div className="py-8 text-center text-[#5E5E5E] text-[15px]">
+                  No places found matching "{search}".
+                </div>
+              ) : null}
             </div>
-          )}
+          ) : (
+            <>
+              {/* Fetch Current Location Row (Placed right BEFORE Popular section) */}
+              <button
+                type="button"
+                onClick={handleDetectLocation}
+                disabled={isLocating}
+                className="w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer border-b border-gray-100 hover:text-[#276EF1]"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-7 h-7 rounded-full bg-[#F3F7FE] text-[#276EF1] flex items-center justify-center shrink-0">
+                    {isLocating ? (
+                      <Loader2 size={16} className="animate-spin text-[#276EF1]" />
+                    ) : (
+                      <Navigation size={15} className="text-[#276EF1]" />
+                    )}
+                  </div>
+                  <span className="text-[16px] font-semibold text-[#276EF1]">
+                    {isLocating ? 'Detecting your location…' : 'Use current location'}
+                  </span>
+                </div>
+              </button>
 
-          {popularCities.length === 0 && otherCities.length === 0 && (
-            <div className="py-8 text-center text-[#5E5E5E] text-[15px]">
-              No US city found matching "{search}".
-            </div>
+              {/* Popular Cities Section */}
+              {popularCities.length > 0 && (
+                <div>
+                  <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">Popular</div>
+                  <div className="divide-y divide-gray-100">
+                    {popularCities.map((c) => {
+                      const active = isSelected(c)
+                      return (
+                        <button
+                          key={c.fullName}
+                          type="button"
+                          data-testid="city-row-button"
+                          onClick={() => handleSelect(c)}
+                          className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
+                            active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
+                              <img
+                                src={c.countryCode === 'in' ? 'https://flagcdn.com/w40/in.png' : c.countryCode === 'gb' ? 'https://flagcdn.com/w40/gb.png' : 'https://flagcdn.com/w40/us.png'}
+                                srcSet={c.countryCode === 'in' ? 'https://flagcdn.com/w80/in.png 2x' : c.countryCode === 'gb' ? 'https://flagcdn.com/w80/gb.png 2x' : 'https://flagcdn.com/w80/us.png 2x'}
+                                alt={c.countryCode.toUpperCase()}
+                                width="24px"
+                                data-iso={c.countryCode.toUpperCase()}
+                                className="w-[24px] h-auto rounded-[2px]"
+                              />
+                            </span>
+                            <span className="text-[16px] font-medium">{c.name}</span>
+                          </div>
+                          {active && (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
+                              <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* United States Section */}
+              {otherCities.length > 0 && (
+                <div>
+                  <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">United States</div>
+                  <div className="divide-y divide-gray-100">
+                    {otherCities.map((c) => {
+                      const active = isSelected(c)
+                      return (
+                        <button
+                          key={c.fullName}
+                          type="button"
+                          data-testid="city-row-button"
+                          onClick={() => handleSelect(c)}
+                          className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
+                            active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3.5">
+                            <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
+                              <img
+                                src="https://flagcdn.com/w40/us.png"
+                                srcSet="https://flagcdn.com/w80/us.png 2x"
+                                alt="US"
+                                width="24px"
+                                data-iso="US"
+                                className="w-[24px] h-auto rounded-[2px]"
+                              />
+                            </span>
+                            <span className="text-[16px] font-medium">{c.name}</span>
+                          </div>
+                          {active && (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
+                              <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
         </div>
