@@ -232,6 +232,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
   const [isSavingMeas, setIsSavingMeas] = useState(false)
   const [inProcessDots, setInProcessDots] = useState('')
+  const [isCancelling, setIsCancelling] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [isRebooking, setIsRebooking] = useState(false)
+
+  // Status mapping derived before hooks
+  const currentStatus = (order?.status || 'Allocated').toUpperCase()
+  const isCancelled = currentStatus === 'CANCELLED'
+  const isAllocated = currentStatus === 'ALLOCATED' || currentStatus === 'SEARCHING' || currentStatus === 'PENDING'
+  const isAccepted = currentStatus === 'ACCEPTED'
+  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING' || currentStatus === 'FITTING COMPLETED' || currentStatus === 'CUSTOMER ARRIVED'
+  const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
+  const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
+  const isValidated = Boolean(order?.otpVerified || isInProgress || isReady || isCompleted)
 
   useEffect(() => {
     // Sequential dots cycle: "" (0) -> "." (1) -> ".." (2) -> "..." (3) -> "" (0)
@@ -241,54 +254,11 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     return () => clearInterval(interval)
   }, [])
 
-  const handleGeneratePin = async () => {
-    if (isPinGenerated) return
-    setIsGeneratingPin(true)
-    if (!order?.otp && (order?.id || slugId)) {
-      try {
-        const fresh = await fetchOrderById(order?.id || slugId)
-        if (fresh && fresh.otp) {
-          setOrder(fresh)
-        }
-      } catch { }
+  useEffect(() => {
+    if (isReady) {
+      setIsPinGenerated(false)
     }
-    setTimeout(() => {
-      setIsGeneratingPin(false)
-      setIsPinGenerated(true)
-      toast.success('4-Digit PIN revealed successfully!', { position: 'top-center', autoClose: 2000 })
-    }, 450)
-  }
-
-  const handleSaveCustomerMeasurements = async () => {
-    if (!order?.id) return
-    setIsSavingMeas(true)
-    const measurementsMap: Record<string, string> = {}
-    editMeasFields.forEach((f) => {
-      if (f.value && f.value.trim()) {
-        measurementsMap[f.key] = f.value.trim()
-      }
-    })
-
-    const combinedSpecs = Object.entries(measurementsMap)
-      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
-      .join(' · ')
-
-    const updates = {
-      pinnedAdjustment: combinedSpecs || 'Standard customer fit',
-      measurements: measurementsMap,
-    }
-
-    try {
-      await updateOrder(order.id, updates)
-      setOrder((prev: any) => ({ ...prev, ...updates }))
-      setIsEditingMeas(false)
-      toast.success('Measurements updated successfully!', { position: 'top-center', autoClose: 2000 })
-    } catch {
-      toast.error('Failed to update measurements.', { position: 'top-center' })
-    } finally {
-      setIsSavingMeas(false)
-    }
-  }
+  }, [isReady])
 
   // Auto-detect location non-blocking if permission granted
   useEffect(() => {
@@ -329,41 +299,38 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       // 1. Check backend API first
       try {
         const fetched = await fetchOrderById(slugId)
-        if (isMounted && fetched) {
-          setOrder(fetched)
-          if (isInitial) {
-            setIsLoading(false)
-            stopBookingTransition()
+        if (isMounted) {
+          if (fetched) {
+            setOrder(fetched)
+            if (isInitial) {
+              setIsLoading(false)
+              stopBookingTransition()
+            }
+            return
+          } else {
+            // Order does not exist or was deleted in backend database
+            // Invalidate and purge any stale localStorage cache for this slug so it is never shown
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.removeItem(`tg_order_${slugId}`)
+                localStorage.removeItem('tg_latest_order')
+              } catch { }
+            }
+            setOrder(null)
+            if (isInitial) {
+              setIsLoading(false)
+              stopBookingTransition()
+            }
+            return
           }
-          return
         }
       } catch (err) {
         console.warn('Backend order fetch failed:', err)
       }
 
-      // 2. Fallback to storage saved order or latest draft
-      if (typeof window !== 'undefined') {
-        const saved = getStorageCookie(`tg_order_${slugId}`) || getStorageCookie('tg_latest_order')
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved)
-            if (isMounted) {
-              setOrder((prev: any) => prev || {
-                ...parsed,
-                id: slugId || parsed.id || 'ORD-6154',
-              })
-              if (isInitial) {
-                setIsLoading(false)
-                stopBookingTransition()
-              }
-              return
-            }
-          } catch { }
-        }
-      }
-
-      // 3. Complete loading
+      // If backend was offline or network error, complete loading as null without showing phantom orders
       if (isMounted && isInitial) {
+        setOrder(null)
         setIsLoading(false)
         stopBookingTransition()
       }
@@ -373,7 +340,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
     const interval = setInterval(() => {
       loadOrderData(false)
-    }, 3000)
+    }, 4000)
 
     return () => {
       isMounted = false
@@ -381,6 +348,32 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       stopBookingTransition()
     }
   }, [slugId])
+
+  const destinationCoords = {
+    lat: order?.store?.lat ? Number(order.store.lat) : (order?.store?.coords?.lat || 19.3919),
+    lng: order?.store?.lng ? Number(order.store.lng) : (order?.store?.coords?.lng || 72.8397),
+  }
+
+  // Calculate real accurate distance and walking/driving ETA to the assigned studio
+  useEffect(() => {
+    let distanceMiles = 0.4
+    if (userCoords && destinationCoords) {
+      const computed = calculateHaversineDistanceMiles(
+        userCoords.lat,
+        userCoords.lng,
+        destinationCoords.lat,
+        destinationCoords.lng
+      )
+      if (!isNaN(computed) && computed > 0) {
+        distanceMiles = computed
+      }
+    }
+
+    // Calculate walking time at average speed of ~3.1 mph (19.3 mins per mile)
+    const walkMins = Math.max(1, Math.round(distanceMiles * 19.3))
+    const walkLabel = walkMins === 1 ? '1 min walk' : `${walkMins} mins walk`
+    setDistanceBadge(`${distanceMiles.toFixed(1)} mi • ~${walkLabel}`)
+  }, [userCoords, destinationCoords.lat, destinationCoords.lng])
 
   const formattedOtp = order?.otp ? String(order.otp).trim() : '----'
 
@@ -401,11 +394,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const cleanStudioBadgeName = storeNameDisplay
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
   const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
-
-  const destinationCoords = {
-    lat: order?.store?.lat ? Number(order.store.lat) : (order?.store?.coords?.lat || 19.3919),
-    lng: order?.store?.lng ? Number(order.store.lng) : (order?.store?.coords?.lng || 72.8397),
-  }
 
   // 1. Customer Coordinates Snapshot (Captured once at order creation)
   const customerCoords = (order?.customerLocation && typeof order.customerLocation.lat === 'number')
@@ -461,29 +449,54 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     coords: tailorCoords,
   }
 
-  const storeQuery = encodeURIComponent(`${storeNameDisplay}, ${storeAddressDisplay}`)
-  const cleanMapUrl = `https://maps.google.com/maps?q=${storeQuery}&t=m&z=15&ie=UTF8&iwloc=near&output=embed`
+  const handleGeneratePin = async () => {
+    if (isPinGenerated) return
+    setIsGeneratingPin(true)
+    if (!order?.otp && (order?.id || slugId)) {
+      try {
+        const fresh = await fetchOrderById(order?.id || slugId)
+        if (fresh && fresh.otp) {
+          setOrder(fresh)
+        }
+      } catch { }
+    }
+    setTimeout(() => {
+      setIsGeneratingPin(false)
+      setIsPinGenerated(true)
+      toast.success('4-Digit PIN revealed successfully!', { position: 'top-center', autoClose: 2000 })
+    }, 450)
+  }
 
-  // Calculate real accurate distance and walking/driving ETA to the assigned studio
-  useEffect(() => {
-    let distanceMiles = 0.4
-    if (userCoords && destinationCoords) {
-      const computed = calculateHaversineDistanceMiles(
-        userCoords.lat,
-        userCoords.lng,
-        destinationCoords.lat,
-        destinationCoords.lng
-      )
-      if (!isNaN(computed) && computed > 0) {
-        distanceMiles = computed
+  const handleSaveCustomerMeasurements = async () => {
+    if (!order?.id) return
+    setIsSavingMeas(true)
+    const measurementsMap: Record<string, string> = {}
+    editMeasFields.forEach((f) => {
+      if (f.value && f.value.trim()) {
+        measurementsMap[f.key] = f.value.trim()
       }
+    })
+
+    const combinedSpecs = Object.entries(measurementsMap)
+      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
+      .join(' · ')
+
+    const updates = {
+      pinnedAdjustment: combinedSpecs || 'Standard customer fit',
+      measurements: measurementsMap,
     }
 
-    // Calculate walking time at average speed of ~3.1 mph (19.3 mins per mile)
-    const walkMins = Math.max(1, Math.round(distanceMiles * 19.3))
-    const walkLabel = walkMins === 1 ? '1 min walk' : `${walkMins} mins walk`
-    setDistanceBadge(`${distanceMiles.toFixed(1)} mi • ~${walkLabel}`)
-  }, [userCoords, destinationCoords.lat, destinationCoords.lng])
+    try {
+      await updateOrder(order.id, updates)
+      setOrder((prev: any) => ({ ...prev, ...updates }))
+      setIsEditingMeas(false)
+      toast.success('Measurements updated successfully!', { position: 'top-center', autoClose: 2000 })
+    } catch {
+      toast.error('Failed to update measurements.', { position: 'top-center' })
+    } finally {
+      setIsSavingMeas(false)
+    }
+  }
 
   const handleShareMap = () => {
     if (typeof window !== 'undefined') {
@@ -515,7 +528,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     })
   }
 
-  // GPS target button updates user's own location relative to the assigned tailor studio
   const handleFetchCurrentLocation = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       setIsLocating(true)
@@ -534,10 +546,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       )
     }
   }
-
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [showCancelModal, setShowCancelModal] = useState(false)
-  const [isRebooking, setIsRebooking] = useState(false)
 
   const handleRebookSameRequest = async () => {
     if (!order) return
@@ -621,10 +629,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     if (!order?.id) return
     setIsCancelling(true)
     try {
-      // 1. Update order status to 'Cancelled' in PostgreSQL database
       await updateOrder(order.id, { status: 'Cancelled' })
-
-      // 2. Update local state & storage records
       setOrder((prev: any) => ({ ...prev, status: 'Cancelled' }))
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem(`tg_order_${order.id}`)
@@ -636,7 +641,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           } catch { }
         }
       }
-
       toast.success(`Order #${order.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {
       toast.error('Failed to cancel order. Please try again.', { position: 'top-center' })
@@ -646,6 +650,30 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
   }
 
+  // Dynamic Header Text
+  let headerTitle = 'Order Accepted'
+  let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
+
+  if (isCancelled) {
+    headerTitle = 'Order Cancelled'
+    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
+  } else if (isAllocated) {
+    headerTitle = 'Request Broadcast'
+    headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
+  } else if (isInProgress) {
+    headerTitle = 'Tailoring in Progress'
+    headerSubtitle = `${storeNameDisplay} is crafting your garment • Order #${order?.id || slugId}`
+  } else if (isReady) {
+    headerTitle = 'Ready for Pickup'
+    headerSubtitle = `Alteration completed! Ready for collection at ${storeNameDisplay} • Order #${order?.id || slugId}`
+  } else if (isCompleted) {
+    headerTitle = 'Order Completed'
+    headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
+  }
+
+  const isPickupOtpActive = Boolean(order?.otp && order.otp.trim() !== '')
+
+  // ALL HOOKS HAVE COMPLETED. CONDITIONAL RETURNS ARE NOW 100% SAFE.
   if (authChecked && !currentUser) {
     return (
       <div className="bg-[#FAF8F5] min-h-[calc(100vh-68px)] flex flex-col justify-center items-center px-4 py-16 text-center max-w-lg mx-auto select-none font-sans">
@@ -693,49 +721,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     )
   }
 
-  // Dynamic status mappings
-  const currentStatus = (order?.status || 'Allocated').toUpperCase()
-
-  const isCancelled = currentStatus === 'CANCELLED'
-  const isAllocated = currentStatus === 'ALLOCATED' || currentStatus === 'SEARCHING' || currentStatus === 'PENDING'
-  const isAccepted = currentStatus === 'ACCEPTED'
-  const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING' || currentStatus === 'FITTING COMPLETED' || currentStatus === 'CUSTOMER ARRIVED'
-  const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
-  const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
-  const isValidated = Boolean(order?.otpVerified || isInProgress || isReady || isCompleted)
-
-  useEffect(() => {
-    if (isReady) {
-      setIsPinGenerated(false)
-    }
-  }, [isReady])
-
-  // Dynamic Header Text
-  let headerTitle = 'Order Accepted'
-  let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
-
-  if (isCancelled) {
-    headerTitle = order?.cancelledBy === 'STUDIO' ? 'Order Cancelled by Studio' : 'Order Cancelled'
-    headerSubtitle = order?.cancelledBy === 'STUDIO'
-      ? `${storeNameDisplay} cancelled this booking before drop-off • Order #${order?.id || slugId}`
-      : `This alteration request was cancelled • Order #${order?.id || slugId}`
-  } else if (isAllocated) {
-    headerTitle = 'Request Broadcast'
-    headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
-  } else if (isInProgress) {
-    headerTitle = 'Tailoring in Progress'
-    headerSubtitle = `${storeNameDisplay} is crafting your garment • Order #${order?.id || slugId}`
-  } else if (isReady) {
-    headerTitle = 'Ready for Pickup'
-    headerSubtitle = `Alteration completed! Ready for collection at ${storeNameDisplay} • Order #${order?.id || slugId}`
-  } else if (isCompleted) {
-    headerTitle = 'Order Completed'
-    headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
-  }
-
-  const isPickupOtpActive = Boolean(order?.otp && order.otp.trim() !== '')
-
-
   if (isLoading && !order) {
     return (
       <div className="min-h-[calc(100vh-68px)] flex items-center justify-center p-6 bg-[#FAF8F5]">
@@ -744,6 +729,58 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           persistent={true}
           title="Loading"
         />
+      </div>
+    )
+  }
+
+  if (!isLoading && !order) {
+    return (
+      <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
+        <div className="flex-1 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8 w-full max-w-[1280px] mx-auto flex flex-col">
+          {/* Navigation Breadcrumb */}
+          <div className="mb-4 sm:mb-5 lg:-ml-10 xl:-ml-16 2xl:-ml-24 transition-all">
+            <button
+              type="button"
+              onClick={onGoOrders || onGoHome || (() => { window.location.href = '/orders' })}
+              className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-full bg-white border border-gray-200/90 shadow-2xs flex items-center justify-center text-[#18191B] group-hover:bg-[#18191B] group-hover:text-white transition-all">
+                <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+              </div>
+              <span className="font-bold text-[#18191B]">Order Details</span>
+            </button>
+          </div>
+
+          {/* Centered Order Not Found Card */}
+          <div className="flex-1 flex flex-col items-center justify-center py-12 text-center max-w-lg mx-auto">
+            <div className="size-16 rounded-3xl bg-amber-500/10 text-amber-600 flex items-center justify-center mb-5 shadow-xs border border-amber-200/60">
+              <XCircle size={32} />
+            </div>
+            <div className="inline-flex items-center px-3 py-1 mb-3 rounded-full bg-white border border-gray-200 text-xs font-mono font-bold text-gray-700 shadow-2xs">
+              #{slugId}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1115] tracking-tight">
+              Order Not Found
+            </h1>
+            <p className="mt-3 text-sm sm:text-base text-[#5A5D64] leading-relaxed max-w-md">
+              This alteration order does not exist or has been removed from the database.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <button
+                onClick={onGoOrders || (() => { window.location.href = '/orders' })}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-[#0F1115] text-white text-sm font-bold shadow-md hover:bg-[#9E593B] transition-all cursor-pointer"
+              >
+                <span>View All Orders</span>
+              </button>
+              <button
+                onClick={() => { window.location.href = '/book' }}
+                className="w-full sm:w-auto px-6 py-3 rounded-full border border-[#D5CEB9] bg-white text-[#0F1115] text-sm font-bold hover:bg-[#F4EFEA] transition-colors cursor-pointer shadow-2xs"
+              >
+                Book New Fitting
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -1139,7 +1176,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                             alt={`${order?.garmentName || 'Garment'} Reference`}
                             className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
                             onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                              const fallback = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
+                              if (fallback && fallback !== (e.currentTarget as HTMLImageElement).src) {
+                                (e.currentTarget as HTMLImageElement).src = fallback
+                              } else {
+                                (e.currentTarget as HTMLImageElement).style.display = 'none'
+                              }
                             }}
                           />
                         ))}
