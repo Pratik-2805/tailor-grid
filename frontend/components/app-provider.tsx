@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { getCurrentUser } from '@/lib/api'
+import { getCurrentUser, logoutUser } from '@/lib/api'
 import {
   getAuthToken,
   getAuthUser,
@@ -226,8 +226,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleSignOut = () => {
-    clearAllAuth()
+  const handleSignOut = async () => {
+    try {
+      await logoutUser()
+    } catch {
+      clearAllAuth()
+    }
     setUser(null)
     setIsAuthOpen(false)
     toast.info('Signed out successfully.', {

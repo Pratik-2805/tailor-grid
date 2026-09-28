@@ -1426,4 +1426,46 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// POST /api/auth/logout - Comprehensive logout endpoint clearing cookies and terminating server-side session
+router.post('/logout', (req, res) => {
+  try {
+    const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
+    
+    // Express clearCookie helper across common configurations
+    const cookieOptionsList = [
+      { path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' },
+      { path: '/', httpOnly: false, sameSite: 'lax' },
+      { path: '/', sameSite: 'lax' },
+      { path: '/' }
+    ];
+
+    const cookieNames = ['tg_token', 'tg_user_role', 'tg_user', 'token', 'session', 'auth_token'];
+
+    cookieNames.forEach(name => {
+      cookieOptionsList.forEach(opts => {
+        try { res.clearCookie(name, opts); } catch (_) {}
+      });
+    });
+
+    // Explicit Set-Cookie headers to guarantee browser clears all auth cookies
+    res.setHeader('Set-Cookie', [
+      `tg_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `tg_user_role=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `tg_user=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `session=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `auth_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+    ]);
+
+    return res.json({
+      success: true,
+      message: 'Logged out successfully, server cookies cleared',
+    });
+  } catch (err) {
+    console.error('Logout error:', err);
+    return res.status(500).json({ error: 'Failed to complete logout' });
+  }
+});
+
 module.exports = router;
+

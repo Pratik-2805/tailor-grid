@@ -25,6 +25,23 @@ export function clearAuthCookies() {
   clearAllAuth()
 }
 
+export async function logoutUser(): Promise<void> {
+  try {
+    const token = getAuthToken()
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+  } catch (err) {
+    console.warn('Backend logout request notice:', err)
+  } finally {
+    clearAllAuth()
+  }
+}
+
 export const STUDIO_BASE_URL =
   process.env.NEXT_PUBLIC_STUDIO_URL ||
   (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
@@ -583,6 +600,37 @@ export async function scheduleOrder(
     return await res.json()
   } catch (err) {
     return { success: false }
+  }
+}
+
+export async function fetchNearbyTailors(
+  lat: number,
+  lng: number,
+  radiusMiles: number = 8.0,
+  query: string = ''
+): Promise<{ success: boolean; tailors: StoreOption[]; count: number }> {
+  try {
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+      radiusMiles: radiusMiles.toString(),
+      ...(query ? { query } : {}),
+    })
+    const res = await fetch(`${API_BASE}/tailors/nearby?${params.toString()}`, {
+      headers: { 'Content-Type': 'application/json' },
+    })
+    if (!res.ok) {
+      return { success: false, tailors: [], count: 0 }
+    }
+    const data = await res.json()
+    return {
+      success: true,
+      tailors: Array.isArray(data.tailors) ? data.tailors : [],
+      count: data.count || (data.tailors ? data.tailors.length : 0),
+    }
+  } catch (err) {
+    console.warn('Error fetching nearby tailors from backend:', err)
+    return { success: false, tailors: [], count: 0 }
   }
 }
 

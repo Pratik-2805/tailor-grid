@@ -190,6 +190,15 @@ export function formatMeasurementKey(key: string): string {
     .trim()
 }
 
+export function isOrderPinMatch(order?: Partial<FittingBooking> | null, inputPin?: string | null): boolean {
+  if (!order || !inputPin || !order.otp) return false
+  const clean = String(inputPin).trim()
+  if (!clean) return false
+
+  // Strictly validate against authentic backend-generated OTP
+  return String(order.otp).trim() === clean
+}
+
 export function cleanMeasurementVal(val?: string | null): string {
   if (!val) return ''
   const str = String(val).trim()
@@ -1025,7 +1034,10 @@ export function PartnerFlow({
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
     const updates: Partial<FittingBooking> = { status: newStatus }
     if (newStatus === 'Ready') {
-      updates.otp = '' // Clear drop-off OTP so pickup OTP must be generated fresh when studio initiates pickup
+      const freshPickupOtp = Math.floor(1000 + Math.random() * 9000).toString()
+      updates.otp = freshPickupOtp
+      updates.pickupOtpGenerated = true
+      setGeneratedOtpMap((prev) => ({ ...prev, [id]: freshPickupOtp }))
     }
     if (newStatus === 'Work in Progress') {
       const existing = orders.find((o) => o.id === id)
@@ -1038,12 +1050,15 @@ export function PartnerFlow({
     updateOrder(id, updates).catch(() => { })
   }
 
-  // Mark alteration done -> Moves to Ready (pickup OTP is generated when tailor clicks 'Generate Pickup OTP' or 'Pickup →')
+  // Mark alteration done -> Moves to Ready & sets fresh secure pickup OTP in backend
   const handleMarkAlterationDone = (orderId: string) => {
+    const freshPickupOtp = Math.floor(1000 + Math.random() * 9000).toString()
     const updates: Partial<FittingBooking> = {
       status: 'Ready',
-      otp: '', // Clear drop-off OTP so pickup OTP is generated fresh when studio initiates pickup
+      otp: freshPickupOtp,
+      pickupOtpGenerated: true,
     }
+    setGeneratedOtpMap((prev) => ({ ...prev, [orderId]: freshPickupOtp }))
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updates } : o)))
     if (selectedOrder?.id === orderId) {
       setSelectedOrder((prev) => (prev ? { ...prev, ...updates } : prev))
@@ -1090,7 +1105,7 @@ export function PartnerFlow({
     if (!target) return
     const inputPin = (inlinePickupInput[orderId] || '').trim()
 
-    if (inputPin && (inputPin === target.otp || inputPin === '1234')) {
+    if (inputPin && isOrderPinMatch(target, inputPin)) {
       setInlinePickupError((prev) => ({ ...prev, [orderId]: '' }))
       // 🌟 Trigger Aftereffect Success Animation State
       setVerifyingHandoverMap((prev) => ({ ...prev, [orderId]: true }))
@@ -1122,7 +1137,7 @@ export function PartnerFlow({
 
     // Strictly match an Accepted order waiting for drop-off
     const acceptedOrder = orders.find(
-      (o) => o.status === 'Accepted' && (o.otp === clean || o.id.toLowerCase() === clean.toLowerCase())
+      (o) => o.status === 'Accepted' && isOrderPinMatch(o, clean)
     )
 
     if (acceptedOrder) {
@@ -1163,7 +1178,7 @@ export function PartnerFlow({
 
     // Check other statuses to give helpful feedback
     const otherOrder = orders.find(
-      (o) => o.otp === clean || o.id.toLowerCase() === clean.toLowerCase()
+      (o) => isOrderPinMatch(o, clean)
     )
 
     if (otherOrder) {
@@ -1302,7 +1317,7 @@ export function PartnerFlow({
   const handleVerifyPickupOtp = () => {
     if (!pickupModalOrder) return
     const clean = pickupOtpInput.trim()
-    if (clean === pickupModalOrder.otp || clean === '1234') {
+    if (isOrderPinMatch(pickupModalOrder, clean)) {
       setPickupVerified(true)
       setPickupOtpError('')
     } else {

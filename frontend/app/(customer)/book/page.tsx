@@ -24,7 +24,7 @@ import { useCityLocation, getCityCoordinates } from '@/components/use-city-locat
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
-import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch } from '@/lib/api'
+import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
@@ -647,13 +647,12 @@ export default function BookPage() {
     return prefilledStore || getClosestStoreForLocation(selectedCity)
   })
 
-  // Fetch partner studios purely by lat/lng within 8 miles
+  // Fetch partner studios purely by lat/lng within 8 miles directly from backend API
   useEffect(() => {
     let isCurrent = true
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
-    fetch(`/api/tailors/nearby?lat=${coords.lat}&lng=${coords.lng}&radiusMiles=8.0`)
-      .then((res) => res.json())
+    fetchNearbyTailors(coords.lat, coords.lng, 8.0)
       .then((data) => {
         if (!isCurrent) return
         if (data.tailors && Array.isArray(data.tailors)) {

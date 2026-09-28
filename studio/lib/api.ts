@@ -24,6 +24,23 @@ export function getCustomerSiteUrl(path: string = ''): string {
   return `${base}${cleanPath}`
 }
 
+export async function logoutUser(): Promise<void> {
+  try {
+    const token = getAuthToken()
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+  } catch (err) {
+    console.warn('Backend studio logout request notice:', err)
+  } finally {
+    clearAllAuth()
+  }
+}
+
 export async function sendOtp(phone: string, forceResend: boolean = false): Promise<{ success: boolean; message: string; phone?: string; cooldown?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/send-otp`, {
