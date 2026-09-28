@@ -817,51 +817,34 @@ export default function BookPage() {
     setIsCategoryDropdownOpen(false)
   }
 
-  // Compress and resize image file to maintain crisp quality while keeping size < 100KB
-  const compressImageFile = async (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.75): Promise<string> => {
-    return new Promise((resolve) => {
-      if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
-        const reader = new FileReader()
-        reader.onload = (e) => resolve((e.target?.result as string) || '')
-        reader.onerror = () => resolve('')
-        reader.readAsDataURL(file)
-        return
-      }
+  // Handle Photo Upload (Max 4 photos allowed)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
+    if (uploadedImages.length >= 4) {
+      toast.error('You can upload a maximum of 4 garment photos.', { position: 'top-center' })
+      e.target.value = ''
+      return
+    }
+
+    const availableSlots = 4 - uploadedImages.length
+    const fileList = Array.from(files).slice(0, availableSlots)
+
+    if (files.length > availableSlots) {
+      toast.info(`Only ${availableSlots} more photo(s) allowed (max 4).`, { position: 'top-center' })
+    }
+
+    fileList.forEach((file) => {
       const reader = new FileReader()
-      reader.onload = (e) => {
-        const img = new Image()
-        img.onload = () => {
-          let width = img.width
-          let height = img.height
-
-          if (width > maxWidth || height > maxHeight) {
-            if (width / height > maxWidth / maxHeight) {
-              height = Math.round((height * maxWidth) / width)
-              width = maxWidth
-            } else {
-              width = Math.round((width * maxHeight) / height)
-              height = maxHeight
-            }
-          }
-
-          const canvas = document.createElement('canvas')
-          canvas.width = width
-          canvas.height = height
-          const ctx = canvas.getContext('2d')
-          if (!ctx) {
-            resolve((e.target?.result as string) || '')
-            return
-          }
-
-          ctx.drawImage(img, 0, 0, width, height)
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality)
-          resolve(compressedDataUrl)
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setUploadedImages((prev) => {
+            if (prev.length >= 4) return prev
+            return [...prev, event.target!.result as string]
+          })
         }
-        img.onerror = () => resolve((e.target?.result as string) || '')
-        img.src = e.target?.result as string
       }
-      reader.onerror = () => resolve('')
       reader.readAsDataURL(file)
     })
   }
@@ -948,6 +931,10 @@ export default function BookPage() {
 
   // Complete Booking flow execution
   const executeBooking = async (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
+    if (uploadedImages.length === 0) {
+      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
+      return
+    }
     if (!user || !user.phone) {
       openAuth('CUSTOMER', user ? 'signup' : 'signin')
       return
@@ -1341,11 +1328,17 @@ export default function BookPage() {
                 )}
               </div>
 
-              {/* 3. Garment Photo / Reference Fit (Optional) */}
+              {/* 3. Garment Photo / Reference Fit (Required - Max 4) */}
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500">
-                  GARMENT PHOTO / REFERENCE FIT (OPTIONAL)
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                    <span>GARMENT PHOTO / REFERENCE FIT</span>
+                    <span className="text-red-500 font-bold">* (REQUIRED)</span>
+                  </p>
+                  <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                    {uploadedImages.length}/4 Photos
+                  </span>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3">
                   <input
@@ -1357,17 +1350,19 @@ export default function BookPage() {
                     className="hidden"
                   />
 
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
-                  >
-                    <div className="size-7 rounded-full bg-white shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                      <Camera size={14} className="text-black" />
-                    </div>
-                    <span className="text-[11px] font-extrabold text-black">Add photo</span>
-                    <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
-                  </button>
+                  {uploadedImages.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
+                    >
+                      <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                        <Camera size={14} className="text-white" />
+                      </div>
+                      <span className="text-[11px] font-extrabold text-black">Add photo</span>
+                      <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
+                    </button>
+                  )}
 
                   {/* Thumbnail List */}
                   {uploadedImages.map((imgUrl, idx) => (
@@ -1708,6 +1703,16 @@ export default function BookPage() {
       {isNoTailorsModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150 text-center">
+
+            {/* Close / Cut ('X') Button */}
+            <button
+              type="button"
+              onClick={() => setIsNoTailorsModalOpen(false)}
+              className="absolute top-4 right-4 size-9 rounded-full bg-[#F3F3F3] hover:bg-gray-200 text-black flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
 
             {/* Header Icon */}
             <div className="mx-auto size-14 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shadow-2xs">
