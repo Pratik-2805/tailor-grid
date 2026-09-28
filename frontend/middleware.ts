@@ -37,6 +37,8 @@ export function middleware(request: NextRequest) {
       pathname.startsWith('/book/') ||
       pathname === '/orders' ||
       pathname.startsWith('/orders/') ||
+      pathname === '/order' ||
+      pathname.startsWith('/order/') ||
       pathname === '/profile' ||
       pathname.startsWith('/profile/')
 

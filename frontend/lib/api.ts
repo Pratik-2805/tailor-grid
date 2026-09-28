@@ -10,6 +10,7 @@ import {
   setAuthRole,
   removeAuthRole,
   clearAllAuth,
+  clearUnnecessaryDataOnLogin,
   setCookie,
   deleteCookie,
 } from './cookies'
@@ -114,6 +115,7 @@ export async function verifyOtp(params: {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
@@ -153,6 +155,7 @@ export async function linkPhone(params: {
       data.user.role = data.user.role ?? 'CUSTOMER'
     }
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
     }
     if (data.user) {
@@ -189,6 +192,7 @@ export async function loginWithGoogle(params: {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
     if (data.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
@@ -246,6 +250,7 @@ export async function signUpUser(data: {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
     if (result.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)
@@ -281,6 +286,7 @@ export async function loginUser(data: {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
     if (result.token) {
+      clearUnnecessaryDataOnLogin()
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)
