@@ -500,23 +500,6 @@ export default function BookPage() {
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
-  // Schedule Visit Date & Time states
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
-  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(() => {
-    const s = getSessionBookingData()
-    if (s?.scheduleDate) {
-      try {
-        const d = new Date(s.scheduleDate)
-        if (!isNaN(d.getTime())) return d
-      } catch {}
-    }
-    return new Date()
-  })
-  const [selectedTime, setSelectedTime] = useState<string>(() => {
-    const s = getSessionBookingData()
-    return s?.scheduleTime || '03:30 PM'
-  })
-
   // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
   useEffect(() => {
     if (!isLiveLocation) return
