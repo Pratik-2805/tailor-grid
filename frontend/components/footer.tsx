@@ -12,8 +12,12 @@ import {
   X,
 } from 'lucide-react'
 import { type Screen } from './data'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 
 export function Footer({ go }: { go: (s: Screen) => void }) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'guarantee' | 'contact' | null>(null)
@@ -47,18 +51,18 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 <img src="/landscape_logo.jpeg" alt="Darzi Logo" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
               </div>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
-                On-demand master tailoring and alterations network. Guaranteed fit, upfront fixed rates, and doorstep service.
+                Professional clothing alterations and tailoring. Guaranteed perfect fit, upfront clear prices, and easy local service.
               </p>
 
               {/* Newsletter Subscription */}
               <div className="pt-1">
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-[#D1D5DB] mb-2">
-                  Join the Sartorial Club
+                  Subscribe for Offers &amp; Updates
                 </p>
                 {subscribed ? (
                   <div className="flex items-center gap-2 rounded-xl bg-[#064E3B]/30 border border-[#065F46] p-2.5 text-xs text-[#34D399]">
                     <CheckCircle2 size={15} />
-                    <span>You&apos;re on the priority list for $10 off first fitting.</span>
+                    <span>Thank you for subscribing! You&apos;ll receive our latest offers and updates.</span>
                   </div>
                 ) : (
                   <form onSubmit={handleSubscribe} className="flex items-center gap-2 max-w-[320px]">
@@ -91,10 +95,10 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 {[
                   'Trousers & Jeans Alterations',
                   'Suits & Blazer Tailoring',
-                  'Dresses & Gown Contouring',
-                  'Waist Suppression & Tapering',
+                  'Dresses & Gowns Fitting',
+                  'Waist & Slimming Adjustments',
                   'Ethnic & Occasion Wear',
-                  'Invisible Zip & Repair',
+                  'Zip & Garment Repairs',
                 ].map((serviceName) => (
                   <li key={serviceName}>
                     <button
@@ -114,8 +118,8 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
                 <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
                 <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
-                <li><button onClick={() => nav('for-partners')} className="hover:text-white transition-colors">Partner With Us</button></li>
-                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Digital Fit Passport</button></li>
+                <li><button onClick={() => isCustomer ? nav('book') : nav('for-partners')} className="hover:text-white transition-colors">{isCustomer ? 'Book Alterations' : 'Partner With Us'}</button></li>
+                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Saved Fit Profile</button></li>
               </ul>
             </div>
 
@@ -125,11 +129,13 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 Portals & Help
               </h5>
               <ul className="space-y-2 text-xs text-[#9CA3AF]">
-                <li>
-                  <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
-                    Partner Studio Portal
-                  </button>
-                </li>
+                {!isCustomer && (
+                  <li>
+                    <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
+                      Tailor Partner Portal
+                    </button>
+                  </li>
+                )}
                 <li>
                   <button onClick={() => setActiveModal('contact')} className="hover:text-white transition-colors text-left">
                     Contact & Support

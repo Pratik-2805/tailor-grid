@@ -12,7 +12,7 @@ const MVP_SERVICES = [
   {
     id: 'trousers',
     title: 'Trousers & Jeans',
-    desc: 'Plain hem, original denim chainstitch, waist take-in / let-out & leg tapering.',
+    desc: 'Shorten length, keep original hem, adjust waist & slim legs.',
     turnaround: '24h / 48h Service',
     price: 'From $20',
     garmentId: 'trousers',
@@ -21,7 +21,7 @@ const MVP_SERVICES = [
   {
     id: 'shirts',
     title: 'Shirts & Tops',
-    desc: 'Sleeve shortening, side tapering darts, shoulder adjustment & collar refitting.',
+    desc: 'Shorten sleeves, slim sides, adjust shoulders & collars.',
     turnaround: '24h / 48h Service',
     price: 'From $22',
     garmentId: 'shirts',
@@ -30,7 +30,7 @@ const MVP_SERVICES = [
   {
     id: 'dresses',
     title: 'Dresses & Gowns',
-    desc: 'Hem adjustment, strap & shoulder shortening, side seam contouring & zipper repair.',
+    desc: 'Adjust length, shorten straps, slim sides & fix zippers.',
     turnaround: '24h / 48h Service',
     price: 'From $24',
     garmentId: 'dresses',
@@ -39,7 +39,7 @@ const MVP_SERVICES = [
   {
     id: 'jackets',
     title: 'Jackets & Blazers',
-    desc: 'Sleeve shortening with buttons, center seam taper & waist suppression.',
+    desc: 'Shorten sleeves, take in sides & tailor waist for a modern fit.',
     turnaround: '24h / 48h Service',
     price: 'From $45',
     garmentId: 'jackets',
@@ -48,7 +48,7 @@ const MVP_SERVICES = [
   {
     id: 'suits',
     title: 'Suits & Formalwear',
-    desc: 'Complete 2-piece & 3-piece bespoke tailored fitting for weddings & business.',
+    desc: 'Complete 2-piece & 3-piece custom fitting for weddings, events & work.',
     turnaround: '48h Standard Service',
     price: 'From $68',
     garmentId: 'suits',
@@ -57,7 +57,7 @@ const MVP_SERVICES = [
   {
     id: 'ethnic',
     title: 'Ethnic & Occasion Wear',
-    desc: 'Blouse padding & fitting, lehenga shortening & delicate silk alterations.',
+    desc: 'Blouse fitting & pads, lehenga shortening & delicate fabric care.',
     turnaround: '48h Standard Service',
     price: 'From $38',
     garmentId: 'ethnic',

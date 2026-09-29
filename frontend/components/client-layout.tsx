@@ -9,6 +9,7 @@ import { StudioSubNav } from './studio-sub-nav'
 import { Footer } from './footer'
 import { AuthModal } from './auth-modal'
 import { SewingLoader } from './sewing-loader'
+import { getAuthRole } from '@/lib/cookies'
 import type { Screen } from './data'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
@@ -43,9 +44,21 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }
 
   const currentScreen = getScreenFromPath()
-  const isStudioScreen = currentScreen === 'for-partners' || currentScreen === 'partner'
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
+  const isStudioScreen = !isCustomer && (currentScreen === 'for-partners' || currentScreen === 'partner')
   const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
   const hideFooter = currentScreen === 'partner' || isBookScreen
+
+  // Route Guard: Logged-in customers must never access partner or studio routes via URL
+  React.useEffect(() => {
+    if (isAuthLoading) return
+    if (user && user.role === 'CUSTOMER') {
+      const clean = pathname ? pathname.replace(/^\//, '').split('/')[0] : ''
+      if (clean === 'for-partners' || clean === 'partner') {
+        navigate('/book')
+      }
+    }
+  }, [user, pathname, isAuthLoading, navigate])
 
   // Suppress third-party Chrome Extension unhandled promise rejections from noise-polluting Next.js console
   React.useEffect(() => {
