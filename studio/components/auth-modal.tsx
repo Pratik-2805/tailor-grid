@@ -782,19 +782,6 @@ export function AuthModal({
               <AuthButton icon={<Mail size={15} className="text-[#9E593B]" />} label="Sign in with Email" onClick={() => setMode('studio-login')} />
             </div>
 
-            {onDemoAccess && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={onDemoAccess}
-                  className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#9E593B]/10 hover:bg-[#9E593B]/20 border border-[#9E593B]/30 py-3 text-xs font-bold text-[#9E593B] transition-all cursor-pointer"
-                >
-                  <Sparkles size={14} className="text-[#9E593B]" />
-                  <span>Launch Demo Workbench Sandbox</span>
-                </button>
-              </div>
-            )}
-
             <Divider />
 
             <div className="text-center">
