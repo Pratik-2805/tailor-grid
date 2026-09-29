@@ -218,20 +218,23 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
     setSaveSuccess(false)
 
     try {
+      const measObj = {
+        fit: fitPreference,
+        waist,
+        inseam,
+        chest,
+        sleeve,
+      }
+
       const res = await updateUserProfile({
         name: name.trim(),
         address: address.trim(),
         postcode: cleanPin,
-      })
+        measurements: JSON.stringify(measObj),
+      } as any)
 
       if (typeof window !== 'undefined') {
-        const payload = JSON.stringify({
-          fit: fitPreference,
-          waist,
-          inseam,
-          chest,
-          sleeve,
-        })
+        const payload = JSON.stringify(measObj)
         const keys = [
           user.id ? `tg_measurements_${user.id}` : null,
           user.email ? `tg_measurements_${user.email}` : null,
@@ -508,72 +511,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             </div>
           </div>
 
-          {/* Section 2: Saved Measurements Vault */}
-          <div className="space-y-4 pt-4 border-t border-[#E8E1D5]">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Bespoke Fit Vault</h2>
-                <span className="text-[11px] text-[#7A7E85]">Auto-applies to bookings</span>
-              </div>
 
-              {!isEditingVault ? (
-                <button
-                  type="button"
-                  onClick={() => setIsEditingVault(true)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
-                >
-                  <Edit2 size={12} />
-                  <span>Edit</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleCancelVaultEdit}
-                    className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSaveProfile()}
-                    disabled={isSaving}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[#065F46] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                  >
-                    <Check size={12} />
-                    <span>{isSaving ? 'Saving...' : 'Save'}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Measurements row */}
-            <div className="grid grid-cols-4 gap-3 pt-2">
-              {[
-                { label: 'Waist (in)', val: waist, setter: setWaist },
-                { label: 'Inseam (in)', val: inseam, setter: setInseam },
-                { label: 'Chest (in)', val: chest, setter: setChest },
-                { label: 'Sleeve (in)', val: sleeve, setter: setSleeve },
-              ].map((m) => (
-                <div key={m.label} className="border-b border-[#D5CDC2] py-1.5">
-                  <span className="block text-[10px] uppercase text-[#7A7E85] font-semibold">{m.label}</span>
-                  {isEditingVault ? (
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={m.val}
-                      onChange={(e) => m.setter(e.target.value.replace(/[^\d.]/g, ''))}
-                      className="w-full bg-transparent text-sm font-bold text-[#18191B] outline-none pt-0.5"
-                    />
-                  ) : (
-                    <p className="py-0.5 text-sm font-bold text-[#18191B] border-b border-transparent">
-                      {m.val || '—'}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* Submit Action */}
           <div className="pt-4 flex items-center justify-between border-t border-[#E8E1D5]">

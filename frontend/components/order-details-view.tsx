@@ -20,6 +20,7 @@ import {
   Edit3,
   Plus,
   Loader2,
+  FileText,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
@@ -172,6 +173,43 @@ function parseOrderMeasurements(order?: any): Record<string, string> {
   return result
 }
 
+function loadProfileMeasurements(user: any): Record<string, string> | null {
+  if (user?.measurements) {
+    if (typeof user.measurements === 'object' && !Array.isArray(user.measurements)) {
+      return user.measurements
+    }
+    if (typeof user.measurements === 'string') {
+      try {
+        const parsed = JSON.parse(user.measurements)
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed
+        }
+      } catch { }
+    }
+  }
+
+  if (typeof window === 'undefined') return null
+  const candidateKeys = [
+    user?.id ? `tg_measurements_${user.id}` : null,
+    user?.email ? `tg_measurements_${user.email}` : null,
+    user ? `tg_measurements_${user.id || user.email || 'guest'}` : null,
+    'tg_measurements_guest',
+  ].filter(Boolean) as string[]
+
+  for (const k of candidateKeys) {
+    const saved = getStorageCookie(k) || (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed
+        }
+      } catch { }
+    }
+  }
+  return null
+}
+
 function SewStitchDoodlePlayer() {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -235,6 +273,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isCancelling, setIsCancelling] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [isRebooking, setIsRebooking] = useState(false)
+  const [userNote, setUserNote] = useState<string>('')
+  const [isEditingNote, setIsEditingNote] = useState(false)
+  const [editingNoteText, setEditingNoteText] = useState('')
+  const [isSavingNote, setIsSavingNote] = useState(false)
 
   // Status mapping derived before hooks
   const currentStatus = (order?.status || 'Allocated').toUpperCase()
@@ -348,6 +390,90 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       stopBookingTransition()
     }
   }, [slugId])
+
+  // Resolve customer's requested notes from order properties or browser local cache
+  useEffect(() => {
+    let noteFound = ''
+
+    // 1. Direct order.notes
+    if (order?.notes && typeof order.notes === 'string') {
+      const t = order.notes.trim()
+      if (t && !t.startsWith('{') && !t.startsWith('[') && t !== 'Requested from Atelier Booking Portal') {
+        noteFound = t
+      }
+    }
+
+    // 2. Direct order.fitNotes
+    if (!noteFound && order?.fitNotes && typeof order.fitNotes === 'string') {
+      const t = order.fitNotes.trim()
+      if (t && !t.startsWith('{') && !t.startsWith('[') && t !== 'Requested from Atelier Booking Portal') {
+        noteFound = t
+      }
+    }
+
+    // 3. Direct order.sewingNotes
+    if (!noteFound && order?.sewingNotes && typeof order.sewingNotes === 'string' && order.sewingNotes.trim()) {
+      noteFound = order.sewingNotes.trim()
+    }
+
+    // 4. Browser storage fallbacks
+    if (typeof window !== 'undefined') {
+      try {
+        const idToCheck = order?.id || slugId
+        const candidateKeys = [
+          idToCheck ? `tg_order_notes_${idToCheck}` : null,
+          idToCheck ? `tg_order_notes_${idToCheck.replace(/^#/, '')}` : null,
+          slugId ? `tg_order_notes_${slugId}` : null,
+          slugId ? `tg_order_notes_${slugId.replace(/^#/, '')}` : null,
+          'tg_last_booking_note',
+          'tg_booking_notes',
+        ].filter(Boolean) as string[]
+
+        for (const k of candidateKeys) {
+          const stored = localStorage.getItem(k)
+          if (stored && stored.trim() && !stored.trim().startsWith('{')) {
+            if (!noteFound) {
+              noteFound = stored.trim()
+            }
+            break
+          }
+        }
+      } catch { }
+    }
+
+    setUserNote(noteFound)
+    setEditingNoteText(noteFound)
+  }, [order, slugId])
+
+  const handleSaveNote = async () => {
+    const targetId = order?.id || slugId
+    if (!targetId) return
+    setIsSavingNote(true)
+    const newNote = editingNoteText.trim()
+    try {
+      await updateOrder(targetId, {
+        fitNotes: newNote,
+        notes: newNote,
+      } as any)
+      setUserNote(newNote)
+      setOrder((prev: any) => (prev ? { ...prev, notes: newNote, fitNotes: newNote } : prev))
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`tg_order_notes_${targetId}`, newNote)
+          localStorage.setItem(`tg_order_notes_${targetId.replace(/^#/, '')}`, newNote)
+          localStorage.setItem(`tg_order_notes_${slugId}`, newNote)
+          setStorageCookie(`tg_order_notes_${targetId}`, newNote)
+        } catch { }
+      }
+      setIsEditingNote(false)
+      toast.success('Fitting notes updated!', { position: 'top-center' })
+    } catch (err) {
+      console.error('Failed to update note:', err)
+      toast.error('Could not save note. Please try again.')
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
 
   const destinationCoords = {
     lat: order?.store?.lat ? Number(order.store.lat) : (order?.store?.coords?.lat || 19.3919),
@@ -649,6 +775,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       setShowCancelModal(false)
     }
   }
+
+
 
   // Dynamic Header Text
   let headerTitle = 'Order Accepted'
@@ -1032,134 +1160,102 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
               </div>
 
-              {/* Lower Section: Measurements Spec */}
-              <div className="pt-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Scissors size={14} className="text-[#9E593B]" />
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-[#0F1115]">
-                      Your Measurements:
-                    </span>
-                  </div>
+              {/* Lower Section: Garment Notes & Photos */}
+              <div className="pt-4 space-y-3">
 
-                  {!isInProgress && !isReady && !isCompleted && !isCancelled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const parsed = parseOrderMeasurements(order)
-                        const entries = Object.entries(parsed)
-                        if (entries.length > 0) {
-                          setEditMeasFields(entries.map(([k, v]) => ({ key: k, label: formatMeasurementKey(k), value: String(v) })))
-                        } else {
-                          setEditMeasFields([
-                            { key: 'hem', label: 'Hem Adjustment', value: '' },
-                            { key: 'waist', label: 'Waist / Seat', value: '' },
-                            { key: 'sleeve', label: 'Sleeve Length', value: '' },
-                            { key: 'length', label: 'Shirt / Garment Length', value: '' },
-                          ])
-                        }
-                        setIsEditingMeas(!isEditingMeas)
-                      }}
-                      className="text-[11px] font-bold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Edit3 size={11} />
-                      <span>{isEditingMeas ? 'Close Editor' : 'Edit Measurements'}</span>
-                    </button>
-                  )}
-                </div>
-
-                {isEditingMeas && (
-                  /* Customer Inline Measurement Editor */
-                  <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-3 mb-3 animate-in fade-in duration-150">
-                    <p className="text-[11px] text-gray-600 font-medium">
-                      Update your fit requests before visiting the studio for drop-off:
-                    </p>
-                    <div className="grid sm:grid-cols-2 gap-2">
-                      {editMeasFields.map((field, idx) => (
-                        <div key={idx} className="bg-white p-2.5 rounded-lg border border-gray-200">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
-                            {field.label}
-                          </label>
-                          <input
-                            type="text"
-                            value={field.value}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              setEditMeasFields(prev => prev.map((f, i) => i === idx ? { ...f, value: val } : f))
-                            }}
-                            placeholder={`Enter ${field.label} (e.g. 32 in or -3 cm)`}
-                            className="w-full px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-200 text-xs font-semibold text-[#0F1115] focus:bg-white focus:border-[#9E593B] outline-none"
-                          />
-                        </div>
-                      ))}
+                {/* Fitting & Alteration Notes Card */}
+                <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-md bg-neutral-900 text-white flex items-center justify-center shrink-0">
+                        <FileText size={11} className="text-white" />
+                      </div>
+                      <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-500">
+                        Fitting &amp; Alteration Notes
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1">
+                    {!isEditingNote && !isCompleted && !isCancelled && (
                       <button
                         type="button"
                         onClick={() => {
-                          const newKey = `custom_${Date.now()}`
-                          setEditMeasFields(prev => [...prev, { key: newKey, label: 'Custom Note', value: '' }])
+                          setEditingNoteText(userNote)
+                          setIsEditingNote(true)
                         }}
-                        className="text-[11px] text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-neutral-600 hover:text-black py-0.5 px-2 rounded-md hover:bg-neutral-200/60 transition-colors cursor-pointer"
                       >
-                        <Plus size={11} />
-                        <span>Add Field</span>
+                        <Edit3 size={11} />
+                        <span>{userNote ? 'Edit' : 'Add Note'}</span>
                       </button>
+                    )}
+                  </div>
 
-                      <div className="flex items-center gap-2">
+                  {isEditingNote ? (
+                    <div className="mt-2 space-y-2">
+                      <textarea
+                        value={editingNoteText}
+                        onChange={(e) => setEditingNoteText(e.target.value)}
+                        placeholder="Add any specific fitting notes, style preferences, or alteration instructions for the tailor..."
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white focus:border-black text-xs font-semibold text-black placeholder:text-gray-400 outline-none transition-all resize-none shadow-2xs"
+                        autoFocus
+                      />
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => setIsEditingMeas(false)}
-                          className="px-3 py-1 rounded-lg border border-gray-300 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+                          onClick={() => {
+                            setEditingNoteText(userNote)
+                            setIsEditingNote(false)
+                          }}
+                          disabled={isSavingNote}
+                          className="px-2.5 py-1 text-xs font-bold text-gray-500 hover:text-black rounded-lg transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          disabled={isSavingMeas}
-                          onClick={handleSaveCustomerMeasurements}
-                          className="px-3 py-1 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                          onClick={handleSaveNote}
+                          disabled={isSavingNote}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-black hover:bg-neutral-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                         >
-                          {isSavingMeas ? 'Saving…' : '✓ Save Fit Specs'}
+                          {isSavingNote ? (
+                            <>
+                              <Loader2 size={12} className="animate-spin" />
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check size={12} />
+                              <span>Save Note</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
-                  </div>
-                )}
-
-                {(() => {
-                  const parsed = parseOrderMeasurements(order)
-                  const entries = Object.entries(parsed)
-                  if (entries.length > 0) {
-                    return (
-                      <div className="flex flex-wrap gap-2">
-                        {entries.map(([key, val]) => (
-                          <span
-                            key={key}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F8F8F8] border border-gray-200/90 text-xs font-bold text-black"
-                          >
-                            <span className="capitalize text-gray-500 font-semibold">{formatMeasurementKey(key)}:</span>
-                            <span>{String(val)}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )
-                  }
-                  return (
-                    <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-3 flex items-center gap-2.5">
-                      <p className="text-xs text-amber-900 font-medium">
-                        Tailor will measure your fit upon drop-off.
+                  ) : userNote ? (
+                    <p className="mt-1 text-xs sm:text-sm font-semibold text-[#0F1115] leading-relaxed break-words whitespace-pre-wrap">
+                      {userNote}
+                    </p>
+                  ) : (
+                    <div className="mt-1 flex items-center justify-between">
+                      <p className="text-xs text-gray-400 italic">
+                        No special notes added while requesting.
                       </p>
+                      {!isCompleted && !isCancelled && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoteText('')
+                            setIsEditingNote(true)
+                          }}
+                          className="text-xs font-bold text-[#9E593B] hover:underline cursor-pointer"
+                        >
+                          + Add instructions
+                        </button>
+                      )}
                     </div>
-                  )
-                })()}
-
-                {order?.notes && (
-                  <p className="mt-3 text-xs text-gray-600 bg-gray-50 p-3 rounded-xl border border-gray-200/70 font-medium">
-                    <span className="font-bold text-black">Tailoring Notes:</span> {order.notes}
-                  </p>
-                )}
+                  )}
+                </div>
 
                 {(() => {
                   const photos = getAllGarmentPhotos(order)

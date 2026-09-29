@@ -78,6 +78,7 @@ export type FittingBooking = {
   timeSlot: string
   garmentBrand?: string
   fitNotes?: string
+  notes?: string
   pinnedAdjustment?: string
   sewingNotes?: string
   slaHours?: number

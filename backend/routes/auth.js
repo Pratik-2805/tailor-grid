@@ -1169,6 +1169,7 @@ router.post('/update-profile', async (req, res) => {
       workers,
       specialties,
       leadTailor,
+      measurements,
     } = req.body;
     let targetId = userId || id;
 
@@ -1244,6 +1245,9 @@ router.post('/update-profile', async (req, res) => {
     }
     if (address) updateData.address = address;
     if (postcode) updateData.postcode = postcode;
+    if (measurements !== undefined) {
+      updateData.measurements = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
+    }
 
     let user = await prisma.user.update({
       where: { id: targetId },

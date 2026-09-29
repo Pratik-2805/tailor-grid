@@ -1,7 +1,7 @@
 'use client'
 
 import { CatalogSection } from './catalog-section'
-import { FitProfileSection } from './fit-profile-section'
+
 import { HeroSection } from './hero-section'
 import { HowItWorksPreview } from './how-it-works-preview'
 import { PartnerBanner } from './partner-banner'
@@ -69,8 +69,7 @@ export function HomeView({
       {/* 6. Verified Local Studios & Ateliers Network */}
       <StudiosPreview go={go} onSelectStore={onSelectStore} />
 
-      {/* 7. Digital Fit Passport Spotlight */}
-      <FitProfileSection go={go} />
+
 
       {/* 8. Partner Banner for Master Tailors (Rapido Captain / Uber Driver style) */}
       <PartnerBanner go={go} />

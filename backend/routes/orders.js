@@ -85,8 +85,9 @@ router.post('/dispatch/start', async (req, res) => {
       date: date || new Date().toISOString().split('T')[0],
       timeSlot: timeSlot || '14:00 - 15:00',
       garmentBrand: garmentBrand || '',
-      fitNotes: fitNotes || measurementsStr || '',
+      fitNotes: fitNotes || req.body.notes || req.body.bookingNotes || measurementsStr || '',
       pinnedAdjustment: measurementsStr || '',
+      measurements: measurements || null,
       partnerPayout,
       imageUrl: req.body.intakePhotoUrl || imageUrl || null,
       price: parsedPrice,
@@ -277,9 +278,9 @@ function parseOrderMeasurements(pinnedAdjustment) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') return parsed;
     } catch { }
-  } else if (raw.includes('·') || raw.includes(':')) {
+  } else if (raw.includes('·') || raw.includes(':') || raw.includes(',')) {
     const result = {};
-    const parts = raw.split('·').map((s) => s.trim()).filter(Boolean);
+    const parts = raw.split(/[·,]/).map((s) => s.trim()).filter(Boolean);
     parts.forEach((p) => {
       const colonIdx = p.indexOf(':');
       if (colonIdx !== -1) {
@@ -295,10 +296,44 @@ function parseOrderMeasurements(pinnedAdjustment) {
 
 function formatOrderOutput(o) {
   if (!o) return o;
-  const measurements = parseOrderMeasurements(o.pinnedAdjustment);
+  let measurements = parseOrderMeasurements(o.pinnedAdjustment);
+
+  if (Object.keys(measurements).length === 0 && o.user?.measurements) {
+    try {
+      const userMeas = typeof o.user.measurements === 'object' ? o.user.measurements : JSON.parse(o.user.measurements);
+      if (userMeas && typeof userMeas === 'object') {
+        const prefilled = {};
+        if (userMeas.waist) prefilled.waist = String(userMeas.waist).endsWith('in') || String(userMeas.waist).endsWith('cm') ? String(userMeas.waist) : `${userMeas.waist} in`;
+        if (userMeas.inseam) prefilled.inseam = String(userMeas.inseam).endsWith('in') || String(userMeas.inseam).endsWith('cm') ? String(userMeas.inseam) : `${userMeas.inseam} in`;
+        if (userMeas.sleeve) prefilled.sleeve = String(userMeas.sleeve).endsWith('in') || String(userMeas.sleeve).endsWith('cm') ? String(userMeas.sleeve) : `${userMeas.sleeve} in`;
+        if (userMeas.chest) prefilled.chest = String(userMeas.chest).endsWith('in') || String(userMeas.chest).endsWith('cm') ? String(userMeas.chest) : `${userMeas.chest} in`;
+        if (Object.keys(prefilled).length > 0) measurements = prefilled;
+      }
+    } catch (e) { }
+  }
+
+  let cleanNotes = o.fitNotes || o.notes || o.sewingNotes || '';
+  if (typeof cleanNotes === 'string') {
+    const trimmed = cleanNotes.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      cleanNotes = '';
+    }
+  }
+
+  let finalFitNotes = o.fitNotes || '';
+  if (typeof finalFitNotes === 'string') {
+    const trimmed = finalFitNotes.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      finalFitNotes = '';
+    }
+  }
+
   const updated = {
     ...o,
+    notes: cleanNotes || '',
+    fitNotes: cleanNotes || finalFitNotes || '',
     measurements,
+    pinnedAdjustment: o.pinnedAdjustment || (Object.keys(measurements).length > 0 ? JSON.stringify(measurements) : null),
     customerLocation: (o.customerLat && o.customerLng) ? { lat: o.customerLat, lng: o.customerLng } : null,
     tailorLocation: (o.tailorLat && o.tailorLng)
       ? { lat: o.tailorLat, lng: o.tailorLng }
@@ -353,6 +388,7 @@ router.get('/', async (req, res) => {
       where,
       include: {
         store: true,
+        user: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -380,6 +416,7 @@ router.get('/:id', async (req, res) => {
       where: { id },
       include: {
         store: true,
+        user: true,
       },
     });
 
@@ -393,6 +430,7 @@ router.get('/:id', async (req, res) => {
         where: { OR: searchConditions },
         include: {
           store: true,
+          user: true,
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -499,6 +537,8 @@ router.post('/', async (req, res) => {
         garmentBrand: garmentBrand || '',
         fitNotes: (() => {
           if (fitNotes) return fitNotes;
+          if (req.body.notes) return req.body.notes;
+          if (req.body.bookingNotes) return req.body.bookingNotes;
           if (!measurementsStr) return '';
           try {
             const parsed = JSON.parse(measurementsStr);
@@ -586,10 +626,11 @@ router.put('/:id', async (req, res) => {
     if (storePhone !== undefined) updateData.storePhone = storePhone;
     if (otp !== undefined) updateData.otp = otp;
     if (fitNotes !== undefined) updateData.fitNotes = fitNotes;
-    if (pinnedAdjustment !== undefined) {
-      updateData.pinnedAdjustment = typeof pinnedAdjustment === 'object' ? JSON.stringify(pinnedAdjustment) : pinnedAdjustment;
-    } else if (measurements !== undefined) {
-      updateData.pinnedAdjustment = typeof measurements === 'object' ? JSON.stringify(measurements) : measurements;
+    else if (req.body.notes !== undefined) updateData.fitNotes = req.body.notes;
+    if (measurements !== undefined && measurements !== null) {
+      updateData.pinnedAdjustment = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
+    } else if (pinnedAdjustment !== undefined) {
+      updateData.pinnedAdjustment = typeof pinnedAdjustment === 'object' ? JSON.stringify(pinnedAdjustment) : String(pinnedAdjustment);
     }
     if (sewingNotes !== undefined) updateData.sewingNotes = sewingNotes;
     if (assignedWorker !== undefined) updateData.assignedWorker = assignedWorker;

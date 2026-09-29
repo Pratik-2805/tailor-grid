@@ -386,6 +386,20 @@ function parseMeasurementsFromBooking(
 }
 
 function loadProfileMeasurements(user: any): Record<string, string> | null {
+  if (user?.measurements) {
+    if (typeof user.measurements === 'object' && !Array.isArray(user.measurements)) {
+      return user.measurements
+    }
+    if (typeof user.measurements === 'string') {
+      try {
+        const parsed = JSON.parse(user.measurements)
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed
+        }
+      } catch { }
+    }
+  }
+
   if (typeof window === 'undefined') return null
   const candidateKeys = [
     user?.id ? `tg_measurements_${user.id}` : null,
@@ -608,6 +622,7 @@ export default function BookPage() {
   const [measUnit, setMeasUnit] = useState<'in' | 'cm'>('in')
   const [customMeasurements, setCustomMeasurements] = useState<Record<string, string>>({})
   const [isTailorMeasuredMap, setIsTailorMeasuredMap] = useState<Record<string, boolean>>({})
+  const [bookingNotes, setBookingNotes] = useState('')
 
   const handleUnitChange = (newUnit: 'in' | 'cm') => {
     if (newUnit === measUnit) return
@@ -915,10 +930,6 @@ export default function BookPage() {
 
   // Complete Booking flow execution
   const executeBooking = async (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
-    if (uploadedImages.length === 0) {
-      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
-      return
-    }
     if (!user || !user.phone) {
       openAuth('CUSTOMER', user ? 'signup' : 'signin')
       return
@@ -927,13 +938,20 @@ export default function BookPage() {
     const finalMeasurements: Record<string, string> = {}
     activeMeasurementFields.forEach((field) => {
       const customVal = customMeasurements[field.key]?.trim()
-      const isTailor = isTailorMeasuredMap[field.key] === true || (!customVal && isTailorMeasuredMap[field.key] !== false)
-      if (isTailor || !customVal || customVal === 'To be Measured by Tailor') {
+      const isExplicitTailor = isTailorMeasuredMap[field.key] === true
+      if (isExplicitTailor || (!customVal && isTailorMeasuredMap[field.key] !== false) || customVal === 'To be Measured by Tailor') {
         finalMeasurements[field.key] = 'To be Measured by Tailor'
-      } else {
+      } else if (customVal) {
         finalMeasurements[field.key] = customVal
       }
     })
+
+    // Also preserve any pre-filled profile measurements (waist, inseam, etc.) with values
+    for (const [k, v] of Object.entries(customMeasurements)) {
+      if (v && v.trim() && v !== 'To be Measured by Tailor' && !finalMeasurements[k]) {
+        finalMeasurements[k] = v.trim()
+      }
+    }
 
     const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
     const uniqueTs = Date.now().toString().slice(-6)
@@ -973,7 +991,7 @@ export default function BookPage() {
       serviceName: currentService.name,
       measurements: measurementsData,
       brand: 'Levi\'s / Bespoke',
-      notes: 'Requested from Atelier Booking Portal',
+      notes: bookingNotes.trim() || 'Requested from Atelier Booking Portal',
       images: uploadedImages,
       city: selectedCity,
       date: formattedDateDisplay,
@@ -1028,10 +1046,19 @@ export default function BookPage() {
           price: currentService.customerPrice || currentCategory.startingPrice || 25,
           date: formattedDateDisplay,
           timeSlot: activeSchedTime,
-          measurements: measurementsData,
           imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
           status: 'Allocated',
-        })
+          notes: bookingNotes.trim() || undefined,
+          fitNotes: bookingNotes.trim() || undefined,
+        } as any)
+        if (typeof window !== 'undefined' && bookingNotes.trim()) {
+          try {
+            localStorage.setItem(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
+            localStorage.setItem('tg_last_booking_note', bookingNotes.trim())
+            localStorage.setItem('tg_booking_notes', bookingNotes.trim())
+            setStorageCookie(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
+          } catch { }
+        }
         toast.success('Scheduled atelier fitting confirmed!', { position: 'top-center' })
         router.push(`/order/${newOrderId}`)
       } catch (error) {
@@ -1072,7 +1099,17 @@ export default function BookPage() {
         timeSlot: activeSchedTime,
         measurements: measurementsData,
         imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
-      })
+        notes: bookingNotes.trim() || undefined,
+        fitNotes: bookingNotes.trim() || undefined,
+      } as any)
+      if (typeof window !== 'undefined' && bookingNotes.trim()) {
+        try {
+          localStorage.setItem(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
+          localStorage.setItem('tg_last_booking_note', bookingNotes.trim())
+          localStorage.setItem('tg_booking_notes', bookingNotes.trim())
+          setStorageCookie(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
+        } catch { }
+      }
 
       // If zero tailors found initially within 5 miles
       if (dispatchStartRes.dispatch?.status === 'ZERO_TAILORS') {
@@ -1324,14 +1361,14 @@ export default function BookPage() {
                 )}
               </div>
 
-              {/* 3. Garment Photo / Reference Fit (Required - Max 4) */}
+              {/* 3. Garment Photo / Reference Fit (Optional - Max 4) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
                     <span>GARMENT PHOTO / REFERENCE FIT</span>
-                    <span className="text-red-500 font-bold">* (REQUIRED)</span>
+                    <span className="text-gray-400 font-normal">(OPTIONAL)</span>
                   </p>
-                  <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                  <span className="text-[10px] font-bold text-gray-500">
                     {uploadedImages.length}/4 Photos
                   </span>
                 </div>
@@ -1377,142 +1414,20 @@ export default function BookPage() {
                 </div>
               </div>
 
-              {/* 4. Your Measurement Collapsible Section with Smooth Slide Transition */}
-              <div className="pt-3 border-t border-gray-100">
-                {/* Header Row */}
-                <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsMeasurementOpen(!isMeasurementOpen)
-                      if (isMeasurementOpen) setIsEditingMeasurements(false)
-                    }}
-                    className="py-1 text-left text-neutral-500 hover:text-black transition-colors cursor-pointer group flex-1 min-w-0"
-                  >
-                    <p className="text-[11px] font-black uppercase tracking-wider text-neutral-500 group-hover:text-black transition-colors truncate">
-                      YOUR MEASUREMENT <span className="text-gray-400 font-semibold">({currentCategory.name})</span>
-                    </p>
-                  </button>
-
-                  {/* Right Side: Edit button & collapse chevron (Unit Toggle only visible when editing) */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isMeasurementOpen ? (
-                      <div className="flex items-center gap-1.5 animate-in fade-in duration-200">
-                        {/* Unit Switcher: only visible when clicking Edit values */}
-                        {isEditingMeasurements && (
-                          <div className="flex items-center p-0.5 bg-neutral-100 rounded-lg border border-gray-200 mr-0.5 animate-in fade-in zoom-in-95 duration-150">
-                            <button
-                              type="button"
-                              onClick={() => handleUnitChange('in')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'in'
-                                ? 'bg-black text-white shadow-xs'
-                                : 'text-neutral-500 hover:text-black'
-                                }`}
-                              title="Inches"
-                            >
-                              in
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUnitChange('cm')}
-                              className={`px-2 py-0.5 text-[11px] font-extrabold rounded-md transition-all cursor-pointer ${measUnit === 'cm'
-                                ? 'bg-black text-white shadow-xs'
-                                : 'text-neutral-500 hover:text-black'
-                                }`}
-                              title="Centimeters"
-                            >
-                              cm
-                            </button>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingMeasurements(!isEditingMeasurements)}
-                          className="text-xs font-bold text-neutral-700 hover:text-black flex items-center gap-1 cursor-pointer transition-colors py-1 px-2.5 rounded-lg hover:bg-neutral-100 bg-neutral-50"
-                        >
-                          <Edit3 size={13} />
-                          <span>{isEditingMeasurements ? 'Done editing' : 'Edit values'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsMeasurementOpen(false)
-                            setIsEditingMeasurements(false)
-                          }}
-                          className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
-                          title="Close measurements"
-                        >
-                          <ChevronDown size={18} className="rotate-180 transition-transform duration-300" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setIsMeasurementOpen(true)}
-                        className="p-1 rounded-lg text-neutral-400 hover:text-black hover:bg-neutral-100 transition-colors cursor-pointer"
-                        title="Open measurements"
-                      >
-                        <ChevronDown size={18} className="rotate-0 transition-transform duration-300" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Smooth Animated Dropdown Body (overflow-visible when open so dropdown menus are never clipped) */}
-                <div
-                  className={`transition-all duration-300 ease-in-out ${isMeasurementOpen
-                    ? 'max-h-[900px] opacity-100 pt-2.5 overflow-visible pb-2'
-                    : 'max-h-0 opacity-0 pt-0 overflow-hidden pointer-events-none'
-                    }`}
-                >
-                  <div className="space-y-2">
-                    {activeMeasurementFields.map((field) => {
-                      const customVal = customMeasurements[field.key] || ''
-                      const fieldPlaceholder = getFieldPlaceholder(field.placeholder, measUnit)
-
-                      return (
-                        <div
-                          key={field.key}
-                          className="flex items-center justify-between gap-3 py-1.5 px-1 hover:bg-neutral-50/80 rounded-xl transition-colors"
-                        >
-                          <span className="text-xs sm:text-sm font-bold text-[#0F1115]">{field.label}</span>
-
-                          {/* Right: Badge or Edit input */}
-                          <div className="shrink-0 flex items-center">
-                            {isEditingMeasurements ? (
-                              field.type === 'select' && field.options ? (
-                                <MeasurementOptionDropdown
-                                  value={customVal}
-                                  options={field.options}
-                                  placeholder={fieldPlaceholder}
-                                  onChange={(val) => handleMeasurementChange(field.key, val)}
-                                />
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={customVal}
-                                  placeholder={fieldPlaceholder}
-                                  onChange={(e) => handleMeasurementChange(field.key, e.target.value)}
-                                  className="w-48 sm:w-52 h-9 px-3 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all"
-                                />
-                              )
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingMeasurements(true)}
-                                className="inline-flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-[#F3F3F3] hover:bg-[#EBEBEB] text-black text-xs font-bold transition-colors cursor-pointer"
-                              >
-                                <Scissors size={12} className="text-neutral-600" />
-                                <span>{customVal || 'To be Measured by Tailor'}</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+              {/* 4. Fitting & Alteration Notes Section */}
+              <div className="pt-3.5 border-t border-gray-100 space-y-2">
+                <label htmlFor="booking-notes" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-neutral-500">
+                  <Edit3 size={13} className="text-[#9E593B]" />
+                  <span>Fitting &amp; Alteration Notes / Instructions</span>
+                </label>
+                <textarea
+                  id="booking-notes"
+                  value={bookingNotes}
+                  onChange={(e) => setBookingNotes(e.target.value)}
+                  placeholder="Add any specific fitting notes, style preferences, or alteration instructions for the tailor..."
+                  rows={3}
+                  className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-semibold text-black placeholder:text-gray-400 outline-none transition-all resize-none shadow-2xs"
+                />
               </div>
 
               {/* 5. Action Buttons Row */}

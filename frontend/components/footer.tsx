@@ -115,7 +115,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
                 <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
                 <li><button onClick={() => nav('for-partners')} className="hover:text-white transition-colors">Partner With Us</button></li>
-                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Digital Fit Passport</button></li>
+                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">My Orders</button></li>
               </ul>
             </div>
 
