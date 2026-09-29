@@ -715,7 +715,7 @@ export function StudioProfileView({
                     </p>
                     <div className="flex items-center gap-2 text-[11px] text-[#6B7280] mt-1 flex-wrap">
                       <span className="bg-[#FAF3EC] text-[#9E593B] px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        80% Escrow
+                        Direct Studio Settlement
                       </span>
                       <span>·</span>
                       <span className="truncate max-w-[200px]">{address || area || 'Studio Address'}</span>
@@ -1209,8 +1209,8 @@ export function StudioProfileView({
                   <CreditCard size={18} />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-[#1E2229]">Stripe Connect Direct Escrow</div>
-                  <div className="text-[11px] text-[#6B7280]">80% net payout deposited on standard 15-day rolling cycle.</div>
+                  <div className="text-xs font-bold text-[#1E2229]">Direct Studio Settlement</div>
+                  <div className="text-[11px] text-[#6B7280]">Customer pays standard alteration price directly at pickup.</div>
                 </div>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full whitespace-nowrap">

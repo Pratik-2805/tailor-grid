@@ -67,6 +67,7 @@ interface BroadcastRequest {
   garmentBrand?: string
   fitNotes: string
   partnerPayout: number
+  price?: number
   slaHours: number
   imageUrl: string
   otp: string
@@ -614,6 +615,36 @@ export function PartnerFlow({
   const [activeIntake, setActiveIntake] = useState<FittingBooking | null>(null)
   const [showKeypad, setShowKeypad] = useState(false)
 
+  // ── Workshop Notifications Center ──────────────────────────────────────────
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const [notificationTab, setNotificationTab] = useState<'all' | 'dropoff' | 'dispatch' | 'ready'>('all')
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>([])
+  const notificationRef = useRef<HTMLDivElement | null>(null)
+
+  // Close notifications popover on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setNotificationOpen(false)
+      }
+    }
+    if (notificationOpen) {
+      document.addEventListener('mousedown', handleOutsideClick)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [notificationOpen])
+
+  // Auto-dismiss PIN error banner after 7 seconds
+  useEffect(() => {
+    if (!pinError) return
+    const timer = setTimeout(() => {
+      setPinError('')
+    }, 7000)
+    return () => clearTimeout(timer)
+  }, [pinError])
+
   // In-Store Measurements & Tailor Specs
   const [measHem, setMeasHem] = useState('')
   const [measWaist, setMeasWaist] = useState('')
@@ -875,7 +906,8 @@ export function PartnerFlow({
       fittingType: 'NEED_STUDIO_FITTING',
       garmentBrand: pd.order?.garmentBrand || '',
       fitNotes: pd.order?.fitNotes || 'Customer requested standard alteration pinning at counter.',
-      partnerPayout: pd.payout || pd.order?.partnerPayout || 15,
+      partnerPayout: pd.order?.price || pd.payout || pd.order?.partnerPayout || 25,
+      price: pd.order?.price || pd.payout || 25,
       slaHours: pd.order?.slaHours || 48,
       imageUrl: pd.order?.imageUrl || pd.order?.intakePhotoUrl || '',
       otp: pd.order?.otp || '0000',
@@ -895,7 +927,8 @@ export function PartnerFlow({
     fittingType: 'NEED_STUDIO_FITTING' as const,
     garmentBrand: o.garmentBrand || '',
     fitNotes: o.fitNotes || o.pinnedAdjustment || 'Customer requested alteration fitting.',
-    partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
+    partnerPayout: o.price || o.partnerPayout || 30,
+    price: o.price || 30,
     slaHours: o.slaHours || 48,
     imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
     otp: o.otp || '0000',
@@ -917,7 +950,7 @@ export function PartnerFlow({
     const assignedStudioId = currentStudioId
     const assignedStudioName = (user?.studioName && user.studioName.trim()) || studioName || (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
     const assignedStudioPhone = user?.phone || user?.contact || ''
-    const partnerPayout = order.partnerPayout || Math.round((order.price || 30) * 0.75)
+    const partnerPayout = order.price || order.partnerPayout || 30
 
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
@@ -1201,10 +1234,15 @@ export function PartnerFlow({
     )
 
     if (otherOrder) {
+      if (otherOrder.status === 'Ready') {
+        // Customer arrived at counter for pickup! Open Pickup Handover & Payment modal immediately
+        setPinInput('')
+        setPinError('')
+        handleOpenPickupModal(otherOrder, clean)
+        return
+      }
       if (otherOrder.status === 'Work in Progress') {
         setPinError(`Order #${otherOrder.id} (${otherOrder.customerName}) is already on the sewing bench.`)
-      } else if (otherOrder.status === 'Ready') {
-        setPinError(`Order #${otherOrder.id} is already completed and ready on the rack for pickup.`)
       } else if (otherOrder.status === 'Closed' || otherOrder.status === 'Collected') {
         setPinError(`Order #${otherOrder.id} has already been completed and collected.`)
       } else if (otherOrder.status === 'Allocated') {
@@ -1398,11 +1436,12 @@ export function PartnerFlow({
   }
 
   // Pickup verification & retail settlement
-  const handleOpenPickupModal = (order: FittingBooking) => {
+  const handleOpenPickupModal = (order: FittingBooking, prefilledPin?: string) => {
     setPickupModalOrder(order)
-    setPickupOtpInput('')
+    const pin = prefilledPin ? prefilledPin.trim() : ''
+    setPickupOtpInput(pin)
     setPickupOtpError('')
-    setPickupVerified(false)
+    setPickupVerified(pin ? isOrderPinMatch(order, pin) : false)
     setRetailAnswer(null)
     setRetailValueInput('45')
     setRetailCategoryInput('Accessories & Ties')
@@ -1425,6 +1464,7 @@ export function PartnerFlow({
     const hasRetail = retailAnswer === 'YES'
     const retailVal = hasRetail ? 45 : undefined
     const retailCat = hasRetail ? 'Accessories & Ties' : undefined
+    const collectedPrice = pickupModalOrder.price || 0
 
     const updates: Partial<FittingBooking> = {
       status: 'Closed',
@@ -1443,19 +1483,23 @@ export function PartnerFlow({
     setTimeout(() => {
       setPickupModalOrder(null)
       setPickupCompleted(false)
-      setBroadcastToast(`✓ Order Handover Complete! Earnings Credited.`)
+      setBroadcastToast(`✓ Payment Received! +$${collectedPrice} added to Today's Revenue. Handover complete.`)
       setTimeout(() => setBroadcastToast(null), 5000)
     }, 1500)
   }
 
-  // Stats computed from real database orders
+  // Stats computed from real database orders (actual standard rate customer pays directly at studio upon pickup)
+  // Revenue ONLY increases when 2nd OTP is verified and order is Closed / Collected!
   const todayEarned = orders
-    .filter((o) => ['Work in Progress', 'Ready', 'Collected', 'Closed'].includes(o.status))
-    .reduce((sum, o) => sum + (o.partnerPayout || Math.round((o.price || 35) * 0.8)), 0)
-
-  const totalClosedDisbursed = orders
     .filter((o) => o.status === 'Closed' || o.status === 'Collected')
-    .reduce((sum, o) => sum + (o.partnerPayout || Math.round((o.price || 35) * 0.8)), 0)
+    .reduce((sum, o) => sum + (o.price || 0), 0)
+
+  // Pending value currently in progress or awaiting pickup
+  const pendingPickupValue = orders
+    .filter((o) => ['Work in Progress', 'Ready'].includes(o.status))
+    .reduce((sum, o) => sum + (o.price || 0), 0)
+
+  const totalClosedDisbursed = todayEarned
 
   const pipelineOrders = orders.filter((o) => o.status !== 'Allocated')
 
@@ -1500,6 +1544,101 @@ export function PartnerFlow({
       }
     }
   }
+
+  // ── Workshop Notifications Generation ──────────────────────────────────────
+  interface WorkshopNotificationItem {
+    id: string
+    category: 'dropoff' | 'dispatch' | 'ready' | 'bench'
+    title: string
+    subtitle: string
+    time: string
+    pin?: string
+    actionLabel: string
+    onAction: () => void
+  }
+
+  const allNotifications: WorkshopNotificationItem[] = [
+    // 1. Scheduled Drop-Offs arriving today
+    ...orders
+      .filter((o) => o.status === 'Accepted')
+      .map((o) => ({
+        id: `dropoff-${o.id}`,
+        category: 'dropoff' as const,
+        title: `Drop-off: ${o.customerName}`,
+        subtitle: `${o.garmentName} • ${o.serviceName}`,
+        time: o.timeSlot || 'Scheduled Today',
+        pin: o.otp,
+        actionLabel: 'Check In',
+        onAction: () => {
+          if (o.otp) {
+            setPinInput(o.otp)
+            setPinError('')
+            handleLookupPin(o.otp)
+          }
+          setNotificationOpen(false)
+        },
+      })),
+
+    // 2. Incoming Dispatch Requests
+    ...allBroadcasts.map((bc) => ({
+      id: `dispatch-${bc.id}`,
+      category: 'dispatch' as const,
+      title: `Incoming Request #${bc.id}`,
+      subtitle: `${bc.garmentName} • ${bc.serviceName} ($${bc.price || bc.partnerPayout})`,
+      time: 'New Request',
+      actionLabel: 'Review',
+      onAction: () => {
+        setNotificationOpen(false)
+      },
+    })),
+
+    // 3. Ready on Rack for Customer Pickup
+    ...orders
+      .filter((o) => o.status === 'Ready')
+      .map((o) => ({
+        id: `ready-${o.id}`,
+        category: 'ready' as const,
+        title: `Ready for Pickup: ${o.customerName}`,
+        subtitle: `${o.garmentName} (${o.hangTagNo || 'Rack'})`,
+        time: 'Ready Stage',
+        pin: o.otp,
+        actionLabel: 'Hand Over',
+        onAction: () => {
+          setSelectedOrder(o)
+          setActiveTab('pipeline')
+          setNotificationOpen(false)
+        },
+      })),
+
+    // 4. Sewing Bench In-Progress Alterations
+    ...orders
+      .filter((o) => o.status === 'Work in Progress')
+      .slice(0, 3)
+      .map((o) => ({
+        id: `bench-${o.id}`,
+        category: 'bench' as const,
+        title: `On Bench: ${o.customerName}`,
+        subtitle: `${o.garmentName} • Tag #${o.hangTagNo || 'A-1'}`,
+        time: 'In Progress',
+        actionLabel: 'View',
+        onAction: () => {
+          setSelectedOrder(o)
+          setActiveTab('pipeline')
+          setNotificationOpen(false)
+        },
+      })),
+  ]
+
+  const visibleNotifications = allNotifications.filter(
+    (n) => !dismissedNotificationIds.includes(n.id)
+  )
+
+  const filteredNotifications = visibleNotifications.filter((n) => {
+    if (notificationTab === 'all') return true
+    return n.category === notificationTab
+  })
+
+  const unreadNotificationCount = visibleNotifications.length
 
   /* ═══════════════════════════════════════════════════════════════════════════ */
   /* RENDER                                                                     */
@@ -1728,6 +1867,146 @@ export function PartnerFlow({
               </div>
             </div>
 
+            {/* Workshop Notification Center Bell */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                type="button"
+                onClick={() => setNotificationOpen(!notificationOpen)}
+                className={`relative size-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
+                  notificationOpen
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                    : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-slate-200 shadow-2xs'
+                }`}
+                title="Workshop Notifications & Alerts"
+                aria-label="Workshop Notifications"
+              >
+                <Bell size={16} />
+                {unreadNotificationCount > 0 && (
+                  <span className="absolute -top-1 -right-1 size-4.5 rounded-full bg-[#9E593B] text-white text-[9px] font-black flex items-center justify-center shadow-xs ring-2 ring-white animate-pulse">
+                    {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Popover Dropdown */}
+              {notificationOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  {/* Popover Header */}
+                  <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/70">
+                    <div className="flex items-center gap-2">
+                      <Bell size={15} className="text-[#9E593B]" />
+                      <span className="text-xs font-bold text-slate-900">Notifications</span>
+                      {unreadNotificationCount > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#9E593B]/10 text-[#9E593B]">
+                          {unreadNotificationCount} new
+                        </span>
+                      )}
+                    </div>
+                    {unreadNotificationCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setDismissedNotificationIds(allNotifications.map((n) => n.id))}
+                        className="text-[11px] font-semibold text-slate-500 hover:text-[#9E593B] cursor-pointer transition-colors"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+                    {[
+                      { id: 'all', label: 'All', count: visibleNotifications.length },
+                      { id: 'dropoff', label: 'Drop-Offs', count: visibleNotifications.filter((n) => n.category === 'dropoff').length },
+                      { id: 'dispatch', label: 'Dispatches', count: visibleNotifications.filter((n) => n.category === 'dispatch').length },
+                      { id: 'ready', label: 'Ready', count: visibleNotifications.filter((n) => n.category === 'ready').length },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setNotificationTab(tab.id as any)}
+                        className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all ${
+                          notificationTab === tab.id
+                            ? 'bg-slate-900 text-white shadow-2xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {tab.label} {tab.count > 0 && `(${tab.count})`}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Notification Items List */}
+                  <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100">
+                    {filteredNotifications.length > 0 ? (
+                      filteredNotifications.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-3 hover:bg-slate-50/80 transition-colors flex items-start gap-3 group"
+                        >
+                          <div
+                            className={`size-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                              item.category === 'dropoff'
+                                ? 'bg-amber-100 text-amber-800'
+                                : item.category === 'dispatch'
+                                ? 'bg-sky-100 text-sky-800'
+                                : item.category === 'ready'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {item.category === 'dropoff' && <Package size={14} />}
+                            {item.category === 'dispatch' && <Zap size={14} />}
+                            {item.category === 'ready' && <ShoppingBag size={14} />}
+                            {item.category === 'bench' && <Scissors size={14} />}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="text-xs font-bold text-slate-900 truncate">{item.title}</h4>
+                              <span className="text-[10px] text-slate-400 shrink-0">{item.time}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.subtitle}</p>
+
+                            <div className="mt-2 flex items-center gap-2">
+                              {item.pin && (
+                                <span className="font-mono text-[10px] font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 border border-slate-200">
+                                  PIN {item.pin}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={item.onAction}
+                                className="text-[11px] font-bold text-[#9E593B] hover:underline cursor-pointer"
+                              >
+                                {item.actionLabel} →
+                              </button>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setDismissedNotificationIds((prev) => [...prev, item.id])}
+                            className="size-5 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Dismiss"
+                            aria-label="Dismiss"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-8 px-4 text-center space-y-1.5">
+                        <CheckCircle size={22} className="mx-auto text-emerald-500" />
+                        <div className="text-xs font-bold text-slate-700">All caught up!</div>
+                        <p className="text-[11px] text-slate-400">No unread notifications in this category.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
 
             {/* Master Tailor Profile Pill */}
             <button
@@ -1801,8 +2080,8 @@ export function PartnerFlow({
                   {/* Right: Payout + Actions */}
                   <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
                     <div className="text-left sm:text-right pr-1">
-                      <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Net Payout</span>
-                      <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.partnerPayout}</div>
+                      <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Order Price</span>
+                      <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.price || currentBroadcast.partnerPayout}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1819,7 +2098,7 @@ export function PartnerFlow({
                         className="px-4 py-1.5 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
                       >
                         <Zap size={13} className="fill-white" />
-                        <span>Accept (${currentBroadcast.partnerPayout})</span>
+                        <span>Accept (${currentBroadcast.price || currentBroadcast.partnerPayout})</span>
                       </button>
                     </div>
                   </div>
@@ -1847,11 +2126,11 @@ export function PartnerFlow({
 
                 {/* ── 4 UIVERSE-INSPIRED ELEVATED METRIC CARDS ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Card 1: Today's Net Payout */}
+                  {/* Card 1: Today's Orders & Revenue */}
                   <div className="uiverse-stat-card uiverse-stat-emerald group cursor-default">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        Today's Payout
+                        Today's Revenue
                       </span>
                       <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
                         <DollarSign size={16} />
@@ -1862,13 +2141,19 @@ export function PartnerFlow({
                         ${todayEarned}
                       </span>
                       <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
-                        80% Net
+                        Collected at Pickup
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-500 mt-2 font-medium flex items-center gap-1.5">
                       <span className="size-1.5 rounded-full bg-emerald-500" />
-                      Direct Bank Transfer &bull; Safe Payment
+                      Direct Studio Payment &bull; Unlocked at Pickup PIN
                     </p>
+                    {pendingPickupValue > 0 && (
+                      <p className="text-[10px] text-amber-700 font-semibold mt-1 flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        ${pendingPickupValue} pending payment (on bench / rack)
+                      </p>
+                    )}
                   </div>
 
                   {/* Card 2: Active on Sewing Bench */}
@@ -2002,7 +2287,7 @@ export function PartnerFlow({
                               </p>
                               <div className="mt-3 flex items-center gap-2">
                                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                                  ${activeIntake.partnerPayout || Math.round((activeIntake.price || 35) * 0.75)} Net Payout (80%)
+                                  ${activeIntake.price || 35} Standard Rate · Pay at Pickup
                                 </span>
                               </div>
                             </div>
@@ -2380,13 +2665,27 @@ export function PartnerFlow({
                             <AlertCircle size={15} className="shrink-0 text-red-600" />
                             <span>{pinError}</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setPinInput('')}
-                            className="text-xs underline text-red-800 font-bold cursor-pointer"
-                          >
-                            Clear
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPinInput('')
+                                setPinError('')
+                              }}
+                              className="text-xs underline text-red-800 hover:text-red-950 font-bold cursor-pointer transition-colors"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPinError('')}
+                              className="size-5 rounded-md hover:bg-red-100 text-red-600 hover:text-red-800 flex items-center justify-center cursor-pointer transition-colors"
+                              title="Dismiss notification"
+                              aria-label="Dismiss notification"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -2406,6 +2705,50 @@ export function PartnerFlow({
                                 {key === 'BACK' ? '⌫' : key}
                               </button>
                             ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Expected Drop-Offs Notification Banner */}
+                      {pendingDropOffs > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2.5 text-xs animate-fadeIn">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center size-5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                              {pendingDropOffs}
+                            </span>
+                            <span className="font-bold text-slate-800">
+                              Expected Drop-Off{pendingDropOffs > 1 ? 's' : ''} Today:
+                            </span>
+                            <span className="text-slate-400 text-[11px] hidden sm:inline">
+                              Click any customer to quickly enter their PIN
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {orders
+                              .filter((o) => o.status === 'Accepted')
+                              .slice(0, 4)
+                              .map((o) => (
+                                <button
+                                  key={o.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (o.otp) {
+                                      setPinInput(o.otp)
+                                      setPinError('')
+                                      handleLookupPin(o.otp)
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-slate-800 text-[11px] font-medium cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group"
+                                  title={`Check in ${o.customerName} (PIN: ${o.otp || '****'})`}
+                                >
+                                  <span className="font-semibold text-slate-900 group-hover:text-[#9E593B]">
+                                    {o.customerName}
+                                  </span>
+                                  <span className="font-mono text-[10px] font-bold text-[#9E593B] bg-white px-1.5 py-0.5 rounded border border-amber-200/60 shadow-2xs">
+                                    PIN {o.otp || '****'}
+                                  </span>
+                                </button>
+                              ))}
                           </div>
                         </div>
                       )}
@@ -2463,8 +2806,8 @@ export function PartnerFlow({
                                   </div>
 
                                   <div className="flex items-center justify-between pt-1 gap-2">
-                                    <span className="text-[11px] font-semibold text-emerald-700">
-                                      ${ord.partnerPayout || Math.round((ord.price || 35) * 0.75)} Net Payout
+                                    <span className="text-[11px] font-bold text-emerald-700">
+                                      ${ord.price || 35} Standard Rate · Due at Pickup
                                     </span>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       <button
@@ -2560,7 +2903,7 @@ export function PartnerFlow({
 
                                       <div className="text-right shrink-0">
                                         <span className="font-extrabold text-xs text-emerald-700 block">
-                                          ${order.partnerPayout || Math.round((order.price || 35) * 0.75)}
+                                          ${order.partnerPayout || order.price || 20}
                                         </span>
                                         <span
                                           className={`text-[10px] font-semibold flex items-center justify-end gap-1 ${
@@ -2672,7 +3015,7 @@ export function PartnerFlow({
 
                                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
                                     <span className="font-bold text-emerald-700">
-                                      ${order.partnerPayout || Math.round((order.price || 35) * 0.75)} Net Payout
+                                      ${order.price || 35} · Due at Pickup
                                     </span>
                                     <span className="text-[10px] text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
                                       Pickup Alert Sent
@@ -2801,8 +3144,8 @@ export function PartnerFlow({
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <div className="font-bold text-sm text-emerald-800">${order.partnerPayout || Math.round((order.price || 35) * 0.75)}</div>
-                                <div className="text-[10px] text-[#9E593B] font-semibold">Net Payout</div>
+                                <div className="font-bold text-sm text-emerald-800">${order.price || 35}</div>
+                                <div className="text-[10px] text-[#9E593B] font-semibold">Standard Rate</div>
                               </div>
                             </div>
 
@@ -2862,8 +3205,8 @@ export function PartnerFlow({
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
-                              <div className="text-xl font-bold text-emerald-800">${activeSelectedOrder.partnerPayout || Math.round((activeSelectedOrder.price || 35) * 0.8)}</div>
-                              <div className="text-[10px] text-[#9E593B] font-semibold">Net (80%)</div>
+                              <div className="text-xl font-bold text-emerald-800">${activeSelectedOrder.price || 35}</div>
+                              <div className="text-[10px] text-[#9E593B] font-semibold">Standard Rate</div>
                             </div>
                             <button
                               type="button"
@@ -2880,11 +3223,11 @@ export function PartnerFlow({
                           <div className="flex items-center gap-2">
                             <ShieldCheck size={15} className="text-[#9E593B] shrink-0" />
                             <div>
-                              <div className="font-semibold text-[#1E2229]">Paid ${(activeSelectedOrder.price || 35)} Online</div>
-                              <div className="text-[11px] text-[#6B7280]">80% releases 15 days post-handover</div>
+                              <div className="font-semibold text-[#1E2229]">Standard Rate: ${(activeSelectedOrder.price || 35)}</div>
+                              <div className="text-[11px] text-[#6B7280]">Customer pays directly to studio at pickup</div>
                             </div>
                           </div>
-                          <span className="text-[10px] font-semibold bg-white text-[#1E2229] border border-[#E8E1D5] px-2.5 py-0.5 rounded-full shrink-0">Stripe Escrow</span>
+                          <span className="text-[10px] font-semibold bg-white text-[#1E2229] border border-[#E8E1D5] px-2.5 py-0.5 rounded-full shrink-0">Pay at Pickup</span>
                         </div>
 
                         <div className="p-3.5 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2.5">
@@ -3024,23 +3367,23 @@ export function PartnerFlow({
               <div className="max-w-4xl mx-auto space-y-6">
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Pending 15-Day Escrow</span>
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Today's Revenue</span>
                     <div className="text-2xl font-bold text-[#1E2229] mt-1">${todayEarned}</div>
-                    <div className="text-xs text-[#9E593B] font-medium mt-1">Releases 15 days post-handover</div>
+                    <div className="text-xs text-[#9E593B] font-medium mt-1">Direct payment at studio pickup</div>
                   </div>
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Disbursed to Bank</span>
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Total Collected</span>
                     <div className="text-2xl font-bold text-emerald-800 mt-1">${totalClosedDisbursed}</div>
-                    <div className="text-xs text-[#6B7280] mt-1">Stripe Connect Direct Deposit</div>
+                    <div className="text-xs text-[#6B7280] mt-1">Direct customer counter settlements</div>
                   </div>
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Studio Revenue Share</span>
-                    <div className="text-2xl font-bold text-[#1E2229] mt-1">80% Net</div>
-                    <div className="text-xs text-[#6B7280] mt-1">20% Platform Fee</div>
+                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Studio Settlement</span>
+                    <div className="text-2xl font-bold text-[#1E2229] mt-1">100% Direct</div>
+                    <div className="text-xs text-[#6B7280] mt-1">0% Platform Fee · Direct at Pickup</div>
                   </div>
                 </div>
 
-                {/* Stripe Connect */}
+                {/* Direct Payment Note */}
                 <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-3.5">
                     <div className="size-10 rounded-xl bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 grid place-items-center shrink-0">
@@ -3048,29 +3391,29 @@ export function PartnerFlow({
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-[#1E2229]">Stripe Connect · Verified Payouts</span>
-                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">✓ Active</span>
+                        <span className="font-bold text-sm text-[#1E2229]">Direct Studio Settlement · Counter Payment</span>
+                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">✓ Direct</span>
                       </div>
-                      <p className="text-xs text-[#6B7280] mt-0.5">Customer payments held in 15-day rolling escrow · Automatic direct deposits</p>
+                      <p className="text-xs text-[#6B7280] mt-0.5">Customers pay the standard alteration price directly to your studio counter at pickup</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-[#6B7280]">Schedule: </span>
-                    <span className="text-xs font-bold text-[#1E2229]">15 Days Post-Pickup</span>
+                    <span className="text-xs text-[#6B7280]">Payment: </span>
+                    <span className="text-xs font-bold text-[#1E2229]">At Pickup</span>
                   </div>
                 </div>
 
                 {/* Ledger */}
                 <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
-                  <h2 className="font-bold text-base text-[#1E2229]">15-Day Rolling Payout Ledger</h2>
+                  <h2 className="font-bold text-base text-[#1E2229]">Counter Payments &amp; Orders Ledger</h2>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#6B7280]">
                         <tr>
                           <th className="p-3.5 font-bold">Order / Customer</th>
-                          <th className="p-3.5 font-bold">Paid</th>
-                          <th className="p-3.5 font-bold">Fee (20%)</th>
-                          <th className="p-3.5 font-bold">Studio Net (80%)</th>
+                          <th className="p-3.5 font-bold">Standard Price</th>
+                          <th className="p-3.5 font-bold">Platform Fee</th>
+                          <th className="p-3.5 font-bold">To Collect</th>
                           <th className="p-3.5 font-bold text-right">Status</th>
                         </tr>
                       </thead>
@@ -3079,8 +3422,6 @@ export function PartnerFlow({
                           .filter((o) => ['Closed', 'Collected', 'Ready', 'Work in Progress'].includes(o.status))
                           .map((o) => {
                             const price = o.price || 30
-                            const fee = Math.round(price * 0.2 * 100) / 100
-                            const net = o.partnerPayout || Math.round(price * 0.8 * 100) / 100
                             const isSettled = o.status === 'Closed' || o.status === 'Collected'
                             return (
                               <tr key={o.id}>
@@ -3096,11 +3437,11 @@ export function PartnerFlow({
                                   )}
                                 </td>
                                 <td className="p-3.5 text-[#1E2229]">${price}.00</td>
-                                <td className="p-3.5 text-[#6B7280]">-${fee}</td>
-                                <td className="p-3.5 font-bold text-emerald-800">${net}</td>
+                                <td className="p-3.5 text-[#6B7280]">$0.00 (0%)</td>
+                                <td className="p-3.5 font-bold text-emerald-800">${price}.00</td>
                                 <td className="p-3.5 text-right">
                                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isSettled ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                                    {isSettled ? 'Deposited' : '15-Day Escrow'}
+                                    {isSettled ? 'Collected' : 'Due at Pickup'}
                                   </span>
                                   {(() => {
                                     const summary = formatOrderSpecsSummary(o)
@@ -3271,9 +3612,19 @@ export function PartnerFlow({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium flex items-center gap-2">
-                  <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
-                  <span>✓ Identity Verified! Ready for garment handover.</span>
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5 font-bold text-emerald-950">
+                      <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                      Pickup PIN Verified!
+                    </span>
+                    <span className="text-base font-extrabold text-emerald-800">
+                      ${pickupModalOrder.price || 0}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800">
+                    Collect <strong>${pickupModalOrder.price || 0}</strong> standard counter payment directly from {pickupModalOrder.customerName}.
+                  </p>
                 </div>
 
                 {/* Retail In-Store Sales Prompt - Simple Yes or No */}
@@ -3314,7 +3665,9 @@ export function PartnerFlow({
                     : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
                     }`}
                 >
-                  {pickupCompleted ? '✓ Order Settled!' : 'Complete Handover & Lock Earnings →'}
+                  {pickupCompleted
+                    ? '✓ Payment Collected & Settled!'
+                    : `Complete Handover & Collect $${pickupModalOrder.price || 0} →`}
                 </button>
               </div>
             )}
@@ -3450,7 +3803,7 @@ export function PartnerFlow({
                 <div className="text-[11px] text-[#6B7280]">{orderToCancel.serviceName}</div>
               </div>
               <span className="font-bold text-sm text-[#1E2229]">
-                ${orderToCancel.partnerPayout || Math.round((orderToCancel.price || 35) * 0.75)}
+                ${orderToCancel.partnerPayout || orderToCancel.price || 20}
               </span>
             </div>
 

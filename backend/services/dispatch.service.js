@@ -120,8 +120,8 @@ async function startOrderDispatch(order) {
   const tailorPool = await fetchEligible5MilePool(lat, lng);
 
   const now = Date.now();
-  const parsedPrice = order.price ? parseFloat(order.price) : 25;
-  const partnerPayout = order.partnerPayout || Math.round(parsedPrice * 0.75 * 100) / 100;
+  const parsedPrice = order.price ? parseFloat(order.price) : 20;
+  const partnerPayout = order.partnerPayout || parsedPrice;
   const otp = order.otp || String(Math.floor(1000 + Math.random() * 9000));
 
   let measurementsStr = '';
@@ -402,11 +402,11 @@ async function recordTailorAccept(orderId, tailorId) {
             pinnedAdjustment: oData.pinnedAdjustment || '',
             sewingNotes: '',
             slaHours: 48,
-            partnerPayout: oData.partnerPayout || 18,
+            partnerPayout: oData.partnerPayout || oData.price || 20,
             retailSold: false,
             intakePhotoUrl: oData.imageUrl || null,
             status: 'Allocated',
-            price: oData.price || 25,
+            price: oData.price || 20,
             otp: oData.otp || '1234',
           },
           include: { store: true },
@@ -639,11 +639,11 @@ async function scheduleOrderForLater(orderId, scheduledDate, scheduledTimeSlot) 
       pinnedAdjustment: oData.pinnedAdjustment || '',
       sewingNotes: '',
       slaHours: 48,
-      partnerPayout: oData.partnerPayout || 18,
+      partnerPayout: oData.partnerPayout || oData.price || 20,
       retailSold: false,
       intakePhotoUrl: oData.imageUrl || null,
       status: 'Allocated',
-      price: oData.price || 25,
+      price: oData.price || 20,
       otp: oData.otp || '1234',
     },
     include: { store: true },

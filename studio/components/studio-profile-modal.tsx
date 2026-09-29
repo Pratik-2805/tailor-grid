@@ -369,7 +369,7 @@ export function StudioProfileModal({
 
                       <div className="pt-1 flex items-center gap-2 text-xs text-[#9E593B] font-semibold">
                         <span className="bg-[#FAF3EC] px-2.5 py-0.5 rounded-md border border-[#F2E5D8] text-[11px]">
-                          80% Escrow
+                          Direct Studio Payment
                         </span>
                         <span className="text-[#C4BCB1]">·</span>
                         <span className="text-[#766F66] truncate text-[11px]">{address || 'Kensington'}</span>
@@ -675,8 +675,8 @@ export function StudioProfileModal({
                       <CreditCard size={16} />
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-[#18191B]">Stripe Connect Escrow Settlement</div>
-                      <div className="text-[11px] text-[#766F66]">80% Net Payout · 15-Day Rolling Release</div>
+                      <div className="text-xs font-bold text-[#18191B]">Direct Studio Settlement</div>
+                      <div className="text-[11px] text-[#766F66]">Customer pays standard rate directly at pickup</div>
                     </div>
                   </div>
                   <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">

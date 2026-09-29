@@ -616,7 +616,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                     <p className="text-[11px] text-[#7A7E85]">#{order.id} &middot; {order.date}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#18191B]">£{order.price}</span>
+                    <span className="text-xs font-bold text-[#18191B]">${order.price}</span>
                     <span className="text-[10px] font-semibold text-[#9E593B]">{order.status || 'Active'}</span>
                     <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
                   </div>
