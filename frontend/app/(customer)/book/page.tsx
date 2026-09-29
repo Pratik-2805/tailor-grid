@@ -922,12 +922,17 @@ export default function BookPage() {
   const searchOrderIdRef = useRef<string>('')
   const [isNoTailorsModalOpen, setIsNoTailorsModalOpen] = useState(false)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const dispatchChannelRef = useRef<BroadcastChannel | null>(null)
 
-  // Clean up polling interval on unmount
+  // Clean up polling interval and broadcast channel on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
+      }
+      if (dispatchChannelRef.current) {
+        dispatchChannelRef.current.close()
+        dispatchChannelRef.current = null
       }
     }
   }, [])
@@ -936,6 +941,23 @@ export default function BookPage() {
   const [nearbyStores, setNearbyStores] = useState<StoreOption[]>([])
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
+
+  // Schedule Visit Date & Time states
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(() => {
+    const s = getSessionBookingData()
+    if (s?.scheduleDate) {
+      try {
+        const d = new Date(s.scheduleDate)
+        if (!isNaN(d.getTime())) return d
+      } catch {}
+    }
+    return new Date()
+  })
+  const [selectedTime, setSelectedTime] = useState<string>(() => {
+    const s = getSessionBookingData()
+    return s?.scheduleTime || '03:30 PM'
+  })
 
   // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
   useEffect(() => {
@@ -1174,6 +1196,10 @@ export default function BookPage() {
       clearInterval(pollingIntervalRef.current)
       pollingIntervalRef.current = null
     }
+    if (dispatchChannelRef.current) {
+      dispatchChannelRef.current.close()
+      dispatchChannelRef.current = null
+    }
     const activeOrderId = searchOrderIdRef.current || searchOrderId
     if (activeOrderId) {
       // Broadcast instant cancellation to all tailor atelier tabs in 0ms
@@ -1400,48 +1426,84 @@ export default function BookPage() {
         return
       }
 
-      // Start live status polling loop (every 1 second)
+      // Prefetch order route immediately so navigation is instantaneous
+      try {
+        router.prefetch(`/order/${newOrderId}`)
+      } catch { }
+
+      let isCompleted = false
+      const completeAssignedOrder = (acceptedTailorInfo: any) => {
+        if (isCompleted) return
+        isCompleted = true
+
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+        }
+        if (dispatchChannelRef.current) {
+          dispatchChannelRef.current.close()
+          dispatchChannelRef.current = null
+        }
+
+        // Close search popup modal immediately (0ms)
+        setIsSearching(false)
+
+        const winningStore = acceptedTailorInfo
+        const updatedOrder = {
+          ...orderData,
+          storeId: winningStore?.id || winningStore?.storeId || 'partner-atelier',
+          storeName: winningStore?.name || winningStore?.storeName || 'Partner Atelier',
+          storePhone: winningStore?.phone || winningStore?.storePhone || null,
+          storeAddress: winningStore?.address || winningStore?.storeAddress || 'Local Partner Studio',
+          status: 'Allocated',
+        }
+
+        if (typeof window !== 'undefined') {
+          const storageUpdatedOrder = {
+            ...updatedOrder,
+            images: (updatedOrder.images || []).filter((img: string) => typeof img === 'string' && !img.startsWith('data:')),
+          }
+          setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storageUpdatedOrder))
+          setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
+        }
+
+        clearSessionBookingData()
+        toast.success(`Request accepted by ${winningStore?.name || winningStore?.storeName || 'Partner Atelier'}!`, {
+          position: 'top-center',
+        })
+
+        router.push(`/order/${newOrderId}`)
+      }
+
+      // 1. Instant 0ms Cross-tab BroadcastChannel listener (eliminates 1-2s delay)
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        try {
+          const bc = new BroadcastChannel('tg_dispatch_channel')
+          bc.onmessage = (event) => {
+            if (event.data?.type === 'DISPATCH_ACCEPTED' && event.data?.orderId === newOrderId) {
+              completeAssignedOrder(event.data)
+            }
+          }
+          dispatchChannelRef.current = bc
+        } catch { }
+      }
+
+      // 2. Fast 350ms status polling loop fallback
       const interval = setInterval(async () => {
         try {
           const status = await fetchDispatchStatus(newOrderId)
           if (!status) return
 
           if (status.status === 'ASSIGNED') {
-            if (pollingIntervalRef.current) {
-              clearInterval(pollingIntervalRef.current)
-              pollingIntervalRef.current = null
-            }
-            setIsSearching(false)
-
-            const winningStore = status.acceptedTailor
-            const updatedOrder = {
-              ...orderData,
-              storeId: winningStore?.id || status.acceptedTailorId,
-              storeName: winningStore?.name || 'Partner Atelier',
-              storePhone: winningStore?.phone,
-              storeAddress: winningStore?.address,
-              status: 'Allocated',
-            }
-
-            if (typeof window !== 'undefined') {
-              const storageUpdatedOrder = {
-                ...updatedOrder,
-                images: (updatedOrder.images || []).filter((img: string) => typeof img === 'string' && !img.startsWith('data:')),
-              }
-              setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storageUpdatedOrder))
-              setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
-            }
-
-            clearSessionBookingData()
-            toast.success(`Request accepted by ${winningStore?.name || 'Partner Atelier'}!`, {
-              position: 'top-center',
-            })
-
-            router.push(`/order/${newOrderId}`)
+            completeAssignedOrder(status.acceptedTailor)
           } else if (status.status === 'EXHAUSTED' || status.status === 'ZERO_TAILORS') {
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current)
               pollingIntervalRef.current = null
+            }
+            if (dispatchChannelRef.current) {
+              dispatchChannelRef.current.close()
+              dispatchChannelRef.current = null
             }
             setIsSearching(false)
             setIsNoTailorsModalOpen(true)
@@ -1450,12 +1512,16 @@ export default function BookPage() {
               clearInterval(pollingIntervalRef.current)
               pollingIntervalRef.current = null
             }
+            if (dispatchChannelRef.current) {
+              dispatchChannelRef.current.close()
+              dispatchChannelRef.current = null
+            }
             setIsSearching(false)
           }
         } catch (err) {
           console.warn('Dispatch polling warning:', err)
         }
-      }, 1000)
+      }, 350)
 
       pollingIntervalRef.current = interval
     } catch (err) {

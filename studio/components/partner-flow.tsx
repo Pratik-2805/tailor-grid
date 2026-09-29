@@ -1031,41 +1031,86 @@ export function PartnerFlow({
       partnerPayout,
     }
 
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+    // Immediately remove from broadcast bar & reset timer (0ms)
+    broadcastExpiryRef.current = null
     setTimerSecs(15)
     setTimerProgress(100)
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+
+    // Instantly notify customer browser tab over BroadcastChannel
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bcChannel = new BroadcastChannel('tg_dispatch_channel')
+        bcChannel.postMessage({
+          type: 'DISPATCH_ACCEPTED',
+          orderId: order.id,
+          storeId: assignedStudioId,
+          storeName: assignedStudioName,
+          storePhone: assignedStudioPhone,
+          storeAddress: user?.address || 'Partner Atelier',
+        })
+        bcChannel.close()
+      } catch { }
+    }
+
     await updateOrder(order.id, updates).catch(() => { })
   }
 
   const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
+    // 0. Instantly close broadcast bar and reset countdown progress (0ms delay)
+    broadcastExpiryRef.current = null
+    setTimerSecs(15)
+    setTimerProgress(100)
+    setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+
+    const studioDisplayName =
+      (user?.studioName && user.studioName.trim()) ||
+      studioName ||
+      (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
+    const studioPhone = user?.phone || user?.contact || ''
+
+    // Instantly notify customer tab with 0ms delay via cross-tab channel
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bcChannel = new BroadcastChannel('tg_dispatch_channel')
+        bcChannel.postMessage({
+          type: 'DISPATCH_ACCEPTED',
+          orderId: bc.id,
+          storeId: currentStudioId,
+          storeName: studioDisplayName,
+          storePhone: studioPhone,
+          storeAddress: user?.address || 'Partner Atelier',
+        })
+        bcChannel.close()
+      } catch { }
+    }
+
+    // Immediately promote in studio workbench orders list
+    const promotionUpdates: Partial<FittingBooking> = {
+      status: 'Accepted' as const,
+      storeId: currentStudioId,
+      storeName: studioDisplayName,
+      ...(studioPhone ? { storePhone: studioPhone } : {}),
+      partnerPayout: bc.price || bc.partnerPayout || 30,
+    }
+    setOrders((prev) => {
+      const exists = prev.some((o) => o.id === bc.id)
+      if (exists) {
+        return prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
+      } else if (bc.realOrder) {
+        return [...prev, { ...bc.realOrder, ...promotionUpdates }]
+      }
+      return prev
+    })
+    setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
+    setTimeout(() => setBroadcastToast(null), 5000)
+
     // 1. Live Dispatch Cache Request -> respond with ACCEPT
     if (bc.isDispatchSession) {
       if (!currentStudioId) return
       const res = await respondToDispatch(bc.id, currentStudioId, 'ACCEPT')
       if (res.success) {
-        setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
-        setTimeout(() => setBroadcastToast(null), 5000)
-        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
-
-        // ✅ Immediately promote the newly created order from 'Allocated' → 'Accepted'
-        // so it becomes visible in the pipeline (pipelineOrders filters out 'Allocated')
-        const studioDisplayName =
-          (user?.studioName && user.studioName.trim()) ||
-          studioName ||
-          (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
-        const promotionUpdates = {
-          status: 'Accepted' as const,
-          storeId: currentStudioId,
-          storeName: studioDisplayName,
-          ...(user?.phone ? { storePhone: user.phone } : {}),
-        }
-        // Optimistic UI update
-        setOrders((prev) =>
-          prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
-        )
-        // Persist to DB
         updateOrder(bc.id, promotionUpdates).catch(() => { })
-
         handleRefresh()
       } else {
         if (res.code === 'ORDER_ALREADY_ASSIGNED') {
@@ -1074,7 +1119,7 @@ export function PartnerFlow({
           setBroadcastToast(res.message || 'Unable to accept request.')
         }
         setTimeout(() => setBroadcastToast(null), 4000)
-        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+        handleRefresh()
       }
       return
     }
@@ -1082,8 +1127,6 @@ export function PartnerFlow({
     // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
       await handleAcceptAllocatedOrder(bc.realOrder)
-      setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
-      setTimeout(() => setBroadcastToast(null), 5000)
       handleRefresh()
     }
   }
