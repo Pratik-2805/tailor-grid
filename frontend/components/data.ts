@@ -520,53 +520,49 @@ export function getDefaultGarmentImage(garmentNameOrId?: string, serviceName?: s
   return '/images/service_trousers.jpg'
 }
 
-export function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; garmentName?: string; garmentId?: string; serviceName?: string } | null): string {
-  if (!order) return '/images/service_trousers.jpg'
+export function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; garmentName?: string; garmentId?: string; serviceName?: string } | null): string | null {
+  if (!order) return null
   const photo = order.intakePhotoUrl || (order as any)?.imageUrl
   if (photo && typeof photo === 'string') {
     const trimmed = photo.trim()
-    if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) return trimmed
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/') || trimmed.startsWith('/uploads')) return trimmed
     if (trimmed.startsWith('[')) {
       try {
         const parsed = JSON.parse(trimmed)
         if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
           const first = parsed[0].trim()
-          if (first.startsWith('http') || first.startsWith('data:') || first.startsWith('/')) {
+          if (first.startsWith('http') || first.startsWith('data:') || first.startsWith('/') || first.startsWith('/uploads')) {
             return first
           }
         }
       } catch {}
     }
   }
-  return getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+  return null
 }
 
 export function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
-  if (!order) return ['/images/service_trousers.jpg']
+  if (!order) return []
   const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
   let photos: string[] = []
 
   if (Array.isArray(raw)) {
-    photos = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
+    photos = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads')))
   } else if (typeof raw === 'string') {
     if (raw.startsWith('[')) {
       try {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
+          photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads')))
         }
       } catch {}
     }
     if (photos.length === 0 && raw.includes('||')) {
-      photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/'))
+      photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads'))
     }
-    if (photos.length === 0 && (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('/'))) {
+    if (photos.length === 0 && (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('/') || raw.startsWith('/uploads'))) {
       photos = [raw]
     }
-  }
-
-  if (photos.length === 0) {
-    return [getDefaultGarmentImage(order?.garmentId || order?.garmentName, order?.serviceName)]
   }
 
   return photos

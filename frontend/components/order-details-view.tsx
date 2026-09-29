@@ -1260,25 +1260,22 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 {(() => {
                   const photos = getAllGarmentPhotos(order)
+                  if (!photos || photos.length === 0) return null
+
                   return (
                     <div className="mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200/70">
                       <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
-                        Reference Garment Photo:
+                        Reference Garment Photo{photos.length > 1 ? 's' : ''}:
                       </span>
                       <div className="flex items-center gap-2 flex-wrap">
                         {photos.map((url, idx) => (
                           <img
                             key={idx}
                             src={url}
-                            alt={`${order?.garmentName || 'Garment'} Reference`}
+                            alt={`${order?.garmentName || 'Garment'} Reference ${idx + 1}`}
                             className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
                             onError={(e) => {
-                              const fallback = getGarmentPhoto({ ...order, intakePhotoUrl: undefined })
-                              if (fallback && fallback !== (e.currentTarget as HTMLImageElement).src) {
-                                (e.currentTarget as HTMLImageElement).src = fallback
-                              } else {
-                                (e.currentTarget as HTMLImageElement).style.display = 'none'
-                              }
+                              (e.currentTarget as HTMLImageElement).style.display = 'none'
                             }}
                           />
                         ))}
