@@ -43,14 +43,17 @@ export function openCarNavigation({
 
 export function calculateDistanceInMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8 // Earth's radius in miles
-  const dLat = (lat2 - lat1) * (Math.PI / 180)
-  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const toRad = (degrees: number) => (degrees * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return Number((R * c).toFixed(2))
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2
+  const clampedA = Math.min(1, Math.max(0, a))
+  const c = 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA))
+  return R * c
 }
 
 type Props = {
@@ -239,10 +242,10 @@ export default function CleanGoogleMap({
 
         if (!isMounted || !mapRef.current) return
 
-        // Calculate 5 miles by 5 miles bounding box around center (2.5 miles in each cardinal direction)
-        const halfMiles = fixedBoxMiles / 2.0
-        const deltaLat = halfMiles / 69.0
-        const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+        // Calculate 5-mile radius bounding box (10 miles diameter in all directions)
+        const radius = radiusMiles || fixedBoxMiles || 5.0
+        const deltaLat = radius / 69.0
+        const deltaLng = radius / (69.0 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
 
         const boundsBox = new google.maps.LatLngBounds(
           new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
@@ -358,9 +361,9 @@ export default function CleanGoogleMap({
     if (!map || !isReady) return
 
     if (!isChoosing) {
-      const halfMiles = (radiusMiles || fixedBoxMiles) / 2.0
-      const deltaLat = halfMiles / 69.0
-      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+      const radius = radiusMiles || fixedBoxMiles || 5.0
+      const deltaLat = radius / 69.0
+      const deltaLng = radius / (69.0 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
 
       const boundsBox = new google.maps.LatLngBounds(
         new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
@@ -533,56 +536,33 @@ export default function CleanGoogleMap({
       private position: google.maps.LatLng
       private div: HTMLDivElement | null = null
       private store: StoreOption
-      private isSelected: boolean
 
-      constructor(position: google.maps.LatLng, store: StoreOption, isSelected: boolean) {
+      constructor(position: google.maps.LatLng, store: StoreOption) {
         super()
         this.position = position
         this.store = store
-        this.isSelected = isSelected
       }
 
       onAdd() {
         this.div = document.createElement('div')
         this.div.style.position = 'absolute'
-        this.div.style.cursor = 'pointer'
+        this.div.style.pointerEvents = 'none'
+        this.div.style.userSelect = 'none'
+        this.div.style.cursor = 'default'
         this.div.style.transform = 'translate(-50%, -100%)'
-        this.div.style.transition = 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        this.div.style.zIndex = this.isSelected ? '999' : '100'
-        this.div.title = `${this.store.name} (${this.store.distance || 'Near you'})`
-
-        const activeBorder = this.isSelected
-          ? 'border: 2.5px solid #000000; box-shadow: 0 8px 24px rgba(0,0,0,0.35);'
-          : 'border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22);'
-        const badgeScale = this.isSelected ? 'scale(1.12)' : 'scale(1.0)'
+        this.div.style.zIndex = '100'
 
         this.div.innerHTML = `
-          <div style="transform: ${badgeScale}; transition: transform 0.2s ease; background: #FFFFFF; border-radius: 12px; ${activeBorder} padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative;">
+          <div style="background: #FFFFFF; border-radius: 12px; border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22); padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative; pointer-events: none;">
             <div style="display: flex; align-items: center; justify-content: center; padding: 1px;">
-              <img src="/landscape_logo.JPEG" style="height: 24px; width: auto; max-width: 60px; object-fit: cover; border-radius: 6px; display: block;" alt="${this.store.name}" />
+              <img src="/landscape_logo.JPEG" style="height: 24px; width: auto; max-width: 60px; object-fit: cover; border-radius: 6px; display: block; pointer-events: none;" alt="" />
             </div>
             <div style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0F1115;"></div>
           </div>
         `
 
-        this.div.addEventListener('click', (e) => {
-          e.stopPropagation()
-          if (onSelectStore) {
-            onSelectStore(this.store)
-          }
-          if (!disableNavigation) {
-            openCarNavigation({
-              destName: this.store.name,
-              destAddress: this.store.address,
-              destCoords: this.store.coords,
-              origin,
-              userCoords,
-            })
-          }
-        })
-
         const panes = this.getPanes()
-        panes?.overlayMouseTarget.appendChild(this.div)
+        panes?.overlayLayer ? panes.overlayLayer.appendChild(this.div) : panes?.overlayMouseTarget.appendChild(this.div)
       }
 
       draw() {
@@ -605,11 +585,9 @@ export default function CleanGoogleMap({
 
     // Render pins for each store inside the radius
     validStoresInRadius.forEach((st) => {
-      const isSelected = st.id === selectedStoreId
       const overlay = new CustomStudioMarkerOverlay(
         new google.maps.LatLng(st.coords.lat, st.coords.lng),
-        st,
-        isSelected
+        st
       )
       overlay.setMap(map)
       markersRef.current.push(overlay)
@@ -688,9 +666,9 @@ export default function CleanGoogleMap({
         setTimeout(() => google.maps.event.removeListener(listener), 1500)
       }
     } else if (validStoresInRadius.length > 0 && !showCurvedConnection && !isChoosing) {
-      const halfMiles = (radiusMiles || fixedBoxMiles) / 2.0
-      const deltaLat = halfMiles / 69.0
-      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+      const radius = radiusMiles || fixedBoxMiles || 5.0
+      const deltaLat = radius / 69.0
+      const deltaLng = radius / (69.0 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
 
       const boundsBox = new google.maps.LatLngBounds(
         new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
