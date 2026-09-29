@@ -256,10 +256,12 @@ export default function BookPage() {
     // 2. Fetch tailors from database taking this exact saved pinned location as center of 5.0-mile radius
     try {
       const data = await fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
-      if (data.tailors && Array.isArray(data.tailors)) {
+      if (data && Array.isArray(data.tailors)) {
         setNearbyStores(data.tailors)
         if (data.tailors.length > 0) {
           setSelectedStore(data.tailors[0])
+        } else {
+          setSelectedStore(null)
         }
       }
     } catch (err) {
@@ -500,21 +502,23 @@ export default function BookPage() {
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
-  // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
+  // Fetch partner studios purely by lat/lng within 5.0 miles for active location (GPS or user pinned)
   useEffect(() => {
-    if (!isLiveLocation) return
     let isCurrent = true
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
+    if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') return
 
     fetchNearbyTailors(coords.lat, coords.lng, 5.0)
       .then((data) => {
         if (!isCurrent) return
-        if (data.tailors && Array.isArray(data.tailors)) {
+        if (data && Array.isArray(data.tailors)) {
           setNearbyStores(data.tailors)
           if (data.tailors.length > 0) {
             if (!prefilledStore || !data.tailors.some((s: StoreOption) => s.id === prefilledStore.id)) {
               setSelectedStore(data.tailors[0])
             }
+          } else {
+            setSelectedStore(null)
           }
         }
       })
@@ -525,7 +529,7 @@ export default function BookPage() {
     return () => {
       isCurrent = false
     }
-  }, [selectedCity, isLiveLocation, userGpsCoords, prefilledStore])
+  }, [selectedCity, userGpsCoords?.lat, userGpsCoords?.lng, prefilledStore])
 
   // Sync prefilled state from App context / measurement draft
   useEffect(() => {
@@ -674,7 +678,7 @@ export default function BookPage() {
       return
     }
 
-    const closestStore = selectedStore || getClosestStoreForLocation(selectedCity)
+    const closestStore = selectedStore || (nearbyStores.length > 0 ? nearbyStores[0] : null)
     const uniqueTs = Date.now().toString().slice(-6)
     const uniqueRand = Math.floor(100 + Math.random() * 900)
     const newOrderId = `TG-${uniqueTs}${uniqueRand}`
@@ -1437,22 +1441,23 @@ export default function BookPage() {
             liveGpsCoordsRef.current = targetCoords
             liveCityRef.current = c
             setIsCardFlipped(false)
-            // Live current location: immediately fetch nearby atelier locations
-            fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
-              .then((data) => {
-                if (data.tailors && Array.isArray(data.tailors)) {
-                  setNearbyStores(data.tailors)
-                  if (data.tailors.length > 0) {
-                    setSelectedStore(data.tailors[0])
-                  }
-                }
-              })
-              .catch((err) => console.warn('Fetch tailors error on current location select:', err))
           } else {
-            // Custom search: clear stores and wait until user confirms/saves address
-            setNearbyStores([])
             setIsCardFlipped(true)
           }
+
+          // Dynamically fetch tailors within 5.0 miles of the selected coordinates
+          fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+            .then((data) => {
+              if (data && Array.isArray(data.tailors)) {
+                setNearbyStores(data.tailors)
+                if (data.tailors.length > 0) {
+                  setSelectedStore(data.tailors[0])
+                } else {
+                  setSelectedStore(null)
+                }
+              }
+            })
+            .catch((err) => console.warn('Fetch tailors error on location select:', err))
 
           if (isGps !== true && typeof google !== 'undefined' && google.maps?.Geocoder) {
             try {

@@ -72,30 +72,6 @@ async function fetchEligible5MilePool(lat, lng) {
   // Sort closest first
   pool.sort((a, b) => a.distanceMiles - b.distanceMiles);
 
-  // Fallback: If no tailor is within 5.0 miles, but partner stores exist in the database,
-  // include the registered partner store(s) so dispatch requests are never dropped in dev/testing/single-store setups
-  if (pool.length === 0 && Array.isArray(stores) && stores.length > 0) {
-    stores.forEach((store) => {
-      const dist = (typeof store.lat === 'number' && typeof store.lng === 'number')
-        ? calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng)
-        : 0.8;
-      pool.push({
-        tailorId: store.id,
-        name: store.name || 'Darzi Partner Atelier',
-        area: store.area || 'Neighborhood Studio',
-        address: store.address || '',
-        postcode: store.postcode || '',
-        rating: store.rating || 4.96,
-        reviewCount: store.reviewCount || 100,
-        specialties: store.specialties || ['Custom Alterations'],
-        phone: store.phone || '',
-        coords: { lat: store.lat || centerLat, lng: store.lng || centerLng },
-        distanceMiles: Math.min(dist, 0.8),
-        distance: `${Math.min(dist, 0.8).toFixed(1)} mi away`,
-      });
-    });
-  }
-
   return pool;
 }
 

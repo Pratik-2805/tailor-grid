@@ -86,13 +86,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
-  const [createdOrderId, setCreatedOrderId] = useState('ORD-2654')
+  const [createdOrderId, setCreatedOrderId] = useState('')
   const [isBookingTransitioning, setIsBookingTransitioning] = useState(false)
 
   const startBookingTransition = () => setIsBookingTransitioning(true)
   const stopBookingTransition = () => setIsBookingTransitioning(false)
 
-  const [prefilledPostcode, setPrefilledPostcode] = useState('W8 4EP')
+  const [prefilledPostcode, setPrefilledPostcode] = useState('')
   const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return getStorageCookie('tg_prefilled_garment', 'trousers')
