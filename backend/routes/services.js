@@ -121,16 +121,21 @@ router.get('/stores', async (req, res) => {
       }
       seenKeys.add(key);
 
-      const storeLat = s.lat || 19.3568;
-      const storeLng = s.lng || 72.8395;
+      if (typeof s.lat !== 'number' || typeof s.lng !== 'number') {
+        continue;
+      }
+      const storeLat = s.lat;
+      const storeLng = s.lng;
 
-      let calculatedDist = s.distanceMiles || 0.4;
+      let calculatedDist = 0;
       if (!isNaN(lat) && !isNaN(lng)) {
         calculatedDist = calculateDistanceInMiles(lat, lng, storeLat, storeLng);
         // Purely lat/lng filtering: ignore stores beyond radiusMiles
         if (calculatedDist > radiusMiles) {
           continue;
         }
+      } else {
+        calculatedDist = s.distanceMiles || 0;
       }
 
       stores.push({
