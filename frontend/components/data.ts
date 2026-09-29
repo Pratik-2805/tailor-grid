@@ -497,49 +497,77 @@ export function formatClock(totalSeconds: number) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
-export function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | null {
-  const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
+export function getDefaultGarmentImage(garmentNameOrId?: string, serviceName?: string): string {
+  const str = `${garmentNameOrId || ''} ${serviceName || ''}`.toLowerCase()
+  if (str.includes('shirt') || str.includes('blouse') || str.includes('top') || str.includes('tee') || str.includes('polo') || str.includes('cuff') || str.includes('collar')) {
+    return '/images/service_shirt.jpg'
+  }
+  if (str.includes('dress') || str.includes('gown') || str.includes('jumpsuit') || str.includes('skirt') || str.includes('slit')) {
+    return '/images/service_dress.jpg'
+  }
+  if (str.includes('jacket') || str.includes('coat') || str.includes('outerwear') || str.includes('blouson') || str.includes('zipper') || str.includes('lining')) {
+    return '/images/service_jacket.jpg'
+  }
+  if (str.includes('suit') || str.includes('blazer') || str.includes('tux') || str.includes('tuxedo')) {
+    return '/images/service_suit.jpg'
+  }
+  if (str.includes('ethnic') || str.includes('sherwani') || str.includes('lehenga') || str.includes('kurta') || str.includes('saree') || str.includes('occasion') || str.includes('bridal') || str.includes('embroidery')) {
+    return '/images/service_ethnic.jpg'
+  }
+  if (str.includes('trouser') || str.includes('jean') || str.includes('pant') || str.includes('chino') || str.includes('denim') || str.includes('hem') || str.includes('inseam') || str.includes('waist')) {
+    return '/images/service_trousers.jpg'
+  }
+  return '/images/service_trousers.jpg'
+}
+
+export function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; garmentName?: string; garmentId?: string; serviceName?: string } | null): string {
+  if (!order) return '/images/service_trousers.jpg'
+  const photo = order.intakePhotoUrl || (order as any)?.imageUrl
   if (photo && typeof photo === 'string') {
-    if (photo.startsWith('http') || photo.startsWith('data:')) return photo
-    if (photo.startsWith('[')) {
+    const trimmed = photo.trim()
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) return trimmed
+    if (trimmed.startsWith('[')) {
       try {
-        const parsed = JSON.parse(photo)
+        const parsed = JSON.parse(trimmed)
         if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-          if (parsed[0].startsWith('http') || parsed[0].startsWith('data:')) {
-            return parsed[0]
+          const first = parsed[0].trim()
+          if (first.startsWith('http') || first.startsWith('data:') || first.startsWith('/')) {
+            return first
           }
         }
       } catch {}
     }
   }
-  return null
+  return getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
 }
 
 export function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
-  if (!order) return []
+  if (!order) return ['/images/service_trousers.jpg']
   const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
-  if (!raw) return []
+  let photos: string[] = []
 
   if (Array.isArray(raw)) {
-    return raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
-  }
-
-  if (typeof raw === 'string') {
+    photos = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
+  } else if (typeof raw === 'string') {
     if (raw.startsWith('[')) {
       try {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          return parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+          photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
         }
       } catch {}
     }
-    if (raw.includes('||')) {
-      return raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+    if (photos.length === 0 && raw.includes('||')) {
+      photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/'))
     }
-    if (raw.startsWith('http') || raw.startsWith('data:')) {
-      return [raw]
+    if (photos.length === 0 && (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('/'))) {
+      photos = [raw]
     }
   }
 
-  return []
+  if (photos.length === 0) {
+    return [getDefaultGarmentImage(order?.garmentId || order?.garmentName, order?.serviceName)]
+  }
+
+  return photos
 }

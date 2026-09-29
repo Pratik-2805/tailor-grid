@@ -78,49 +78,81 @@ interface BroadcastRequest {
   stage?: number
 }
 
-function getGarmentPhoto(order?: Partial<FittingBooking> | null): string | undefined {
-  const photo = order?.intakePhotoUrl || (order as any)?.imageUrl
+export function getDefaultGarmentImage(garmentNameOrId?: string, serviceName?: string): string {
+  const str = `${garmentNameOrId || ''} ${serviceName || ''}`.toLowerCase()
+  if (str.includes('shirt') || str.includes('blouse') || str.includes('top') || str.includes('tee') || str.includes('polo') || str.includes('cuff') || str.includes('collar')) {
+    return '/images/service_shirt.jpg'
+  }
+  if (str.includes('dress') || str.includes('gown') || str.includes('jumpsuit') || str.includes('skirt') || str.includes('slit')) {
+    return '/images/service_dress.jpg'
+  }
+  if (str.includes('jacket') || str.includes('coat') || str.includes('outerwear') || str.includes('blouson') || str.includes('zipper') || str.includes('lining')) {
+    return '/images/service_jacket.jpg'
+  }
+  if (str.includes('suit') || str.includes('blazer') || str.includes('tux') || str.includes('tuxedo')) {
+    return '/images/service_suit.jpg'
+  }
+  if (str.includes('ethnic') || str.includes('sherwani') || str.includes('lehenga') || str.includes('kurta') || str.includes('saree') || str.includes('occasion') || str.includes('bridal') || str.includes('embroidery')) {
+    return '/images/service_ethnic.jpg'
+  }
+  if (str.includes('trouser') || str.includes('jean') || str.includes('pant') || str.includes('chino') || str.includes('denim') || str.includes('hem') || str.includes('inseam') || str.includes('waist')) {
+    return '/images/service_trousers.jpg'
+  }
+  return '/images/service_trousers.jpg'
+}
+
+function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; garmentName?: string; garmentId?: string; serviceName?: string } | null): string {
+  if (!order) return '/images/service_trousers.jpg'
+  const photo = order.intakePhotoUrl || (order as any)?.imageUrl
   if (photo && typeof photo === 'string') {
-    if (photo.startsWith('http') || photo.startsWith('data:')) return photo
-    if (photo.startsWith('[')) {
+    const trimmed = photo.trim()
+    if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+      return trimmed
+    }
+    if (trimmed.startsWith('[')) {
       try {
-        const parsed = JSON.parse(photo)
+        const parsed = JSON.parse(trimmed)
         if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-          if (parsed[0].startsWith('http') || parsed[0].startsWith('data:')) return parsed[0]
+          const first = parsed[0].trim()
+          if (first.startsWith('http') || first.startsWith('data:') || first.startsWith('/')) {
+            return first
+          }
         }
       } catch { }
     }
   }
-  return undefined
+  return getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
 }
 
 function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
-  if (!order) return []
+  if (!order) return ['/images/service_trousers.jpg']
   const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
-  if (!raw) return []
+  let photos: string[] = []
 
   if (Array.isArray(raw)) {
-    return raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
-  }
-
-  if (typeof raw === 'string') {
+    photos = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
+  } else if (typeof raw === 'string') {
     if (raw.startsWith('[')) {
       try {
         const parsed = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          return parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:')))
+          photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
         }
       } catch { }
     }
-    if (raw.includes('||')) {
-      return raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+    if (photos.length === 0 && raw.includes('||')) {
+      photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/'))
     }
-    if (raw.startsWith('http') || raw.startsWith('data:')) {
-      return [raw]
+    if (photos.length === 0 && (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('/'))) {
+      photos = [raw]
     }
   }
 
-  return []
+  if (photos.length === 0) {
+    return [getDefaultGarmentImage(order?.garmentId || order?.garmentName, order?.serviceName)]
+  }
+
+  return photos
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -540,24 +572,8 @@ export function PartnerFlow({
   const broadcastExpiryRef = useRef<{ key: string; expiresAt: number; totalDurationMs: number } | null>(null)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
-  // Permanently skipped order IDs for THIS studio (clicked Skip)
-  const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('tg_studio_permanently_skipped_orders')
-      if (stored) {
-        try { return JSON.parse(stored) } catch { }
-      }
-    }
-    return []
-  })
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('tg_studio_permanently_skipped_orders', JSON.stringify(permanentlySkippedIds))
-      } catch { }
-    }
-  }, [permanentlySkippedIds])
+  // Skipped order IDs for this session only (resets on reload so orders are not permanently lost)
+  const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>([])
 
   // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
   const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
@@ -618,8 +634,41 @@ export function PartnerFlow({
   // ── Workshop Notifications Center ──────────────────────────────────────────
   const [notificationOpen, setNotificationOpen] = useState(false)
   const [notificationTab, setNotificationTab] = useState<'all' | 'dropoff' | 'dispatch' | 'ready'>('all')
-  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>([])
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('tg_read_notifications')
+        return stored ? JSON.parse(stored) : []
+      } catch { }
+    }
+    return []
+  })
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = sessionStorage.getItem('tg_dismissed_notifications')
+        return stored ? JSON.parse(stored) : []
+      } catch { }
+    }
+    return []
+  })
   const notificationRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('tg_read_notifications', JSON.stringify(readNotificationIds))
+      } catch { }
+    }
+  }, [readNotificationIds])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('tg_dismissed_notifications', JSON.stringify(dismissedNotificationIds))
+      } catch { }
+    }
+  }, [dismissedNotificationIds])
 
   // Close notifications popover on click outside
   useEffect(() => {
@@ -882,14 +931,9 @@ export function PartnerFlow({
   }, [online, currentStudioId])
 
   // Live incoming requests from real customer bookings (Status: Allocated)
-  // Re-broadcasts every 2 minutes until accepted by a studio, UNLESS explicitly skipped by THIS studio.
   const liveAllocatedOrders = orders.filter((o) => {
     if (o.status !== 'Allocated') return false
-    if (permanentlySkippedIds.includes(o.id)) return false // Explicitly skipped by THIS studio -> never show again!
-    const timeoutTs = timeoutTimestamps[o.id]
-    if (timeoutTs && Date.now() - timeoutTs < 120000) {
-      return false // Unattended 15s timer expiry -> hide for 2 minutes before re-broadcasting
-    }
+    if (permanentlySkippedIds.includes(o.id)) return false
     return true
   })
 
@@ -1019,11 +1063,10 @@ export function PartnerFlow({
 
   const handleSkipBroadcast = async (bc?: BroadcastRequest | null) => {
     if (!bc) return
-    // Explicitly clicked Skip -> permanently hide for THIS studio!
-    setPermanentlySkippedIds((prev) => Array.from(new Set([...prev, bc.id])))
     broadcastExpiryRef.current = null
     setTimerSecs(15)
     setTimerProgress(100)
+    setBroadcastIdx((prev) => prev + 1)
 
     if (bc.isDispatchSession && currentStudioId) {
       respondToDispatch(bc.id, currentStudioId, 'SKIP').catch(() => { })
@@ -1066,11 +1109,16 @@ export function PartnerFlow({
       const remainingMs = broadcastExpiryRef.current.expiresAt - now
 
       if (remainingMs <= 0) {
-        // Unattended timer expired -> suppress locally for 2 minutes, then repeat
-        setTimeoutTimestamps((tPrev) => ({ ...tPrev, [bId]: Date.now() }))
-        broadcastExpiryRef.current = null
+        // Cycle to next broadcast order in queue and immediately re-anchor
+        setBroadcastIdx((prev) => prev + 1)
+        const nextDurationMs = 15000
+        broadcastExpiryRef.current = {
+          key: bKey,
+          expiresAt: now + nextDurationMs,
+          totalDurationMs: nextDurationMs,
+        }
         setTimerSecs(15)
-        setTimerProgress(0)
+        setTimerProgress(100)
       } else {
         const secs = Math.ceil(remainingMs / 1000)
         const pct = Math.max(0, Math.min(100, (remainingMs / broadcastExpiryRef.current.totalDurationMs) * 100))
@@ -1501,10 +1549,10 @@ export function PartnerFlow({
 
   const totalClosedDisbursed = todayEarned
 
-  const pipelineOrders = orders.filter((o) => o.status !== 'Allocated')
+  const pipelineOrders = orders
 
   const activeOnBench = pipelineOrders.filter((o) => o.status === 'Work in Progress').length
-  const pendingDropOffs = pipelineOrders.filter((o) => o.status === 'Accepted').length
+  const pendingDropOffs = pipelineOrders.filter((o) => ['Accepted', 'Allocated', 'Customer Arrived'].includes(o.status)).length
   const readyOnRack = pipelineOrders.filter((o) => o.status === 'Ready').length
 
   const filteredOrders = pipelineOrders.filter((o) => {
@@ -1552,13 +1600,38 @@ export function PartnerFlow({
     title: string
     subtitle: string
     time: string
-    pin?: string
+    badge?: string
     actionLabel: string
     onAction: () => void
   }
 
   const allNotifications: WorkshopNotificationItem[] = [
-    // 1. Scheduled Drop-Offs arriving today
+    // 1. Customer Arrived at Counter (High Priority Drop-off)
+    ...orders
+      .filter((o) => o.status === 'Customer Arrived')
+      .map((o) => ({
+        id: `arrived-${o.id}`,
+        category: 'dropoff' as const,
+        title: `Customer at Counter: ${o.customerName}`,
+        subtitle: `${o.garmentName} • ${o.serviceName}`,
+        time: 'At Counter Now',
+        badge: 'At Counter',
+        actionLabel: 'Enter Customer OTP',
+        onAction: () => {
+          setReadNotificationIds((prev) => Array.from(new Set([...prev, `arrived-${o.id}`])))
+          setPinInput('')
+          setPinError('')
+          setNotificationOpen(false)
+          setActiveTab('pipeline')
+          const el = document.getElementById('studio-counter-pin-input')
+          if (el) {
+            el.focus()
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        },
+      })),
+
+    // 2. Scheduled Drop-Offs arriving today
     ...orders
       .filter((o) => o.status === 'Accepted')
       .map((o) => ({
@@ -1567,50 +1640,79 @@ export function PartnerFlow({
         title: `Drop-off: ${o.customerName}`,
         subtitle: `${o.garmentName} • ${o.serviceName}`,
         time: o.timeSlot || 'Scheduled Today',
-        pin: o.otp,
-        actionLabel: 'Check In',
+        badge: 'Drop-off',
+        actionLabel: 'Enter Customer OTP',
         onAction: () => {
-          if (o.otp) {
-            setPinInput(o.otp)
-            setPinError('')
-            handleLookupPin(o.otp)
-          }
+          setReadNotificationIds((prev) => Array.from(new Set([...prev, `dropoff-${o.id}`])))
+          setPinInput('')
+          setPinError('')
           setNotificationOpen(false)
+          setActiveTab('pipeline')
+          const el = document.getElementById('studio-counter-pin-input')
+          if (el) {
+            el.focus()
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
         },
       })),
 
-    // 2. Incoming Dispatch Requests
-    ...allBroadcasts.map((bc) => ({
+    // 3. New Booking Requests (Allocated orders awaiting studio confirmation)
+    ...orders
+      .filter((o) => o.status === 'Allocated' && !permanentlySkippedIds.includes(o.id))
+      .map((o) => ({
+        id: `allocated-${o.id}`,
+        category: 'dispatch' as const,
+        title: `New Booking: ${o.customerName}`,
+        subtitle: `${o.garmentName} • ${o.serviceName} ($${o.price || 35})`,
+        time: 'New Request',
+        badge: 'New Booking',
+        actionLabel: 'Accept Booking',
+        onAction: () => {
+          setReadNotificationIds((prev) => Array.from(new Set([...prev, `allocated-${o.id}`])))
+          setNotificationOpen(false)
+          setActiveTab('pipeline')
+          handleAcceptAllocatedOrder(o)
+        },
+      })),
+
+    // 4. Live Incoming Dispatch Requests
+    ...dispatchBroadcasts.map((bc) => ({
       id: `dispatch-${bc.id}`,
       category: 'dispatch' as const,
       title: `Incoming Request #${bc.id}`,
       subtitle: `${bc.garmentName} • ${bc.serviceName} ($${bc.price || bc.partnerPayout})`,
-      time: 'New Request',
-      actionLabel: 'Review',
+      time: bc.secondsRemaining ? `${bc.secondsRemaining}s left` : 'Live Now',
+      badge: 'Live Dispatch',
+      actionLabel: 'Review Request',
       onAction: () => {
+        setReadNotificationIds((prev) => Array.from(new Set([...prev, `dispatch-${bc.id}`])))
         setNotificationOpen(false)
+        setActiveTab('pipeline')
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       },
     })),
 
-    // 3. Ready on Rack for Customer Pickup
+    // 5. Ready on Rack for Customer Pickup
     ...orders
       .filter((o) => o.status === 'Ready')
       .map((o) => ({
         id: `ready-${o.id}`,
         category: 'ready' as const,
         title: `Ready for Pickup: ${o.customerName}`,
-        subtitle: `${o.garmentName} (${o.hangTagNo || 'Rack'})`,
-        time: 'Ready Stage',
-        pin: o.otp,
-        actionLabel: 'Hand Over',
+        subtitle: `${o.garmentName} (${o.hangTagNo || 'Rack A-1'})`,
+        time: 'Ready on Rack',
+        badge: 'Ready',
+        actionLabel: 'Enter Pickup PIN',
         onAction: () => {
+          setReadNotificationIds((prev) => Array.from(new Set([...prev, `ready-${o.id}`])))
           setSelectedOrder(o)
           setActiveTab('pipeline')
           setNotificationOpen(false)
+          handleOpenPickupModal(o)
         },
       })),
 
-    // 4. Sewing Bench In-Progress Alterations
+    // 6. Sewing Bench In-Progress Alterations
     ...orders
       .filter((o) => o.status === 'Work in Progress')
       .slice(0, 3)
@@ -1620,8 +1722,10 @@ export function PartnerFlow({
         title: `On Bench: ${o.customerName}`,
         subtitle: `${o.garmentName} • Tag #${o.hangTagNo || 'A-1'}`,
         time: 'In Progress',
-        actionLabel: 'View',
+        badge: 'Bench',
+        actionLabel: 'View Specs',
         onAction: () => {
+          setReadNotificationIds((prev) => Array.from(new Set([...prev, `bench-${o.id}`])))
           setSelectedOrder(o)
           setActiveTab('pipeline')
           setNotificationOpen(false)
@@ -1633,12 +1737,14 @@ export function PartnerFlow({
     (n) => !dismissedNotificationIds.includes(n.id)
   )
 
+  const unreadNotificationCount = visibleNotifications.filter(
+    (n) => !readNotificationIds.includes(n.id)
+  ).length
+
   const filteredNotifications = visibleNotifications.filter((n) => {
     if (notificationTab === 'all') return true
     return n.category === notificationTab
   })
-
-  const unreadNotificationCount = visibleNotifications.length
 
   /* ═══════════════════════════════════════════════════════════════════════════ */
   /* RENDER                                                                     */
@@ -1896,110 +2002,155 @@ export function PartnerFlow({
                     <div className="flex items-center gap-2">
                       <Bell size={15} className="text-[#9E593B]" />
                       <span className="text-xs font-bold text-slate-900">Notifications</span>
-                      {unreadNotificationCount > 0 && (
+                      {unreadNotificationCount > 0 ? (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#9E593B]/10 text-[#9E593B]">
-                          {unreadNotificationCount} new
+                          {unreadNotificationCount} unread
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-semibold text-slate-400">
+                          All caught up
                         </span>
                       )}
                     </div>
-                    {unreadNotificationCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setDismissedNotificationIds(allNotifications.map((n) => n.id))}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-[#9E593B] cursor-pointer transition-colors"
-                      >
-                        Mark all read
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {unreadNotificationCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setReadNotificationIds((prev) => Array.from(new Set([...prev, ...allNotifications.map((n) => n.id)])))}
+                          className="text-[11px] font-semibold text-[#9E593B] hover:underline cursor-pointer transition-colors"
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      {visibleNotifications.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setDismissedNotificationIds((prev) => Array.from(new Set([...prev, ...visibleNotifications.map((n) => n.id)])))}
+                          className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 cursor-pointer transition-colors"
+                          title="Clear all notifications"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Filter Pills */}
                   <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto text-[11px]">
                     {[
-                      { id: 'all', label: 'All', count: visibleNotifications.length },
-                      { id: 'dropoff', label: 'Drop-Offs', count: visibleNotifications.filter((n) => n.category === 'dropoff').length },
-                      { id: 'dispatch', label: 'Dispatches', count: visibleNotifications.filter((n) => n.category === 'dispatch').length },
-                      { id: 'ready', label: 'Ready', count: visibleNotifications.filter((n) => n.category === 'ready').length },
+                      { id: 'all', label: 'All', count: visibleNotifications.length, unread: visibleNotifications.filter((n) => !readNotificationIds.includes(n.id)).length },
+                      { id: 'dropoff', label: 'Drop-Offs', count: visibleNotifications.filter((n) => n.category === 'dropoff').length, unread: visibleNotifications.filter((n) => n.category === 'dropoff' && !readNotificationIds.includes(n.id)).length },
+                      { id: 'dispatch', label: 'Dispatches', count: visibleNotifications.filter((n) => n.category === 'dispatch').length, unread: visibleNotifications.filter((n) => n.category === 'dispatch' && !readNotificationIds.includes(n.id)).length },
+                      { id: 'ready', label: 'Ready', count: visibleNotifications.filter((n) => n.category === 'ready').length, unread: visibleNotifications.filter((n) => n.category === 'ready' && !readNotificationIds.includes(n.id)).length },
                     ].map((tab) => (
                       <button
                         key={tab.id}
                         type="button"
                         onClick={() => setNotificationTab(tab.id as any)}
-                        className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all ${
+                        className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all flex items-center gap-1.5 ${
                           notificationTab === tab.id
                             ? 'bg-slate-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                         }`}
                       >
-                        {tab.label} {tab.count > 0 && `(${tab.count})`}
+                        <span>{tab.label}</span>
+                        {tab.count > 0 && (
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                            notificationTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {tab.count}
+                          </span>
+                        )}
+                        {tab.unread > 0 && (
+                          <span className="size-1.5 rounded-full bg-[#9E593B]" />
+                        )}
                       </button>
                     ))}
                   </div>
 
                   {/* Notification Items List */}
-                  <div className="max-h-[320px] overflow-y-auto divide-y divide-slate-100">
+                  <div className="max-h-[340px] overflow-y-auto divide-y divide-slate-100">
                     {filteredNotifications.length > 0 ? (
-                      filteredNotifications.map((item) => (
-                        <div
-                          key={item.id}
-                          className="p-3 hover:bg-slate-50/80 transition-colors flex items-start gap-3 group"
-                        >
+                      filteredNotifications.map((item) => {
+                        const isUnread = !readNotificationIds.includes(item.id)
+                        return (
                           <div
-                            className={`size-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                              item.category === 'dropoff'
-                                ? 'bg-amber-100 text-amber-800'
-                                : item.category === 'dispatch'
-                                ? 'bg-sky-100 text-sky-800'
-                                : item.category === 'ready'
-                                ? 'bg-purple-100 text-purple-800'
-                                : 'bg-emerald-100 text-emerald-800'
+                            key={item.id}
+                            onClick={() => {
+                              setReadNotificationIds((prev) => Array.from(new Set([...prev, item.id])))
+                              item.onAction()
+                            }}
+                            className={`p-3.5 transition-colors flex items-start gap-3 group cursor-pointer ${
+                              isUnread ? 'bg-[#FAF8F5] hover:bg-[#F5EFE8]' : 'hover:bg-slate-50/80 bg-white'
                             }`}
                           >
-                            {item.category === 'dropoff' && <Package size={14} />}
-                            {item.category === 'dispatch' && <Zap size={14} />}
-                            {item.category === 'ready' && <ShoppingBag size={14} />}
-                            {item.category === 'bench' && <Scissors size={14} />}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="text-xs font-bold text-slate-900 truncate">{item.title}</h4>
-                              <span className="text-[10px] text-slate-400 shrink-0">{item.time}</span>
+                            <div
+                              className={`size-8.5 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-2xs ${
+                                item.category === 'dropoff'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
+                                  : item.category === 'dispatch'
+                                  ? 'bg-[#9E593B]/10 text-[#9E593B] border border-[#9E593B]/20'
+                                  : item.category === 'ready'
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
+                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                              }`}
+                            >
+                              {item.category === 'dropoff' && <Package size={15} />}
+                              {item.category === 'dispatch' && <Zap size={15} />}
+                              {item.category === 'ready' && <ShoppingBag size={15} />}
+                              {item.category === 'bench' && <Scissors size={15} />}
                             </div>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.subtitle}</p>
 
-                            <div className="mt-2 flex items-center gap-2">
-                              {item.pin && (
-                                <span className="font-mono text-[10px] font-bold bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 border border-slate-200">
-                                  PIN {item.pin}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {isUnread && (
+                                    <span className="size-1.5 rounded-full bg-[#9E593B] shrink-0" title="Unread" />
+                                  )}
+                                  <h4 className={`text-xs truncate ${isUnread ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                                    {item.title}
+                                  </h4>
+                                </div>
+                                <span className="text-[10px] text-slate-400 shrink-0">{item.time}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 truncate mt-0.5">{item.subtitle}</p>
+
+                              <div className="mt-2 flex items-center justify-between gap-2">
+                                <span className="text-[11px] font-bold text-[#9E593B] group-hover:underline flex items-center gap-1">
+                                  {item.actionLabel} →
                                 </span>
-                              )}
-                              <button
-                                type="button"
-                                onClick={item.onAction}
-                                className="text-[11px] font-bold text-[#9E593B] hover:underline cursor-pointer"
-                              >
-                                {item.actionLabel} →
-                              </button>
+                                {item.badge && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/70">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => setDismissedNotificationIds((prev) => [...prev, item.id])}
-                            className="size-5 rounded-md hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                            title="Dismiss"
-                            aria-label="Dismiss"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDismissedNotificationIds((prev) => Array.from(new Set([...prev, item.id])))
+                              }}
+                              className="size-5 rounded-md hover:bg-slate-200/80 text-slate-400 hover:text-slate-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0 mt-0.5"
+                              title="Dismiss notification"
+                              aria-label="Dismiss"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        )
+                      })
                     ) : (
-                      <div className="py-8 px-4 text-center space-y-1.5">
-                        <CheckCircle size={22} className="mx-auto text-emerald-500" />
-                        <div className="text-xs font-bold text-slate-700">All caught up!</div>
-                        <p className="text-[11px] text-slate-400">No unread notifications in this category.</p>
+                      <div className="py-10 px-4 text-center space-y-2">
+                        <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+                          <Bell size={18} />
+                        </div>
+                        <div className="text-xs font-bold text-slate-800">No Notifications</div>
+                        <p className="text-[11px] text-slate-400 max-w-[220px] mx-auto leading-relaxed">
+                          Drop-off arrivals, new dispatch requests, and ready rack pickups will appear here.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -2043,15 +2194,17 @@ export function PartnerFlow({
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   {/* Left: Garment Info */}
                   <div className="flex items-center gap-3.5 min-w-0">
-                    {getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName }) && (
-                      <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
-                        <img
-                          src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })!}
-                          alt={currentBroadcast.garmentName}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
+                    <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
+                      <img
+                        src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                        alt={currentBroadcast.garmentName || 'Garment'}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null
+                          e.currentTarget.src = getDefaultGarmentImage(currentBroadcast.garmentName)
+                        }}
+                      />
+                    </div>
 
                     <div className="space-y-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -2266,15 +2419,17 @@ export function PartnerFlow({
                         {/* Garment Summary Card */}
                         <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
                           <div className="flex items-start gap-4">
-                            {getGarmentPhoto(activeIntake) && (
-                              <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
-                                <img
-                                  src={getGarmentPhoto(activeIntake)!}
-                                  alt={activeIntake.garmentName}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            )}
+                            <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
+                              <img
+                                src={getGarmentPhoto(activeIntake)}
+                                alt={activeIntake.garmentName || 'Garment'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null
+                                  e.currentTarget.src = getDefaultGarmentImage(activeIntake.garmentId || activeIntake.garmentName, activeIntake.serviceName)
+                                }}
+                              />
+                            </div>
                             <div className="min-w-0 flex-1">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] block mb-1">
                                 Order #{activeIntake.id.slice(0, 8)}
@@ -2720,7 +2875,7 @@ export function PartnerFlow({
                               Expected Drop-Off{pendingDropOffs > 1 ? 's' : ''} Today:
                             </span>
                             <span className="text-slate-400 text-[11px] hidden sm:inline">
-                              Click any customer to quickly enter their PIN
+                              Ask customer for their 4-digit drop-off PIN
                             </span>
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -2732,20 +2887,22 @@ export function PartnerFlow({
                                   key={o.id}
                                   type="button"
                                   onClick={() => {
-                                    if (o.otp) {
-                                      setPinInput(o.otp)
-                                      setPinError('')
-                                      handleLookupPin(o.otp)
+                                    setPinInput('')
+                                    setPinError('')
+                                    const el = document.getElementById('studio-counter-pin-input')
+                                    if (el) {
+                                      el.focus()
+                                      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
                                     }
                                   }}
                                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-slate-800 text-[11px] font-medium cursor-pointer transition-all hover:scale-[1.02] shadow-2xs group"
-                                  title={`Check in ${o.customerName} (PIN: ${o.otp || '****'})`}
+                                  title={`Check in ${o.customerName} via counter PIN`}
                                 >
                                   <span className="font-semibold text-slate-900 group-hover:text-[#9E593B]">
                                     {o.customerName}
                                   </span>
-                                  <span className="font-mono text-[10px] font-bold text-[#9E593B] bg-white px-1.5 py-0.5 rounded border border-amber-200/60 shadow-2xs">
-                                    PIN {o.otp || '****'}
+                                  <span className="text-[10px] font-semibold text-amber-800 bg-white px-1.5 py-0.5 rounded border border-amber-200/60 shadow-2xs">
+                                    OTP at Counter
                                   </span>
                                 </button>
                               ))}
@@ -2787,8 +2944,12 @@ export function PartnerFlow({
                                       <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
                                         <img
                                           src={getGarmentPhoto(ord)}
-                                          alt={ord.garmentName}
+                                          alt={ord.garmentName || 'Garment'}
                                           className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.currentTarget.onerror = null
+                                            e.currentTarget.src = getDefaultGarmentImage(ord.garmentId || ord.garmentName, ord.serviceName)
+                                          }}
                                         />
                                       </div>
                                       <div className="min-w-0">
@@ -2800,9 +2961,16 @@ export function PartnerFlow({
                                         </p>
                                       </div>
                                     </div>
-                                    <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">
-                                      Drop-off Today
-                                    </span>
+                                    {ord.status === 'Allocated' ? (
+                                      <span className="text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md shrink-0 flex items-center gap-1">
+                                        <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                        New Request
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-md shrink-0">
+                                        Drop-off Today
+                                      </span>
+                                    )}
                                   </div>
 
                                   <div className="flex items-center justify-between pt-1 gap-2">
@@ -2818,21 +2986,31 @@ export function PartnerFlow({
                                       >
                                         Cancel
                                       </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setPinInput('')
-                                          setPinError('')
-                                          const el = document.getElementById('studio-counter-pin-input')
-                                          if (el) {
-                                            el.focus()
-                                            el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                                          }
-                                        }}
-                                        className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
-                                      >
-                                        Enter Customer PIN →
-                                      </button>
+                                      {ord.status === 'Allocated' ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleAcceptAllocatedOrder(ord)}
+                                          className="px-3 py-1.5 rounded-lg bg-[#0F1115] hover:bg-[#9E593B] text-white text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-xs active:scale-95 flex items-center gap-1"
+                                        >
+                                          <span>⚡ Accept Booking</span>
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setPinInput('')
+                                            setPinError('')
+                                            const el = document.getElementById('studio-counter-pin-input')
+                                            if (el) {
+                                              el.focus()
+                                              el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                            }
+                                          }}
+                                          className="px-3 py-1.5 rounded-lg border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 text-[11px] font-bold shrink-0 transition-colors cursor-pointer shadow-2xs"
+                                        >
+                                          Enter Customer PIN →
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2882,8 +3060,12 @@ export function PartnerFlow({
                                         <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
                                           <img
                                             src={getGarmentPhoto(order)}
-                                            alt={order.garmentName}
+                                            alt={order.garmentName || 'Garment'}
                                             className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                              e.currentTarget.onerror = null
+                                              e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                            }}
                                           />
                                         </div>
                                         <div className="min-w-0">
@@ -2995,8 +3177,12 @@ export function PartnerFlow({
                                       <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
                                         <img
                                           src={getGarmentPhoto(order)}
-                                          alt={order.garmentName}
+                                          alt={order.garmentName || 'Garment'}
                                           className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.currentTarget.onerror = null
+                                            e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                          }}
                                         />
                                       </div>
                                       <div className="min-w-0">
@@ -3115,11 +3301,17 @@ export function PartnerFlow({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3 min-w-0">
-                                {getGarmentPhoto(order) && (
                                   <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                    <img src={getGarmentPhoto(order)!} alt={order.garmentName} className="w-full h-full object-cover" />
+                                    <img
+                                      src={getGarmentPhoto(order)}
+                                      alt={order.garmentName || 'Garment'}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null
+                                        e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                      }}
+                                    />
                                   </div>
-                                )}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
@@ -3193,11 +3385,17 @@ export function PartnerFlow({
                       <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
-                            {getGarmentPhoto(activeSelectedOrder) && (
                               <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                <img src={getGarmentPhoto(activeSelectedOrder)!} alt={activeSelectedOrder.garmentName} className="w-full h-full object-cover" />
+                                <img
+                                  src={getGarmentPhoto(activeSelectedOrder)}
+                                  alt={activeSelectedOrder.garmentName || 'Garment'}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null
+                                    e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
+                                  }}
+                                />
                               </div>
-                            )}
                             <div className="min-w-0">
                               <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>
@@ -3315,6 +3513,10 @@ export function PartnerFlow({
                                       src={photoUrl}
                                       alt={`Garment Photo ${idx + 1}`}
                                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null
+                                        e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
+                                      }}
                                     />
                                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                                       <Eye size={16} />
@@ -3707,6 +3909,10 @@ export function PartnerFlow({
                 src={lightboxPhotos[lightboxIndex]}
                 alt={`Full View Photo ${lightboxIndex + 1}`}
                 className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl transition-all duration-300"
+                onError={(e) => {
+                  e.currentTarget.onerror = null
+                  e.currentTarget.src = '/images/service_trousers.jpg'
+                }}
               />
 
               {/* Navigation Controls */}
@@ -3740,7 +3946,15 @@ export function PartnerFlow({
                     className={`size-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer shrink-0 ${lightboxIndex === idx ? 'border-[#9E593B] scale-105 shadow-lg' : 'border-white/30 opacity-60 hover:opacity-100'
                       }`}
                   >
-                    <img src={photo} alt="Thumbnail" className="w-full h-full object-cover" />
+                    <img
+                      src={photo}
+                      alt="Thumbnail"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null
+                        e.currentTarget.src = '/images/service_trousers.jpg'
+                      }}
+                    />
                   </button>
                 ))}
               </div>
