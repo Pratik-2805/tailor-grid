@@ -235,13 +235,27 @@ const { locateTailorsWithinRange } = require('../services/locate.service');
 // GET /api/tailors/nearby or /api/locate/tailors - Locate all tailors within range
 const handleLocateTailors = async (req, res) => {
   try {
-    const lat = parseFloat(req.query.lat);
-    const lng = parseFloat(req.query.lng);
-    const radiusMiles = parseFloat(req.query.radiusMiles) || 4.0;
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    const radiusMiles = Number(req.query.radiusMiles ?? 5.0);
     const query = req.query.query || '';
 
-    if (isNaN(lat) || isNaN(lng)) {
-      return res.status(400).json({ error: 'Valid lat and lng query parameters are required' });
+    // Validate coordinates and search radius boundaries
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(radiusMiles) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180 ||
+      radiusMiles <= 0 ||
+      radiusMiles > 50
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid coordinates or search radius. Latitude must be between -90 and 90, longitude between -180 and 180, and radius between 0 and 50 miles.',
+      });
     }
 
     const tailors = await locateTailorsWithinRange({ lat, lng, radiusMiles, query });
