@@ -224,6 +224,7 @@ export default function CleanGoogleMap({
     }>
   >([])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isMapDragging, setIsMapDragging] = useState(false)
 
   const isChoosing = !isLiveLocation && !isLocationSaved
 
@@ -363,11 +364,20 @@ export default function CleanGoogleMap({
     const map = mapInstanceRef.current
     if (!map || !isReady || !isChoosing) return
 
-    const dragListener = map.addListener('dragend', () => {
+    const dragStartListener = map.addListener('dragstart', () => {
+      setIsMapDragging(true)
+    })
+
+    const dragEndListener = map.addListener('dragend', () => {
+      setIsMapDragging(false)
       const center = map.getCenter()
       if (center && onPinLocationChange) {
         onPinLocationChange({ lat: center.lat(), lng: center.lng() })
       }
+    })
+
+    const idleListener = map.addListener('idle', () => {
+      setIsMapDragging(false)
     })
 
     const clickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
@@ -378,7 +388,9 @@ export default function CleanGoogleMap({
     })
 
     return () => {
-      google.maps.event.removeListener(dragListener)
+      google.maps.event.removeListener(dragStartListener)
+      google.maps.event.removeListener(dragEndListener)
+      google.maps.event.removeListener(idleListener)
       google.maps.event.removeListener(clickListener)
     }
   }, [isReady, isChoosing, onPinLocationChange])
@@ -401,9 +413,13 @@ export default function CleanGoogleMap({
       map.setCenter({ lat, lng })
     } else if (!showCurvedConnection) {
       const currentCenter = map.getCenter()
-      // Only pan if coordinate significantly changed (> 10 meters)
-      if (!currentCenter || Math.hypot(currentCenter.lat() - lat, currentCenter.lng() - lng) > 0.0001) {
-        map.panTo({ lat, lng })
+      if (currentCenter) {
+        const dLat = Math.abs(currentCenter.lat() - lat)
+        const dLng = Math.abs(currentCenter.lng() - lng)
+        // Only pan if coordinate significantly changed from external source (> 30 meters)
+        if (dLat > 0.0003 || dLng > 0.0003) {
+          map.panTo({ lat, lng })
+        }
       }
     }
   }, [lat, lng, isReady, isChoosing, fixedBoxMiles, radiusMiles, showCurvedConnection])
@@ -432,8 +448,9 @@ export default function CleanGoogleMap({
       onStoresFound(validStoresInRadius)
     }
 
-    // A. Custom Center Marker: Customer Location Pin ("You" GPS pulse vs Searched Blue Pin Point)
-    if (showUserPin) {
+    // A. Custom Center Marker: Customer Location Pin ("You" GPS pulse vs Saved Blue Pin Point)
+    // In choosing mode, we render the screen-fixed Center Pin to ensure 120fps ultra-smooth movement with zero lag
+    if (showUserPin && !isChoosing) {
       if (userMarkerRef.current && userMarkerRef.current.isLiveGps === isLiveLocation) {
         userMarkerRef.current.updatePosition(new google.maps.LatLng(lat, lng))
       } else {
@@ -463,7 +480,6 @@ export default function CleanGoogleMap({
             this.div.style.position = 'absolute'
             this.div.style.zIndex = '50'
             this.div.style.pointerEvents = 'none'
-            this.div.style.transition = 'left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.28s cubic-bezier(0.2, 0.8, 0.2, 1)'
 
             if (this.isLiveGps) {
               // 1. LIVE GPS LOCATION: Pulsating Google Maps blue dot & accuracy disc
@@ -505,17 +521,10 @@ export default function CleanGoogleMap({
                 </div>
               `
             } else {
-              // 2. SEARCHED / PINNED LOCATION: Sleek Compact Fluid Google Blue Pin Point marker
+              // 2. SAVED / PINNED LOCATION: Sleek Compact Fluid Google Blue Pin Point marker
               this.div.style.transform = 'translate(-50%, -100%)'
               this.div.innerHTML = `
-                <style>
-                  @keyframes gmaps-pin-drop {
-                    0%   { transform: translateY(-12px) scale(1.1); opacity: 0.7; }
-                    60%  { transform: translateY(1px) scale(0.98); opacity: 1; }
-                    100% { transform: translateY(0) scale(1); opacity: 1; }
-                  }
-                </style>
-                <div style="display: flex; flex-direction: column; align-items: center; position: relative; animation: gmaps-pin-drop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
                   <div style="width: 20px; height: 28px; position: relative; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));">
                     <svg width="20" height="28" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1"/>
@@ -995,6 +1004,31 @@ export default function CleanGoogleMap({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Interactive Precision Center Drop Pin in Choosing Mode (Zero-lag 120fps smooth lock) */}
+      {isChoosing && isReady && !loadError && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none flex flex-col items-center select-none">
+          <div
+            className={`transition-transform duration-150 ease-out ${
+              isMapDragging ? '-translate-y-2.5 scale-105' : 'translate-y-0 scale-100'
+            }`}
+          >
+            <div className="w-5 h-7 relative flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]">
+              <svg width="20" height="28" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1"/>
+                <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
+                <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8"/>
+              </svg>
+            </div>
+          </div>
+          {/* Ground target shadow dot */}
+          <div
+            className={`bg-black/35 rounded-full filter blur-[0.8px] -mt-0.5 transition-all duration-150 ${
+              isMapDragging ? 'w-1.5 h-0.5 opacity-25 scale-75' : 'w-2 h-0.5 opacity-60 scale-100'
+            }`}
+          />
         </div>
       )}
 
