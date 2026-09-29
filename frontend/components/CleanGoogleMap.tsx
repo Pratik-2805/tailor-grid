@@ -300,7 +300,7 @@ export default function CleanGoogleMap({
           styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
         })
 
-        if ((isFixed || isLocationSaved || isLiveLocation) && !isChoosing) {
+        if ((isFixed || isLocationSaved || isLiveLocation) && !isChoosing && !showCurvedConnection) {
           map.fitBounds(boundsBox, 0)
           map.setCenter({ lat, lng })
         }
@@ -345,7 +345,7 @@ export default function CleanGoogleMap({
       styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
     })
 
-    if (!isChoosing) {
+    if (!isChoosing && !showCurvedConnection) {
       const halfMiles = fixedBoxMiles / 2.0
       const deltaLat = halfMiles / 69.0
       const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
@@ -357,7 +357,7 @@ export default function CleanGoogleMap({
       map.fitBounds(boundsBox, 0)
       map.setCenter({ lat, lng })
     }
-  }, [isChoosing, isReady, lat, lng, fixedBoxMiles])
+  }, [isChoosing, isReady, lat, lng, fixedBoxMiles, showCurvedConnection])
 
   // Move the map or click on map to fine-tune/select actual desired location drop pin when in choosing mode
   useEffect(() => {
@@ -400,7 +400,7 @@ export default function CleanGoogleMap({
     const map = mapInstanceRef.current
     if (!map || !isReady) return
 
-    if (!isChoosing) {
+    if (!isChoosing && !showCurvedConnection) {
       const radius = radiusMiles || fixedBoxMiles || 5.0
       const deltaLat = radius / 69.0
       const deltaLng = radius / (69.0 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))

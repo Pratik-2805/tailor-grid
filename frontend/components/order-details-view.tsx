@@ -580,8 +580,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const tailorCoords = rawTailorCoords
 
   const computedDistance = calculateDistanceInMiles(customerCoords.lat, customerCoords.lng, tailorCoords.lat, tailorCoords.lng)
-  const walkMinutes = Math.max(2, Math.round(computedDistance * 20))
-  const dynamicDistanceBadge = `${computedDistance} mi • ~${walkMinutes} mins walk`
+  const formattedDistance = (computedDistance && !isNaN(computedDistance) && computedDistance > 0) ? computedDistance.toFixed(1) : '0.4'
+  const walkMinutes = Math.max(2, Math.round(Number(formattedDistance) * 20))
+  const dynamicDistanceBadge = `${formattedDistance} mi • ~${walkMinutes} mins walk`
 
   const assignedStoreOption: StoreOption = {
     id: order?.storeId || order?.store?.id || 'assigned-studio',
@@ -591,7 +592,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     postcode: order?.store?.postcode || order?.postcode || '',
     phone: storePhoneDisplay,
     distance: dynamicDistanceBadge,
-    distanceMiles: computedDistance,
+    distanceMiles: Number(formattedDistance),
     rating: order?.store?.rating || 5.0,
     reviewCount: order?.store?.reviewCount || 120,
     openingHours: storeHoursDisplay,
@@ -1369,6 +1370,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   selectedStoreId={assignedStoreOption.id}
                   showRadiusCircle={false}
                   showCurvedConnection={true}
+                  isLocationSaved={true}
+                  isLiveLocation={false}
+                  showUserPin={true}
+                  disableNavigation={true}
                   onMapClick={handleOpenAppMap}
                 />
 
