@@ -373,10 +373,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
 
   const handleBookNow = () => {
-    if (uploadedImages.length === 0) {
-      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
-      return
-    }
     if (!user || !user.phone) {
       onOpenAuth?.()
       return
@@ -395,12 +391,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   }
 
   const handleConfirmSchedule = () => {
-    if (uploadedImages.length === 0) {
-      toast.error('Please upload at least 1 garment photo to request an alteration.', { position: 'top-center' })
-      setIsScheduleModalOpen(false)
-      setShowTimePicker(false)
-      return
-    }
     if (!user || !user.phone) {
       setIsScheduleModalOpen(false)
       setShowTimePicker(false)
@@ -606,9 +596,9 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
             <div className="relative mb-5">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500">
-                  Garment photo / reference fit <span className="text-red-500 font-bold">* (Required)</span>
+                  Garment photo / reference fit <span className="text-gray-400 font-normal">(Optional)</span>
                 </label>
-                <span className={`text-[10px] font-bold ${uploadedImages.length === 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                <span className="text-[10px] font-bold text-gray-500">
                   {uploadedImages.length}/4 Photos
                 </span>
               </div>

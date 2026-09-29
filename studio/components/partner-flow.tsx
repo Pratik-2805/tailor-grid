@@ -47,6 +47,7 @@ import {
   X,
   XCircle,
   Zap,
+  FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
 import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, type PendingDispatchRequest } from '@/lib/api'
@@ -66,6 +67,7 @@ interface BroadcastRequest {
   fittingType: 'PRE_PINNED' | 'NEED_STUDIO_FITTING'
   garmentBrand?: string
   fitNotes: string
+  notes?: string
   partnerPayout: number
   price?: number
   slaHours: number
@@ -243,6 +245,32 @@ export function cleanMeasurementVal(val?: string | null): string {
   return str
 }
 
+export function getCleanCustomerNote(order?: any): string {
+  if (!order) return ''
+  const candidates = [
+    order.notes,
+    order.fitNotes,
+    order.bookingNotes,
+    order.sewingNotes,
+  ]
+  for (const c of candidates) {
+    if (typeof c === 'string') {
+      const trimmed = c.trim()
+      if (
+        trimmed &&
+        !trimmed.startsWith('{') &&
+        !trimmed.startsWith('[') &&
+        trimmed !== 'Requested from Atelier Booking Portal' &&
+        trimmed !== 'Customer requested alteration fitting.' &&
+        trimmed !== 'Customer requested standard alteration pinning at counter.'
+      ) {
+        return trimmed
+      }
+    }
+  }
+  return ''
+}
+
 export function formatCustomerFitNotes(rawNotes?: string | null): string {
   if (!rawNotes) return ''
   let str = String(rawNotes).trim()
@@ -351,11 +379,10 @@ export function renderCustomerFitNotesBanner(rawNotes?: string | null) {
             return (
               <span
                 key={key}
-                className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border shadow-2xs ${
-                  isPending
+                className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border shadow-2xs ${isPending
                     ? 'bg-amber-50/70 border-amber-200 text-amber-900'
                     : 'bg-white border-[#E3DCD1] text-[#1E2229]'
-                }`}
+                  }`}
               >
                 <span className={`size-1.5 rounded-full shrink-0 ${isPending ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                 <strong className="font-semibold">{key}:</strong>
@@ -425,8 +452,8 @@ export function parseOrderMeasurements(order?: Partial<FittingBooking> | null): 
           })
         }
       } catch { }
-    } else if (raw.includes('·') || raw.includes(':')) {
-      const parts = raw.split('·').map((s) => s.trim()).filter(Boolean)
+    } else if (raw.includes('·') || raw.includes(':') || raw.includes(',')) {
+      const parts = raw.split(/[·,]/).map((s) => s.trim()).filter(Boolean)
       parts.forEach((p) => {
         const colonIdx = p.indexOf(':')
         if (colonIdx !== -1) {
@@ -495,14 +522,14 @@ export function PartnerFlow({
     rawStudioName.length > 2 && rawStudioName.toLowerCase() !== 'x'
       ? rawStudioName
       : (user?.name && user.name.length > 2 && user.name.toLowerCase() !== 'x')
-      ? `${user.name}'s Atelier`
-      : 'Darzi Atelier · Soho Flagship'
+        ? `${user.name}'s Atelier`
+        : 'Darzi Atelier · Soho Flagship'
   const tailorName =
     (user?.name && user.name.length > 1 && user.name.toLowerCase() !== 'x')
       ? user.name
       : (rawStudioName.length > 2 && rawStudioName.toLowerCase() !== 'x')
-      ? rawStudioName
-      : 'Master Tailor'
+        ? rawStudioName
+        : 'Master Tailor'
 
   const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
 
@@ -949,9 +976,9 @@ export function PartnerFlow({
       serviceName: pd.serviceName || pd.order?.serviceName || 'Custom Fit & Alteration',
       fittingType: 'NEED_STUDIO_FITTING',
       garmentBrand: pd.order?.garmentBrand || '',
-      fitNotes: pd.order?.fitNotes || 'Customer requested standard alteration pinning at counter.',
-      partnerPayout: pd.order?.price || pd.payout || pd.order?.partnerPayout || 25,
-      price: pd.order?.price || pd.payout || 25,
+      notes: pd.order?.notes || pd.order?.fitNotes || pd.order?.bookingNotes || '',
+      fitNotes: pd.order?.notes || pd.order?.fitNotes || pd.order?.bookingNotes || '',
+      partnerPayout: pd.payout || pd.order?.partnerPayout || 15,
       slaHours: pd.order?.slaHours || 48,
       imageUrl: pd.order?.imageUrl || pd.order?.intakePhotoUrl || '',
       otp: pd.order?.otp || '0000',
@@ -970,9 +997,9 @@ export function PartnerFlow({
     serviceName: o.serviceName || 'Custom Fit & Alteration',
     fittingType: 'NEED_STUDIO_FITTING' as const,
     garmentBrand: o.garmentBrand || '',
-    fitNotes: o.fitNotes || o.pinnedAdjustment || 'Customer requested alteration fitting.',
-    partnerPayout: o.price || o.partnerPayout || 30,
-    price: o.price || 30,
+    notes: o.notes || o.fitNotes || '',
+    fitNotes: o.notes || o.fitNotes || '',
+    partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
     slaHours: o.slaHours || 48,
     imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
     otp: o.otp || '0000',
@@ -1037,7 +1064,7 @@ export function PartnerFlow({
           prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
         )
         // Persist to DB
-        updateOrder(bc.id, promotionUpdates).catch(() => {})
+        updateOrder(bc.id, promotionUpdates).catch(() => { })
 
         handleRefresh()
       } else {
@@ -1192,7 +1219,7 @@ export function PartnerFlow({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: targetOrder.customerPhone, otp: freshOtp }),
-      }).catch(() => {})
+      }).catch(() => { })
     }
 
     setBroadcastToast(`🔑 Pickup OTP (${freshOtp}) generated & sent to customer!`)
@@ -1467,7 +1494,7 @@ export function PartnerFlow({
       .join(' · ')
 
     const updates: Partial<FittingBooking> = {
-      pinnedAdjustment: combinedSpecs || 'Standard alteration',
+      pinnedAdjustment: Object.keys(updatedMap).length > 0 ? JSON.stringify(updatedMap) : (combinedSpecs || 'Standard alteration'),
       measurements: updatedMap,
     }
 
@@ -1978,11 +2005,10 @@ export function PartnerFlow({
               <button
                 type="button"
                 onClick={() => setNotificationOpen(!notificationOpen)}
-                className={`relative size-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
-                  notificationOpen
+                className={`relative size-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${notificationOpen
                     ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                     : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-slate-200 shadow-2xs'
-                }`}
+                  }`}
                 title="Workshop Notifications & Alerts"
                 aria-label="Workshop Notifications"
               >
@@ -2047,17 +2073,15 @@ export function PartnerFlow({
                         key={tab.id}
                         type="button"
                         onClick={() => setNotificationTab(tab.id as any)}
-                        className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all flex items-center gap-1.5 ${
-                          notificationTab === tab.id
+                        className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all flex items-center gap-1.5 ${notificationTab === tab.id
                             ? 'bg-slate-900 text-white shadow-2xs'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                        }`}
+                          }`}
                       >
                         <span>{tab.label}</span>
                         {tab.count > 0 && (
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                            notificationTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                          }`}>
+                          <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${notificationTab === tab.id ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+                            }`}>
                             {tab.count}
                           </span>
                         )}
@@ -2080,20 +2104,18 @@ export function PartnerFlow({
                               setReadNotificationIds((prev) => Array.from(new Set([...prev, item.id])))
                               item.onAction()
                             }}
-                            className={`p-3.5 transition-colors flex items-start gap-3 group cursor-pointer ${
-                              isUnread ? 'bg-[#FAF8F5] hover:bg-[#F5EFE8]' : 'hover:bg-slate-50/80 bg-white'
-                            }`}
+                            className={`p-3.5 transition-colors flex items-start gap-3 group cursor-pointer ${isUnread ? 'bg-[#FAF8F5] hover:bg-[#F5EFE8]' : 'hover:bg-slate-50/80 bg-white'
+                              }`}
                           >
                             <div
-                              className={`size-8.5 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-2xs ${
-                                item.category === 'dropoff'
+                              className={`size-8.5 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-2xs ${item.category === 'dropoff'
                                   ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
                                   : item.category === 'dispatch'
-                                  ? 'bg-[#9E593B]/10 text-[#9E593B] border border-[#9E593B]/20'
-                                  : item.category === 'ready'
-                                  ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
-                                  : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
-                              }`}
+                                    ? 'bg-[#9E593B]/10 text-[#9E593B] border border-[#9E593B]/20'
+                                    : item.category === 'ready'
+                                      ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
+                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                                }`}
                             >
                               {item.category === 'dropoff' && <Package size={15} />}
                               {item.category === 'dispatch' && <Zap size={15} />}
@@ -2227,6 +2249,18 @@ export function PartnerFlow({
                         <span>·</span>
                         <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
                       </div>
+                      {(() => {
+                        const noteText = getCleanCustomerNote(currentBroadcast.realOrder || currentBroadcast)
+                        if (!noteText) return null
+                        return (
+                          <div className="mt-1 text-[11px] bg-white/10 rounded-md px-2 py-0.5 text-stone-200 flex items-center gap-1.5 max-w-sm truncate">
+                            <FileText size={11} className="text-[#E8A588] shrink-0" />
+                            <span className="truncate">
+                              <strong className="text-white font-semibold">Note:</strong> {noteText}
+                            </span>
+                          </div>
+                        )
+                      })()}
                     </div>
                   </div>
 
@@ -2449,16 +2483,21 @@ export function PartnerFlow({
                           </div>
 
                           {/* Customer Fit Notes */}
-                          {activeIntake.fitNotes && formatCustomerFitNotes(activeIntake.fitNotes) && (
-                            <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-1">
-                              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 block">
-                                Client Fit Instructions
-                              </span>
-                              <p className="text-slate-800 font-medium leading-relaxed">
-                                {formatCustomerFitNotes(activeIntake.fitNotes)}
-                              </p>
-                            </div>
-                          )}
+                          {(() => {
+                            const intakeNote = getCleanCustomerNote(activeIntake)
+                            if (!intakeNote) return null
+                            return (
+                              <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-200/80 text-xs space-y-1">
+                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
+                                  <FileText size={12} className="text-[#9E593B]" />
+                                  <span>Client Fitting &amp; Alteration Notes</span>
+                                </span>
+                                <p className="text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">
+                                  {intakeNote}
+                                </p>
+                              </div>
+                            )
+                          })()}
                         </div>
 
                         {/* Intake Inspection Checklist */}
@@ -2496,124 +2535,7 @@ export function PartnerFlow({
 
                       {/* Right: Measurements, Tailor Bench & Confirmation */}
                       <div className="lg:col-span-7 space-y-5">
-                        {/* Measurements Section */}
-                        <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Scissors size={15} className="text-[#9E593B]" />
-                              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                                Tailoring Specifications &amp; Pin Points
-                              </span>
-                            </div>
 
-                            {!isEditingIntakeMeas ? (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingIntakeMeas(true)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-200 text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer"
-                              >
-                                <Edit3 size={12} />
-                                <span>Modify Measurements</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditingIntakeMeas(false)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-2xs transition-colors cursor-pointer"
-                              >
-                                <Check size={12} />
-                                <span>Done Editing</span>
-                              </button>
-                            )}
-                          </div>
-
-                          {!isEditingIntakeMeas ? (
-                            <div className="space-y-3">
-                              {intakeMeasFields.length > 0 && intakeMeasFields.some((f) => f.value && f.value.trim()) ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                                  {intakeMeasFields.map((field, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs"
-                                    >
-                                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
-                                        {field.label}
-                                      </span>
-                                      <span className="font-mono font-bold text-slate-900 text-sm">
-                                        {field.value}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="p-4 bg-white rounded-xl border border-slate-200 text-xs text-slate-500 font-medium">
-                                  No pre-set fit numbers &bull; Customer requested in-person measurement at bench.
-                                </div>
-                              )}
-
-                              <p className="text-[11px] text-slate-400">
-                                Fit specifications are locked to the docket. Click &quot;Modify Measurements&quot; if the customer asks for on-the-spot adjustments.
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="space-y-3 pt-1 animate-fadeIn">
-                              <p className="text-xs text-slate-600 font-medium">
-                                Update or enter custom fit parameters below:
-                              </p>
-
-                              <div className="grid sm:grid-cols-2 gap-2.5">
-                                {intakeMeasFields.map((field, idx) => (
-                                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
-                                      {field.label}
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={field.value}
-                                      onChange={(e) => {
-                                        const val = e.target.value
-                                        setIntakeMeasFields((prev) =>
-                                          prev.map((f, i) => (i === idx ? { ...f, value: val } : f))
-                                        )
-                                        if (field.key === 'hem' || field.key.includes('hem')) setMeasHem(val)
-                                        if (field.key === 'waist' || field.key.includes('waist')) setMeasWaist(val)
-                                        if (field.key === 'sleeve' || field.key.includes('sleeve')) setMeasSleeve(val)
-                                        if (field.key === 'inseam' || field.key.includes('inseam')) setMeasInseam(val)
-                                      }}
-                                      placeholder={`Enter ${field.label}`}
-                                      className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:border-[#9E593B] outline-none font-mono"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-
-                              <div className="flex items-center justify-between pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const newKey = `custom_${Date.now()}`
-                                    setIntakeMeasFields((prev) => [
-                                      ...prev,
-                                      { key: newKey, label: 'Custom Fit Note', value: '' },
-                                    ])
-                                  }}
-                                  className="text-xs text-[#9E593B] font-bold hover:underline inline-flex items-center gap-1 cursor-pointer"
-                                >
-                                  <Plus size={12} />
-                                  <span>Add Custom Spec Field</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => setIsEditingIntakeMeas(false)}
-                                  className="px-3.5 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold transition-colors cursor-pointer"
-                                >
-                                  ✓ Save Fit Specs
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
 
                         {/* Station Allocation */}
                         <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-4 shadow-2xs">
@@ -2778,9 +2700,8 @@ export function PartnerFlow({
                               return (
                                 <div
                                   key={idx}
-                                  className={`uiverse-pin-slot size-12 sm:size-13 font-mono font-bold text-xl sm:text-2xl ${
-                                    digit ? 'filled text-slate-900' : isFocused ? 'active text-[#9E593B]' : 'text-slate-300'
-                                  }`}
+                                  className={`uiverse-pin-slot size-12 sm:size-13 font-mono font-bold text-xl sm:text-2xl ${digit ? 'filled text-slate-900' : isFocused ? 'active text-[#9E593B]' : 'text-slate-300'
+                                    }`}
                                 >
                                   {digit || (isFocused ? <span className="animate-pulse text-[#9E593B]">|</span> : '—')}
                                 </div>
@@ -2792,11 +2713,10 @@ export function PartnerFlow({
                             type="button"
                             onClick={() => handleLookupPin(pinInput)}
                             disabled={pinInput.length === 0}
-                            className={`px-5 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
-                              pinInput.length === 4
+                            className={`px-5 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer ${pinInput.length === 4
                                 ? 'bg-slate-900 hover:bg-[#9E593B] text-white active:scale-95 shadow-sm'
                                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                            }`}
+                              }`}
                           >
                             <ShieldCheck size={16} />
                             <span>Check In Order →</span>
@@ -2853,9 +2773,8 @@ export function PartnerFlow({
                                 key={key}
                                 type="button"
                                 onClick={() => handleKeypadPress(key)}
-                                className={`uiverse-keypad-btn ${
-                                  key === 'CLEAR' || key === 'BACK' ? 'bg-slate-100 text-slate-700 text-xs font-bold' : ''
-                                }`}
+                                className={`uiverse-keypad-btn ${key === 'CLEAR' || key === 'BACK' ? 'bg-slate-100 text-slate-700 text-xs font-bold' : ''
+                                  }`}
                               >
                                 {key === 'BACK' ? '⌫' : key}
                               </button>
@@ -3088,9 +3007,8 @@ export function PartnerFlow({
                                           ${order.partnerPayout || order.price || 20}
                                         </span>
                                         <span
-                                          className={`text-[10px] font-semibold flex items-center justify-end gap-1 ${
-                                            sla.urgent ? 'text-red-600 font-bold' : 'text-slate-500'
-                                          }`}
+                                          className={`text-[10px] font-semibold flex items-center justify-end gap-1 ${sla.urgent ? 'text-red-600 font-bold' : 'text-slate-500'
+                                            }`}
                                         >
                                           <Clock size={11} />
                                           <span>{sla.text}</span>
@@ -3116,9 +3034,8 @@ export function PartnerFlow({
                                       </div>
                                       <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
                                         <div
-                                          className={`h-full rounded-full transition-all duration-500 ${
-                                            sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
-                                          }`}
+                                          className={`h-full rounded-full transition-all duration-500 ${sla.urgent ? 'bg-red-500' : 'bg-[#9E593B]'
+                                            }`}
                                           style={{ width: `${sla.percent}%` }}
                                         />
                                       </div>
@@ -3301,17 +3218,17 @@ export function PartnerFlow({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3 min-w-0">
-                                  <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                    <img
-                                      src={getGarmentPhoto(order)}
-                                      alt={order.garmentName || 'Garment'}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.currentTarget.onerror = null
-                                        e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
-                                      }}
-                                    />
-                                  </div>
+                                <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                                  <img
+                                    src={getGarmentPhoto(order)}
+                                    alt={order.garmentName || 'Garment'}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null
+                                      e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                    }}
+                                  />
+                                </div>
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
@@ -3333,6 +3250,18 @@ export function PartnerFlow({
                                   </div>
                                   <div className="font-bold text-xs text-[#1E2229] truncate">{order.garmentName}</div>
                                   <div className="text-[11px] text-[#6B7280]">{order.serviceName} · {order.customerName}</div>
+                                  {(() => {
+                                    const notePreview = getCleanCustomerNote(order)
+                                    if (!notePreview) return null
+                                    return (
+                                      <div className="mt-2 text-[11px] bg-[#FAF8F5] border border-[#E8E1D5] text-[#1E2229] px-2.5 py-1.5 rounded-lg flex items-start gap-1.5">
+                                        <FileText size={12} className="text-[#9E593B] shrink-0 mt-0.5" />
+                                        <span className="font-medium text-[#5A5D64] line-clamp-2 leading-tight">
+                                          <strong className="text-[#1E2229] font-bold">Client Note:</strong> {notePreview}
+                                        </span>
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
@@ -3341,10 +3270,7 @@ export function PartnerFlow({
                               </div>
                             </div>
 
-                            <div className="mt-3 pt-2.5 border-t border-[#E8E1D5] flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button onClick={() => handleOpenEditMeasurements(order)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer">
-                                <Edit3 size={11} /> Edit Specs
-                              </button>
+                            <div className="mt-3 pt-2.5 border-t border-[#E8E1D5] flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center gap-2">
                                 {order.status === 'Accepted' && (
                                   <>
@@ -3385,17 +3311,17 @@ export function PartnerFlow({
                       <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
-                              <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                <img
-                                  src={getGarmentPhoto(activeSelectedOrder)}
-                                  alt={activeSelectedOrder.garmentName || 'Garment'}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.onerror = null
-                                    e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
-                                  }}
-                                />
-                              </div>
+                            <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
+                              <img
+                                src={getGarmentPhoto(activeSelectedOrder)}
+                                alt={activeSelectedOrder.garmentName || 'Garment'}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null
+                                  e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
+                                }}
+                              />
+                            </div>
                             <div className="min-w-0">
                               <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
                               <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>
@@ -3428,39 +3354,7 @@ export function PartnerFlow({
                           <span className="text-[10px] font-semibold bg-white text-[#1E2229] border border-[#E8E1D5] px-2.5 py-0.5 rounded-full shrink-0">Pay at Pickup</span>
                         </div>
 
-                        <div className="p-3.5 rounded-xl bg-[#F3EFEA]/80 border border-[#E8E1D5] space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-[#1E2229] flex items-center gap-1.5"><Ruler size={13} className="text-[#9E593B]" /> Measurements</span>
-                            <button onClick={() => handleOpenEditMeasurements(activeSelectedOrder)} className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-0.5 rounded-lg">
-                              <Edit3 size={11} /> Edit
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            {(() => {
-                              const parsed = parseOrderMeasurements(activeSelectedOrder)
-                              const entries = Object.entries(parsed)
-                              if (entries.length === 0) {
-                                return [
-                                  { label: 'Hem', val: 'Standard' },
-                                  { label: 'Waist', val: 'Standard' },
-                                  { label: 'Sleeves', val: 'Standard' },
-                                  { label: 'Inseam', val: 'Original' },
-                                ].map((m) => (
-                                  <div key={m.label} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
-                                    <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{m.label}</span>
-                                    <span className="font-semibold text-[#1E2229]">{m.val}</span>
-                                  </div>
-                                ))
-                              }
-                              return entries.map(([k, v]) => (
-                                <div key={k} className="bg-white p-2 rounded-xl border border-[#E8E1D5]">
-                                  <span className="text-[10px] text-[#9E593B] font-bold block mb-0.5 uppercase">{formatMeasurementKey(k)}</span>
-                                  <span className="font-semibold text-[#1E2229] break-words">{String(v)}</span>
-                                </div>
-                              ))
-                            })()}
-                          </div>
-                        </div>
+
 
                         <div className="p-3.5 rounded-xl bg-white border border-[#E8E1D5] space-y-2 text-xs divide-y divide-[#E8E1D5]">
                           <div className="flex justify-between pb-1.5"><span className="text-[#6B7280]">Customer:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.customerName}</span></div>
@@ -3479,6 +3373,32 @@ export function PartnerFlow({
                           )}
                           <div className="flex justify-between pt-1.5"><span className="text-[#6B7280]">Turnaround:</span><span className="font-semibold text-[#1E2229]">{activeSelectedOrder.slaHours || 48}h Guaranteed</span></div>
                         </div>
+
+                        {/* Customer Fitting & Alteration Notes Section */}
+                        {(() => {
+                          const clientNote = getCleanCustomerNote(activeSelectedOrder)
+                          return (
+                            <div className="p-3.5 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E2229]">
+                                <div className="w-5 h-5 rounded-md bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0">
+                                  <FileText size={12} />
+                                </div>
+                                <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#9E593B]">
+                                  Customer Fitting &amp; Alteration Notes
+                                </span>
+                              </div>
+                              {clientNote ? (
+                                <p className="text-xs font-semibold text-[#1E2229] bg-white p-3 rounded-xl border border-[#E8E1D5] leading-relaxed break-words whitespace-pre-wrap shadow-2xs">
+                                  {clientNote}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-[#6B7280] italic bg-white p-2.5 rounded-xl border border-[#E8E1D5]">
+                                  No special fitting notes or instructions provided by client.
+                                </p>
+                              )}
+                            </div>
+                          )
+                        })()}
 
                         {/* Garment Reference Photos Section */}
                         {(() => {
@@ -3712,57 +3632,7 @@ export function PartnerFlow({
       {/* MODALS — CLEAN MINIMALIST DIALOGS                                      */}
       {/* ═══════════════════════════════════════════════════════════════════════ */}
 
-      {/* Edit Measurements */}
-      {isEditMeasOpen && editTargetOrder && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white max-w-lg w-full p-6 rounded-2xl shadow-xl border border-[#E8E1D5] space-y-4 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-[#E8E1D5] pb-3">
-              <div>
-                <h3 className="font-bold text-base text-[#1E2229]">Edit Garment Specifications</h3>
-                <p className="text-xs text-[#6B7280]">{editTargetOrder.garmentName} · {editTargetOrder.customerName}</p>
-              </div>
-              <button onClick={() => setIsEditMeasOpen(false)} className="p-1 text-[#6B7280] hover:text-[#1E2229] rounded-lg hover:bg-[#FAF8F5] cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
 
-            <div className="space-y-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
-              {editMeasFields.map((f, idx) => (
-                <div key={`${f.key}-${idx}`}>
-                  <label className="block font-semibold text-[#1E2229] mb-1">{f.label}</label>
-                  <input
-                    type="text"
-                    value={f.value}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setEditMeasFields((prev) =>
-                        prev.map((item, i) => (i === idx ? { ...item, value: val } : item))
-                      )
-                    }}
-                    placeholder={`e.g. ${f.label} measurement / spec`}
-                    className="w-full px-3 py-2 rounded-xl border border-[#E8E1D5] bg-white focus:border-[#9E593B] focus:outline-none"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-3 border-t border-[#E8E1D5] flex justify-end gap-2">
-              <button
-                onClick={() => setIsEditMeasOpen(false)}
-                className="px-4 py-2 rounded-xl border border-[#E8E1D5] text-xs font-semibold text-[#6B7280] hover:bg-[#FAF8F5]"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveMeasurements}
-                className="px-4 py-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-semibold shadow-xs transition-colors"
-              >
-                Save Specs
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Pickup Verification Modal */}
       {pickupModalOrder && (
