@@ -26,9 +26,40 @@ import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
 import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile } from '@/lib/api'
-import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
+
+const SESSION_BOOKING_KEY = 'tg_book_session'
+
+function getSessionBookingData(): any | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_BOOKING_KEY) || getCookie(SESSION_BOOKING_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+function setSessionBookingData(data: any): void {
+  if (typeof window === 'undefined') return
+  try {
+    const json = JSON.stringify(data)
+    sessionStorage.setItem(SESSION_BOOKING_KEY, json)
+    if (typeof document !== 'undefined') {
+      document.cookie = `${encodeURIComponent(SESSION_BOOKING_KEY)}=${encodeURIComponent(json)}; path=/; SameSite=Lax`
+    }
+  } catch {}
+}
+
+function clearSessionBookingData(): void {
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(SESSION_BOOKING_KEY)
+    } catch {}
+    deleteCookie(SESSION_BOOKING_KEY, '/')
+  }
+}
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -615,20 +646,37 @@ export default function BookPage() {
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
-  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [isLiveLocation, setIsLiveLocation] = useState(false)
-  const [isLocationSaved, setIsLocationSaved] = useState(false)
+  
+  // Initialize states from current session cookie/storage if present
+  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    const s = getSessionBookingData()
+    return s?.coords || null
+  })
+  const [isLiveLocation, setIsLiveLocation] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isLiveLocation === 'boolean' ? s.isLiveLocation : false
+  })
+  const [isLocationSaved, setIsLocationSaved] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isLocationSaved === 'boolean' ? s.isLocationSaved : false
+  })
 
   // 3D Card Flip state for Address Details input
-  const [isCardFlipped, setIsCardFlipped] = useState(false)
+  const [isCardFlipped, setIsCardFlipped] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isCardFlipped === 'boolean' ? s.isCardFlipped : false
+  })
 
   // Address Details for Searched / Dropped Pin Location (House No., Apartment, Locality, City)
-  const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>({
-    houseNo: '',
-    apartment: '',
-    locality: '',
-    city: 'Vasai, IN-MH',
-    landmark: '',
+  const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>(() => {
+    const s = getSessionBookingData()
+    return s?.addressDetails || {
+      houseNo: '',
+      apartment: '',
+      locality: '',
+      city: 'Vasai, IN-MH',
+      landmark: '',
+    }
   })
 
   const handleAddressFieldChange = (field: keyof CustomerAddressDetails, value: string) => {
@@ -707,26 +755,53 @@ export default function BookPage() {
     toast.success('Address saved to profile & nearby ateliers updated!', { position: 'top-center' })
   }
 
-  // Selection states initialized from prefilled context
-  const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
-  const [selectedServiceId, setSelectedServiceId] = useState(prefilledServiceId || 'trouser-hem-plain')
+  // Selection states initialized from prefilled context or session cookie
+  const [selectedGarmentId, setSelectedGarmentId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.garmentId || prefilledGarmentId || 'trousers'
+  })
+  const [selectedServiceId, setSelectedServiceId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.serviceId || prefilledServiceId || 'trouser-hem-plain'
+  })
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
 
   // Image Upload state
-  const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadedImages, setUploadedImages] = useState<string[]>(() => {
+    const s = getSessionBookingData()
+    return Array.isArray(s?.images) ? s.images : []
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Live device GPS location detection on mount: Always fetch fresh location on refresh
+  const liveGpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const liveCityRef = useRef<string>('Vasai, IN-MH')
+  const liveAddressDetailsRef = useRef<CustomerAddressDetails>({
+    houseNo: '',
+    apartment: '',
+    locality: '',
+    city: 'Vasai, IN-MH',
+    landmark: '',
+  })
+
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) return
+
+    const sessionData = getSessionBookingData()
+    const hasPriorSession = sessionData && (sessionData.coords || sessionData.city || sessionData.garmentId)
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords
         const liveCoords = { lat: latitude, lng: longitude }
-        setUserGpsCoords(liveCoords)
-        setIsLiveLocation(true)
+        liveGpsCoordsRef.current = liveCoords
+
+        // Only override state with live GPS if user does not already have an active session
+        if (!hasPriorSession) {
+          setUserGpsCoords(liveCoords)
+          setIsLiveLocation(true)
+        }
 
         // Reverse geocode via Google Geocoder if available
         if (typeof google !== 'undefined' && google.maps?.Geocoder) {
@@ -735,13 +810,14 @@ export default function BookPage() {
             geocoder.geocode({ location: liveCoords }, (results, status) => {
               if (status === 'OK' && Array.isArray(results) && results.length > 0) {
                 const parsed = parseGoogleAddressComponents(results)
-                setAddressDetails((prev) => ({
-                  ...prev,
-                  houseNo: parsed.houseNo || prev.houseNo,
-                  apartment: parsed.apartment || prev.apartment,
-                  locality: parsed.locality || prev.locality,
-                  city: parsed.city || prev.city,
-                }))
+                const newDetails: CustomerAddressDetails = {
+                  houseNo: parsed.houseNo || '',
+                  apartment: parsed.apartment || '',
+                  locality: parsed.locality || '',
+                  city: parsed.city || '',
+                  landmark: '',
+                }
+                liveAddressDetailsRef.current = newDetails
 
                 const comps = results[0]?.address_components || []
                 const locality = comps.find((c: any) => c.types.includes('locality'))
@@ -753,8 +829,16 @@ export default function BookPage() {
                 const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
                 const stateCode = state?.short_name || country?.short_name || ''
                 const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
-                setSelectedCity(formatted)
-                setStoredCity(formatted, liveCoords)
+                liveCityRef.current = formatted
+
+                if (!hasPriorSession) {
+                  setAddressDetails((prev) => ({
+                    ...prev,
+                    ...newDetails,
+                  }))
+                  setSelectedCity(formatted)
+                  setStoredCity(formatted, liveCoords)
+                }
               }
             })
           } catch {}
@@ -767,12 +851,98 @@ export default function BookPage() {
     )
   }, [setSelectedCity])
 
+  // Handle clicking "Back to Request" on the address details card
+  const handleBackToRequest = () => {
+    setIsCardFlipped(false)
+
+    // If the user did not explicitly save this location, automatically revert to current live location
+    if (!isLocationSaved) {
+      if (liveGpsCoordsRef.current) {
+        setUserGpsCoords(liveGpsCoordsRef.current)
+        setIsLiveLocation(true)
+        if (liveCityRef.current) {
+          setSelectedCity(liveCityRef.current)
+          setStoredCity(liveCityRef.current, liveGpsCoordsRef.current)
+        }
+        if (liveAddressDetailsRef.current) {
+          setAddressDetails(liveAddressDetailsRef.current)
+        }
+      } else if (typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const live = { lat: position.coords.latitude, lng: position.coords.longitude }
+            liveGpsCoordsRef.current = live
+            setUserGpsCoords(live)
+            setIsLiveLocation(true)
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 6000 }
+        )
+      }
+    }
+  }
+
   // Measurement collapsible dropdown & custom edit state
   const [isMeasurementOpen, setIsMeasurementOpen] = useState(false)
   const [isEditingMeasurements, setIsEditingMeasurements] = useState(false)
-  const [measUnit, setMeasUnit] = useState<'in' | 'cm'>('in')
-  const [customMeasurements, setCustomMeasurements] = useState<Record<string, string>>({})
-  const [isTailorMeasuredMap, setIsTailorMeasuredMap] = useState<Record<string, boolean>>({})
+  const [measUnit, setMeasUnit] = useState<'in' | 'cm'>(() => {
+    const s = getSessionBookingData()
+    return s?.measUnit === 'cm' ? 'cm' : 'in'
+  })
+  const [customMeasurements, setCustomMeasurements] = useState<Record<string, string>>(() => {
+    const s = getSessionBookingData()
+    return s?.measurements && typeof s.measurements === 'object' ? s.measurements : {}
+  })
+  const [isTailorMeasuredMap, setIsTailorMeasuredMap] = useState<Record<string, boolean>>(() => {
+    const s = getSessionBookingData()
+    return s?.isTailorMeasuredMap && typeof s.isTailorMeasuredMap === 'object' ? s.isTailorMeasuredMap : {}
+  })
+
+  // Schedule modal state
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
+  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(() => {
+    const s = getSessionBookingData()
+    return s?.scheduleDate ? new Date(s.scheduleDate) : new Date()
+  })
+  const [selectedTime, setSelectedTime] = useState<string>(() => {
+    const s = getSessionBookingData()
+    return s?.scheduleTime || '03:30 PM'
+  })
+
+  // Automatically persist all booking data into session cookie and sessionStorage on any change
+  useEffect(() => {
+    setSessionBookingData({
+      garmentId: selectedGarmentId,
+      serviceId: selectedServiceId,
+      images: (uploadedImages || []).slice(0, 4),
+      measurements: customMeasurements,
+      isTailorMeasuredMap,
+      measUnit,
+      addressDetails,
+      city: selectedCity,
+      coords: userGpsCoords,
+      isLiveLocation,
+      isLocationSaved,
+      isCardFlipped,
+      scheduleTime: selectedTime,
+      scheduleDate: scheduleDateObj ? scheduleDateObj.toISOString() : null,
+    })
+  }, [
+    selectedGarmentId,
+    selectedServiceId,
+    uploadedImages,
+    customMeasurements,
+    isTailorMeasuredMap,
+    measUnit,
+    addressDetails,
+    selectedCity,
+    userGpsCoords,
+    isLiveLocation,
+    isLocationSaved,
+    isCardFlipped,
+    selectedTime,
+    scheduleDateObj,
+  ])
 
   const handleUnitChange = (newUnit: 'in' | 'cm') => {
     if (newUnit === measUnit) return
@@ -785,11 +955,6 @@ export default function BookPage() {
       return converted
     })
   }
-
-  // Schedule modal state
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
-  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
-  const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
 
   // Live Dispatch Searching & No-Tailors alert states
   const [isSearching, setIsSearching] = useState(false)
@@ -1204,6 +1369,7 @@ export default function BookPage() {
           imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
           status: 'Allocated',
         })
+        clearSessionBookingData()
         toast.success('Scheduled atelier fitting confirmed!', { position: 'top-center' })
         router.push(`/order/${newOrderId}`)
       } catch (error) {
@@ -1285,6 +1451,7 @@ export default function BookPage() {
               setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
             }
 
+            clearSessionBookingData()
             toast.success(`Request accepted by ${winningStore?.name || 'Partner Atelier'}!`, {
               position: 'top-center',
             })
@@ -1743,7 +1910,7 @@ export default function BookPage() {
                   <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                     <button
                       type="button"
-                      onClick={() => setIsCardFlipped(false)}
+                      onClick={handleBackToRequest}
                       className="inline-flex items-center gap-1.5 text-xs font-extrabold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
                     >
                       <ArrowLeft size={14} className="text-black" />
@@ -1877,6 +2044,7 @@ export default function BookPage() {
                   setUserGpsCoords(newCoords)
                   setIsLiveLocation(false)
                   setIsLocationSaved(false)
+                  setIsCardFlipped(true)
 
                   if (typeof google !== 'undefined' && google.maps?.Geocoder) {
                     try {
@@ -1930,6 +2098,9 @@ export default function BookPage() {
           setStoredCity(c, targetCoords)
 
           if (isGps === true) {
+            liveGpsCoordsRef.current = targetCoords
+            liveCityRef.current = c
+            setIsCardFlipped(false)
             // Live current location: immediately fetch nearby atelier locations
             fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
               .then((data) => {
