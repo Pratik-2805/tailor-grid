@@ -52,7 +52,7 @@ router.post('/dispatch/start', async (req, res) => {
     const uniqueRand = Math.floor(100 + Math.random() * 900);
     const orderId = req.body.id || `TG-${uniqueTs}${uniqueRand}`;
     const parsedPrice = price ? parseFloat(price) : 25;
-    const partnerPayout = Math.round(parsedPrice * 0.75 * 100) / 100;
+    const partnerPayout = parsedPrice;
 
     let measurementsStr = '';
     if (measurements) {
@@ -242,8 +242,9 @@ router.get('/studio/stats', async (req, res) => {
     const activeOrders = orders.filter((o) => !['Collected', 'Closed'].includes(o.status));
     const completedOrders = orders.filter((o) => ['Collected', 'Closed', 'Ready'].includes(o.status));
 
-    const todayPayouts = todayOrders.reduce((sum, o) => sum + (o.partnerPayout || o.price * 0.75 || 18), 0);
-    const weeklyPayouts = orders.reduce((sum, o) => sum + (o.partnerPayout || o.price * 0.75 || 18), 0);
+    const todayPayouts = todayOrders.filter((o) => ['Collected', 'Closed'].includes(o.status)).reduce((sum, o) => sum + (o.price || o.partnerPayout || 20), 0);
+    const weeklyPayouts = orders.filter((o) => ['Collected', 'Closed'].includes(o.status)).reduce((sum, o) => sum + (o.price || o.partnerPayout || 20), 0);
+    const pendingPayouts = orders.filter((o) => ['Work in Progress', 'Ready'].includes(o.status)).reduce((sum, o) => sum + (o.price || o.partnerPayout || 20), 0);
     const retailRevenue = orders
       .filter((o) => o.retailSold && o.retailValue)
       .reduce((sum, o) => sum + parseFloat(o.retailValue || 0), 0);
@@ -253,6 +254,7 @@ router.get('/studio/stats', async (req, res) => {
       stats: {
         todayPayouts: Math.round(todayPayouts * 100) / 100,
         weeklyPayouts: Math.round(weeklyPayouts * 100) / 100,
+        pendingPayouts: Math.round(pendingPayouts * 100) / 100,
         retailRevenue: Math.round(retailRevenue * 100) / 100,
         totalJobs: orders.length,
         activeJobs: activeOrders.length,
@@ -479,7 +481,7 @@ router.post('/', async (req, res) => {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
     const orderId = req.body.id || `TG-${Math.floor(100000 + Math.random() * 900000)}`;
     const parsedPrice = price ? parseFloat(price) : 25;
-    const partnerPayout = Math.round(parsedPrice * 0.75 * 100) / 100;
+    const partnerPayout = parsedPrice;
 
     let measurementsStr = '';
     if (measurements) {

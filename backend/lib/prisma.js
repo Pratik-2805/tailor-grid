@@ -3,7 +3,18 @@ const { PrismaClient } = require('@prisma/client');
 const { PrismaPg } = require('@prisma/adapter-pg');
 const { Pool } = require('pg');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
+  allowExitOnIdle: false,
+});
+
+pool.on('error', (err) => {
+  console.warn('⚠️ [PostgreSQL Pool Notice] Handled idle pool client error:', err.message);
+});
+
 const adapter = new PrismaPg(pool);
 
 let prisma;
