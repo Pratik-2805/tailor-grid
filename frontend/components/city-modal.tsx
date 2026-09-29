@@ -4,6 +4,12 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { Navigation, Loader2, Building2, MapPin } from 'lucide-react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import { setStoredCity, getCityCoordinates, getSessionCoordinates } from './use-city-location'
+import {
+  getCachedPlaceDetails,
+  setCachedPlaceDetails,
+  getOrCreatePlacesSessionToken,
+  resetPlacesSessionToken,
+} from '@/lib/geocode-cache'
 
 export interface CityItem {
   name: string
@@ -107,8 +113,9 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     return US_CITIES_LIST.filter((c) => !c.popular)
   }, [])
 
-  // Initialize Google Maps Places Autocomplete Service
+  // Lazy initialize Google Maps Services only when modal is opened
   useEffect(() => {
+    if (!isOpen) return
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
     if (!apiKey) return
 
@@ -123,17 +130,17 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             } catch {}
           }
         }
-        const { AutocompleteService } = (await importLibrary('places')) as any
-        const { Geocoder } = (await importLibrary('geocoding')) as any
-        googlePlacesServiceRef.current = new AutocompleteService()
-        googleGeocoderRef.current = new Geocoder()
+        if (!googleGeocoderRef.current) {
+          const { Geocoder } = (await importLibrary('geocoding')) as any
+          googleGeocoderRef.current = new Geocoder()
+        }
       } catch (err) {
         console.warn('Google Places library load skipped, using proximity geocoding:', err)
       }
     }
 
     loadGoogleServices()
-  }, [])
+  }, [isOpen])
 
   // Haversine distance calculator in kilometers
   const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -166,18 +173,23 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     const isUK = centerCoords.lat > 49 && centerCoords.lat < 60 && centerCoords.lng > -8 && centerCoords.lng < 2
 
     const timeoutId = setTimeout(async () => {
+      const sessionToken = getOrCreatePlacesSessionToken()
+
       // 1. Modern Google Maps Places AutocompleteSuggestion API (New Places API v3.56+)
       if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
         try {
           const regionCodes = isIndia ? ['in'] : isUS ? ['us'] : isUK ? ['gb'] : undefined
-          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          const req: any = {
             input: trimmed,
             locationBias: {
               center: { lat: centerCoords.lat, lng: centerCoords.lng },
               radius: 50000,
             },
             includedRegionCodes: regionCodes,
-          })
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
+          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req)
 
           if (suggestions && suggestions.length > 0) {
             const mapped: PlaceResult[] = suggestions.map((s: any, idx: number) => {
@@ -207,7 +219,13 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       }
 
       // 2. Google Maps Places AutocompleteService (using non-deprecated locationBias Circle)
-      const service = googlePlacesServiceRef.current || (typeof google !== 'undefined' && google.maps?.places ? new google.maps.places.AutocompleteService() : null)
+      let service = googlePlacesServiceRef.current
+      if (!service && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
+        try {
+          service = new google.maps.places.AutocompleteService()
+          googlePlacesServiceRef.current = service
+        } catch {}
+      }
       
       if (service && typeof google !== 'undefined' && google.maps) {
         try {
@@ -218,6 +236,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
               radius: 50000,
             }),
           }
+          if (sessionToken) req.sessionToken = sessionToken
 
           if (isIndia) {
             req.componentRestrictions = { country: 'in' }
@@ -351,7 +370,15 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   const handleSelectPlace = async (place: PlaceResult) => {
     let coords = place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null
 
-    // Resolve exact Google Maps Lat/Lng via Google Geocoder
+    // Check cache first to avoid redundant API call
+    if (!coords && place.placeId) {
+      const cached = getCachedPlaceDetails(place.placeId)
+      if (cached) {
+        coords = { lat: cached.lat, lng: cached.lng }
+      }
+    }
+
+    // Resolve exact Google Maps Lat/Lng via Google Geocoder if not cached
     const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
     if (!coords && place.placeId && geocoder) {
       try {
@@ -367,11 +394,14 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         if (geoRes && geoRes[0]?.geometry?.location) {
           const loc = geoRes[0].geometry.location
           coords = { lat: loc.lat(), lng: loc.lng() }
+          setCachedPlaceDetails(place.placeId, { lat: loc.lat(), lng: loc.lng(), formattedAddress: place.fullName })
         }
       } catch (err) {
         console.warn('Error resolving Google Place coordinates:', err)
       }
     }
+
+    resetPlacesSessionToken()
 
     const resolvedCoords = coords || getCityCoordinates(place.fullName)
     setStoredCity(place.fullName, resolvedCoords)
