@@ -347,186 +347,105 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="mt-8 flex gap-3 border-b border-[#DDD6CB] pb-4 text-xs font-semibold">
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2 rounded-full transition-all ${activeTab === 'orders'
-                ? 'bg-[#18191B] text-white shadow-xs'
-                : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
-              }`}
-          >
-            Active &amp; Past Orders ({displayOrders.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('fit-profile')}
-            className={`px-4 py-2 rounded-full transition-all flex items-center gap-1.5 ${activeTab === 'fit-profile'
-                ? 'bg-[#18191B] text-white shadow-xs'
-                : 'text-[#5A5D64] hover:bg-[#F4EFEA]'
-              }`}
-          >
-            <Sparkles size={13} className="text-[#E7C9BA]" />
-            <span>Digital Fit Passport ({passportItems.length})</span>
-          </button>
-        </div>
-
-        {/* TAB 1: ORDERS LIST */}
-        {activeTab === 'orders' && (
-          <div className="mt-8 space-y-4">
-            {isLoading ? (
-              <div className="p-12 text-center text-[#7A7E85] text-sm">
-                Loading your orders...
+        {/* ORDERS LIST */}
+        <div className="mt-8 space-y-4">
+          {isLoading ? (
+            <div className="p-12 text-center text-[#7A7E85] text-sm">
+              Loading your orders...
+            </div>
+          ) : displayOrders.length === 0 ? (
+            <div className="rounded-2xl border border-[#DDD6CB] bg-white p-12 text-center">
+              <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-[#FAF8F5] text-[#9E593B] border border-[#DDD6CB]">
+                <Package size={22} />
               </div>
-            ) : displayOrders.length === 0 ? (
-              <div className="rounded-2xl border border-[#DDD6CB] bg-white p-12 text-center">
-                <div className="mx-auto mb-4 grid size-12 place-items-center rounded-full bg-[#FAF8F5] text-[#9E593B] border border-[#DDD6CB]">
-                  <Package size={22} />
-                </div>
-                <h3 className="font-serif text-xl font-bold text-[#18191B]">No active orders yet</h3>
-                <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] max-w-[360px] mx-auto">
-                  You don&apos;t have any orders yet under <span className="font-mono text-[#9E593B]">{user.email || user.contact}</span>.
-                </p>
-              </div>
-            ) : (
-              displayOrders.map((o) => {
-                const isCompleted = ['Closed', 'Collected', 'Completed', 'CLOSED', 'COLLECTED', 'COMPLETED'].includes(o.status)
-                const isCancelled = ['Cancelled', 'CANCELLED'].includes(o.status)
-                const isReady = o.status.includes('Ready') || o.status.includes('READY')
+              <h3 className="font-serif text-xl font-bold text-[#18191B]">No active orders yet</h3>
+              <p className="mt-2 text-xs sm:text-sm text-[#5A5D64] max-w-[360px] mx-auto">
+                You don&apos;t have any orders yet under <span className="font-mono text-[#9E593B]">{user.email || user.contact}</span>.
+              </p>
+            </div>
+          ) : (
+            displayOrders.map((o) => {
+              const isCompleted = ['Closed', 'Collected', 'Completed', 'CLOSED', 'COLLECTED', 'COMPLETED'].includes(o.status)
+              const isCancelled = ['Cancelled', 'CANCELLED'].includes(o.status)
+              const isReady = o.status.includes('Ready') || o.status.includes('READY')
 
-                return (
-                  <div
-                    key={o.id}
-                    onClick={() => router.push(`/order/${o.id}`)}
-                    className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer group"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-[#18191B]">{o.slot}</span>
-                      </div>
-
-                      <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B] group-hover:text-[#9E593B] transition-colors">{o.garment}</h3>
-                      <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
-
-                      <div className="mt-3 flex items-center gap-3 text-[11px] text-[#7A7E85] flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <MapPin size={12} className="text-[#9E593B]" />
-                          <span>{o.studio} ({o.address})</span>
-                        </span>
-                      </div>
+              return (
+                <div
+                  key={o.id}
+                  onClick={() => router.push(`/order/${o.id}`)}
+                  className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer group"
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#18191B]">{o.slot}</span>
                     </div>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-[#F0EBE3]">
-                      <div className="sm:text-right">
-                        <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
-                        {isCompleted ? (
-                          <span className="block text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full mt-1">
-                            ✓ Completed
-                          </span>
-                        ) : isCancelled ? (
-                          <span className="block text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mt-1">
-                            Not Accepted / Cancelled
-                          </span>
-                        ) : isReady ? (
-                          <span className="block text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full mt-1">
-                            Ready for Pickup
-                          </span>
-                        ) : (
-                          <span className="block text-[11px] font-semibold text-[#9E593B] mt-0.5">
-                            {o.status}
-                          </span>
-                        )}
-                      </div>
+                    <h3 className="mt-3 font-serif text-xl font-semibold text-[#18191B] group-hover:text-[#9E593B] transition-colors">{o.garment}</h3>
+                    <p className="text-xs text-[#5A5D64] mt-0.5">{o.service}</p>
 
-                      <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                    <div className="mt-3 flex items-center gap-3 text-[11px] text-[#7A7E85] flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <MapPin size={12} className="text-[#9E593B]" />
+                        <span>{o.studio} ({o.address})</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between gap-4 border-t sm:border-t-0 pt-4 sm:pt-0 border-[#F0EBE3]">
+                    <div className="sm:text-right">
+                      <span className="font-serif text-lg font-bold text-[#18191B]">{o.price}</span>
+                      {isCompleted ? (
+                        <span className="block text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full mt-1">
+                          ✓ Completed
+                        </span>
+                      ) : isCancelled ? (
+                        <span className="block text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full mt-1">
+                          Not Accepted / Cancelled
+                        </span>
+                      ) : isReady ? (
+                        <span className="block text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full mt-1">
+                          Ready for Pickup
+                        </span>
+                      ) : (
+                        <span className="block text-[11px] font-semibold text-[#9E593B] mt-0.5">
+                          {o.status}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/order/${o.id}`)
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <span>Track &amp; Details</span>
+                        <ChevronRight size={13} />
+                      </button>
+
+                      {(o.status === 'Allocated' || o.status === 'Accepted') && !isCancelled && !isCompleted && (
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation()
-                            router.push(`/order/${o.id}`)
+                            setCancellingOrder(o)
                           }}
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-full transition-colors cursor-pointer active:scale-95 shadow-2xs"
                         >
-                          <span>Track &amp; Details</span>
-                          <ChevronRight size={13} />
+                          <XCircle size={13} />
+                          <span>Cancel Order</span>
                         </button>
-
-                        {(o.status === 'Allocated' || o.status === 'Accepted') && !isCancelled && !isCompleted && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setCancellingOrder(o)
-                            }}
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3.5 py-2 rounded-full transition-colors cursor-pointer active:scale-95 shadow-2xs"
-                          >
-                            <XCircle size={13} />
-                            <span>Cancel Order</span>
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                )
-              })
-            )}
-          </div>
-        )}
-
-        {/* TAB 2: DIGITAL FIT PASSPORT */}
-        {activeTab === 'fit-profile' && (
-          <div className="mt-8 rounded-2xl border border-[#DDD6CB] bg-white p-8 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EAE4DC] pb-5">
-              <div className="flex items-center gap-4">
-                <div className="grid size-12 place-items-center rounded-full bg-[#18191B] text-[#FAF8F5]">
-                  <UserIcon size={22} />
                 </div>
-                <div>
-                  <h3 className="font-serif text-xl font-bold text-[#18191B]">{user.name}</h3>
-                  <p className="font-mono text-xs text-[#9E593B]">
-                    PASSPORT ID: #{user.id ? user.id.slice(0, 8).toUpperCase() : 'TG-MEMBER'} · VERIFIED MEMBER
-                  </p>
-                </div>
-              </div>
-              <span className="text-xs bg-[#F4EFEA] text-[#9E593B] font-semibold px-3 py-1.5 rounded-full border border-[#DDD6CB] self-start sm:self-auto">
-                Auto-Synced Across Partner Studios
-              </span>
-            </div>
-
-            {passportItems.length === 0 ? (
-              <div className="mt-8 py-12 px-6 text-center rounded-xl border border-dashed border-[#DDD6CB] bg-[#FAF8F5]">
-                <div className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-white text-[#9E593B] border border-[#DDD6CB]">
-                  <Ruler size={18} />
-                </div>
-                <h4 className="font-serif text-base font-bold text-[#18191B]">No Recorded Fit Specifications Yet</h4>
-                <p className="mt-1.5 text-xs text-[#5A5D64] max-w-[420px] mx-auto">
-                  Your Digital Fit Passport will automatically calibrate and record verified measurements, inseam breaks, and seam specifications from your studio fittings and alterations.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {passportItems.map((item, idx) => (
-                  <div key={idx} className="rounded-xl border border-[#E2DDD5] bg-[#FAF8F5] p-4 flex flex-col justify-between hover:border-[#9E593B] transition-colors">
-                    <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase font-bold text-[#7A7E85] tracking-wider">{item.k}</span>
-                        {item.sourceGarment && (
-                          <span className="text-[9px] font-mono text-[#9E593B] bg-[#F4EFEA] px-1.5 py-0.5 rounded truncate max-w-[120px]">
-                            {item.sourceGarment}
-                          </span>
-                        )}
-                      </div>
-                      <p className="font-serif text-sm font-semibold text-[#18191B] mt-1.5 leading-snug">{item.v}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <p className="mt-6 text-xs text-[#7A7E85] text-center border-t border-[#F0EBE3] pt-4">
-              Your fit passport accumulates measurements automatically during studio fittings.
-            </p>
-          </div>
-        )}
+              )
+            })
+          )}
+        </div>
 
         {/* Pass Modal */}
         {selectedOrder && (
