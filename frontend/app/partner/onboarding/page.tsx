@@ -18,9 +18,13 @@ export default function PartnerOnboardingPage() {
 
     const role = getAuthRole()
     const token = getAuthToken()
+    const cachedUser = getAuthUser<any>()
+    const isCustomer = role === 'CUSTOMER' || cachedUser?.role === 'CUSTOMER'
 
     setTimeout(() => {
-      if (role === 'STUDIO') {
+      if (isCustomer) {
+        router.replace('/book')
+      } else if (role === 'STUDIO') {
         window.location.href = getStudioUrl('/', token)
       } else {
         window.location.href = getStudioUrl('/?step=1')

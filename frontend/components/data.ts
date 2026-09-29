@@ -260,8 +260,8 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
       },
       {
         id: 'dress-bodice',
-        name: 'Take In Bodice / Bust Contouring',
-        description: 'Reshape side seams and waist seam for sculpted silhouette',
+        name: 'Take In Bodice / Bust Fitting',
+        description: 'Adjust side seams and waist for a better, flattering fit',
         customerPrice: 48,
         partnerPayout: 36,
         platformFee: 12,
@@ -325,8 +325,8 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
       },
       {
         id: 'jacket-sides',
-        name: 'Take In Blazer Sides / Waist Suppression',
-        description: 'Creates a sculpted silhouette through torso back seams',
+        name: 'Take In Blazer Sides / Slim Fit',
+        description: 'Takes in side and back seams for a clean, tailored shape',
         customerPrice: 55,
         partnerPayout: 41,
         platformFee: 14,
@@ -354,7 +354,7 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
       {
         id: 'suit-complete-package',
         name: 'Full 2-Piece Suit Fit Overhaul',
-        description: 'Includes trouser hem, waist, jacket sleeves, and side suppression',
+        description: 'Includes trouser hem, waist, jacket sleeves, and tailored sides',
         customerPrice: 110,
         partnerPayout: 85,
         platformFee: 25,
@@ -383,7 +383,7 @@ export const GARMENT_CATEGORIES: GarmentCategory[] = [
       {
         id: 'occasion-blouse-fit',
         name: 'Blouse / Kurti Fit & Side Darts',
-        description: 'Adjusted with margin preservation and custom bust contouring',
+        description: 'Adjusted with extra fabric margin kept inside for future changes',
         customerPrice: 38,
         partnerPayout: 29,
         platformFee: 9,

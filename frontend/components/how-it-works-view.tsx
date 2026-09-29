@@ -17,6 +17,8 @@ import {
   UserCheck,
   ChevronRight,
 } from 'lucide-react'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 import { FaqAccordion } from './faq-accordion'
 import { type Screen } from './data'
 import {
@@ -41,6 +43,9 @@ interface HowItWorksViewProps {
 }
 
 export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWorksViewProps) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
+
   const handleSuggestionClick = (garmentId: string) => {
     if (onQuickSearch) {
       onQuickSearch('W8 4EP', garmentId)
@@ -99,28 +104,28 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
     {
       id: 'suits',
       name: 'Suits & Blazers',
-      desc: 'Sleeve shortening from cuff, shoulder resets, and waist suppression.',
+      desc: 'Shorten sleeves, adjust shoulders, and slim waist for a modern fit.',
       Icon: SuitSilhouette,
       starting: 'From $45',
     },
     {
       id: 'dresses',
       name: 'Dresses & Gowns',
-      desc: 'Bodice contouring, hem tiers, strap shortening, and neckline resets.',
+      desc: 'Shorten length, lift straps, slim sides, and adjust bust fitting.',
       Icon: DressSilhouette,
       starting: 'From $24',
     },
     {
       id: 'occasion',
       name: 'Ethnic & Occasion',
-      desc: 'Lehenga border resets, blouse darts, and delicate silk embroidery fits.',
+      desc: 'Lehenga shortening, blouse fitting, and delicate fabric alterations.',
       Icon: OccasionSilhouette,
       starting: 'From $38',
     },
     {
       id: 'skirts',
       name: 'Repairs & Zips',
-      desc: 'Invisible zip replacement, tear stitching, and waistband reconstructions.',
+      desc: 'Zip replacement, tear repairs, and waistband adjustments.',
       Icon: RepairSilhouette,
       starting: 'From $24',
     },
@@ -459,12 +464,14 @@ export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWork
                 <ArrowRight size={15} />
               </button>
 
-              <button
-                onClick={() => go('for-partners')}
-                className="rounded-full border border-white/30 px-7 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
-              >
-                For Partner Studios
-              </button>
+              {!isCustomer && (
+                <button
+                  onClick={() => go('for-partners')}
+                  className="rounded-full border border-white/30 px-7 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
+                >
+                  For Partner Studios
+                </button>
+              )}
             </div>
           </div>
 

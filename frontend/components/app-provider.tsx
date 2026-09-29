@@ -6,6 +6,7 @@ import { toast } from 'react-toastify'
 import { getCurrentUser, logoutUser } from '@/lib/api'
 import {
   getAuthToken,
+  getAuthRole,
   getAuthUser,
   setAuthUser,
   setAuthRole as setCookieAuthRole,
@@ -290,6 +291,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       router.push('/')
       return
+    }
+
+    if (
+      screenOrPath === 'for-partners' ||
+      screenOrPath === '/for-partners' ||
+      screenOrPath === 'partner' ||
+      screenOrPath === '/partner' ||
+      screenOrPath.startsWith('/partner/') ||
+      screenOrPath.startsWith('/for-partners/')
+    ) {
+      if (user && user.role === 'CUSTOMER') {
+        router.push('/book')
+        return
+      }
     }
 
     const target = screenOrPath.startsWith('/') ? screenOrPath : `/${screenOrPath}`

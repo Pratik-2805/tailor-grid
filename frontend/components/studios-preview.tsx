@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { ArrowRight, MapPin, Scissors, Star } from 'lucide-react'
 import { type Screen, type StoreOption } from './data'
 import { fetchStores } from '@/lib/api'
+import { useApp } from './app-provider'
+import { getAuthRole } from '@/lib/cookies'
 
 interface StudiosPreviewProps {
   go: (s: Screen) => void
@@ -12,6 +14,8 @@ interface StudiosPreviewProps {
 }
 
 export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
+  const { user } = useApp()
+  const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const [stores, setStores] = useState<StoreOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -53,10 +57,10 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
             </p>
           </div>
           <button
-            onClick={() => go('for-partners')}
+            onClick={() => go(isCustomer ? 'book' : 'for-partners')}
             className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start cursor-pointer"
           >
-            Join as a Partner Atelier <ArrowRight size={13} />
+            {isCustomer ? 'Book Atelier Fitting' : 'Join as a Partner Atelier'} <ArrowRight size={13} />
           </button>
         </div>
 
@@ -151,10 +155,10 @@ export function StudiosPreview({ go, onSelectStore }: StudiosPreviewProps) {
               </p>
             </div>
             <button
-              onClick={() => go('for-partners')}
+              onClick={() => go(isCustomer ? 'book' : 'for-partners')}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0F1115] text-white text-xs font-bold hover:bg-[#9E593B] transition-colors cursor-pointer"
             >
-              <span>Register Your Studio</span>
+              <span>{isCustomer ? 'Find Local Studios' : 'Register Your Studio'}</span>
               <ArrowRight size={13} />
             </button>
           </div>

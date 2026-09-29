@@ -23,6 +23,23 @@ export function getSessionCoordinates(): { lat: number; lng: number } | null {
   return null
 }
 
+export function formatLocationDisplay(locationStr?: string): string {
+  if (!locationStr) return 'Vasai'
+
+  const parts = locationStr.split(',').map((p) => p.trim()).filter(Boolean)
+  if (parts.length <= 1) return locationStr
+
+  const first = parts[0]
+  const second = parts[1]
+
+  // If first part is a flat/unit/house number (e.g. "Flat 204", "B-12", "House No. 5", "#4B"), combine with 2nd part (apartment/building name)
+  if (/^(flat|apt|apartment|house|room|bldg|building|plot|no|#|\d+[\w-]*)\b/i.test(first) && parts.length >= 2) {
+    return `${first}, ${second}`
+  }
+
+  return first
+}
+
 export function setStoredCity(city: string, coords?: { lat: number; lng: number }) {
   if (typeof window === 'undefined') return
   try {
@@ -52,26 +69,50 @@ export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          try {
-            const { latitude, longitude } = position.coords
-            const liveCoords = { lat: latitude, lng: longitude }
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-            )
-            if (res.ok) {
-              const data = await res.json()
-              const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
-              const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
-              const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
-              
-              if (!sessionCity) {
-                setStoredCity(formatted, liveCoords)
-                setCityState(formatted)
+        (position) => {
+          const { latitude, longitude } = position.coords
+          const liveCoords = { lat: latitude, lng: longitude }
+
+          // If Google Maps is ready, use Google Geocoder
+          if ((window as any).google?.maps?.Geocoder) {
+            try {
+              const geocoder = new (window as any).google.maps.Geocoder()
+              geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results: any, status: any) => {
+                let formatted = 'Vasai, IN-MH'
+                if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                  const comps = results[0]?.address_components || []
+                  const locality = comps.find((c: any) => c.types.includes('locality'))
+                  const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                  const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                  const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                  const country = comps.find((c: any) => c.types.includes('country'))
+
+                  const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
+                  const stateCode = state?.short_name || country?.short_name || ''
+                  formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                }
+                if (!sessionCity) {
+                  setStoredCity(formatted, liveCoords)
+                  setCityState(formatted)
+                }
+              })
+              return
+            } catch {}
+          }
+
+          // Fallback coordinate proximity matching
+          if (!sessionCity) {
+            let closestCity = 'Vasai, IN-MH'
+            let minDist = Infinity
+            for (const [cName, cCoords] of Object.entries(CITY_COORDINATES)) {
+              const d = Math.hypot(cCoords.lat - latitude, cCoords.lng - longitude)
+              if (d < minDist) {
+                minDist = d
+                closestCity = cName
               }
             }
-          } catch {
-            // Ignore silent fallback
+            setStoredCity(closestCity, liveCoords)
+            setCityState(closestCity)
           }
         },
         (err) => {

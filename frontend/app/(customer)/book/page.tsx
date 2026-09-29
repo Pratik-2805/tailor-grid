@@ -17,17 +17,49 @@ import {
   Sparkles,
   Shirt,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
-import { useCityLocation, getCityCoordinates } from '@/components/use-city-location'
+import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
-import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors } from '@/lib/api'
-import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile } from '@/lib/api'
+import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
+
+const SESSION_BOOKING_KEY = 'tg_book_session'
+
+function getSessionBookingData(): any | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(SESSION_BOOKING_KEY) || getCookie(SESSION_BOOKING_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+function setSessionBookingData(data: any): void {
+  if (typeof window === 'undefined') return
+  try {
+    const json = JSON.stringify(data)
+    sessionStorage.setItem(SESSION_BOOKING_KEY, json)
+    if (typeof document !== 'undefined') {
+      document.cookie = `${encodeURIComponent(SESSION_BOOKING_KEY)}=${encodeURIComponent(json)}; path=/; SameSite=Lax`
+    }
+  } catch {}
+}
+
+function clearSessionBookingData(): void {
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(SESSION_BOOKING_KEY)
+    } catch {}
+    deleteCookie(SESSION_BOOKING_KEY, '/')
+  }
+}
 
 function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -138,8 +170,8 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
     },
     {
       key: 'waistSuppression',
-      label: 'Waist Suppression (Sides & Back)',
-      whatItMeans: 'Taking in waist suppression seams for an hourglass silhouette.',
+      label: 'Waist & Sides Slimming',
+      whatItMeans: 'Taking in side and back seams for a closer, tailored fit.',
       placeholder: 'e.g. Take in 1.5 in',
     },
     {
@@ -158,9 +190,9 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
     },
     {
       key: 'bodiceFit',
-      label: 'Bodice & Bust Adjustment',
-      whatItMeans: 'Contouring darts and side seams around bust and ribcage.',
-      placeholder: 'e.g. Take in 0.5 in at princess seams',
+      label: 'Top & Bust Fit',
+      whatItMeans: 'Adjusting side seams and bust seams for a comfortable, flattering fit.',
+      placeholder: 'e.g. Take in 0.5 in at sides',
     },
     {
       key: 'strapsShoulders',
@@ -172,8 +204,8 @@ const CATEGORY_MEASUREMENTS: Record<string, MeasurementFieldDef[]> = {
   skirts: [
     {
       key: 'waistHips',
-      label: 'Waistband & Hip Contouring',
-      whatItMeans: 'Adjusting waistband and tapering hips.',
+      label: 'Waistband & Hips Adjustment',
+      whatItMeans: 'Adjusting waistband and slimming hips for a clean fit.',
       placeholder: 'e.g. Take in waist 1 in, hips 0.5 in',
     },
     {
@@ -547,10 +579,66 @@ function DropdownSelector({
   )
 }
 
+export interface CustomerAddressDetails {
+  houseNo: string
+  apartment: string
+  locality: string
+  city: string
+  landmark?: string
+}
+
+function parseGoogleAddressComponents(results: any[]): CustomerAddressDetails {
+  if (!results || !Array.isArray(results) || results.length === 0) {
+    return { houseNo: '', apartment: '', locality: '', city: '' }
+  }
+
+  const first = results[0]
+  const comps = first?.address_components || []
+
+  const streetNumber = comps.find((c: any) => c.types.includes('street_number'))?.long_name || ''
+  const subpremise = comps.find((c: any) => c.types.includes('subpremise'))?.long_name || ''
+  const premise = comps.find((c: any) => c.types.includes('premise'))?.long_name || ''
+  const route = comps.find((c: any) => c.types.includes('route'))?.long_name || ''
+  const sublocality2 = comps.find((c: any) => c.types.includes('sublocality_level_2'))?.long_name || ''
+  const sublocality1 = comps.find((c: any) => c.types.includes('sublocality_level_1') || c.types.includes('sublocality'))?.long_name || ''
+  const neighborhood = comps.find((c: any) => c.types.includes('neighborhood'))?.long_name || ''
+  const locality = comps.find((c: any) => c.types.includes('locality'))?.long_name || ''
+  const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))?.long_name || ''
+  const admin1 = comps.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || ''
+  const poi = comps.find((c: any) => c.types.includes('point_of_interest') || c.types.includes('establishment'))?.long_name || ''
+
+  // House / Flat No.
+  const houseNo = subpremise || streetNumber || ''
+
+  // Apartment / Society / Building
+  let apartment = ''
+  if (premise && premise !== houseNo) {
+    apartment = premise
+  } else if (poi) {
+    apartment = poi
+  }
+
+  // Locality / Street / Area
+  const localityParts = [route, sublocality2, sublocality1 || neighborhood].filter(Boolean)
+  const localityStr = localityParts.length > 0 ? Array.from(new Set(localityParts)).join(', ') : (neighborhood || sublocality1 || '')
+
+  // City / State
+  const cityPart = locality || admin2 || ''
+  const cityStr = cityPart && admin1 ? `${cityPart}, ${admin1}` : (cityPart || admin1 || '')
+
+  return {
+    houseNo,
+    apartment,
+    locality: localityStr,
+    city: cityStr,
+  }
+}
+
 export default function BookPage() {
   const router = useRouter()
   const {
     user,
+    setUser,
     isAuthLoading,
     navigate,
     openAuth,
@@ -572,42 +660,203 @@ export default function BookPage() {
 
   const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
-  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [isLiveLocation, setIsLiveLocation] = useState(false)
+  
+  // Initialize states from current session cookie/storage if present
+  const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
+    const s = getSessionBookingData()
+    return s?.coords || null
+  })
+  const [isLiveLocation, setIsLiveLocation] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isLiveLocation === 'boolean' ? s.isLiveLocation : false
+  })
+  const [isLocationSaved, setIsLocationSaved] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isLocationSaved === 'boolean' ? s.isLocationSaved : false
+  })
 
-  // Selection states initialized from prefilled context
-  const [selectedGarmentId, setSelectedGarmentId] = useState(prefilledGarmentId || 'trousers')
-  const [selectedServiceId, setSelectedServiceId] = useState(prefilledServiceId || 'trouser-hem-plain')
+  // 3D Card Flip state for Address Details input
+  const [isCardFlipped, setIsCardFlipped] = useState(() => {
+    const s = getSessionBookingData()
+    return typeof s?.isCardFlipped === 'boolean' ? s.isCardFlipped : false
+  })
+
+  // Address Details for Searched / Dropped Pin Location (House No., Apartment, Locality, City)
+  const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>(() => {
+    const s = getSessionBookingData()
+    return s?.addressDetails || {
+      houseNo: '',
+      apartment: '',
+      locality: '',
+      city: 'Vasai, IN-MH',
+      landmark: '',
+    }
+  })
+
+  const handleAddressFieldChange = (field: keyof CustomerAddressDetails, value: string) => {
+    setAddressDetails((prev) => {
+      const updated = { ...prev, [field]: value }
+      if (field === 'city' && value.trim()) {
+        setSelectedCity(value)
+      }
+      return updated
+    })
+  }
+
+  // Handle Save Address & Update Radius Centers & User Profile
+  const handleSaveAddress = async () => {
+    const fullAddress = [
+      addressDetails.houseNo,
+      addressDetails.apartment,
+      addressDetails.locality,
+      addressDetails.city || selectedCity,
+    ].filter(Boolean).join(', ') || selectedCity
+
+    const targetCoords = userGpsCoords || getCityCoordinates(selectedCity)
+    const activeCityName = addressDetails.city?.trim() || selectedCity
+
+    // 1. Save Coordinates & City
+    setSelectedCity(activeCityName)
+    setStoredCity(activeCityName, targetCoords)
+    setUserGpsCoords(targetCoords)
+    setIsLiveLocation(false)
+    setIsLocationSaved(true)
+
+    // 2. Fetch tailors from database taking this exact saved pinned location as center of 5.0-mile radius
+    try {
+      const data = await fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+      if (data.tailors && Array.isArray(data.tailors)) {
+        setNearbyStores(data.tailors)
+        if (data.tailors.length > 0) {
+          setSelectedStore(data.tailors[0])
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching tailors for saved pinned location:', err)
+    }
+
+    // 3. Save this address to User Profile in Backend & Client session
+    if (user) {
+      const updatedUserPayload = {
+        ...user,
+        address: fullAddress,
+        postcode: addressDetails.locality || addressDetails.city || selectedCity,
+      }
+      setUser(updatedUserPayload)
+
+      try {
+        await updateUserProfile({
+          address: fullAddress,
+          postcode: addressDetails.locality || addressDetails.city || selectedCity,
+        })
+      } catch (err) {
+        console.warn('Error saving address to user profile in backend:', err)
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`tg_saved_address_${user?.id || 'guest'}`, JSON.stringify({
+          address: fullAddress,
+          details: addressDetails,
+          coords: targetCoords,
+        }))
+      } catch {}
+    }
+
+    // 4. Flip card back to order request face
+    setIsCardFlipped(false)
+    toast.success('Address saved to profile & nearby ateliers updated!', { position: 'top-center' })
+  }
+
+  // Selection states initialized from prefilled context or session cookie
+  const [selectedGarmentId, setSelectedGarmentId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.garmentId || prefilledGarmentId || 'trousers'
+  })
+  const [selectedServiceId, setSelectedServiceId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.serviceId || prefilledServiceId || 'trouser-hem-plain'
+  })
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
 
   // Image Upload state
-  const [uploadedImages, setUploadedImages] = useState<string[]>([])
+  const [uploadedImages, setUploadedImages] = useState<string[]>(() => {
+    const s = getSessionBookingData()
+    return Array.isArray(s?.images) ? s.images : []
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Live device GPS location detection on mount: Always fetch fresh location on refresh
+  const liveGpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const liveCityRef = useRef<string>('Vasai, IN-MH')
+  const liveAddressDetailsRef = useRef<CustomerAddressDetails>({
+    houseNo: '',
+    apartment: '',
+    locality: '',
+    city: 'Vasai, IN-MH',
+    landmark: '',
+  })
+
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) return
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords
-        setUserGpsCoords({ lat: latitude, lng: longitude })
-        setIsLiveLocation(true)
+    const sessionData = getSessionBookingData()
+    const hasPriorSession = sessionData && (sessionData.coords || sessionData.city || sessionData.garmentId)
 
-        // Auto-detect city locality
-        try {
-          const res = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-          )
-          if (res.ok) {
-            const data = await res.json()
-            const cityName = data.city || data.locality || data.principalSubdivision || 'Vasai'
-            const stateCode = data.principalSubdivisionCode?.replace('US-', '') || data.countryCode || ''
-            const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
-            setSelectedCity(formatted)
-          }
-        } catch { }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords
+        const liveCoords = { lat: latitude, lng: longitude }
+        liveGpsCoordsRef.current = liveCoords
+
+        // Only override state with live GPS if user does not already have an active session
+        if (!hasPriorSession) {
+          setUserGpsCoords(liveCoords)
+          setIsLiveLocation(true)
+        }
+
+        // Reverse geocode via Google Geocoder if available
+        if (typeof google !== 'undefined' && google.maps?.Geocoder) {
+          try {
+            const geocoder = new google.maps.Geocoder()
+            geocoder.geocode({ location: liveCoords }, (results, status) => {
+              if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                const parsed = parseGoogleAddressComponents(results)
+                const newDetails: CustomerAddressDetails = {
+                  houseNo: parsed.houseNo || '',
+                  apartment: parsed.apartment || '',
+                  locality: parsed.locality || '',
+                  city: parsed.city || '',
+                  landmark: '',
+                }
+                liveAddressDetailsRef.current = newDetails
+
+                const comps = results[0]?.address_components || []
+                const locality = comps.find((c: any) => c.types.includes('locality'))
+                const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                const country = comps.find((c: any) => c.types.includes('country'))
+
+                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
+                const stateCode = state?.short_name || country?.short_name || ''
+                const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                liveCityRef.current = formatted
+
+                if (!hasPriorSession) {
+                  setAddressDetails((prev) => ({
+                    ...prev,
+                    ...newDetails,
+                  }))
+                  setSelectedCity(formatted)
+                  setStoredCity(formatted, liveCoords)
+                }
+              }
+            })
+          } catch {}
+        }
       },
       (err) => {
         console.warn('Geolocation prompt/access skipped or denied, fallback to default city:', err)
@@ -615,6 +864,37 @@ export default function BookPage() {
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     )
   }, [setSelectedCity])
+
+  // Handle clicking "Back to Request" on the address details card
+  const handleBackToRequest = () => {
+    setIsCardFlipped(false)
+
+    // If the user did not explicitly save this location, automatically revert to current live location
+    if (!isLocationSaved) {
+      if (liveGpsCoordsRef.current) {
+        setUserGpsCoords(liveGpsCoordsRef.current)
+        setIsLiveLocation(true)
+        if (liveCityRef.current) {
+          setSelectedCity(liveCityRef.current)
+          setStoredCity(liveCityRef.current, liveGpsCoordsRef.current)
+        }
+        if (liveAddressDetailsRef.current) {
+          setAddressDetails(liveAddressDetailsRef.current)
+        }
+      } else if (typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const live = { lat: position.coords.latitude, lng: position.coords.longitude }
+            liveGpsCoordsRef.current = live
+            setUserGpsCoords(live)
+            setIsLiveLocation(true)
+          },
+          () => {},
+          { enableHighAccuracy: true, timeout: 6000 }
+        )
+      }
+    }
+  }
 
   // Measurement collapsible dropdown & custom edit state
   const [isMeasurementOpen, setIsMeasurementOpen] = useState(false)
@@ -636,11 +916,6 @@ export default function BookPage() {
     })
   }
 
-  // Schedule modal state
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
-  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
-  const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
-
   // Live Dispatch Searching & No-Tailors alert states
   const [isSearching, setIsSearching] = useState(false)
   const [searchOrderId, setSearchOrderId] = useState<string>('')
@@ -660,16 +935,15 @@ export default function BookPage() {
   // Nearby partner stores for selected city / location
   const [nearbyStores, setNearbyStores] = useState<StoreOption[]>([])
 
-  const [selectedStore, setSelectedStore] = useState<StoreOption | null>(() => {
-    return prefilledStore || getClosestStoreForLocation(selectedCity)
-  })
+  const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
-  // Fetch partner studios purely by lat/lng within 8 miles directly from backend API
+  // Fetch partner studios purely by lat/lng within 5.0 miles for live GPS location
   useEffect(() => {
+    if (!isLiveLocation) return
     let isCurrent = true
-    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
 
-    fetchNearbyTailors(coords.lat, coords.lng, 8.0)
+    fetchNearbyTailors(coords.lat, coords.lng, 5.0)
       .then((data) => {
         if (!isCurrent) return
         if (data.tailors && Array.isArray(data.tailors)) {
@@ -803,9 +1077,9 @@ export default function BookPage() {
 
   // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
-    if (isLiveLocation && userGpsCoords) return userGpsCoords
+    if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [isLiveLocation, userGpsCoords, selectedCity])
+  }, [userGpsCoords, selectedCity])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -970,7 +1244,13 @@ export default function BookPage() {
 
     const measurementsData = finalMeasurements
 
-    const coords = (isLiveLocation && userGpsCoords) || getCityCoordinates(selectedCity)
+    const coords = userGpsCoords || getCityCoordinates(selectedCity)
+    const fullCustomerAddress = [
+      addressDetails.houseNo,
+      addressDetails.apartment,
+      addressDetails.locality,
+      addressDetails.city || selectedCity,
+    ].filter(Boolean).join(', ') || selectedCity
 
     const orderData = {
       id: newOrderId,
@@ -981,6 +1261,8 @@ export default function BookPage() {
       userId: user?.id || null,
       customerLat: coords.lat,
       customerLng: coords.lng,
+      customerAddress: fullCustomerAddress,
+      addressDetails: addressDetails,
       storeId: closestStore?.id || null,
       storeName: closestStore?.name || 'Awaiting Studio Acceptance',
       storePhone: closestStore?.phone || null,
@@ -1150,6 +1432,7 @@ export default function BookPage() {
               setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
             }
 
+            clearSessionBookingData()
             toast.success(`Request accepted by ${winningStore?.name || 'Partner Atelier'}!`, {
               position: 'top-center',
             })
@@ -1217,149 +1500,167 @@ export default function BookPage() {
         {/* Uber Side-by-Side Placement Grid Layout */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
 
-          {/* LEFT COLUMN: Single Unified Booking & Measurement Card */}
-          <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0">
+          {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
+          <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0 [perspective:1400px]">
+            <div
+              className="relative w-full"
+              style={{
+                transformStyle: 'preserve-3d',
+                transition: 'transform 0.65s cubic-bezier(0.4, 0.0, 0.2, 1)',
+                transform: isCardFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }}
+            >
+              {/* FRONT FACE: Request an Alteration Form */}
+              <div
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                }}
+                className={`bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6 transition-opacity duration-300 ${
+                  isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                }`}
+              >
 
-            <div className="bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6">
+                {/* City Pill Header */}
+                <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
+                  <MapPin size={16} className="text-black shrink-0" />
+                  <span className="font-extrabold truncate max-w-[320px]" title={selectedCity}>
+                    {formatLocationDisplay(selectedCity)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsCityModalOpen(true)}
+                    className="text-xs text-neutral-500 hover:text-black underline underline-offset-2 transition-colors cursor-pointer font-semibold ml-1 shrink-0"
+                  >
+                    Change city
+                  </button>
+                </div>
 
-              {/* City Pill Header */}
-              <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
-                <MapPin size={16} className="text-black shrink-0" />
-                <span className="font-extrabold">{selectedCity}</span>
-                <button
-                  type="button"
-                  onClick={() => setIsCityModalOpen(true)}
-                  className="text-xs text-neutral-500 hover:text-black underline underline-offset-2 transition-colors cursor-pointer font-semibold ml-1"
-                >
-                  Change city
-                </button>
-              </div>
+                {/* Heading */}
+                <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                  Request an alteration
+                </h1>
 
-              {/* Heading */}
-              <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
-                Request an alteration
-              </h1>
-
-              {/* 1. Category of Clothes Dropdown */}
-              <div className="relative" ref={categoryRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
-                    setIsServiceDropdownOpen(false)
-                  }}
-                  className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <GarmentCategoryIcon categoryId={currentCategory.id} className="size-4 text-white" />
+                {/* 1. Category of Clothes Dropdown */}
+                <div className="relative" ref={categoryRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
+                      setIsServiceDropdownOpen(false)
+                    }}
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <GarmentCategoryIcon categoryId={currentCategory.id} className="size-4 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                          CATEGORY OF CLOTHES
+                        </p>
+                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                          {currentCategory.name} (from ${currentCategory.startingPrice})
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                        CATEGORY OF CLOTHES
-                      </p>
-                      <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                        {currentCategory.name} (from ${currentCategory.startingPrice})
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown
-                    size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                  />
-                </button>
+                    <ChevronDown
+                      size={18}
+                      className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                    />
+                  </button>
 
-                {/* Dropdown Menu */}
-                {isCategoryDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                    {GARMENT_CATEGORIES.map((cat) => {
-                      const isSelected = cat.id === selectedGarmentId
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => handleSelectCategory(cat.id)}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                            }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="size-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
-                              <GarmentCategoryIcon categoryId={cat.id} className="size-3.5" />
+                  {/* Dropdown Menu */}
+                  {isCategoryDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                      {GARMENT_CATEGORIES.map((cat) => {
+                        const isSelected = cat.id === selectedGarmentId
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => handleSelectCategory(cat.id)}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="size-7 rounded-lg bg-black text-white flex items-center justify-center shrink-0">
+                                <GarmentCategoryIcon categoryId={cat.id} className="size-3.5" />
+                              </div>
+                              <div>
+                                <p className="text-xs sm:text-sm text-black font-extrabold">{cat.name}</p>
+                                <p className="text-[11px] text-gray-500">From ${cat.startingPrice} • {cat.avgTurnaround}</p>
+                              </div>
                             </div>
+                            {isSelected && <Check size={16} className="text-black shrink-0" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. What Needs to be Done? Dropdown */}
+                <div className="relative" ref={serviceRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsServiceDropdownOpen(!isServiceDropdownOpen)
+                      setIsCategoryDropdownOpen(false)
+                    }}
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Scissors className="size-4 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                          WHAT NEEDS TO BE DONE?
+                        </p>
+                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                          {currentService.name} (${currentService.customerPrice})
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      size={18}
+                      className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180' : ''
+                        }`}
+                    />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isServiceDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                      {currentCategory.popularServices.map((srv) => {
+                        const isSelected = srv.id === selectedServiceId
+                        return (
+                          <button
+                            key={srv.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedServiceId(srv.id)
+                              setIsServiceDropdownOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                              }`}
+                          >
                             <div>
-                              <p className="text-xs sm:text-sm text-black font-extrabold">{cat.name}</p>
-                              <p className="text-[11px] text-gray-500">From ${cat.startingPrice} • {cat.avgTurnaround}</p>
+                              <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
+                              <p className="text-[11px] text-gray-500">{srv.description}</p>
                             </div>
-                          </div>
-                          {isSelected && <Check size={16} className="text-black shrink-0" />}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* 2. What Needs to be Done? Dropdown */}
-              <div className="relative" ref={serviceRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsServiceDropdownOpen(!isServiceDropdownOpen)
-                    setIsCategoryDropdownOpen(false)
-                  }}
-                  className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                      <Scissors className="size-4 text-white" />
+                            <div className="text-right shrink-0 ml-3">
+                              <p className="text-xs sm:text-sm font-black text-black">${srv.customerPrice}</p>
+                              <p className="text-[10px] text-gray-400">{srv.turnaroundDays}d SLA</p>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                        WHAT NEEDS TO BE DONE?
-                      </p>
-                      <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                        {currentService.name} (${currentService.customerPrice})
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronDown
-                    size={18}
-                    className={`text-neutral-600 shrink-0 ml-2 transition-transform duration-200 ${isServiceDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                  />
-                </button>
-
-                {/* Dropdown Menu */}
-                {isServiceDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                    {currentCategory.popularServices.map((srv) => {
-                      const isSelected = srv.id === selectedServiceId
-                      return (
-                        <button
-                          key={srv.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedServiceId(srv.id)
-                            setIsServiceDropdownOpen(false)
-                          }}
-                          className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                            }`}
-                        >
-                          <div>
-                            <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
-                            <p className="text-[11px] text-gray-500">{srv.description}</p>
-                          </div>
-                          <div className="text-right shrink-0 ml-3">
-                            <p className="text-xs sm:text-sm font-black text-black">${srv.customerPrice}</p>
-                            <p className="text-[10px] text-gray-400">{srv.turnaroundDays}d SLA</p>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
               {/* 3. Garment Photo / Reference Fit (Optional - Max 4) */}
               <div className="space-y-2">
@@ -1373,46 +1674,46 @@ export default function BookPage() {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                  />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleImageUpload}
+                      multiple
+                      accept="image/*"
+                      className="hidden"
+                    />
 
-                  {uploadedImages.length < 4 && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
-                    >
-                      <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                        <Camera size={14} className="text-white" />
-                      </div>
-                      <span className="text-[11px] font-extrabold text-black">Add photo</span>
-                      <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
-                    </button>
-                  )}
-
-                  {/* Thumbnail List */}
-                  {uploadedImages.map((imgUrl, idx) => (
-                    <div key={idx} className="relative size-24 rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
-                      <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                    {uploadedImages.length < 4 && (
                       <button
                         type="button"
-                        onClick={() => removeImage(idx)}
-                        className="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center shadow-sm transition-all z-20 cursor-pointer"
-                        title="Remove photo"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
                       >
-                        <X size={11} />
+                        <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                          <Camera size={14} className="text-white" />
+                        </div>
+                        <span className="text-[11px] font-extrabold text-black">Add photo</span>
+                        <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
                       </button>
-                    </div>
-                  ))}
+                    )}
+
+                    {/* Thumbnail List */}
+                    {uploadedImages.map((imgUrl, idx) => (
+                      <div key={idx} className="relative size-24 rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
+                        <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(idx)}
+                          className="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center shadow-sm transition-all z-20 cursor-pointer"
+                          title="Remove photo"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
               {/* 4. Fitting & Alteration Notes Section */}
               <div className="pt-3.5 border-t border-gray-100 space-y-2">
@@ -1430,24 +1731,141 @@ export default function BookPage() {
                 />
               </div>
 
-              {/* 5. Action Buttons Row */}
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={handleBookNow}
-                  className="flex-1 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
-                >
-                  Book now
-                </button>
+                {/* 5. Action Buttons Row */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={handleBookNow}
+                    className="flex-1 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
+                  >
+                    Book now
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setIsScheduleModalOpen(true)}
-                  className="flex-1 sm:flex-initial rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold px-5 py-3.5 text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
-                >
-                  <Calendar size={18} className="text-black" />
-                  <span>Schedule for later</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="flex-1 sm:flex-initial rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold px-5 py-3.5 text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                  >
+                    <Calendar size={18} className="text-black" />
+                    <span>Schedule for later</span>
+                  </button>
+                </div>
+
+              </div>
+
+              {/* BACK FACE: Address Details Form (Flips with identical font type & Uber/Atelier styling) */}
+              <div
+                style={{
+                  backfaceVisibility: 'hidden',
+                  WebkitBackfaceVisibility: 'hidden',
+                  transform: 'rotateY(180deg)',
+                }}
+                className={`absolute inset-0 bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 flex flex-col justify-between overflow-y-auto ${
+                  isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
+                }`}
+              >
+                <div className="space-y-4 sm:space-y-5">
+                  {/* Top Bar: Back button */}
+                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <button
+                      type="button"
+                      onClick={handleBackToRequest}
+                      className="inline-flex items-center gap-1.5 text-xs font-extrabold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
+                    >
+                      <ArrowLeft size={14} className="text-black" />
+                      <span>Back to Request</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <h2 className="text-2xl sm:text-[28px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                      Address Details
+                    </h2>
+                    <p className="text-xs text-neutral-500 font-medium mt-1">
+                      Specify your flat number, apartment, and landmark for precision doorstep fitting.
+                    </p>
+                  </div>
+
+                  {/* Input Fields (Identical font style & spacing) */}
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        House No. / Flat No. <span className="text-red-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.houseNo}
+                        onChange={(e) => handleAddressFieldChange('houseNo', e.target.value)}
+                        placeholder="e.g. Flat 402, B-Wing, 4th Floor"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Apartment / Society / Building Name
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.apartment}
+                        onChange={(e) => handleAddressFieldChange('apartment', e.target.value)}
+                        placeholder="e.g. Royal Palms Apartment / Green Valley"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Locality / Street / Area
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.locality}
+                        onChange={(e) => handleAddressFieldChange('locality', e.target.value)}
+                        placeholder="e.g. Bandra West, Hill Road"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        City / Region
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.city}
+                        onChange={(e) => handleAddressFieldChange('city', e.target.value)}
+                        placeholder="e.g. Mumbai, MH"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">
+                        Landmark / Instructions <span className="text-gray-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={addressDetails.landmark || ''}
+                        onChange={(e) => handleAddressFieldChange('landmark', e.target.value)}
+                        placeholder="e.g. Opposite Starbucks / Gate 2"
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs sm:text-sm font-bold text-black placeholder:text-gray-400 focus:outline-hidden transition-all shadow-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Back Face Footer */}
+                <div className="pt-3 border-t border-gray-100 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveAddress}
+                    className="w-full rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center flex items-center justify-center gap-2"
+                  >
+                    <span>Save & Continue to Order</span>
+                    <Check size={18} />
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -1466,17 +1884,56 @@ export default function BookPage() {
                 className="w-full h-full"
                 showZoomControls={false}
                 disableNavigation={true}
-                isFixed={true}
-                fixedBoxMiles={8.0}
-                radiusMiles={8.0}
-                showUserPin={isLiveLocation}
-                userPinLabel="You"
+                isFixed={isLiveLocation || isLocationSaved}
+                fixedBoxMiles={5.0}
+                radiusMiles={5.0}
+                showUserPin={true}
+                isLiveLocation={isLiveLocation}
+                isLocationSaved={isLocationSaved}
+                userPinLabel={isLiveLocation ? 'You' : (selectedCity.split(',')[0] || 'Pinned Location')}
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
                 onSelectStore={(st) => setSelectedStore(st)}
                 onStoresFound={(foundStores) => {
                   if (foundStores.length > 0 && (!selectedStore || !foundStores.some((s) => s.id === selectedStore.id))) {
                     setSelectedStore(foundStores[0])
+                  }
+                }}
+                onPinLocationChange={(newCoords) => {
+                  setUserGpsCoords(newCoords)
+                  setIsLiveLocation(false)
+                  setIsLocationSaved(false)
+                  setIsCardFlipped(true)
+
+                  if (typeof google !== 'undefined' && google.maps?.Geocoder) {
+                    try {
+                      const geocoder = new google.maps.Geocoder()
+                      geocoder.geocode({ location: newCoords }, (results, status) => {
+                        if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                          const parsed = parseGoogleAddressComponents(results)
+                          setAddressDetails((prev) => ({
+                            ...prev,
+                            houseNo: parsed.houseNo || prev.houseNo,
+                            apartment: parsed.apartment || prev.apartment,
+                            locality: parsed.locality || prev.locality,
+                            city: parsed.city || prev.city || selectedCity,
+                          }))
+
+                          const comps = results[0]?.address_components || []
+                          const locality = comps.find((c: any) => c.types.includes('locality'))
+                          const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
+                          const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
+                          const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
+                          const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || parsed.city || selectedCity
+                          const stateCode = state?.short_name || ''
+                          const formatted = stateCode && !cityName.includes(stateCode) ? `${cityName}, ${stateCode}` : cityName
+                          setSelectedCity(formatted)
+                          setStoredCity(formatted, newCoords)
+                        }
+                      })
+                    } catch {}
+                  } else {
+                    setStoredCity(selectedCity, newCoords)
                   }
                 }}
               />
@@ -1493,12 +1950,58 @@ export default function BookPage() {
         selectedCity={selectedCity}
         onSelectCity={(c, coords, isGps) => {
           setSelectedCity(c)
-          if (isGps && coords) {
-            setIsLiveLocation(true)
-            setUserGpsCoords(coords)
+          const targetCoords = coords || getCityCoordinates(c)
+          setUserGpsCoords(targetCoords)
+          setIsLiveLocation(isGps === true)
+          setIsLocationSaved(isGps === true)
+          setStoredCity(c, targetCoords)
+
+          if (isGps === true) {
+            liveGpsCoordsRef.current = targetCoords
+            liveCityRef.current = c
+            setIsCardFlipped(false)
+            // Live current location: immediately fetch nearby atelier locations
+            fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+              .then((data) => {
+                if (data.tailors && Array.isArray(data.tailors)) {
+                  setNearbyStores(data.tailors)
+                  if (data.tailors.length > 0) {
+                    setSelectedStore(data.tailors[0])
+                  }
+                }
+              })
+              .catch((err) => console.warn('Fetch tailors error on current location select:', err))
           } else {
-            setIsLiveLocation(false)
-            setUserGpsCoords(null)
+            // Custom search: clear stores and wait until user confirms/saves address
+            setNearbyStores([])
+            setIsCardFlipped(true)
+          }
+
+          if (isGps !== true && typeof google !== 'undefined' && google.maps?.Geocoder) {
+            try {
+              const geocoder = new google.maps.Geocoder()
+              geocoder.geocode({ location: targetCoords }, (results, status) => {
+                if (status === 'OK' && Array.isArray(results) && results.length > 0) {
+                  const parsed = parseGoogleAddressComponents(results)
+                  setAddressDetails({
+                    houseNo: parsed.houseNo || '',
+                    apartment: parsed.apartment || '',
+                    locality: parsed.locality || '',
+                    city: parsed.city || c,
+                  })
+                } else {
+                  setAddressDetails((prev) => ({
+                    ...prev,
+                    city: c,
+                  }))
+                }
+              })
+            } catch {
+              setAddressDetails((prev) => ({
+                ...prev,
+                city: c,
+              }))
+            }
           }
         }}
       />
