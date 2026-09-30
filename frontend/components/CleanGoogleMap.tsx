@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from 'react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import { Check, Search, X, MapPin, Loader2 } from 'lucide-react'
 import type { StoreOption } from './data'
+import {
+  getCachedReverseGeocode,
+  setCachedReverseGeocode,
+  getCachedPlaceDetails,
+  setCachedPlaceDetails,
+  getOrCreatePlacesSessionToken,
+  resetPlacesSessionToken,
+} from '@/lib/geocode-cache'
 
 export interface CarNavigationParams {
   destName?: string
@@ -258,12 +266,7 @@ export default function CleanGoogleMap({
 
         const { Map } = await importLibrary('maps')
 
-        // Load Places and Geocoding libraries
-        try {
-          const { AutocompleteService } = (await importLibrary('places')) as any
-          googlePlacesServiceRef.current = new AutocompleteService()
-        } catch {}
-
+        // Load Geocoding library for pin reverse-geocoding
         try {
           const { Geocoder } = (await importLibrary('geocoding')) as any
           googleGeocoderRef.current = new Geocoder()
@@ -732,16 +735,21 @@ export default function CleanGoogleMap({
 
     setIsSearchingPlaces(true)
     const timeoutId = setTimeout(async () => {
-      // 1. Modern Google Places AutocompleteSuggestion API (v3.56+)
+      const sessionToken = getOrCreatePlacesSessionToken()
+
+      // 1. Modern Google Maps Places AutocompleteSuggestion API
       if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
         try {
-          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+          const req: any = {
             input: trimmed,
             locationBias: {
               center: { lat, lng },
               radius: 50000,
             },
-          })
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
+          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req)
 
           if (suggestions && suggestions.length > 0) {
             const mapped = suggestions.map((s: any, idx: number) => {
@@ -767,18 +775,28 @@ export default function CleanGoogleMap({
       }
 
       // 2. Google Places AutocompleteService
-      const service = googlePlacesServiceRef.current || (typeof google !== 'undefined' && google.maps?.places ? new google.maps.places.AutocompleteService() : null)
+      let service = googlePlacesServiceRef.current
+      if (!service && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
+        try {
+          service = new google.maps.places.AutocompleteService()
+          googlePlacesServiceRef.current = service
+        } catch {}
+      }
+
       if (service && typeof google !== 'undefined' && google.maps) {
         try {
+          const req: any = {
+            input: trimmed,
+            locationBias: new google.maps.Circle({
+              center: new google.maps.LatLng(lat, lng),
+              radius: 50000,
+            }),
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
           const predictions = await new Promise<any[]>((resolve) => {
             service.getPlacePredictions(
-              {
-                input: trimmed,
-                locationBias: new google.maps.Circle({
-                  center: new google.maps.LatLng(lat, lng),
-                  radius: 50000,
-                }),
-              },
+              req,
               (results: any, status: any) => {
                 if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
                   resolve(results)
@@ -860,6 +878,24 @@ export default function CleanGoogleMap({
     setMapSearchText(result.title)
     setIsSearchOpen(false)
 
+    // Check cached place details first
+    if (result.placeId) {
+      const cached = getCachedPlaceDetails(result.placeId)
+      if (cached) {
+        const newCoords = { lat: cached.lat, lng: cached.lng }
+        const map = mapInstanceRef.current
+        if (map) {
+          map.panTo(newCoords)
+          map.setZoom(16)
+        }
+        if (onPinLocationChange) {
+          onPinLocationChange(newCoords)
+        }
+        resetPlacesSessionToken()
+        return
+      }
+    }
+
     const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
     if (!geocoder) return
 
@@ -868,6 +904,9 @@ export default function CleanGoogleMap({
       if (status === 'OK' && results && results[0]?.geometry?.location) {
         const loc = results[0].geometry.location
         const newCoords = { lat: loc.lat(), lng: loc.lng() }
+        if (result.placeId) {
+          setCachedPlaceDetails(result.placeId, { lat: loc.lat(), lng: loc.lng(), formattedAddress: result.fullName })
+        }
         const map = mapInstanceRef.current
         if (map) {
           map.panTo(newCoords)
@@ -877,6 +916,7 @@ export default function CleanGoogleMap({
           onPinLocationChange(newCoords)
         }
       }
+      resetPlacesSessionToken()
     })
   }
 

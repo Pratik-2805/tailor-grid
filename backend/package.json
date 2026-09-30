@@ -10,11 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "node prisma/seed.js",
     "prisma:studio": "prisma studio"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@aws-sdk/client-sns": "^3.1138.0",

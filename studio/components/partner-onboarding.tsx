@@ -820,26 +820,7 @@ export function PartnerOnboarding({
     }
   }
 
-  // Demo Sandbox Access
-  const handleDemoAccess = () => {
-    const demoUser: User = {
-      id: 'usr_demo_studio',
-      name: 'Marco Rossi',
-      contact: '+44 7700 900123',
-      email: 'marco@ateliersoho.com',
-      phone: '+44 7700 900123',
-      method: 'email',
-      role: 'STUDIO',
-      studioId: 'atelier-soho',
-      studioName: 'Atelier SoHo London',
-      postcode: 'W8 4EP',
-      address: '18 Kensington Church St',
-    }
-    if (typeof window !== 'undefined') {
-      setAuthRole('STUDIO')
-      window.location.href = '/'
-    }
-  }
+
 
   // Final submit & Studio Activation upon verification
   const handleFinishOnboarding = async (overridePhone?: string) => {
@@ -1288,16 +1269,6 @@ export function PartnerOnboarding({
                         >
                           <Mail size={16} className="text-[#9E593B]" />
                           <span>Continue with Email</span>
-                        </button>
-
-                        {/* 4. Demo Sandbox Button */}
-                        <button
-                          type="button"
-                          onClick={handleDemoAccess}
-                          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#F5EBE6] hover:bg-[#EBDDD5] border border-[#DFC9BD] py-3.5 px-4 text-xs font-bold text-[#8C4A2D] transition-all cursor-pointer"
-                        >
-                          <Sparkles size={15} />
-                          <span>Launch Demo Workbench Sandbox</span>
                         </button>
                       </div>
                     </>
