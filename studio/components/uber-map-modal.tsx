@@ -13,6 +13,7 @@ import {
   Minus,
   Loader2,
   Navigation,
+  Layers,
 } from 'lucide-react'
 import {
   getCachedReverseGeocode,
@@ -46,11 +47,53 @@ interface GoogleMapModalProps {
 const GOOGLE_MAPS_API_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDYPbSbWg54WZCGLpzncOUAP796ykQUa94'
 
-// Minimalist styling for clean, professional studio map experience
-const MAP_STYLES: google.maps.MapTypeStyle[] = [
-  { featureType: 'poi.business', stylers: [{ visibility: 'on' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+// High-contrast, sharp building outlines and architectural clarity
+const ENHANCED_BUILDING_STYLES: google.maps.MapTypeStyle[] = [
+  {
+    featureType: 'landscape.man_made',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#DFDBD3' }],
+  },
+  {
+    featureType: 'landscape.man_made',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#A39D90' }, { weight: 1.2 }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#FFFFFF' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#D5D2C9' }, { weight: 1 }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#FFE082' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#F5C84C' }],
+  },
+  {
+    featureType: 'landscape.natural',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#F4F2EC' }],
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#D5EDD0' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry.fill',
+    stylers: [{ color: '#C5DCF2' }],
+  },
 ]
 
 export function UberMapModal({
@@ -74,6 +117,7 @@ export function UberMapModal({
     lat: initialLat && !isNaN(initialLat) ? initialLat : 19.076,
     lng: initialLng && !isNaN(initialLng) ? initialLng : 72.8777,
   }))
+  const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
   const [isMapReady, setIsMapReady] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
@@ -194,13 +238,13 @@ export function UberMapModal({
 
         const map = new Map(mapContainerRef.current, {
           center: initialCenter,
-          zoom: 16,
-          styles: MAP_STYLES,
+          zoom: 17,
+          styles: ENHANCED_BUILDING_STYLES,
           disableDefaultUI: true,
           gestureHandling: 'greedy',
-          clickableIcons: false,
-          maxZoom: 20,
-          minZoom: 4,
+          clickableIcons: true,
+          maxZoom: 21,
+          minZoom: 3,
         })
 
         mapInstanceRef.current = map
@@ -338,7 +382,7 @@ export function UberMapModal({
       if (!autocompleteServiceRef.current && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
         try {
           autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
-        } catch {}
+        } catch { }
       }
 
       if (!autocompleteServiceRef.current) {
@@ -434,6 +478,15 @@ export function UberMapModal({
     if (mapInstanceRef.current) {
       const cur = mapInstanceRef.current.getZoom() || 16
       mapInstanceRef.current.setZoom(Math.max(4, cur - 1))
+    }
+  }
+
+  // Toggle between Enhanced Street Map & Real-world Satellite View
+  const toggleMapType = () => {
+    const nextType = mapType === 'roadmap' ? 'hybrid' : 'roadmap'
+    setMapType(nextType)
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setMapTypeId(nextType)
     }
   }
 
@@ -674,9 +727,8 @@ export function UberMapModal({
               {/* Compact Ground Shadow directly beneath pin point */}
               <div className="absolute -bottom-0.5 flex items-center justify-center">
                 <div
-                  className={`w-2.5 h-1 bg-black/25 rounded-full blur-[0.6px] transition-all duration-200 ${
-                    isDragging ? 'scale-50 opacity-20' : 'scale-100 opacity-80'
-                  }`}
+                  className={`w-2.5 h-1 bg-black/25 rounded-full blur-[0.6px] transition-all duration-200 ${isDragging ? 'scale-50 opacity-20' : 'scale-100 opacity-80'
+                    }`}
                 />
               </div>
             </div>
@@ -684,16 +736,28 @@ export function UberMapModal({
 
           {/* Google Maps Controls (Right Side) */}
           <div className="absolute bottom-5 right-4 z-[1000] flex flex-col gap-2.5">
+            {/* Satellite / Street Map Switcher */}
+            <button
+              type="button"
+              onClick={toggleMapType}
+              className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${mapType === 'hybrid'
+                  ? 'bg-[#0F172A] border-slate-700 text-white shadow-slate-900/30 ring-2 ring-blue-500/50'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              title={mapType === 'hybrid' ? 'Switch to Street Map' : 'Switch to High-Res Satellite View'}
+            >
+              <Layers size={19} className={mapType === 'hybrid' ? 'text-cyan-400' : 'text-gray-700'} />
+            </button>
+
             {/* GPS Current Location Target Button */}
             <button
               type="button"
               onClick={acquireUserLocation}
               disabled={isLocating}
-              className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
-                gpsActive
+              className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${gpsActive
                   ? 'bg-[#1A73E8] border-[#1A73E8] text-white shadow-blue-500/30'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
               title="Locate My Current GPS Position"
             >
               {isLocating ? (

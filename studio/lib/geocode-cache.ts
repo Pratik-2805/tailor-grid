@@ -24,7 +24,7 @@ export function getCoordKey(lat: number, lng: number): string {
 /** Check and retrieve cached reverse geocode result */
 export function getCachedReverseGeocode(lat: number, lng: number): CachedAddress | null {
   const key = getCoordKey(lat, lng)
-  
+
   if (memoryGeocodeCache.has(key)) {
     return memoryGeocodeCache.get(key)!
   }
@@ -37,7 +37,7 @@ export function getCachedReverseGeocode(lat: number, lng: number): CachedAddress
         memoryGeocodeCache.set(key, parsed)
         return parsed
       }
-    } catch {}
+    } catch { }
   }
 
   return null
@@ -56,7 +56,7 @@ export function setCachedReverseGeocode(lat: number, lng: number, data: Omit<Cac
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.setItem(`tg_studio_geo_${key}`, JSON.stringify(fullData))
-    } catch {}
+    } catch { }
   }
 }
 
@@ -74,7 +74,7 @@ export function getCachedPlaceDetails(placeId: string): { lat: number; lng: numb
         memoryPlaceDetailsCache.set(placeId, parsed)
         return parsed
       }
-    } catch {}
+    } catch { }
   }
 
   return null
@@ -86,7 +86,7 @@ export function setCachedPlaceDetails(placeId: string, data: { lat: number; lng:
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.setItem(`tg_studio_place_${placeId}`, JSON.stringify(data))
-    } catch {}
+    } catch { }
   }
 }
 
@@ -101,7 +101,7 @@ export function getOrCreatePlacesSessionToken(): any {
       if ((google.maps.places as any).AutocompleteSessionToken) {
         currentSessionToken = new (google.maps.places as any).AutocompleteSessionToken()
       }
-    } catch {}
+    } catch { }
   }
   return currentSessionToken
 }
