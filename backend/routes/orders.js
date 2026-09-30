@@ -371,16 +371,7 @@ router.get('/', async (req, res) => {
     }
 
     if (storeId) {
-      const storeClause = [
-        { storeId: storeId },
-        { status: 'Allocated' },
-      ];
-      if (where.OR) {
-        where.AND = [{ OR: where.OR }, { OR: storeClause }];
-        delete where.OR;
-      } else {
-        where.OR = storeClause;
-      }
+      where.storeId = storeId;
     }
     if (status) {
       where.status = status;

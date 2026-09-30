@@ -899,7 +899,7 @@ export default function BookPage() {
           storeName: winningStore?.name || winningStore?.storeName || 'Partner Atelier',
           storePhone: winningStore?.phone || winningStore?.storePhone || null,
           storeAddress: winningStore?.address || winningStore?.storeAddress || 'Local Partner Studio',
-          status: 'Allocated',
+          status: 'Accepted',
         }
 
         if (typeof window !== 'undefined') {

@@ -637,6 +637,8 @@ export function PartnerFlow({
 
   // Skipped order IDs for this session only (resets on reload so orders are not permanently lost)
   const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>([])
+  // Accepted order IDs to immediately prevent re-triggering broadcast bar upon acceptance
+  const [acceptedOrderIds, setAcceptedOrderIds] = useState<string[]>([])
 
   // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
   const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
@@ -897,15 +899,22 @@ export function PartnerFlow({
   selectedOrderRef.current = selectedOrder
 
   const updateOrdersAndSelected = (fetched: FittingBooking[]) => {
-    setOrders(fetched)
-    if (fetched.length === 0) {
+    // Preserve accepted status for orders confirmed in this session
+    const sanitized = fetched.map((o) => {
+      if (acceptedOrderIds.includes(o.id) && o.status === 'Allocated') {
+        return { ...o, status: 'Accepted' as const }
+      }
+      return o
+    })
+    setOrders(sanitized)
+    if (sanitized.length === 0) {
       setSelectedOrder(null)
       return
     }
 
     const currentSelectedId = selectedOrderRef.current?.id
     if (currentSelectedId) {
-      const stillExists = fetched.find((o) => o.id === currentSelectedId)
+      const stillExists = sanitized.find((o) => o.id === currentSelectedId)
       setSelectedOrder(stillExists || null)
     }
   }
@@ -997,12 +1006,14 @@ export function PartnerFlow({
   const liveAllocatedOrders = orders.filter((o) => {
     if (o.status !== 'Allocated') return false
     if (permanentlySkippedIds.includes(o.id)) return false
+    if (acceptedOrderIds.includes(o.id)) return false
+    if (o.storeId && currentStudioId && o.storeId !== currentStudioId) return false
     return true
   })
 
   // Map incoming dispatch requests (Single Dispatch Engine in Server Cache)
   const dispatchBroadcasts: BroadcastRequest[] = pendingDispatches
-    .filter((pd) => !permanentlySkippedIds.includes(pd.orderId))
+    .filter((pd) => !permanentlySkippedIds.includes(pd.orderId) && !acceptedOrderIds.includes(pd.orderId))
     .map((pd) => ({
       id: pd.orderId,
       customerName: pd.customerName || pd.order?.customerName || 'Customer',
@@ -1059,6 +1070,9 @@ export function PartnerFlow({
     const assignedStudioPhone = user?.phone || user?.contact || ''
     const partnerPayout = order.price || order.partnerPayout || 30
 
+    // Immediately mark as accepted so broadcast bar will never re-open for this order
+    setAcceptedOrderIds((prev) => (prev.includes(order.id) ? prev : [...prev, order.id]))
+
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
       storeId: assignedStudioId,
@@ -1098,6 +1112,7 @@ export function PartnerFlow({
     setTimerSecs(15)
     setTimerProgress(100)
     setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+    setAcceptedOrderIds((prev) => (prev.includes(bc.id) ? prev : [...prev, bc.id]))
 
     const studioDisplayName =
       (user?.studioName && user.studioName.trim()) ||
@@ -1134,9 +1149,36 @@ export function PartnerFlow({
       if (exists) {
         return prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
       } else if (bc.realOrder) {
-        return [...prev, { ...bc.realOrder, ...promotionUpdates }]
+        return [{ ...bc.realOrder, ...promotionUpdates }, ...prev]
+      } else {
+        const initialOrder: FittingBooking = {
+          id: bc.id,
+          customerName: bc.customerName || 'Valued Customer',
+          customerEmail: 'customer@example.com',
+          customerPhone: '',
+          postcode: bc.customerArea || '',
+          garmentId: 'trousers',
+          garmentName: bc.garmentName || 'Garment Alteration',
+          serviceId: 'tailoring',
+          serviceName: bc.serviceName || 'Custom Fit & Alteration',
+          storeId: currentStudioId,
+          storeName: studioDisplayName,
+          storePhone: studioPhone,
+          date: new Date().toISOString().split('T')[0],
+          timeSlot: '14:00 - 15:00',
+          garmentBrand: bc.garmentBrand || '',
+          fitNotes: bc.notes || bc.fitNotes || '',
+          sewingNotes: '',
+          slaHours: bc.slaHours || 48,
+          partnerPayout: bc.price || bc.partnerPayout || 30,
+          retailSold: false,
+          intakePhotoUrl: bc.imageUrl || '',
+          status: 'Accepted',
+          price: bc.price || bc.partnerPayout || 30,
+          otp: bc.otp || '0000',
+        }
+        return [initialOrder, ...prev]
       }
-      return prev
     })
     setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
     setTimeout(() => setBroadcastToast(null), 5000)
@@ -1146,13 +1188,26 @@ export function PartnerFlow({
       if (!currentStudioId) return
       const res = await respondToDispatch(bc.id, currentStudioId, 'ACCEPT')
       if (res.success) {
+        if (res.order) {
+          setOrders((prev) => {
+            const idx = prev.findIndex((o) => o.id === bc.id)
+            if (idx >= 0) {
+              const copy = [...prev]
+              copy[idx] = { ...copy[idx], ...res.order, status: 'Accepted' }
+              return copy
+            }
+            return [{ ...res.order, status: 'Accepted' }, ...prev]
+          })
+        }
         updateOrder(bc.id, promotionUpdates).catch(() => { })
-        handleRefresh()
       } else {
         if (res.code === 'ORDER_ALREADY_ASSIGNED') {
           setBroadcastToast('Order was accepted by another partner atelier.')
+          setAcceptedOrderIds((prev) => prev.filter((id) => id !== bc.id))
+          setOrders((prev) => prev.filter((o) => o.id !== bc.id))
         } else {
           setBroadcastToast(res.message || 'Unable to accept request.')
+          setAcceptedOrderIds((prev) => prev.filter((id) => id !== bc.id))
         }
         setTimeout(() => setBroadcastToast(null), 4000)
         handleRefresh()
@@ -1163,7 +1218,6 @@ export function PartnerFlow({
     // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
       await handleAcceptAllocatedOrder(bc.realOrder)
-      handleRefresh()
     }
   }
 
@@ -1173,6 +1227,9 @@ export function PartnerFlow({
     setTimerSecs(15)
     setTimerProgress(100)
     setBroadcastIdx((prev) => prev + 1)
+
+    // Store in permanentlySkippedIds so this studio never sees this order again in this session
+    setPermanentlySkippedIds((prev) => (prev.includes(bc.id) ? prev : [...prev, bc.id]))
 
     if (bc.isDispatchSession && currentStudioId) {
       respondToDispatch(bc.id, currentStudioId, 'SKIP').catch(() => { })
@@ -1764,7 +1821,7 @@ export function PartnerFlow({
 
     // 3. New Booking Requests (Allocated orders awaiting studio confirmation)
     ...orders
-      .filter((o) => o.status === 'Allocated' && !permanentlySkippedIds.includes(o.id))
+      .filter((o) => o.status === 'Allocated' && !permanentlySkippedIds.includes(o.id) && !acceptedOrderIds.includes(o.id))
       .map((o) => ({
         id: `allocated-${o.id}`,
         category: 'dispatch' as const,
