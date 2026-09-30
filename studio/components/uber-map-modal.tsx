@@ -12,8 +12,8 @@ import {
   Plus,
   Minus,
   Loader2,
+  Navigation,
 } from 'lucide-react'
-import { AnimatedLocationPin } from './animated-location-pin'
 import {
   getCachedReverseGeocode,
   setCachedReverseGeocode,
@@ -77,7 +77,7 @@ export function UberMapModal({
   const [isMapReady, setIsMapReady] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
-  const [isGeocoding, setIsGeocoding] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Geolocation Status / Alert
   const [locationError, setLocationError] = useState<string | null>(null)
@@ -91,15 +91,7 @@ export function UberMapModal({
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
 
-  // Selected Address Details
-  const [selectedArea, setSelectedArea] = useState(initialArea || '')
-  const [selectedPostcode, setSelectedPostcode] = useState(initialPostcode || '')
-  const [selectedStreet, setSelectedStreet] = useState(initialAddress || '')
-  const [selectedCity, setSelectedCity] = useState(initialCity || '')
-  const [formattedAddress, setFormattedAddress] = useState('')
-
   // Debounce helpers
-  const reverseGeocodeTimerRef = useRef<NodeJS.Timeout | null>(null)
   const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state whenever modal is opened
@@ -112,12 +104,10 @@ export function UberMapModal({
           mapInstanceRef.current.setZoom(17)
         }
       }
-      if (initialArea) setSelectedArea(initialArea)
-      if (initialAddress) setSelectedStreet(initialAddress)
-      if (initialPostcode) setSelectedPostcode(initialPostcode)
-      if (initialCity) setSelectedCity(initialCity)
+      setIsSubmitting(false)
+      setIsDragging(false)
     }
-  }, [isOpen, initialLat, initialLng, initialArea, initialAddress, initialPostcode, initialCity])
+  }, [isOpen, initialLat, initialLng])
 
   // Parse Google Geocoding Address Components
   const parseGoogleAddressComponents = useCallback((results: google.maps.GeocoderResult[]) => {
@@ -166,69 +156,6 @@ export function UberMapModal({
     }
   }, [])
 
-  // Reverse Geocoding via Google Maps Geocoder API with client-side caching
-  const triggerReverseGeocode = useCallback(
-    (lat: number, lng: number) => {
-      if (reverseGeocodeTimerRef.current) {
-        clearTimeout(reverseGeocodeTimerRef.current)
-      }
-
-      setIsGeocoding(true)
-
-      reverseGeocodeTimerRef.current = setTimeout(async () => {
-        // 1. Check local cache
-        const cached = getCachedReverseGeocode(lat, lng)
-        if (cached) {
-          setSelectedArea(cached.locality || cached.city || 'Neighborhood')
-          setSelectedStreet(cached.houseNo ? `${cached.houseNo} ${cached.locality}` : cached.locality)
-          setSelectedCity(cached.city)
-          if (cached.postcode) setSelectedPostcode(cached.postcode)
-          setFormattedAddress(cached.formattedAddress)
-          setIsGeocoding(false)
-          return
-        }
-
-        if (!geocoderRef.current && typeof google !== 'undefined' && google.maps?.Geocoder) {
-          geocoderRef.current = new google.maps.Geocoder()
-        }
-
-        if (!geocoderRef.current) {
-          setIsGeocoding(false)
-          return
-        }
-
-        try {
-          const response = await geocoderRef.current.geocode({ location: { lat, lng } })
-          setIsGeocoding(false)
-
-          if (response.results && response.results.length > 0) {
-            const parsed = parseGoogleAddressComponents(response.results)
-            if (parsed) {
-              setSelectedArea(parsed.area)
-              setSelectedStreet(parsed.streetAddress)
-              setSelectedCity(parsed.city)
-              if (parsed.postcode) setSelectedPostcode(parsed.postcode)
-              setFormattedAddress(parsed.fullAddress)
-
-              setCachedReverseGeocode(lat, lng, {
-                houseNo: '',
-                apartment: '',
-                locality: parsed.area,
-                city: parsed.city,
-                postcode: parsed.postcode,
-                formattedAddress: parsed.fullAddress,
-              })
-            }
-          }
-        } catch (err) {
-          console.warn('Google Maps Reverse Geocode notice:', err)
-          setIsGeocoding(false)
-        }
-      }, 250)
-    },
-    [parseGoogleAddressComponents]
-  )
-
   // Initialize Official Google Maps JS API Instance
   useEffect(() => {
     if (!isOpen) return
@@ -254,12 +181,11 @@ export function UberMapModal({
 
         const { Map } = (await importLibrary('maps')) as any
         const { Geocoder } = (await importLibrary('geocoding')) as any
-        const { AutocompleteService } = (await importLibrary('places')) as any
+        await importLibrary('places')
 
         if (!isMounted || !mapContainerRef.current) return
 
         geocoderRef.current = new Geocoder()
-        autocompleteServiceRef.current = new AutocompleteService()
 
         const initialCenter = {
           lat: coords.lat,
@@ -280,7 +206,7 @@ export function UberMapModal({
         mapInstanceRef.current = map
         setIsMapReady(true)
 
-        // Event Listeners for smooth center-pin pinpointing
+        // Event Listeners for center-pin positioning (WITHOUT reverse geocoding on every move)
         map.addListener('dragstart', () => {
           setIsDragging(true)
         })
@@ -292,12 +218,8 @@ export function UberMapModal({
             const newLat = typeof center.lat === 'function' ? center.lat() : center.lat
             const newLng = typeof center.lng === 'function' ? center.lng() : center.lng
             setCoords({ lat: newLat, lng: newLng })
-            triggerReverseGeocode(newLat, newLng)
           }
         })
-
-        // Trigger initial reverse geocode
-        triggerReverseGeocode(initialCenter.lat, initialCenter.lng)
       } catch (err) {
         console.error('Failed to initialize Google Maps in Studio:', err)
       }
@@ -310,7 +232,7 @@ export function UberMapModal({
       mapInstanceRef.current = null
       setIsMapReady(false)
     }
-  }, [isOpen, triggerReverseGeocode])
+  }, [isOpen])
 
   // Acquire User GPS Location
   const acquireUserLocation = useCallback(() => {
@@ -337,7 +259,6 @@ export function UberMapModal({
           mapInstanceRef.current.panTo({ lat: userLat, lng: userLng })
           mapInstanceRef.current.setZoom(17)
         }
-        triggerReverseGeocode(userLat, userLng)
       },
       (err) => {
         setIsLocating(false)
@@ -355,7 +276,7 @@ export function UberMapModal({
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
     )
-  }, [triggerReverseGeocode])
+  }, [])
 
   // Google Maps Places Autocomplete Search
   const handleSearchChange = (query: string) => {
@@ -375,8 +296,49 @@ export function UberMapModal({
     }
 
     searchDebounceTimerRef.current = setTimeout(async () => {
-      if (!autocompleteServiceRef.current && typeof google !== 'undefined' && google.maps?.places) {
-        autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
+      const sessionToken = getOrCreatePlacesSessionToken()
+
+      // 1. Modern Google Maps Places AutocompleteSuggestion API (Recommended Places API)
+      if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
+        try {
+          const req: any = {
+            input: query,
+            locationBias: {
+              center: { lat: coords.lat, lng: coords.lng },
+              radius: 50000,
+            },
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
+          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req)
+
+          if (suggestions && suggestions.length > 0) {
+            const mapped = suggestions.map((s: any) => {
+              const p = s.placePrediction
+              const mainText = p.mainText?.text || p.text?.text?.split(',')[0] || ''
+              const secondaryText = p.secondaryText?.text || p.text?.text || ''
+              return {
+                description: p.text?.text || `${mainText}, ${secondaryText}`,
+                placeId: p.placeId,
+                primaryText: mainText,
+                secondaryText: secondaryText,
+              }
+            })
+
+            setIsSearching(false)
+            setSearchResults(mapped)
+            return
+          }
+        } catch (err) {
+          console.warn('AutocompleteSuggestion error, falling back:', err)
+        }
+      }
+
+      // 2. Fallback to AutocompleteService if AutocompleteSuggestion is not supported
+      if (!autocompleteServiceRef.current && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
+        try {
+          autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
+        } catch {}
       }
 
       if (!autocompleteServiceRef.current) {
@@ -385,7 +347,6 @@ export function UberMapModal({
       }
 
       try {
-        const sessionToken = getOrCreatePlacesSessionToken()
         const request: google.maps.places.AutocompletionRequest = {
           input: query,
           locationBias: new google.maps.Circle({
@@ -422,7 +383,7 @@ export function UberMapModal({
     }, 200)
   }
 
-  // Select Search Item & Fetch Place Geometry
+  // Select Search Item & Pan Map
   const handleSelectSearchResult = (result: {
     description: string
     placeId: string
@@ -447,15 +408,6 @@ export function UberMapModal({
           if (mapInstanceRef.current) {
             mapInstanceRef.current.panTo({ lat: newLat, lng: newLng })
             mapInstanceRef.current.setZoom(17)
-          }
-
-          const parsed = parseGoogleAddressComponents(results)
-          if (parsed) {
-            setSelectedArea(parsed.area)
-            setSelectedStreet(parsed.streetAddress)
-            setSelectedCity(parsed.city)
-            if (parsed.postcode) setSelectedPostcode(parsed.postcode)
-            setFormattedAddress(parsed.fullAddress)
           }
         }
       })
@@ -485,17 +437,72 @@ export function UberMapModal({
     }
   }
 
-  // Confirm Selection and store exact coordinates
-  const handleConfirmLocation = () => {
+  // Confirm Location: Reverse geocode ONCE upon button click and populate directly
+  const handleConfirmLocation = async () => {
+    if (isSubmitting) return
+    setIsSubmitting(true)
+
+    let area = initialArea || 'Neighborhood'
+    let streetAddress = initialAddress || ''
+    let city = initialCity || ''
+    let postcode = initialPostcode || ''
+    let fullAddress = ''
+
+    try {
+      // 1. Check local cache
+      const cached = getCachedReverseGeocode(coords.lat, coords.lng)
+      if (cached) {
+        area = cached.locality || cached.city || area
+        streetAddress = cached.houseNo ? `${cached.houseNo} ${cached.locality}` : (cached.locality || streetAddress)
+        city = cached.city || city
+        postcode = cached.postcode || postcode
+        fullAddress = cached.formattedAddress
+      } else {
+        if (!geocoderRef.current && typeof google !== 'undefined' && google.maps?.Geocoder) {
+          geocoderRef.current = new google.maps.Geocoder()
+        }
+
+        if (geocoderRef.current) {
+          const response = await geocoderRef.current.geocode({
+            location: { lat: coords.lat, lng: coords.lng },
+          })
+
+          if (response.results && response.results.length > 0) {
+            const parsed = parseGoogleAddressComponents(response.results)
+            if (parsed) {
+              area = parsed.area
+              streetAddress = parsed.streetAddress
+              city = parsed.city
+              postcode = parsed.postcode
+              fullAddress = parsed.fullAddress
+
+              setCachedReverseGeocode(coords.lat, coords.lng, {
+                houseNo: '',
+                apartment: '',
+                locality: parsed.area,
+                city: parsed.city,
+                postcode: parsed.postcode,
+                formattedAddress: parsed.fullAddress,
+              })
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Geocode resolution error upon confirmation:', err)
+    }
+
     onSelectLocation({
-      area: selectedArea || 'Neighborhood',
-      postcode: selectedPostcode,
-      streetAddress: selectedStreet || formattedAddress || selectedArea,
-      city: selectedCity,
+      area: area || 'Neighborhood',
+      postcode: postcode,
+      streetAddress: streetAddress || fullAddress || area,
+      city: city,
       lat: coords.lat,
       lng: coords.lng,
-      fullAddress: formattedAddress || `${selectedStreet}, ${selectedArea}`,
+      fullAddress: fullAddress || `${streetAddress}, ${area}`,
     })
+
+    setIsSubmitting(false)
     onClose()
   }
 
@@ -503,12 +510,12 @@ export function UberMapModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl h-[92vh] max-h-[740px] bg-white text-[#202124] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-200">
+      <div className="relative w-full max-w-3xl h-[90vh] max-h-[720px] bg-white text-[#202124] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-200">
         {/* Top Header Bar */}
         <div className="relative z-20 px-4 sm:px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-[#EA4335]/10 flex items-center justify-center shrink-0">
-              <AnimatedLocationPin size={22} />
+            <div className="size-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+              <MapPin size={20} className="text-[#1A73E8]" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#202124] flex items-center gap-2">
@@ -574,7 +581,7 @@ export function UberMapModal({
           {/* Floating Google Maps Search Bar */}
           <div className="absolute top-4 left-3 sm:left-4 right-3 sm:right-auto sm:w-[420px] z-[1000]">
             <form onSubmit={handleSearchSubmit} className="relative">
-              <div className="flex items-center bg-white rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-200 focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/20 transition-all">
+              <div className="flex items-center bg-white rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-200 focus-within:border-[#1A73E8] focus-within:ring-2 focus-within:ring-[#1A73E8]/20 transition-all">
                 <Search size={17} className="text-gray-400 shrink-0 mr-2.5" />
                 <input
                   type="text"
@@ -609,7 +616,7 @@ export function UberMapModal({
                       onClick={() => handleSelectSearchResult(res)}
                       className="w-full text-left px-4 py-3 hover:bg-blue-50/80 flex items-start gap-3 transition-colors cursor-pointer"
                     >
-                      <MapPin size={16} className="text-[#EA4335] shrink-0 mt-0.5" />
+                      <MapPin size={16} className="text-[#1A73E8] shrink-0 mt-0.5" />
                       <div className="min-w-0 flex-1">
                         {res.primaryText && (
                           <div className="text-xs font-bold text-gray-900 truncate">
@@ -627,34 +634,51 @@ export function UberMapModal({
             </form>
           </div>
 
-          {/* Classic Red Google Map Pin Marker (Center Positioned) */}
-          <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-[1000]">
-            <div
-              className={`flex flex-col items-center -translate-y-6 transition-transform duration-200 ${
-                isDragging ? '-translate-y-10 scale-110' : '-translate-y-6 scale-100'
-              }`}
-            >
-              {/* Floating Coordinates Tag */}
-              <div className="bg-white border border-gray-300 text-[#202124] px-2.5 py-1 rounded-full text-[10px] font-extrabold shadow-md flex items-center gap-1.5 mb-1 select-none">
-                <span className="size-2 rounded-full bg-[#EA4335] animate-ping" />
-                <span>Shop Entrance</span>
-              </div>
-
-              {/* Red Google Pin */}
-              <div className="relative">
-                <div className="w-10 h-10 rounded-full bg-[#EA4335] border-2 border-white shadow-xl flex items-center justify-center text-white">
-                  <div className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
-                </div>
-                {/* Pointer Arrow */}
-                <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-[#EA4335] mx-auto -mt-0.5" />
-              </div>
-
-              {/* Pin Ground Shadow */}
+          {/* Sleek Compact & Curvy Blue Location Pin Marker (Exact Map Center) */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-[1000]">
+            <div className="relative flex flex-col items-center select-none">
+              {/* Floating Pin with Smooth Lift & Drop Animation */}
               <div
-                className={`w-4 h-1.5 bg-black/40 rounded-full blur-[1px] mt-0.5 transition-all duration-200 ${
-                  isDragging ? 'scale-75 opacity-30' : 'scale-100 opacity-80'
-                }`}
-              />
+                className="transition-all duration-200 ease-out origin-bottom flex flex-col items-center"
+                style={{
+                  transform: isDragging ? 'translateY(-8px) scale(1.06)' : 'translateY(0) scale(1)',
+                }}
+              >
+                <div className="filter drop-shadow-[0_4px_10px_rgba(29,78,216,0.32)]">
+                  <svg
+                    width="24"
+                    height="32"
+                    viewBox="0 0 24 32"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <linearGradient id="curvyBluePin" x1="12" y1="0" x2="12" y2="32" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stopColor="#3B82F6" />
+                        <stop offset="100%" stopColor="#1D4ED8" />
+                      </linearGradient>
+                    </defs>
+                    {/* Soft Curvy Organic Droplet Pin */}
+                    <path
+                      d="M12 0C5.37258 0 0 5.37258 0 12C0 19.8 10.2 30.7 11.2 31.7C11.6 32.1 12.4 32.1 12.8 31.7C13.8 30.7 24 19.8 24 12C24 5.37258 18.6274 0 12 0Z"
+                      fill="url(#curvyBluePin)"
+                    />
+                    {/* Inner White Focal Circle */}
+                    <circle cx="12" cy="11.5" r="4.2" fill="#FFFFFF" />
+                    {/* Core Blue Dot */}
+                    <circle cx="12" cy="11.5" r="2.1" fill="#1D4ED8" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Compact Ground Shadow directly beneath pin point */}
+              <div className="absolute -bottom-0.5 flex items-center justify-center">
+                <div
+                  className={`w-2.5 h-1 bg-black/25 rounded-full blur-[0.6px] transition-all duration-200 ${
+                    isDragging ? 'scale-50 opacity-20' : 'scale-100 opacity-80'
+                  }`}
+                />
+              </div>
             </div>
           </div>
 
@@ -701,40 +725,34 @@ export function UberMapModal({
           </div>
         </div>
 
-        {/* Bottom Address Confirmation Bar */}
-        <div className="relative z-20 bg-white border-t border-gray-200 p-4 sm:p-5 shadow-lg shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1 min-w-0 flex-1">
-              {isGeocoding && (
-                <div className="flex items-center gap-1.5 text-[11px] text-[#EA4335] font-medium">
-                  <Loader2 size={11} className="animate-spin" /> Resolving exact address via Google Maps…
-                </div>
-              )}
-
-              <p className="text-xs text-gray-600 truncate">
-                {formattedAddress || selectedStreet || 'Drag map or search your locality above'}
-                {selectedPostcode ? ` · PIN ${selectedPostcode}` : ''}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmLocation}
-                className="px-5 py-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] text-white text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer active:scale-[0.98]"
-              >
+        {/* Clean Bottom Action Bar */}
+        <div className="relative z-20 bg-white border-t border-gray-200 px-5 py-3.5 shadow-md shrink-0 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirmLocation}
+            disabled={isSubmitting}
+            className="px-6 py-2.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-75"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Saving Location…</span>
+              </>
+            ) : (
+              <>
                 <Check size={16} className="stroke-[2.5]" />
                 <span>Confirm Store Location</span>
-              </button>
-            </div>
-          </div>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
