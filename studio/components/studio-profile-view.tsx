@@ -14,6 +14,7 @@ import {
   Lock,
   LogOut,
   MapPin,
+  Pencil,
   Phone,
   Scissors,
   Sliders,
@@ -23,6 +24,7 @@ import {
   Upload,
   User,
   Wrench,
+  X,
 } from 'lucide-react'
 import type { User as UserType } from './data'
 import { updateUserProfile, sendOtp } from '@/lib/api'
@@ -107,10 +109,10 @@ export function StudioProfileView({
 }: StudioProfileViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
 
-  const [name, setName] = useState(user.name || '')
-  const [studioName, setStudioName] = useState(user.studioName || '')
-  const [phone, setPhone] = useState(user.phone || '')
-  const [verifiedPhone, setVerifiedPhone] = useState(user.phone || '')
+  const [name, setName] = useState(user?.name ?? '')
+  const [studioName, setStudioName] = useState(user?.studioName ?? '')
+  const [phone, setPhone] = useState(user?.phone ?? '')
+  const [verifiedPhone, setVerifiedPhone] = useState(user?.phone ?? '')
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false)
   const [otpValue, setOtpValue] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
@@ -121,16 +123,61 @@ export function StudioProfileView({
   // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
   const [shopNo, setShopNo] = useState('')
   const [mapStreetAddress, setMapStreetAddress] = useState('')
-  const [area, setArea] = useState(user.area || '')
-  const [postcode, setPostcode] = useState(user.postcode || '')
-  const [lat, setLat] = useState<number | null>(user.lat ?? null)
-  const [lng, setLng] = useState<number | null>(user.lng ?? null)
-  const [avatar, setAvatar] = useState(user.avatar || '')
+  const [area, setArea] = useState(user?.area ?? '')
+  const [postcode, setPostcode] = useState(user?.postcode ?? '')
+  const [lat, setLat] = useState<number | null>(user?.lat ?? null)
+  const [lng, setLng] = useState<number | null>(user?.lng ?? null)
+  const [avatar, setAvatar] = useState(user?.avatar ?? '')
 
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
+
+  // Edit Atelier Identity Quick Modal State (Studio Name & Lead Craftsman)
+  const [isEditAtelierModalOpen, setIsEditAtelierModalOpen] = useState(false)
+  const [draftStudioName, setDraftStudioName] = useState('')
+  const [draftName, setDraftName] = useState('')
+  const [editAtelierSaving, setEditAtelierSaving] = useState(false)
+
+  const openEditAtelierModal = () => {
+    setDraftStudioName(studioName || '')
+    setDraftName(name || '')
+    setIsEditAtelierModalOpen(true)
+  }
+
+  const handleSaveEditAtelier = async () => {
+    const sName = draftStudioName.trim() || studioName
+    const cName = draftName.trim() || name
+
+    setStudioName(sName)
+    setName(cName)
+
+    const updates: Partial<UserType> = {
+      id: user.id,
+      email: user.email,
+      studioName: sName,
+      name: cName,
+    }
+
+    setEditAtelierSaving(true)
+    try {
+      const res = await updateUserProfile(updates)
+      if (onUpdateUser) {
+        onUpdateUser({
+          ...user,
+          ...updates,
+          ...(res?.user || {}),
+        })
+      }
+      toast.success('Atelier name & craftsman updated!', { position: 'top-center' })
+      setIsEditAtelierModalOpen(false)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update atelier profile', { position: 'top-center' })
+    } finally {
+      setEditAtelierSaving(false)
+    }
+  }
 
   const [specialties, setSpecialties] = useState<string[]>(() => {
     if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
@@ -159,28 +206,28 @@ export function StudioProfileView({
 
   useEffect(() => {
     if (user) {
-      if (user.name !== undefined) setName(user.name || '')
-      if (user.studioName !== undefined) setStudioName(user.studioName || '')
+      if (user.name !== undefined) setName(user.name ?? '')
+      if (user.studioName !== undefined) setStudioName(user.studioName ?? '')
       if (user.phone !== undefined) {
-        setPhone(user.phone || '')
-        setVerifiedPhone(user.phone || '')
+        setPhone(user.phone ?? '')
+        setVerifiedPhone(user.phone ?? '')
       }
       
       const { shopNo: initShopNo, mapStreet: initMapStreet } = parseAddressParts(user.address || '', user.id)
-      setShopNo(initShopNo)
-      setMapStreetAddress(initMapStreet)
+      setShopNo(initShopNo ?? '')
+      setMapStreetAddress(initMapStreet ?? '')
 
-      if (user.area !== undefined) setArea(user.area || '')
-      if (user.postcode !== undefined) setPostcode(user.postcode || '')
+      if (user.area !== undefined) setArea(user.area ?? '')
+      if (user.postcode !== undefined) setPostcode(user.postcode ?? '')
       if (user.lat !== undefined) setLat(user.lat ?? null)
       if (user.lng !== undefined) setLng(user.lng ?? null)
       if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
         setSpecialties(user.specialties)
       }
-      if (user.openingHours) setOpeningHours(user.openingHours)
-      if (user.dailyCapacity) setDailyCapacity(user.dailyCapacity)
-      if (user.machines) setMachines(user.machines)
-      if (user.workers) setWorkers(user.workers)
+      if (user.openingHours !== undefined) setOpeningHours(user.openingHours ?? 'Mon–Sat: 09:00 – 19:00')
+      if (user.dailyCapacity !== undefined) setDailyCapacity(user.dailyCapacity ?? 25)
+      if (user.machines !== undefined) setMachines(user.machines ?? 4)
+      if (user.workers !== undefined) setWorkers(user.workers ?? 4)
       if (user.avatar) {
         setAvatar(user.avatar)
       } else {
@@ -697,22 +744,43 @@ export function StudioProfileView({
                         Direct Studio Settlement
                       </span>
                       <span>·</span>
-                      <span className="truncate max-w-[200px]">{buildFullAddress(shopNo, mapStreetAddress) || area || 'Studio Address'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsMapModalOpen(true)}
+                        className="truncate max-w-[200px] hover:text-[#9E593B] transition-colors cursor-pointer text-left underline decoration-dotted underline-offset-2"
+                        title="Click to adjust map pin"
+                      >
+                        {buildFullAddress(shopNo, mapStreetAddress) || area || 'Studio Address'}
+                      </button>
                       {lat && lng && (
                         <>
                           <span>·</span>
-                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsMapModalOpen(true)}
+                            className="text-emerald-700 hover:text-[#9E593B] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Click to adjust GPS pin"
+                          >
                             <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
                             GPS Pinned
-                          </span>
+                          </button>
                         </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Photo Actions */}
+                {/* Photo & Profile Actions */}
                 <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={openEditAtelierModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#9E593B]/30 bg-[#FAF3EC] hover:bg-[#9E593B] text-xs font-bold text-[#9E593B] hover:text-white transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit Atelier</span>
+                  </button>
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -802,7 +870,7 @@ export function StudioProfileView({
                 <div className="flex gap-2 animate-in fade-in">
                   <input
                     type="url"
-                    value={customUrl}
+                    value={customUrl ?? ''}
                     onChange={(e) => setCustomUrl(e.target.value)}
                     placeholder="https://images.unsplash.com/..."
                     className="flex-1 px-3.5 py-2 text-xs bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B]"
@@ -846,7 +914,7 @@ export function StudioProfileView({
                     type="text"
                     required
                     placeholder="e.g. Mayfair Sartoria or Atelier Studio"
-                    value={studioName}
+                    value={studioName ?? ''}
                     onChange={(e) => setStudioName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -860,7 +928,7 @@ export function StudioProfileView({
                     type="text"
                     required
                     placeholder="e.g. Master Tailor or Craftsman Name"
-                    value={name}
+                    value={name ?? ''}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -882,7 +950,7 @@ export function StudioProfileView({
                       type="text"
                       required
                       placeholder="e.g. Shop No. 4, Ground Floor, Gala 12, or Suite 2B"
-                      value={shopNo}
+                      value={shopNo ?? ''}
                       onChange={(e) => handleShopNoChange(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
@@ -1025,7 +1093,7 @@ export function StudioProfileView({
                       inputMode="tel"
                       required
                       placeholder="+91 98765 43210 or +1 (555) 019-2834"
-                      value={phone}
+                      value={phone ?? ''}
                       onChange={(e) => {
                         setPhone(e.target.value.replace(/[^\d+ ]/g, ''))
                         setError('')
@@ -1065,7 +1133,7 @@ export function StudioProfileView({
                     <input
                       type="email"
                       readOnly
-                      value={user.email || user.contact || ''}
+                      value={user?.email || user?.contact || ''}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#6B7280] bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl cursor-not-allowed select-none"
                     />
                   </div>
@@ -1116,7 +1184,7 @@ export function StudioProfileView({
                   <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                   <input
                     type="text"
-                    value={area}
+                    value={area ?? ''}
                     onChange={(e) => setArea(e.target.value)}
                     placeholder="e.g. Vasai Road, Umela or Soho & Central London"
                     className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1183,7 +1251,7 @@ export function StudioProfileView({
                     type="number"
                     min={1}
                     max={200}
-                    value={dailyCapacity}
+                    value={dailyCapacity ?? ''}
                     onChange={(e) => setDailyCapacity(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1198,7 +1266,7 @@ export function StudioProfileView({
                     type="number"
                     min={1}
                     max={50}
-                    value={machines}
+                    value={machines ?? ''}
                     onChange={(e) => setMachines(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1211,7 +1279,7 @@ export function StudioProfileView({
                   </label>
                   <input
                     type="text"
-                    value={openingHours}
+                    value={openingHours ?? ''}
                     onChange={(e) => setOpeningHours(e.target.value)}
                     placeholder="e.g. Mon–Sat: 09:00 – 19:00"
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1268,6 +1336,94 @@ export function StudioProfileView({
           </div>
         )}
       </form>
+
+      {/* ── Edit Atelier Identity Modal ── */}
+      {isEditAtelierModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-[#E8E1D5] shadow-2xl overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-[#E8E1D5] flex items-center justify-between bg-[#FAF8F5]">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-[#FAF3EC] text-[#9E593B] border border-[#E8E1D5] flex items-center justify-center">
+                  <Store size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1E2229]">
+                    Edit Atelier Details
+                  </h3>
+                  <p className="text-xs text-[#6B7280]">
+                    Update your studio identity and lead master tailor
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditAtelierModalOpen(false)}
+                className="p-2 text-[#6B7280] hover:text-[#1E2229] hover:bg-stone-200/50 rounded-xl transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                  Atelier / Studio Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mayfair Sartoria or Atelier Studio"
+                  value={draftStudioName ?? ''}
+                  onChange={(e) => setDraftStudioName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                  Lead Master Tailor *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Master Tailor or Craftsman Name"
+                  value={draftName ?? ''}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-[#E8E1D5] bg-[#FAF8F5] flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsEditAtelierModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#6B7280] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditAtelier}
+                disabled={editAtelierSaving}
+                className="px-5 py-2 rounded-xl bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {editAtelierSaving ? (
+                  <span>Saving...</span>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Save & Apply</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Uber-Style Locality Picker Google Map Modal */}
       <UberMapModal
