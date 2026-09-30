@@ -29,6 +29,7 @@ import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispat
 import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
+import { getCachedReverseGeocode, setCachedReverseGeocode } from '@/lib/geocode-cache'
 
 const SESSION_BOOKING_KEY = 'tg_book_session'
 
@@ -350,6 +351,26 @@ export default function BookPage() {
           setIsLiveLocation(true)
         }
 
+        // Check cache first to avoid redundant Google Geocoder call
+        const cached = getCachedReverseGeocode(liveCoords.lat, liveCoords.lng)
+        if (cached) {
+          const cachedDetails: CustomerAddressDetails = {
+            houseNo: cached.houseNo,
+            apartment: cached.apartment,
+            locality: cached.locality,
+            city: cached.city,
+            landmark: '',
+          }
+          liveAddressDetailsRef.current = cachedDetails
+          liveCityRef.current = cached.city
+          if (!hasPriorSession) {
+            setAddressDetails((prev) => ({ ...prev, ...cachedDetails }))
+            setSelectedCity(cached.city)
+            setStoredCity(cached.city, liveCoords)
+          }
+          return
+        }
+
         // Reverse geocode via Google Geocoder if available
         if (typeof google !== 'undefined' && google.maps?.Geocoder) {
           try {
@@ -377,6 +398,14 @@ export default function BookPage() {
                 const stateCode = state?.short_name || country?.short_name || ''
                 const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
                 liveCityRef.current = formatted
+
+                setCachedReverseGeocode(liveCoords.lat, liveCoords.lng, {
+                  houseNo: newDetails.houseNo,
+                  apartment: newDetails.apartment,
+                  locality: newDetails.locality,
+                  city: formatted,
+                  formattedAddress: formatted,
+                })
 
                 if (!hasPriorSession) {
                   setAddressDetails((prev) => ({
@@ -1386,18 +1415,40 @@ export default function BookPage() {
                   setIsLocationSaved(false)
                   setIsCardFlipped(true)
 
+                  // Check cache first
+                  const cached = getCachedReverseGeocode(newCoords.lat, newCoords.lng)
+                  if (cached) {
+                    setAddressDetails((prev) => ({
+                      ...prev,
+                      houseNo: cached.houseNo || prev.houseNo,
+                      apartment: cached.apartment || prev.apartment,
+                      locality: cached.locality || prev.locality,
+                      city: cached.city || prev.city || selectedCity,
+                    }))
+                    setSelectedCity(cached.city)
+                    setStoredCity(cached.city, newCoords)
+                    return
+                  }
+
                   if (typeof google !== 'undefined' && google.maps?.Geocoder) {
                     try {
                       const geocoder = new google.maps.Geocoder()
                       geocoder.geocode({ location: newCoords }, (results, status) => {
                         if (status === 'OK' && Array.isArray(results) && results.length > 0) {
                           const parsed = parseGoogleAddressComponents(results)
+                          const newDetails = {
+                            houseNo: parsed.houseNo || '',
+                            apartment: parsed.apartment || '',
+                            locality: parsed.locality || '',
+                            city: parsed.city || selectedCity,
+                          }
+
                           setAddressDetails((prev) => ({
                             ...prev,
-                            houseNo: parsed.houseNo || prev.houseNo,
-                            apartment: parsed.apartment || prev.apartment,
-                            locality: parsed.locality || prev.locality,
-                            city: parsed.city || prev.city || selectedCity,
+                            houseNo: newDetails.houseNo || prev.houseNo,
+                            apartment: newDetails.apartment || prev.apartment,
+                            locality: newDetails.locality || prev.locality,
+                            city: newDetails.city || prev.city || selectedCity,
                           }))
 
                           const comps = results[0]?.address_components || []
@@ -1408,6 +1459,15 @@ export default function BookPage() {
                           const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || parsed.city || selectedCity
                           const stateCode = state?.short_name || ''
                           const formatted = stateCode && !cityName.includes(stateCode) ? `${cityName}, ${stateCode}` : cityName
+
+                          setCachedReverseGeocode(newCoords.lat, newCoords.lng, {
+                            houseNo: newDetails.houseNo,
+                            apartment: newDetails.apartment,
+                            locality: newDetails.locality,
+                            city: formatted,
+                            formattedAddress: formatted,
+                          })
+
                           setSelectedCity(formatted)
                           setStoredCity(formatted, newCoords)
                         }
