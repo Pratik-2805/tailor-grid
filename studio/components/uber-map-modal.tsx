@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import {
   MapPin,
   Search,
@@ -13,6 +14,12 @@ import {
   Loader2,
 } from 'lucide-react'
 import { AnimatedLocationPin } from './animated-location-pin'
+import {
+  getCachedReverseGeocode,
+  setCachedReverseGeocode,
+  getOrCreatePlacesSessionToken,
+  resetPlacesSessionToken,
+} from '@/lib/geocode-cache'
 
 export interface SelectedLocationData {
   area: string
@@ -36,6 +43,16 @@ interface GoogleMapModalProps {
   initialLng?: number
 }
 
+const GOOGLE_MAPS_API_KEY =
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDYPbSbWg54WZCGLpzncOUAP796ykQUa94'
+
+// Minimalist styling for clean, professional studio map experience
+const MAP_STYLES: google.maps.MapTypeStyle[] = [
+  { featureType: 'poi.business', stylers: [{ visibility: 'on' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'simplified' }] },
+  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+]
+
 export function UberMapModal({
   isOpen,
   onClose,
@@ -48,13 +65,16 @@ export function UberMapModal({
   initialLng,
 }: GoogleMapModalProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapInstanceRef = useRef<any>(null)
+  const mapInstanceRef = useRef<google.maps.Map | null>(null)
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null)
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
 
   // Coordinates & Map State (Use provided initial coordinates or Mumbai fallback)
   const [coords, setCoords] = useState<{ lat: number; lng: number }>(() => ({
     lat: initialLat && !isNaN(initialLat) ? initialLat : 19.076,
     lng: initialLng && !isNaN(initialLng) ? initialLng : 72.8777,
   }))
+  const [isMapReady, setIsMapReady] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [isGeocoding, setIsGeocoding] = useState(false)
@@ -66,7 +86,7 @@ export function UberMapModal({
   // Search State
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<
-    Array<{ description: string; lat: number; lng: number; primaryText?: string }>
+    Array<{ description: string; placeId: string; primaryText?: string; secondaryText?: string }>
   >([])
   const [isSearching, setIsSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
@@ -76,8 +96,11 @@ export function UberMapModal({
   const [selectedPostcode, setSelectedPostcode] = useState(initialPostcode || '')
   const [selectedStreet, setSelectedStreet] = useState(initialAddress || '')
   const [selectedCity, setSelectedCity] = useState(initialCity || '')
-  const [detectedCountryCode, setDetectedCountryCode] = useState<string>('in')
   const [formattedAddress, setFormattedAddress] = useState('')
+
+  // Debounce helpers
+  const reverseGeocodeTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Sync state whenever modal is opened
   useEffect(() => {
@@ -85,7 +108,8 @@ export function UberMapModal({
       if (initialLat && initialLng && !isNaN(initialLat) && !isNaN(initialLng)) {
         setCoords({ lat: initialLat, lng: initialLng })
         if (mapInstanceRef.current) {
-          mapInstanceRef.current.setView([initialLat, initialLng], 16)
+          mapInstanceRef.current.panTo({ lat: initialLat, lng: initialLng })
+          mapInstanceRef.current.setZoom(17)
         }
       }
       if (initialArea) setSelectedArea(initialArea)
@@ -95,129 +119,201 @@ export function UberMapModal({
     }
   }, [isOpen, initialLat, initialLng, initialArea, initialAddress, initialPostcode, initialCity])
 
-  // Debounce helpers
-  const reverseGeocodeTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const searchDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Parse Google Geocoding Address Components
+  const parseGoogleAddressComponents = useCallback((results: google.maps.GeocoderResult[]) => {
+    if (!results || results.length === 0) return null
 
-  // Dynamically load Leaflet for Google Maps tile rendering (100% Free)
+    const bestResult = results[0]
+    let streetNumber = ''
+    let route = ''
+    let sublocality = ''
+    let locality = ''
+    let city = ''
+    let postalCode = ''
+    let premise = ''
+
+    for (const res of results) {
+      for (const comp of res.address_components) {
+        const types = comp.types
+        if (types.includes('street_number') && !streetNumber) streetNumber = comp.long_name
+        if (types.includes('route') && !route) route = comp.long_name
+        if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+          if (!sublocality) sublocality = comp.long_name
+        }
+        if (types.includes('neighborhood') && !sublocality) {
+          sublocality = comp.long_name
+        }
+        if (types.includes('locality') && !city) city = comp.long_name
+        if (types.includes('administrative_area_level_2') && !city) city = comp.long_name
+        if (types.includes('postal_code') && !postalCode) postalCode = comp.long_name
+        if ((types.includes('premise') || types.includes('point_of_interest') || types.includes('establishment')) && !premise) {
+          premise = comp.long_name
+        }
+      }
+    }
+
+    const streetParts = [premise, streetNumber ? `${streetNumber} ${route}` : route].filter(Boolean)
+    const streetAddress = streetParts.length > 0 ? streetParts.join(', ') : bestResult.formatted_address.split(',')[0]
+    const area = sublocality || locality || city || 'Neighborhood'
+    const fullAddress = bestResult.formatted_address
+
+    return {
+      streetAddress: streetAddress || area,
+      area: area || 'Neighborhood',
+      city: city || 'City',
+      postcode: postalCode || '',
+      fullAddress: fullAddress || `${streetAddress}, ${area}`,
+    }
+  }, [])
+
+  // Reverse Geocoding via Google Maps Geocoder API with client-side caching
+  const triggerReverseGeocode = useCallback(
+    (lat: number, lng: number) => {
+      if (reverseGeocodeTimerRef.current) {
+        clearTimeout(reverseGeocodeTimerRef.current)
+      }
+
+      setIsGeocoding(true)
+
+      reverseGeocodeTimerRef.current = setTimeout(async () => {
+        // 1. Check local cache
+        const cached = getCachedReverseGeocode(lat, lng)
+        if (cached) {
+          setSelectedArea(cached.locality || cached.city || 'Neighborhood')
+          setSelectedStreet(cached.houseNo ? `${cached.houseNo} ${cached.locality}` : cached.locality)
+          setSelectedCity(cached.city)
+          if (cached.postcode) setSelectedPostcode(cached.postcode)
+          setFormattedAddress(cached.formattedAddress)
+          setIsGeocoding(false)
+          return
+        }
+
+        if (!geocoderRef.current && typeof google !== 'undefined' && google.maps?.Geocoder) {
+          geocoderRef.current = new google.maps.Geocoder()
+        }
+
+        if (!geocoderRef.current) {
+          setIsGeocoding(false)
+          return
+        }
+
+        try {
+          const response = await geocoderRef.current.geocode({ location: { lat, lng } })
+          setIsGeocoding(false)
+
+          if (response.results && response.results.length > 0) {
+            const parsed = parseGoogleAddressComponents(response.results)
+            if (parsed) {
+              setSelectedArea(parsed.area)
+              setSelectedStreet(parsed.streetAddress)
+              setSelectedCity(parsed.city)
+              if (parsed.postcode) setSelectedPostcode(parsed.postcode)
+              setFormattedAddress(parsed.fullAddress)
+
+              setCachedReverseGeocode(lat, lng, {
+                houseNo: '',
+                apartment: '',
+                locality: parsed.area,
+                city: parsed.city,
+                postcode: parsed.postcode,
+                formattedAddress: parsed.fullAddress,
+              })
+            }
+          }
+        } catch (err) {
+          console.warn('Google Maps Reverse Geocode notice:', err)
+          setIsGeocoding(false)
+        }
+      }, 250)
+    },
+    [parseGoogleAddressComponents]
+  )
+
+  // Initialize Official Google Maps JS API Instance
   useEffect(() => {
     if (!isOpen) return
 
     let isMounted = true
 
-    const loadLeaflet = (): Promise<void> => {
-      return new Promise((resolve) => {
-        if (typeof window !== 'undefined' && (window as any).L) {
-          return resolve()
+    async function initGoogleMap() {
+      try {
+        if (typeof window !== 'undefined') {
+          const w = window as any
+          if (!w.__googleMapsOptionsConfiguredStudio) {
+            try {
+              setOptions({
+                key: GOOGLE_MAPS_API_KEY,
+                v: 'weekly',
+              })
+              w.__googleMapsOptionsConfiguredStudio = true
+            } catch {
+              // Ignore if already configured
+            }
+          }
         }
 
-        // 1. Inject Leaflet CSS
-        if (!document.getElementById('leaflet-css')) {
-          const link = document.createElement('link')
-          link.id = 'leaflet-css'
-          link.rel = 'stylesheet'
-          link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-          document.head.appendChild(link)
+        const { Map } = (await importLibrary('maps')) as any
+        const { Geocoder } = (await importLibrary('geocoding')) as any
+        const { AutocompleteService } = (await importLibrary('places')) as any
+
+        if (!isMounted || !mapContainerRef.current) return
+
+        geocoderRef.current = new Geocoder()
+        autocompleteServiceRef.current = new AutocompleteService()
+
+        const initialCenter = {
+          lat: coords.lat,
+          lng: coords.lng,
         }
 
-        // 2. Inject Leaflet JS
-        if (!document.getElementById('leaflet-js')) {
-          const script = document.createElement('script')
-          script.id = 'leaflet-js'
-          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-          script.async = true
-          script.onload = () => resolve()
-          document.head.appendChild(script)
-        } else {
-          const script = document.getElementById('leaflet-js') as HTMLScriptElement
-          script.addEventListener('load', () => resolve())
-          if ((window as any).L) resolve()
-        }
-      })
+        const map = new Map(mapContainerRef.current, {
+          center: initialCenter,
+          zoom: 16,
+          styles: MAP_STYLES,
+          disableDefaultUI: true,
+          gestureHandling: 'greedy',
+          clickableIcons: false,
+          maxZoom: 20,
+          minZoom: 4,
+        })
+
+        mapInstanceRef.current = map
+        setIsMapReady(true)
+
+        // Event Listeners for smooth center-pin pinpointing
+        map.addListener('dragstart', () => {
+          setIsDragging(true)
+        })
+
+        map.addListener('idle', () => {
+          setIsDragging(false)
+          const center = map.getCenter()
+          if (center) {
+            const newLat = typeof center.lat === 'function' ? center.lat() : center.lat
+            const newLng = typeof center.lng === 'function' ? center.lng() : center.lng
+            setCoords({ lat: newLat, lng: newLng })
+            triggerReverseGeocode(newLat, newLng)
+          }
+        })
+
+        // Trigger initial reverse geocode
+        triggerReverseGeocode(initialCenter.lat, initialCenter.lng)
+      } catch (err) {
+        console.error('Failed to initialize Google Maps in Studio:', err)
+      }
     }
 
-    loadLeaflet().then(() => {
-      if (!isMounted) return
-      initFreeGoogleMap()
-    })
+    initGoogleMap()
 
     return () => {
       isMounted = false
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove()
-        mapInstanceRef.current = null
-      }
-    }
-  }, [isOpen])
-
-  // Initialize Free Google Maps Roadmap View with Leaflet
-  const initFreeGoogleMap = useCallback(() => {
-    if (!mapContainerRef.current || !(window as any).L) return
-
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove()
       mapInstanceRef.current = null
+      setIsMapReady(false)
     }
-
-    const L = (window as any).L
-    const initialLat = coords.lat
-    const initialLng = coords.lng
-
-    // Create map instance
-    const map = L.map(mapContainerRef.current, {
-      center: [initialLat, initialLng],
-      zoom: 16,
-      zoomControl: false,
-      attributionControl: false,
-    })
-
-    // Free Google Maps Roadmap Raster Layer
-    L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-      maxZoom: 20,
-      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    }).addTo(map)
-
-    mapInstanceRef.current = map
-
-    // Fix partial rendering in modal: recalculate tile canvas dimensions
-    const invalidate = () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize()
-      }
-    }
-
-    setTimeout(invalidate, 50)
-    setTimeout(invalidate, 150)
-    setTimeout(invalidate, 350)
-    setTimeout(invalidate, 700)
-
-    if (typeof ResizeObserver !== 'undefined' && mapContainerRef.current) {
-      const ro = new ResizeObserver(() => invalidate())
-      ro.observe(mapContainerRef.current)
-    }
-    window.addEventListener('resize', invalidate)
-
-    // Listen for center change on pan/drag
-    map.on('movestart', () => {
-      setIsDragging(true)
-    })
-
-    map.on('moveend', () => {
-      setIsDragging(false)
-      const center = map.getCenter()
-      if (center) {
-        setCoords({ lat: center.lat, lng: center.lng })
-        triggerReverseGeocode(center.lat, center.lng)
-      }
-    })
-
-    // Detect user current location on launch
-    acquireUserLocation(map)
-  }, [])
+  }, [isOpen, triggerReverseGeocode])
 
   // Acquire User GPS Location
-  const acquireUserLocation = (mapInstance?: any) => {
-    const map = mapInstance || mapInstanceRef.current
+  const acquireUserLocation = useCallback(() => {
     setIsLocating(true)
     setLocationError(null)
 
@@ -237,18 +333,19 @@ export function UberMapModal({
         const userLng = pos.coords.longitude
         setCoords({ lat: userLat, lng: userLng })
 
-        if (map) {
-          map.setView([userLat, userLng], 17, { animate: true })
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.panTo({ lat: userLat, lng: userLng })
+          mapInstanceRef.current.setZoom(17)
         }
         triggerReverseGeocode(userLat, userLng)
       },
       (err) => {
         setIsLocating(false)
         setGpsActive(false)
-        console.warn('Geolocation error:', err)
+        console.warn('Geolocation notice:', err)
         if (err.code === err.PERMISSION_DENIED) {
           setLocationError(
-            'Location access is blocked. Please allow location access or search your locality above.'
+            'Location access is blocked. Please allow location access or search your shop address above.'
           )
         } else if (err.code === err.POSITION_UNAVAILABLE) {
           setLocationError('GPS location unavailable. Please search your locality using the search bar above.')
@@ -258,118 +355,9 @@ export function UberMapModal({
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
     )
-  }
+  }, [triggerReverseGeocode])
 
-  // Reverse Geocoding using OpenStreetMap with rich POI & Street extraction
-  const triggerReverseGeocode = (lat: number, lng: number) => {
-    if (reverseGeocodeTimerRef.current) {
-      clearTimeout(reverseGeocodeTimerRef.current)
-    }
-
-    setIsGeocoding(true)
-
-    reverseGeocodeTimerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&extratags=1&namedetails=1`,
-          { headers: { 'Accept-Language': 'en' }, signal: AbortSignal.timeout(4500) }
-        )
-        const data = await res.json()
-        setIsGeocoding(false)
-
-        if (data && data.address) {
-          const addr = data.address
-          const rawParts = (data.display_name || '').split(',').map((s: string) => s.trim()).filter(Boolean)
-
-          // 1. Extract POI / Landmark / Shop / Building
-          const poi =
-            addr.amenity ||
-            addr.shop ||
-            addr.building ||
-            addr.tourism ||
-            addr.historic ||
-            addr.office ||
-            addr.leisure ||
-            addr.house_name ||
-            ''
-
-          // 2. Extract Road / Street
-          const road =
-            addr.road ||
-            addr.street ||
-            addr.footway ||
-            addr.pedestrian ||
-            addr.highway ||
-            addr.path ||
-            ''
-          const houseNumber = addr.house_number || ''
-
-          // 3. Extract Locality / Suburb / Village / District
-          const neighborhood =
-            addr.suburb ||
-            addr.neighbourhood ||
-            addr.residential ||
-            addr.quarter ||
-            addr.city_district ||
-            ''
-          const village = addr.village || addr.hamlet || addr.town || ''
-          const city = addr.city || addr.town || addr.municipality || addr.county || addr.state_district || ''
-          const post = addr.postcode || ''
-
-          if (addr.country_code) {
-            setDetectedCountryCode(addr.country_code.toLowerCase())
-          }
-
-          // Build proper Area / Neighborhood
-          let parsedArea = ''
-          if (neighborhood && village && neighborhood !== village) {
-            parsedArea = `${neighborhood}, ${village}`
-          } else {
-            parsedArea = neighborhood || village || city || (rawParts.length > 2 ? rawParts[2] : rawParts[0]) || 'Local Area'
-          }
-
-          // Build detailed Street Address (avoiding bare single-word duplicates)
-          let parsedStreet = ''
-          const roadWithNum = [houseNumber, road].filter(Boolean).join(' ')
-
-          if (poi && roadWithNum && poi !== roadWithNum) {
-            parsedStreet = `${poi}, ${roadWithNum}`
-          } else if (poi) {
-            parsedStreet = poi
-          } else if (roadWithNum) {
-            parsedStreet = roadWithNum
-          } else if (rawParts.length >= 2) {
-            // Take the first 2 specific place segments from display_name
-            const specificParts = rawParts.slice(0, 2).filter((p: string) => p !== post && p !== 'India')
-            parsedStreet = specificParts.join(', ')
-          } else {
-            parsedStreet = rawParts[0] || parsedArea
-          }
-
-          // If parsedStreet is just the exact same single word as parsedArea, enrich it with road/landmark or village context
-          if (parsedStreet.trim().toLowerCase() === parsedArea.trim().toLowerCase()) {
-            if (rawParts.length >= 2 && rawParts[0] !== rawParts[1]) {
-              parsedStreet = `${rawParts[0]}, ${rawParts[1]}`
-            } else if (road) {
-              parsedStreet = `${road}, ${parsedArea}`
-            } else if (poi) {
-              parsedStreet = `${poi}, ${parsedArea}`
-            }
-          }
-
-          setSelectedArea(parsedArea)
-          setSelectedStreet(parsedStreet)
-          setSelectedCity(city)
-          if (post) setSelectedPostcode(post)
-          setFormattedAddress(data.display_name || `${parsedStreet}, ${parsedArea}`)
-        }
-      } catch {
-        setIsGeocoding(false)
-      }
-    }, 300)
-  }
-
-  // Free Autocomplete Search (Photon + OpenStreetMap with Proximity & Country Biasing)
+  // Google Maps Places Autocomplete Search
   const handleSearchChange = (query: string) => {
     setSearchQuery(query)
     if (!query.trim()) {
@@ -387,93 +375,91 @@ export function UberMapModal({
     }
 
     searchDebounceTimerRef.current = setTimeout(async () => {
-      try {
-        // 1. First try Photon (Fast, typo-tolerant, free OpenStreetMap POI & street search)
-        const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(
-          query
-        )}&lat=${coords.lat}&lon=${coords.lng}&limit=8`
+      if (!autocompleteServiceRef.current && typeof google !== 'undefined' && google.maps?.places) {
+        autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
+      }
 
-        let items: Array<{ description: string; lat: number; lng: number; primaryText?: string }> = []
-
-        try {
-          const photonRes = await fetch(photonUrl, { signal: AbortSignal.timeout(3500) })
-          const photonData = await photonRes.json()
-          if (photonData && Array.isArray(photonData.features) && photonData.features.length > 0) {
-            items = photonData.features.map((f: any) => {
-              const p = f.properties || {}
-              const name = p.name || p.street || ''
-              const details = [
-                p.street,
-                p.district || p.suburb,
-                p.city || p.county,
-                p.state,
-                p.postcode,
-                p.country,
-              ]
-                .filter(Boolean)
-                .filter((v, i, a) => a.indexOf(v) === i)
-                .join(', ')
-
-              return {
-                primaryText: name || details.split(',')[0],
-                description: details || name || 'Location',
-                lat: f.geometry.coordinates[1],
-                lng: f.geometry.coordinates[0],
-              }
-            })
-          }
-        } catch {
-          // Photon fallback
-        }
-
-        // 2. If Photon didn't return results, fallback to Nominatim with viewbox biasing
-        if (items.length === 0) {
-          const delta = 2.5
-          const minLon = (coords.lng - delta).toFixed(4)
-          const maxLat = (coords.lat + delta).toFixed(4)
-          const maxLon = (coords.lng + delta).toFixed(4)
-          const minLat = (coords.lat - delta).toFixed(4)
-          const countryParam = detectedCountryCode ? `&countrycodes=${detectedCountryCode}` : ''
-
-          const nomUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            query
-          )}&viewbox=${minLon},${maxLat},${maxLon},${minLat}&bounded=0${countryParam}&limit=7&addressdetails=1`
-
-          const nomRes = await fetch(nomUrl, {
-            headers: { 'Accept-Language': 'en' },
-            signal: AbortSignal.timeout(4000),
-          })
-          const nomData = await nomRes.json()
-
-          if (Array.isArray(nomData) && nomData.length > 0) {
-            items = nomData.map((item: any) => ({
-              primaryText: item.display_name.split(',')[0],
-              description: item.display_name,
-              lat: parseFloat(item.lat),
-              lng: parseFloat(item.lon),
-            }))
-          }
-        }
-
+      if (!autocompleteServiceRef.current) {
         setIsSearching(false)
-        setSearchResults(items)
-      } catch {
+        return
+      }
+
+      try {
+        const sessionToken = getOrCreatePlacesSessionToken()
+        const request: google.maps.places.AutocompletionRequest = {
+          input: query,
+          locationBias: new google.maps.Circle({
+            center: new google.maps.LatLng(coords.lat, coords.lng),
+            radius: 50000,
+          }),
+        }
+        if (sessionToken) request.sessionToken = sessionToken
+
+        autocompleteServiceRef.current.getPlacePredictions(request, (predictions, status) => {
+          setIsSearching(false)
+          if (
+            status === google.maps.places.PlacesServiceStatus.OK &&
+            predictions &&
+            predictions.length > 0
+          ) {
+            setSearchResults(
+              predictions.map((p) => ({
+                description: p.description,
+                placeId: p.place_id,
+                primaryText: p.structured_formatting?.main_text || p.description.split(',')[0],
+                secondaryText: p.structured_formatting?.secondary_text || p.description,
+              }))
+            )
+          } else {
+            setSearchResults([])
+          }
+        })
+      } catch (err) {
+        console.warn('Google Places Autocomplete error:', err)
         setIsSearching(false)
         setSearchResults([])
       }
-    }, 250)
+    }, 200)
   }
 
-  // Select Search Item
-  const handleSelectSearchResult = (result: { description: string; lat: number; lng: number }) => {
+  // Select Search Item & Fetch Place Geometry
+  const handleSelectSearchResult = (result: {
+    description: string
+    placeId: string
+    primaryText?: string
+  }) => {
     setSearchQuery(result.description)
     setShowDropdown(false)
 
-    setCoords({ lat: result.lat, lng: result.lng })
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([result.lat, result.lng], 17, { animate: true })
+    if (!geocoderRef.current && typeof google !== 'undefined' && google.maps?.Geocoder) {
+      geocoderRef.current = new google.maps.Geocoder()
     }
-    triggerReverseGeocode(result.lat, result.lng)
+
+    if (geocoderRef.current) {
+      geocoderRef.current.geocode({ placeId: result.placeId }, (results, status) => {
+        resetPlacesSessionToken()
+        if (status === google.maps.GeocoderStatus.OK && results && results[0]) {
+          const loc = results[0].geometry.location
+          const newLat = loc.lat()
+          const newLng = loc.lng()
+          setCoords({ lat: newLat, lng: newLng })
+
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.panTo({ lat: newLat, lng: newLng })
+            mapInstanceRef.current.setZoom(17)
+          }
+
+          const parsed = parseGoogleAddressComponents(results)
+          if (parsed) {
+            setSelectedArea(parsed.area)
+            setSelectedStreet(parsed.streetAddress)
+            setSelectedCity(parsed.city)
+            if (parsed.postcode) setSelectedPostcode(parsed.postcode)
+            setFormattedAddress(parsed.fullAddress)
+          }
+        }
+      })
+    }
   }
 
   // Handle Search Submission (Enter key)
@@ -487,13 +473,15 @@ export function UberMapModal({
   // Zoom Controls
   const handleZoomIn = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.zoomIn()
+      const cur = mapInstanceRef.current.getZoom() || 16
+      mapInstanceRef.current.setZoom(Math.min(20, cur + 1))
     }
   }
 
   const handleZoomOut = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.zoomOut()
+      const cur = mapInstanceRef.current.getZoom() || 16
+      mapInstanceRef.current.setZoom(Math.max(4, cur - 1))
     }
   }
 
@@ -525,8 +513,8 @@ export function UberMapModal({
             <div>
               <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#202124] flex items-center gap-2">
                 <span>Google Maps Store Locator</span>
-                <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md hidden sm:inline">
-                  Pin Exact Location
+                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md hidden sm:inline">
+                  Google Maps API Active
                 </span>
               </h2>
             </div>
@@ -535,7 +523,7 @@ export function UberMapModal({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => acquireUserLocation()}
+              onClick={acquireUserLocation}
               disabled={isLocating}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-[#1A73E8] text-xs font-bold transition-all cursor-pointer border border-blue-200 shadow-xs"
             >
@@ -567,7 +555,7 @@ export function UberMapModal({
             </div>
             <button
               type="button"
-              onClick={() => acquireUserLocation()}
+              onClick={acquireUserLocation}
               className="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase tracking-wider shrink-0 transition-colors cursor-pointer"
             >
               Turn On / Retry
@@ -629,7 +617,7 @@ export function UberMapModal({
                           </div>
                         )}
                         <div className="text-[11px] font-normal text-gray-600 leading-snug line-clamp-2">
-                          {res.description}
+                          {res.secondaryText || res.description}
                         </div>
                       </div>
                     </button>
@@ -675,7 +663,7 @@ export function UberMapModal({
             {/* GPS Current Location Target Button */}
             <button
               type="button"
-              onClick={() => acquireUserLocation()}
+              onClick={acquireUserLocation}
               disabled={isLocating}
               className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
                 gpsActive
@@ -719,7 +707,7 @@ export function UberMapModal({
             <div className="space-y-1 min-w-0 flex-1">
               {isGeocoding && (
                 <div className="flex items-center gap-1.5 text-[11px] text-[#EA4335] font-medium">
-                  <Loader2 size={11} className="animate-spin" /> Resolving exact address…
+                  <Loader2 size={11} className="animate-spin" /> Resolving exact address via Google Maps…
                 </div>
               )}
 
@@ -752,3 +740,5 @@ export function UberMapModal({
     </div>
   )
 }
+
+export default UberMapModal
