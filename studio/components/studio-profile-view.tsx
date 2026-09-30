@@ -262,88 +262,13 @@ export function StudioProfileView({
     )
   }
 
-  // Handle map selection callback from UberMapModal with interactive confirmation Toastify
-  const handleSelectMapLocation = (data: SelectedLocationData) => {
+  // Handle map selection callback from UberMapModal: directly apply chosen workshop location
+  const handleSelectMapLocation = async (data: SelectedLocationData) => {
     setIsMapModalOpen(false)
 
     const label = data.streetAddress || data.area || 'Workshop Location'
     const newLocStr = [data.streetAddress, data.area, data.city, data.postcode ? `(${data.postcode})` : ''].filter(Boolean).join(', ') || label
 
-    // Trigger interactive react-toastify confirmation prompt
-    toast(
-      ({ closeToast }) => (
-        <div className="flex flex-col gap-2.5 py-1 px-0.5 text-[#1E2229] select-none">
-          <div className="flex items-start gap-2.5">
-            <div className="size-9 rounded-xl bg-[#FAF3EC] border border-[#E8E1D5] flex items-center justify-center text-lg shrink-0 shadow-2xs">
-              📍
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-xs font-bold text-[#1E2229] leading-snug">
-                Do you really want to change your workshop location?
-              </h4>
-              <p className="text-[11px] text-[#555E6D] mt-1 leading-snug break-words">
-                <span className="text-[#9E593B] font-semibold">New location:</span>{' '}
-                <span className="font-semibold text-[#1E2229]">{newLocStr}</span>
-              </p>
-              {data.lat && data.lng && (
-                <div className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 rounded-md bg-[#FAF8F5] border border-[#E8E1D5] text-[10px] font-mono text-[#6B7280]">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />
-                  <span>GPS: {data.lat.toFixed(4)}, {data.lng.toFixed(4)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2.5 border-t border-[#E8E1D5]/70 mt-0.5">
-            <button
-              type="button"
-              onClick={() => {
-                closeToast()
-                toast.info('Location change cancelled. Kept current workshop location.', {
-                  position: 'top-center',
-                  autoClose: 2500,
-                })
-              }}
-              className="px-3 py-1.5 text-xs font-semibold text-[#6B7280] hover:text-[#1E2229] bg-[#FAF8F5] hover:bg-gray-100 border border-[#E8E1D5] rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                closeToast()
-                await applyConfirmedLocation(data, newLocStr)
-              }}
-              className="px-4 py-1.5 text-xs font-bold text-white bg-[#9E593B] hover:bg-[#8A4C32] rounded-xl shadow-xs transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
-            >
-              <span>Yes, Change</span>
-            </button>
-          </div>
-        </div>
-      ),
-      {
-        position: 'top-center',
-        autoClose: false,
-        closeOnClick: false,
-        closeButton: true,
-        draggable: false,
-        className: '!bg-white !text-[#1E2229] !border !border-[#E8E1D5] !rounded-2xl !shadow-2xl !p-3.5',
-        style: {
-          backgroundColor: '#FFFFFF',
-          color: '#1E2229',
-          border: '1.5px solid #E8E1D5',
-          borderRadius: '16px',
-          boxShadow: '0 16px 36px -6px rgba(30, 34, 41, 0.18)',
-          padding: '14px 16px',
-          minWidth: '330px',
-          maxWidth: '460px',
-        },
-      }
-    )
-  }
-
-  // Apply location after user explicitly clicks "Yes, Change" in the Toastify prompt
-  const applyConfirmedLocation = async (data: SelectedLocationData, locLabel: string) => {
     const nextAddress = data.streetAddress || address
     const nextArea = data.area || area
     const nextPostcode = data.postcode || postcode
@@ -388,9 +313,9 @@ export function StudioProfileView({
       console.warn('Auto-save location update error:', err)
     }
 
-    toast.success(`Workshop location updated: ${locLabel}`, {
+    toast.success(`Workshop location updated: ${newLocStr}`, {
       position: 'top-center',
-      autoClose: 4000,
+      autoClose: 3500,
     })
   }
 

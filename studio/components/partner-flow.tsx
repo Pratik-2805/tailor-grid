@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   AlertCircle,
   ArrowRight,
@@ -501,11 +503,19 @@ export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null):
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: string }[] = [
-  { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard' },
-  { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders' },
-  { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings' },
-  { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings' },
+export interface NavItemConfig {
+  id: StudioTab
+  label: string
+  icon: typeof Zap
+  shortLabel: string
+  href: string
+}
+
+export const NAV_ITEMS: NavItemConfig[] = [
+  { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard', href: '/dashboard' },
+  { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders', href: '/orders' },
+  { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings', href: '/payouts' },
+  { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings', href: '/settings' },
 ]
 
 export function PartnerFlow({
@@ -533,12 +543,36 @@ export function PartnerFlow({
 
   const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
 
-  const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
-  const activeTab = controlledTab || internalTab
-  const setActiveTab = (tab: StudioTab) => {
-    setInternalTab(tab)
-    if (onTabChange) onTabChange(tab)
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const getTabFromPathname = (path?: string): StudioTab | null => {
+    if (!path) return null
+    if (path.startsWith('/orders')) return 'pipeline'
+    if (path.startsWith('/payouts') || path.startsWith('/earnings')) return 'payouts'
+    if (path.startsWith('/settings') || path.startsWith('/profile')) return 'profile'
+    if (path.startsWith('/dashboard')) return 'cockpit'
+    return null
   }
+
+  // activeTab is directly derived from the current URL pathname or controlledTab prop
+  const activeTab: StudioTab = getTabFromPathname(pathname) || controlledTab || 'cockpit'
+
+  const TAB_TO_ROUTE: Record<StudioTab, string> = {
+    cockpit: '/dashboard',
+    pipeline: '/orders',
+    payouts: '/payouts',
+    profile: '/settings',
+  }
+
+  const setActiveTab = (tab: StudioTab) => {
+    if (onTabChange) onTabChange(tab)
+    const target = TAB_TO_ROUTE[tab]
+    if (target && pathname !== target) {
+      router.push(target)
+    }
+  }
+
   const [online, setOnline] = useState(true)
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
@@ -1907,13 +1941,16 @@ export function PartnerFlow({
                 item.id === 'pipeline' ? pendingDropOffs : null
 
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
-                onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
+                href={item.href}
+                onClick={() => {
+                  setSidebarOpen(false)
+                  if (onTabChange) onTabChange(item.id)
+                }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer
+                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer no-underline
                   ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3.5'}
                   ${active
                     ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/25 ring-1 ring-white/15'
@@ -1933,7 +1970,7 @@ export function PartnerFlow({
                     )}
                   </>
                 )}
-              </button>
+              </Link>
             )
           })}
         </nav>
@@ -1941,22 +1978,27 @@ export function PartnerFlow({
         {/* User / Studio Footer */}
         <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           {sidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
+            <Link
+              href="/settings"
+              onClick={() => {
+                if (onTabChange) onTabChange('profile')
+              }}
               title={tailorName}
-              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer no-underline"
             >
               {user?.avatar ? (
                 <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
               ) : (
                 tailorName.charAt(0)
               )}
-            </button>
+            </Link>
           ) : (
-            <div
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
+            <Link
+              href="/settings"
+              onClick={() => {
+                if (onTabChange) onTabChange('profile')
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors no-underline"
             >
               <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
                 {user?.avatar ? (
@@ -1969,7 +2011,7 @@ export function PartnerFlow({
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
               </div>
-            </div>
+            </Link>
           )}
 
           <button
@@ -2354,7 +2396,7 @@ export function PartnerFlow({
             {/* TAB 1: WORKSHOP COCKPIT                                        */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'cockpit' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-fadeIn">
 
                 {/* ── 4 UIVERSE-INSPIRED ELEVATED METRIC CARDS ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -3205,7 +3247,7 @@ export function PartnerFlow({
               const activeSelectedOrder = selectedOrder && filteredOrders.some((o) => o.id === selectedOrder.id) ? selectedOrder : null
 
               return (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-fadeIn">
                   {/* Search + Filters */}
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                     <div className="relative flex-1 min-w-[200px]">
@@ -3878,12 +3920,14 @@ export function PartnerFlow({
             {/* TAB 5: STUDIO PROFILE & CONFIGURATION                           */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'profile' && user && (
-              <StudioProfileView
-                user={user}
-                onUpdateUser={onUpdateUser}
-                onBack={() => setActiveTab('cockpit')}
-                onSignOut={onSignOut}
-              />
+              <div className="animate-fadeIn">
+                <StudioProfileView
+                  user={user}
+                  onUpdateUser={onUpdateUser}
+                  onBack={() => setActiveTab('cockpit')}
+                  onSignOut={onSignOut}
+                />
+              </div>
             )}
 
           </div>
@@ -3896,10 +3940,13 @@ export function PartnerFlow({
             const Icon = item.icon
             const badge = item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length : null
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
+                href={item.href}
+                onClick={() => {
+                  if (onTabChange) onTabChange(item.id)
+                }}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative no-underline ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
                   }`}
               >
                 <Icon size={18} />
@@ -3907,7 +3954,7 @@ export function PartnerFlow({
                 {badge && (
                   <span className="absolute -top-0.5 right-0.5 size-4 bg-amber-400 text-stone-950 text-[9px] font-bold rounded-full grid place-items-center">{badge}</span>
                 )}
-              </button>
+              </Link>
             )
           })}
         </nav>
