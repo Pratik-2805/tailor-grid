@@ -57,8 +57,8 @@ export function calculateDistanceInMiles(lat1: number, lon1: number, lat2: numbe
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2
   const clampedA = Math.min(1, Math.max(0, a))
   const c = 2 * Math.atan2(Math.sqrt(clampedA), Math.sqrt(1 - clampedA))
   return R * c
@@ -270,7 +270,7 @@ export default function CleanGoogleMap({
         try {
           const { Geocoder } = (await importLibrary('geocoding')) as any
           googleGeocoderRef.current = new Geocoder()
-        } catch {}
+        } catch { }
 
         if (!isMounted || !mapRef.current) return
 
@@ -780,7 +780,7 @@ export default function CleanGoogleMap({
         try {
           service = new google.maps.places.AutocompleteService()
           googlePlacesServiceRef.current = service
-        } catch {}
+        } catch { }
       }
 
       if (service && typeof google !== 'undefined' && google.maps) {
@@ -1051,23 +1051,21 @@ export default function CleanGoogleMap({
       {isChoosing && isReady && !loadError && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none flex flex-col items-center select-none">
           <div
-            className={`transition-transform duration-150 ease-out ${
-              isMapDragging ? '-translate-y-2.5 scale-105' : 'translate-y-0 scale-100'
-            }`}
+            className={`transition-transform duration-150 ease-out ${isMapDragging ? '-translate-y-2.5 scale-105' : 'translate-y-0 scale-100'
+              }`}
           >
             <div className="w-5 h-7 relative flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]">
               <svg width="20" height="28" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1"/>
-                <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
-                <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8"/>
+                <path d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z" fill="#276EF1" />
+                <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF" />
+                <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8" />
               </svg>
             </div>
           </div>
           {/* Ground target shadow dot */}
           <div
-            className={`bg-black/35 rounded-full filter blur-[0.8px] -mt-0.5 transition-all duration-150 ${
-              isMapDragging ? 'w-1.5 h-0.5 opacity-25 scale-75' : 'w-2 h-0.5 opacity-60 scale-100'
-            }`}
+            className={`bg-black/35 rounded-full filter blur-[0.8px] -mt-0.5 transition-all duration-150 ${isMapDragging ? 'w-1.5 h-0.5 opacity-25 scale-75' : 'w-2 h-0.5 opacity-60 scale-100'
+              }`}
           />
         </div>
       )}
