@@ -562,7 +562,7 @@ export function UberMapModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-5 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-5 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-3xl h-[90vh] max-h-[720px] bg-white text-[#202124] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-200">
         {/* Top Header Bar */}
         <div className="relative z-20 px-4 sm:px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
