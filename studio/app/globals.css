@@ -363,4 +363,44 @@ input[type="time"]::-webkit-clear-button {
   font-weight: 600;
   letter-spacing: 0.025em;
   text-transform: uppercase;
+}
+
+/* Card Depth Morphing Animations (Back Card Comes Forward) */
+@keyframes cardMorphForward {
+  0% {
+    transform: translateY(24px) scale(0.96);
+    filter: blur(2px) brightness(0.9);
+    opacity: 0.85;
+  }
+  60% {
+    transform: translateY(-3px) scale(1.008);
+    filter: blur(0px) brightness(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    filter: blur(0px) brightness(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cardMorphRecede {
+  0% {
+    transform: translateY(-12px) scale(1.02);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-card-morph-forward {
+  animation: cardMorphForward 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, filter, opacity;
+}
+
+.animate-card-morph-recede {
+  animation: cardMorphRecede 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
 }
