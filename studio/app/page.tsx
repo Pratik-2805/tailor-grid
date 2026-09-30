@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type User } from '@/components/data'
@@ -12,6 +13,7 @@ import { getCurrentUser, CUSTOMER_SITE_URL, loginWithGoogle, logoutUser } from '
 import { setAuthToken, setAuthUser, getAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
 
 export default function StudioPage() {
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [partnerTab, setPartnerTab] = useState<StudioTab>('cockpit')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signin')
@@ -119,6 +121,13 @@ export default function StudioPage() {
         setLoadingUser(false)
       })
   }, [])
+
+  // When active studio user visits root, redirect smoothly to /dashboard persistent workbench
+  useEffect(() => {
+    if (!loadingUser && user && user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone) {
+      router.replace('/dashboard')
+    }
+  }, [loadingUser, user, router])
 
   const triggerGoogleJoin = () => {
     setGoogleLoading(true)
