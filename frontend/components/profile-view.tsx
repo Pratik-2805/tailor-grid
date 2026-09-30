@@ -7,8 +7,6 @@ import {
   Check,
   ChevronRight,
   Edit2,
-  MapPin,
-  Navigation,
   User as UserIcon,
 } from 'lucide-react'
 import type { FittingBooking, Screen, User as UserType } from './data'
@@ -399,16 +397,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Personal Details</h2>
 
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleDetectLiveLocation}
-                  disabled={isLocating}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
-                  title="Detect actual street address & pincode via GPS"
-                >
-                  <Navigation size={12} className={`text-emerald-600 ${isLocating ? 'animate-spin' : ''}`} />
-                  <span>{isLocating ? 'Locating...' : 'Detect Live Location'}</span>
-                </button>
 
                 {!isEditingPersonal ? (
                   <button
@@ -457,44 +445,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                 ) : (
                   <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">{name}</p>
                 )}
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 pt-1">
-                <div className="col-span-2">
-                  <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Delivery & Fitting Address</label>
-                  {isEditingPersonal ? (
-                    <input
-                      type="text"
-                      required
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Street name, area / house no."
-                      className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
-                    />
-                  ) : (
-                    <p className="py-1.5 text-sm text-[#18191B] border-b border-transparent truncate">
-                      {address || <span className="text-gray-400 italic font-normal">Click Detect Live Location above</span>}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Postcode / ZIP / PIN</label>
-                  {isEditingPersonal ? (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={postcode}
-                      onChange={(e) => setPostcode(e.target.value.replace(/[^\d\-]/g, '').slice(0, 10))}
-                      placeholder="PIN / Postcode"
-                      className="w-full bg-transparent font-mono font-bold border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
-                    />
-                  ) : (
-                    <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">
-                      {postcode || <span className="text-gray-400 italic font-normal font-sans">PIN Code</span>}
-                    </p>
-                  )}
-                </div>
               </div>
 
               {/* Email & Mobile Meta */}
