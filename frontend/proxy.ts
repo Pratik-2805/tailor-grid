@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl
 
@@ -56,12 +56,12 @@ export function middleware(request: NextRequest) {
 
     return NextResponse.next()
   } catch (err) {
-    console.error('Middleware execution error:', err)
+    console.error('Proxy execution error:', err)
     return NextResponse.next()
   }
 }
 
-export default middleware
+export default proxy
 
 export const config = {
   matcher: [
