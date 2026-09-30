@@ -476,11 +476,6 @@ export default function BookPage() {
     bookingNotes,
   ])
 
-  // Schedule modal state
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
-  const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
-  const [selectedTime, setSelectedTime] = useState<string>('03:30 PM')
-
   // Live Dispatch Searching & No-Tailors alert states
   const [isSearching, setIsSearching] = useState(false)
   const [searchOrderId, setSearchOrderId] = useState<string>('')
