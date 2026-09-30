@@ -339,6 +339,7 @@ export function PartnerOnboarding({
 
   // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
+  const [shopNo, setShopNo] = useState(cachedForm?.shopNo || '')
   const [shopArea, setShopArea] = useState(cachedForm?.shopArea || '')
   const [postcode, setPostcode] = useState(cachedForm?.postcode || '')
   const [streetAddress, setStreetAddress] = useState(cachedForm?.streetAddress || '')
@@ -436,11 +437,11 @@ export function PartnerOnboarding({
     const formData = {
       _v: 2,
       locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, operatingHours: `${openTime} - ${closeTime}`,
-      shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
+      shopName, shopNo, shopArea, postcode, streetAddress, tailorName, phone, emailVal,
       studioLat, studioLng,
     }
     ssSet('tg_onboard_form', JSON.stringify(formData))
-  }, [locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, shopName, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
+  }, [locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, shopName, shopNo, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
 
   // Persist phone verification state
   useEffect(() => {
@@ -843,12 +844,16 @@ export function PartnerOnboarding({
         pendingGoogle?.tempSignupId ||
         (user?.id && String(user.id).startsWith('temp_g_') ? user.id : undefined)
 
+      const fullRegisteredAddress = shopNo.trim()
+        ? (streetAddress.trim() ? `${shopNo.trim()}, ${streetAddress.trim()}` : shopNo.trim())
+        : streetAddress.trim()
+
       const res = await signUpUser({
         tempSignupId: resolvedTempId,
         name: tailorName.trim() || user?.name || pendingGoogle?.name || 'Master Tailor',
         email: emailToSubmit || undefined,
         phone: effectivePhone || undefined,
-        address: streetAddress.trim(),
+        address: fullRegisteredAddress.trim(),
         postcode: postcode.trim(),
         role: 'STUDIO',
         storeName: shopName.trim(),
@@ -889,7 +894,7 @@ export function PartnerOnboarding({
         studioId: 'atelier-soho',
         studioName: shopName.trim(),
         postcode: postcode.trim(),
-        address: streetAddress.trim(),
+        address: fullRegisteredAddress.trim(),
       }
 
       if (typeof window !== 'undefined') {
@@ -1502,55 +1507,37 @@ export function PartnerOnboarding({
                             Studio Location & Address
                           </h1>
                           <p className="text-xs text-gray-500 mt-1.5">
-                            Enter your atelier address so clients can find your workshop and drop off garments.
+                            Pin your atelier on the map. Only your shop / unit number needs to be typed manually.
                           </p>
                         </div>
 
                         <div className="space-y-3.5">
+                          {/* Shop No. / Workshop Unit (The ONLY manually entered field) */}
                           <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Street Address *
-                            </label>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-xs font-semibold text-gray-700">
+                                Shop No. / Workshop Unit *
+                              </label>
+                              <span className="text-[10px] font-semibold text-[#9E593B] bg-[#FAF3EC] px-2 py-0.5 rounded-full border border-[#E8E1D5]">
+                                Manual Entry
+                              </span>
+                            </div>
                             <input
                               type="text"
-                              value={streetAddress}
-                              onChange={(e) => setStreetAddress(e.target.value)}
-                              placeholder="e.g. 14 Savile Row, Suite 2B"
+                              value={shopNo}
+                              onChange={(e) => setShopNo(e.target.value)}
+                              placeholder="e.g. Shop No. 4, Ground Floor, Gala 12, or Suite 2B"
                               className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                             />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Area / Neighborhood *
-                            </label>
-                            <input
-                              type="text"
-                              value={shopArea}
-                              onChange={(e) => setShopArea(e.target.value)}
-                              placeholder="e.g. Mayfair, Soho, Bandra..."
-                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Postcode / ZIP / PIN *
-                            </label>
-                            <input
-                              type="text"
-                              maxLength={10}
-                              value={postcode}
-                              onChange={(e) => setPostcode(e.target.value.replace(/[^\d\w\s\-]/g, '').slice(0, 10))}
-                              placeholder="e.g. 10001 or W1S 3JN"
-                              className="w-full rounded-lg bg-gray-100 border-none px-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                            />
+                            <p className="text-[11px] text-gray-500 mt-1">
+                              Only your shop/unit number is typed manually. Street, neighborhood, and PIN are set from the map pin below.
+                            </p>
                           </div>
 
                           {/* Choose Exact Location Trigger */}
                           <div>
                             <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                              Map Pin (Compulsory) *
+                              Workshop Map Pin (Compulsory) *
                             </label>
                             <button
                               type="button"
@@ -1571,26 +1558,56 @@ export function PartnerOnboarding({
                               )}
                             </button>
                           </div>
+
+                          {/* Auto-synced Map Address Card */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                                Map-Detected Details
+                              </span>
+                              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                Auto-synced via Pin
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                              <div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase block">Street / Road</span>
+                                <div className="text-xs font-medium text-[#0F1115] truncate mt-0.5" title={streetAddress || 'Not set'}>
+                                  {streetAddress || (studioLat && studioLng ? 'Location Pinned' : 'Pin on map')}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase block">Area / Neighborhood</span>
+                                <div className="text-xs font-medium text-[#0F1115] truncate mt-0.5" title={shopArea || 'Not set'}>
+                                  {shopArea || (studioLat && studioLng ? 'Location Pinned' : 'Pin on map')}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-[10px] font-bold text-gray-500 uppercase block">Postcode / PIN</span>
+                                <div className="text-xs font-mono font-bold text-[#0F1115] truncate mt-0.5" title={postcode || 'Not set'}>
+                                  {postcode || (studioLat && studioLng ? 'Auto-detected' : '—')}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Client Delivery Preview */}
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950">
+                              <MapPin size={13} className="text-emerald-700 shrink-0" />
+                              <span className="font-bold text-emerald-900 shrink-0">Client Delivery Address:</span>
+                              <span className="truncate font-medium">
+                                {[shopNo, streetAddress || shopArea, postcode ? `(${postcode})` : ''].filter(Boolean).join(', ') || 'Enter Shop No. and pin your workshop on the map'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => {
-                          if (!streetAddress.trim()) {
-                            setError('Please enter your Street Address.')
-                            toast.warning('Street Address is required.', { position: 'top-center' })
-                            return
-                          }
-                          if (!shopArea.trim()) {
-                            setError('Please enter your Area or Neighborhood.')
-                            toast.warning('Area / Neighborhood is required.', { position: 'top-center' })
-                            return
-                          }
-                          if (!postcode.trim() || postcode.trim().length < 3) {
-                            const msg = 'Please enter a valid postal / ZIP code.'
-                            setError(msg)
-                            toast.warning(msg, { position: 'top-center' })
+                          if (!shopNo.trim()) {
+                            setError('Please enter your Shop No. / Workshop Unit.')
+                            toast.warning('Shop No. is required.', { position: 'top-center' })
                             return
                           }
                           if (!studioLat || !studioLng) {

@@ -45,7 +45,7 @@ interface GoogleMapModalProps {
 }
 
 const GOOGLE_MAPS_API_KEY =
-  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyDYPbSbWg54WZCGLpzncOUAP796ykQUa94'
+  process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
 // High-contrast, sharp building outlines and architectural clarity
 const ENHANCED_BUILDING_STYLES: google.maps.MapTypeStyle[] = [

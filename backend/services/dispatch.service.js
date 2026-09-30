@@ -181,18 +181,13 @@ function activateStage(session, stageNum) {
   // Filter tailors for this stage:
   // Must be within current radius (0 to maxRadius)
   // Must NOT be in declinedTailorIds (permanent exclusion)
-  let currentCandidates = session.tailorPool.filter((t) => {
-    if (session.declinedTailorIds.has(t.tailorId)) return false;
+  const currentCandidates = session.tailorPool.filter((t) => {
+    const isDeclined =
+      session.declinedTailorIds.has(t.tailorId) ||
+      session.declinedTailorIds.has(String(t.tailorId).toLowerCase());
+    if (isDeclined) return false;
     return t.distanceMiles <= config.maxRadius;
   });
-
-  // If no tailor is within the strict initial radius, activate all available tailor(s) in pool
-  if (currentCandidates.length === 0 && session.tailorPool.length > 0) {
-    const available = session.tailorPool.filter((t) => !session.declinedTailorIds.has(t.tailorId));
-    if (available.length > 0) {
-      currentCandidates = available;
-    }
-  }
 
   session.activeCandidateTailorIds = new Set(currentCandidates.map((t) => t.tailorId));
 
@@ -254,13 +249,38 @@ async function recordTailorSkip(orderId, tailorId) {
     return { success: false, message: 'Dispatch session expired or not found' };
   }
 
-  session.declinedTailorIds.add(tailorId);
-  session.activeCandidateTailorIds.delete(tailorId);
+  const cleanId = String(tailorId).trim();
+  const poolTailor = session.tailorPool.find(
+    (t) =>
+      t.tailorId === cleanId ||
+      String(t.tailorId).toLowerCase() === cleanId.toLowerCase()
+  );
 
-  console.log(`[Dispatch Engine] Tailor ${tailorId} SKIPPED Order ${orderId}. Excluded (${session.declinedTailorIds.size}/${session.tailorPool.length}).`);
+  if (poolTailor) {
+    session.declinedTailorIds.add(poolTailor.tailorId);
+    session.declinedTailorIds.add(String(poolTailor.tailorId).toLowerCase());
+    session.activeCandidateTailorIds.delete(poolTailor.tailorId);
+    session.activeCandidateTailorIds.delete(cleanId);
+    console.log(`[Dispatch Engine] Tailor ${poolTailor.tailorId} SKIPPED Order ${orderId}. Excluded (${session.declinedTailorIds.size}/${session.tailorPool.length}).`);
+  } else {
+    // Non-pooled tailor skipped, safely ignore so we don't skew the pool count
+    console.warn(`[Dispatch Engine] Non-pooled tailor ${cleanId} skipped Order ${orderId}. Ignored.`);
+    return {
+      success: true,
+      message: 'Not an active candidate for this order.',
+      status: session.status,
+    };
+  }
 
   // Instant Check 1: If ALL tailors in the entire 5-mile pool have declined, end search immediately!
-  if (session.declinedTailorIds.size >= session.tailorPool.length) {
+  const allPoolDeclined =
+    session.tailorPool.length > 0 &&
+    session.tailorPool.every((t) =>
+      session.declinedTailorIds.has(t.tailorId) ||
+      session.declinedTailorIds.has(String(t.tailorId).toLowerCase())
+    );
+
+  if (allPoolDeclined) {
     session.status = 'EXHAUSTED';
     session.activeCandidateTailorIds.clear();
     if (session.timer) {
@@ -276,7 +296,10 @@ async function recordTailorSkip(orderId, tailorId) {
     // If all candidates in current stage declined, fast-forward to next stage immediately!
     const nextConfig = STAGE_CONFIG.find((c) => c.stage === session.stage + 1);
     const nextCandidates = session.tailorPool.filter((t) => {
-      if (session.declinedTailorIds.has(t.tailorId)) return false;
+      const isDeclined =
+        session.declinedTailorIds.has(t.tailorId) ||
+        session.declinedTailorIds.has(String(t.tailorId).toLowerCase());
+      if (isDeclined) return false;
       return t.distanceMiles <= (nextConfig?.maxRadius || 5.0);
     });
     if (nextCandidates.length > 0) {
@@ -348,7 +371,7 @@ async function recordTailorAccept(orderId, tailorId) {
             storePhone: store.phone,
             tailorLat: store.lat,
             tailorLng: store.lng,
-            status: 'Allocated',
+            status: 'Accepted',
           },
           include: { store: true },
         });
@@ -382,7 +405,7 @@ async function recordTailorAccept(orderId, tailorId) {
             partnerPayout: oData.partnerPayout || oData.price || 20,
             retailSold: false,
             intakePhotoUrl: oData.imageUrl || null,
-            status: 'Allocated',
+            status: 'Accepted',
             price: oData.price || 20,
             otp: oData.otp || '1234',
           },
@@ -467,52 +490,59 @@ function getPendingRequestsForTailor(tailorId) {
   if (!tailorId) return [];
   const now = Date.now();
   const pending = [];
-  const cleanTailorId = String(tailorId).trim();
+  const cleanTailorId = String(tailorId).trim().toLowerCase();
 
   for (const [orderId, session] of dispatchSessions.entries()) {
     if (session.status === 'SEARCHING') {
-      // Check if tailor is an active candidate and hasn't declined
-      const isCandidate =
-        session.activeCandidateTailorIds.has(cleanTailorId) ||
+      // 1. Check if tailor has declined this order
+      const hasDeclined =
+        session.declinedTailorIds.has(cleanTailorId) ||
+        Array.from(session.declinedTailorIds).some(
+          (id) => String(id).toLowerCase() === cleanTailorId
+        );
+      if (hasDeclined) continue;
+
+      // 2. Check if tailor is an active candidate for the current radius stage
+      const isActiveCandidate =
         Array.from(session.activeCandidateTailorIds).some(
-          (id) => String(id).toLowerCase() === cleanTailorId.toLowerCase()
-        ) ||
-        session.tailorPool.some(
-          (t) => String(t.tailorId).toLowerCase() === cleanTailorId.toLowerCase()
-        ) ||
-        !session.declinedTailorIds.has(cleanTailorId);
+          (id) => String(id).toLowerCase() === cleanTailorId
+        );
+      if (!isActiveCandidate) continue;
 
-      if (isCandidate && !session.declinedTailorIds.has(cleanTailorId)) {
-        const tailorInfo =
-          session.tailorPool.find(
-            (t) =>
-              t.tailorId === cleanTailorId ||
-              String(t.tailorId).toLowerCase() === cleanTailorId.toLowerCase()
-          ) || session.tailorPool[0];
-        const stageSecondsRemaining = Math.max(0, Math.ceil((session.stageEndsAt - now) / 1000));
+      // 3. Find tailor info in session's 5-mile pool
+      const tailorInfo = session.tailorPool.find(
+        (t) => String(t.tailorId).toLowerCase() === cleanTailorId
+      );
+      if (!tailorInfo) continue;
 
-        pending.push({
-          orderId: session.orderId,
-          order: {
-            ...session.orderData,
-            measurements: session.orderData.measurements || session.orderData.pinnedAdjustment,
-            pinnedAdjustment: session.orderData.pinnedAdjustment,
-          },
+      // 4. Double check that tailor is strictly within currentRadius
+      if (typeof tailorInfo.distanceMiles === 'number' && tailorInfo.distanceMiles > session.currentRadius) {
+        continue;
+      }
+
+      const stageSecondsRemaining = Math.max(0, Math.ceil((session.stageEndsAt - now) / 1000));
+
+      pending.push({
+        orderId: session.orderId,
+        order: {
+          ...session.orderData,
           measurements: session.orderData.measurements || session.orderData.pinnedAdjustment,
           pinnedAdjustment: session.orderData.pinnedAdjustment,
-          distanceMiles: tailorInfo?.distanceMiles || 0.8,
-          distance: tailorInfo?.distance || '0.8 mi away',
-          stage: session.stage,
-          currentRadius: session.currentRadius,
-          secondsRemaining: stageSecondsRemaining,
-          payout: session.orderData.partnerPayout,
-          customerName: session.orderData.customerName,
-          garmentName: session.orderData.garmentName,
-          serviceName: session.orderData.serviceName,
-          timeSlot: session.orderData.timeSlot,
-          date: session.orderData.date,
-        });
-      }
+        },
+        measurements: session.orderData.measurements || session.orderData.pinnedAdjustment,
+        pinnedAdjustment: session.orderData.pinnedAdjustment,
+        distanceMiles: tailorInfo.distanceMiles,
+        distance: tailorInfo.distance,
+        stage: session.stage,
+        currentRadius: session.currentRadius,
+        secondsRemaining: stageSecondsRemaining,
+        payout: session.orderData.partnerPayout,
+        customerName: session.orderData.customerName,
+        garmentName: session.orderData.garmentName,
+        serviceName: session.orderData.serviceName,
+        timeSlot: session.orderData.timeSlot,
+        date: session.orderData.date,
+      });
     }
   }
 

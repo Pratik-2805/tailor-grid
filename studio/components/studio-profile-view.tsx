@@ -71,6 +71,34 @@ const ATELIER_PRESETS = [
   },
 ]
 
+// Helper to split raw stored address into manual Shop No. and map-detected street address
+function parseAddressParts(rawAddress: string, userId?: string) {
+  let stored = typeof window !== 'undefined' && userId ? localStorage.getItem(`darzi_studio_shop_no_${userId}`) : null
+  let sNo = stored || ''
+  let street = rawAddress || ''
+
+  if (sNo && street) {
+    if (street.toLowerCase().startsWith(sNo.toLowerCase())) {
+      street = street.slice(sNo.length).replace(/^[,\s-]+/, '')
+    }
+  } else if (!sNo && street) {
+    const match = street.match(/^(Shop\s*[^,]+|Unit\s*[^,]+|Suite\s*[^,]+|Flat\s*[^,]+|Gala\s*[^,]+|G-\d+[^,]*|#\s*[^,]+),\s*(.+)$/i)
+    if (match) {
+      sNo = match[1].trim()
+      street = match[2].trim()
+    }
+  }
+
+  return { shopNo: sNo, mapStreet: street }
+}
+
+function buildFullAddress(shopNoStr: string, mapStreetStr: string) {
+  const s = shopNoStr.trim()
+  const m = mapStreetStr.trim()
+  if (s && m) return `${s}, ${m}`
+  return s || m || ''
+}
+
 export function StudioProfileView({
   user,
   onUpdateUser,
@@ -90,7 +118,9 @@ export function StudioProfileView({
   const [otpCountdown, setOtpCountdown] = useState(0)
   const [otpError, setOtpError] = useState('')
 
-  const [address, setAddress] = useState(user.address || '')
+  // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
+  const [shopNo, setShopNo] = useState('')
+  const [mapStreetAddress, setMapStreetAddress] = useState('')
   const [area, setArea] = useState(user.area || '')
   const [postcode, setPostcode] = useState(user.postcode || '')
   const [lat, setLat] = useState<number | null>(user.lat ?? null)
@@ -120,6 +150,13 @@ export function StudioProfileView({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const handleShopNoChange = (val: string) => {
+    setShopNo(val)
+    if (user?.id && typeof window !== 'undefined') {
+      localStorage.setItem(`darzi_studio_shop_no_${user.id}`, val)
+    }
+  }
+
   useEffect(() => {
     if (user) {
       if (user.name !== undefined) setName(user.name || '')
@@ -128,7 +165,11 @@ export function StudioProfileView({
         setPhone(user.phone || '')
         setVerifiedPhone(user.phone || '')
       }
-      if (user.address !== undefined) setAddress(user.address || '')
+      
+      const { shopNo: initShopNo, mapStreet: initMapStreet } = parseAddressParts(user.address || '', user.id)
+      setShopNo(initShopNo)
+      setMapStreetAddress(initMapStreet)
+
       if (user.area !== undefined) setArea(user.area || '')
       if (user.postcode !== undefined) setPostcode(user.postcode || '')
       if (user.lat !== undefined) setLat(user.lat ?? null)
@@ -202,6 +243,7 @@ export function StudioProfileView({
     setError('')
     try {
       const cleanPostcode = postcode.trim()
+      const fullAddr = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> & { otp: string } = {
         id: user.id,
         email: user.email,
@@ -209,7 +251,7 @@ export function StudioProfileView({
         studioName: studioName.trim(),
         phone: phone.trim(),
         otp: cleanOtp,
-        address: address.trim(),
+        address: fullAddr.trim(),
         area: area.trim(),
         postcode: cleanPostcode,
         lat: lat,
@@ -266,20 +308,21 @@ export function StudioProfileView({
   const handleSelectMapLocation = async (data: SelectedLocationData) => {
     setIsMapModalOpen(false)
 
-    const label = data.streetAddress || data.area || 'Workshop Location'
-    const newLocStr = [data.streetAddress, data.area, data.city, data.postcode ? `(${data.postcode})` : ''].filter(Boolean).join(', ') || label
-
-    const nextAddress = data.streetAddress || address
+    const nextStreet = data.streetAddress || mapStreetAddress
     const nextArea = data.area || area
     const nextPostcode = data.postcode || postcode
     const nextLat = data.lat ?? lat
     const nextLng = data.lng ?? lng
 
-    if (data.streetAddress) setAddress(data.streetAddress)
+    setMapStreetAddress(nextStreet)
     if (data.area) setArea(data.area)
     if (data.postcode) setPostcode(data.postcode)
     if (data.lat) setLat(data.lat)
     if (data.lng) setLng(data.lng)
+
+    const fullAddr = buildFullAddress(shopNo, nextStreet)
+    const label = nextStreet || nextArea || 'Workshop Location'
+    const newLocStr = [shopNo, nextStreet, nextArea, data.city, nextPostcode ? `(${nextPostcode})` : ''].filter(Boolean).join(', ') || label
 
     try {
       const updates: Partial<UserType> = {
@@ -288,7 +331,7 @@ export function StudioProfileView({
         name: name.trim(),
         studioName: studioName.trim(),
         phone: (verifiedPhone || user.phone || phone).trim(),
-        address: nextAddress.trim(),
+        address: fullAddr.trim(),
         area: nextArea.trim(),
         postcode: nextPostcode.trim(),
         lat: nextLat,
@@ -392,13 +435,14 @@ export function StudioProfileView({
 
     // Auto-save removal to backend immediately
     try {
+      const fullAddr = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
         phone: (verifiedPhone || user.phone || phone).trim(),
-        address: address.trim(),
+        address: fullAddr.trim(),
         area: area.trim(),
         postcode: postcode.trim(),
         lat: lat,
@@ -441,13 +485,22 @@ export function StudioProfileView({
       return
     }
 
-    const cleanPostcode = postcode.trim()
-    const pinDigits = cleanPostcode.replace(/\D/g, '')
-    if (pinDigits.length < 3 || pinDigits.length > 10) {
+    if (!shopNo.trim()) {
       setSaving(false)
-      setError('Please enter a valid postal / PIN code.')
+      setError('Please enter your Shop No. / Workshop Unit.')
+      toast.warning('Shop No. / Unit is required.', { position: 'top-center' })
       return
     }
+
+    if (!lat || !lng) {
+      setSaving(false)
+      setError('Please pin your exact workshop location on the map. Latitude & Longitude are compulsory.')
+      toast.warning('Workshop Map Pin is required.', { position: 'top-center' })
+      setIsMapModalOpen(true)
+      return
+    }
+
+    const cleanPostcode = postcode.trim()
 
     // If phone number was changed and not verified via OTP yet, prompt OTP verification modal!
     if (isPhoneChanged && !isNewPhoneVerified) {
@@ -457,13 +510,14 @@ export function StudioProfileView({
     }
 
     try {
+      const fullAddress = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
         phone: cleanedPhone,
-        address: address.trim(),
+        address: fullAddress.trim(),
         area: area.trim(),
         postcode: cleanPostcode,
         lat: lat,
@@ -643,7 +697,7 @@ export function StudioProfileView({
                         Direct Studio Settlement
                       </span>
                       <span>·</span>
-                      <span className="truncate max-w-[200px]">{address || area || 'Studio Address'}</span>
+                      <span className="truncate max-w-[200px]">{buildFullAddress(shopNo, mapStreetAddress) || area || 'Studio Address'}</span>
                       {lat && lng && (
                         <>
                           <span>·</span>
@@ -812,56 +866,33 @@ export function StudioProfileView({
                   />
                 </div>
 
-                {/* ── Street Address (As in enroll form) ── */}
+                {/* ── Shop No. / Workshop Unit (ONLY address field entered manually) ── */}
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Street Address *
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                      Shop No. / Workshop Unit *
+                    </label>
+                    <span className="text-[10px] font-semibold text-[#9E593B] bg-[#FAF3EC] px-2 py-0.5 rounded-full border border-[#E8E1D5]">
+                      Manual Entry
+                    </span>
+                  </div>
                   <div className="relative">
-                    <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                    <Store size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 14 Savile Row, Suite 2B"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                      placeholder="e.g. Shop No. 4, Ground Floor, Gala 12, or Suite 2B"
+                      value={shopNo}
+                      onChange={(e) => handleShopNoChange(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2.5 text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
                   </div>
+                  <p className="text-[11px] text-[#6B7280]">
+                    Only your shop / gala / unit number needs to be typed manually. Street, neighborhood, and PIN are auto-detected via the map pin below.
+                  </p>
                 </div>
 
-                {/* ── Area / Neighborhood (As in enroll form) ── */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Area / Neighborhood *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Mayfair, Soho, Bandra, Umela..."
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                  />
-                </div>
-
-                {/* ── Postcode / PIN / ZIP (As in enroll form) ── */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Postcode / ZIP / PIN *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={10}
-                    required
-                    placeholder="e.g. 10001, W1S 3JN, or 401201"
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\w\s\-]/g, '').slice(0, 10))}
-                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                  />
-                </div>
-
-                {/* ── Interactive Live Map Pin Trigger (Matching Enroll Form) ── */}
+                {/* ── Interactive Live Map Pin Trigger ── */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
@@ -893,7 +924,7 @@ export function StudioProfileView({
                       </div>
                       <div className="text-[11px] text-[#6B7280] truncate mt-0.5">
                         {lat && lng
-                          ? `${address || area || 'Pinned Workshop'}${postcode ? ` (${postcode})` : ''}`
+                          ? `${mapStreetAddress || area || 'Pinned Workshop'}${postcode ? ` (${postcode})` : ''}`
                           : 'Tap to position your pin on the live interactive map & auto-detect coordinates'}
                       </div>
                     </div>
@@ -901,6 +932,68 @@ export function StudioProfileView({
                       {lat && lng ? 'Adjust Pin' : 'Pin on Map'}
                     </span>
                   </button>
+                </div>
+
+                {/* ── Auto-Synced Address Details (Derived via Map Changes) ── */}
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Map-Detected Workshop Address</span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Auto-synced via Pin
+                      </span>
+                    </label>
+                    <span className="text-[10px] text-[#6B7280]">
+                      Updated dynamically via Map Pin
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Street / Road (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={mapStreetAddress || 'Set via Map Pin'}
+                      >
+                        {mapStreetAddress || (lat && lng ? 'Location Pinned' : 'Pin on map to detect')}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Area / Neighborhood (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={area || 'Set via Map Pin'}
+                      >
+                        {area || (lat && lng ? 'Location Pinned' : 'Pin on map to detect')}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Postcode / ZIP / PIN (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={postcode || 'Set via Map Pin'}
+                      >
+                        {postcode || (lat && lng ? 'Auto-detected' : '—')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Combined Dispatch Address Preview */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-200/80 text-[11px] text-[#1E2229]">
+                    <MapPin size={13} className="text-emerald-700 shrink-0" />
+                    <span className="font-bold text-emerald-900 shrink-0">Client Delivery Address:</span>
+                    <span className="truncate font-medium text-emerald-950">
+                      {[shopNo, mapStreetAddress || area, postcode ? `(${postcode})` : ''].filter(Boolean).join(', ') || 'Enter Shop No. and pin your workshop location on the map'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -1183,7 +1276,7 @@ export function StudioProfileView({
         onSelectLocation={handleSelectMapLocation}
         initialCity={area || ''}
         initialArea={area || ''}
-        initialAddress={address || ''}
+        initialAddress={mapStreetAddress || ''}
         initialPostcode={postcode || ''}
         initialLat={lat ?? undefined}
         initialLng={lng ?? undefined}
