@@ -258,8 +258,37 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   })
   const [authChecked, setAuthChecked] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [order, setOrder] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [order, setOrder] = useState<any>(() => {
+    if (typeof window !== 'undefined' && slugId) {
+      try {
+        const cached = getStorageCookie(`tg_order_${slugId}`) || localStorage.getItem(`tg_order_${slugId}`)
+        if (cached) {
+          const parsed = JSON.parse(cached)
+          if (parsed && typeof parsed === 'object') return parsed
+        }
+        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        if (latest) {
+          const parsed = JSON.parse(latest)
+          if (parsed && (parsed.id === slugId || !slugId)) return parsed
+        }
+      } catch {}
+    }
+    return null
+  })
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && slugId) {
+      try {
+        const cached = getStorageCookie(`tg_order_${slugId}`) || localStorage.getItem(`tg_order_${slugId}`)
+        if (cached) return false
+        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        if (latest) {
+          const parsed = JSON.parse(latest)
+          if (parsed && (parsed.id === slugId || !slugId)) return false
+        }
+      } catch {}
+    }
+    return true
+  })
   const [copiedToast, setCopiedToast] = useState(false)
   const [isPinGenerated, setIsPinGenerated] = useState(false)
   const [isGeneratingPin, setIsGeneratingPin] = useState(false)

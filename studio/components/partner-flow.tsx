@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   AlertCircle,
   ArrowRight,
@@ -501,11 +503,19 @@ export function formatOrderSpecsSummary(order?: Partial<FittingBooking> | null):
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* NAV ITEMS                                                                  */
 /* ═══════════════════════════════════════════════════════════════════════════ */
-const NAV_ITEMS: { id: StudioTab; label: string; icon: typeof Zap; shortLabel: string }[] = [
-  { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard' },
-  { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders' },
-  { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings' },
-  { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings' },
+export interface NavItemConfig {
+  id: StudioTab
+  label: string
+  icon: typeof Zap
+  shortLabel: string
+  href: string
+}
+
+export const NAV_ITEMS: NavItemConfig[] = [
+  { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard', href: '/dashboard' },
+  { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders', href: '/orders' },
+  { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings', href: '/payouts' },
+  { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings', href: '/settings' },
 ]
 
 export function PartnerFlow({
@@ -533,12 +543,36 @@ export function PartnerFlow({
 
   const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
 
-  const [internalTab, setInternalTab] = useState<StudioTab>('cockpit')
-  const activeTab = controlledTab || internalTab
-  const setActiveTab = (tab: StudioTab) => {
-    setInternalTab(tab)
-    if (onTabChange) onTabChange(tab)
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const getTabFromPathname = (path?: string): StudioTab | null => {
+    if (!path) return null
+    if (path.startsWith('/orders')) return 'pipeline'
+    if (path.startsWith('/payouts') || path.startsWith('/earnings')) return 'payouts'
+    if (path.startsWith('/settings') || path.startsWith('/profile')) return 'profile'
+    if (path.startsWith('/dashboard')) return 'cockpit'
+    return null
   }
+
+  // activeTab is directly derived from the current URL pathname or controlledTab prop
+  const activeTab: StudioTab = getTabFromPathname(pathname) || controlledTab || 'cockpit'
+
+  const TAB_TO_ROUTE: Record<StudioTab, string> = {
+    cockpit: '/dashboard',
+    pipeline: '/orders',
+    payouts: '/payouts',
+    profile: '/settings',
+  }
+
+  const setActiveTab = (tab: StudioTab) => {
+    if (onTabChange) onTabChange(tab)
+    const target = TAB_TO_ROUTE[tab]
+    if (target && pathname !== target) {
+      router.push(target)
+    }
+  }
+
   const [online, setOnline] = useState(true)
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
@@ -548,6 +582,8 @@ export function PartnerFlow({
   const [justSynced, setJustSynced] = useState(false)
   const [lastSyncedTime, setLastSyncedTime] = useState<string>('Just now')
   const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
+  const [payoutsFilter, setPayoutsFilter] = useState<'ALL' | 'COLLECTED' | 'DUE' | 'IN_PROGRESS'>('ALL')
+  const [payoutsSearch, setPayoutsSearch] = useState('')
 
 
   // Full View Image Lightbox State
@@ -1031,41 +1067,86 @@ export function PartnerFlow({
       partnerPayout,
     }
 
-    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+    // Immediately remove from broadcast bar & reset timer (0ms)
+    broadcastExpiryRef.current = null
     setTimerSecs(15)
     setTimerProgress(100)
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, ...updates } : o)))
+
+    // Instantly notify customer browser tab over BroadcastChannel
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bcChannel = new BroadcastChannel('tg_dispatch_channel')
+        bcChannel.postMessage({
+          type: 'DISPATCH_ACCEPTED',
+          orderId: order.id,
+          storeId: assignedStudioId,
+          storeName: assignedStudioName,
+          storePhone: assignedStudioPhone,
+          storeAddress: user?.address || 'Partner Atelier',
+        })
+        bcChannel.close()
+      } catch { }
+    }
+
     await updateOrder(order.id, updates).catch(() => { })
   }
 
   const handleAcceptBroadcast = async (bc: BroadcastRequest) => {
+    // 0. Instantly close broadcast bar and reset countdown progress (0ms delay)
+    broadcastExpiryRef.current = null
+    setTimerSecs(15)
+    setTimerProgress(100)
+    setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+
+    const studioDisplayName =
+      (user?.studioName && user.studioName.trim()) ||
+      studioName ||
+      (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
+    const studioPhone = user?.phone || user?.contact || ''
+
+    // Instantly notify customer tab with 0ms delay via cross-tab channel
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const bcChannel = new BroadcastChannel('tg_dispatch_channel')
+        bcChannel.postMessage({
+          type: 'DISPATCH_ACCEPTED',
+          orderId: bc.id,
+          storeId: currentStudioId,
+          storeName: studioDisplayName,
+          storePhone: studioPhone,
+          storeAddress: user?.address || 'Partner Atelier',
+        })
+        bcChannel.close()
+      } catch { }
+    }
+
+    // Immediately promote in studio workbench orders list
+    const promotionUpdates: Partial<FittingBooking> = {
+      status: 'Accepted' as const,
+      storeId: currentStudioId,
+      storeName: studioDisplayName,
+      ...(studioPhone ? { storePhone: studioPhone } : {}),
+      partnerPayout: bc.price || bc.partnerPayout || 30,
+    }
+    setOrders((prev) => {
+      const exists = prev.some((o) => o.id === bc.id)
+      if (exists) {
+        return prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
+      } else if (bc.realOrder) {
+        return [...prev, { ...bc.realOrder, ...promotionUpdates }]
+      }
+      return prev
+    })
+    setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
+    setTimeout(() => setBroadcastToast(null), 5000)
+
     // 1. Live Dispatch Cache Request -> respond with ACCEPT
     if (bc.isDispatchSession) {
       if (!currentStudioId) return
       const res = await respondToDispatch(bc.id, currentStudioId, 'ACCEPT')
       if (res.success) {
-        setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
-        setTimeout(() => setBroadcastToast(null), 5000)
-        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
-
-        // ✅ Immediately promote the newly created order from 'Allocated' → 'Accepted'
-        // so it becomes visible in the pipeline (pipelineOrders filters out 'Allocated')
-        const studioDisplayName =
-          (user?.studioName && user.studioName.trim()) ||
-          studioName ||
-          (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
-        const promotionUpdates = {
-          status: 'Accepted' as const,
-          storeId: currentStudioId,
-          storeName: studioDisplayName,
-          ...(user?.phone ? { storePhone: user.phone } : {}),
-        }
-        // Optimistic UI update
-        setOrders((prev) =>
-          prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
-        )
-        // Persist to DB
         updateOrder(bc.id, promotionUpdates).catch(() => { })
-
         handleRefresh()
       } else {
         if (res.code === 'ORDER_ALREADY_ASSIGNED') {
@@ -1074,7 +1155,7 @@ export function PartnerFlow({
           setBroadcastToast(res.message || 'Unable to accept request.')
         }
         setTimeout(() => setBroadcastToast(null), 4000)
-        setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+        handleRefresh()
       }
       return
     }
@@ -1082,8 +1163,6 @@ export function PartnerFlow({
     // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
       await handleAcceptAllocatedOrder(bc.realOrder)
-      setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
-      setTimeout(() => setBroadcastToast(null), 5000)
       handleRefresh()
     }
   }
@@ -1862,13 +1941,16 @@ export function PartnerFlow({
                 item.id === 'pipeline' ? pendingDropOffs : null
 
             return (
-              <button
+              <Link
                 key={item.id}
-                type="button"
-                onClick={() => { setActiveTab(item.id); setSidebarOpen(false) }}
+                href={item.href}
+                onClick={() => {
+                  setSidebarOpen(false)
+                  if (onTabChange) onTabChange(item.id)
+                }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer
+                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer no-underline
                   ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3.5'}
                   ${active
                     ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/25 ring-1 ring-white/15'
@@ -1888,7 +1970,7 @@ export function PartnerFlow({
                     )}
                   </>
                 )}
-              </button>
+              </Link>
             )
           })}
         </nav>
@@ -1896,22 +1978,27 @@ export function PartnerFlow({
         {/* User / Studio Footer */}
         <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           {sidebarCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
+            <Link
+              href="/settings"
+              onClick={() => {
+                if (onTabChange) onTabChange('profile')
+              }}
               title={tailorName}
-              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer no-underline"
             >
               {user?.avatar ? (
                 <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
               ) : (
                 tailorName.charAt(0)
               )}
-            </button>
+            </Link>
           ) : (
-            <div
-              onClick={() => setActiveTab('profile')}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors"
+            <Link
+              href="/settings"
+              onClick={() => {
+                if (onTabChange) onTabChange('profile')
+              }}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors no-underline"
             >
               <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
                 {user?.avatar ? (
@@ -1924,7 +2011,7 @@ export function PartnerFlow({
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
               </div>
-            </div>
+            </Link>
           )}
 
           <button
@@ -2309,7 +2396,7 @@ export function PartnerFlow({
             {/* TAB 1: WORKSHOP COCKPIT                                        */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'cockpit' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-fadeIn">
 
                 {/* ── 4 UIVERSE-INSPIRED ELEVATED METRIC CARDS ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -3160,7 +3247,7 @@ export function PartnerFlow({
               const activeSelectedOrder = selectedOrder && filteredOrders.some((o) => o.id === selectedOrder.id) ? selectedOrder : null
 
               return (
-                <div className="space-y-4">
+                <div className="space-y-4 animate-fadeIn">
                   {/* Search + Filters */}
                   <div className="bg-white border border-[#E8E1D5] rounded-2xl p-4 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                     <div className="relative flex-1 min-w-[200px]">
@@ -3483,122 +3570,364 @@ export function PartnerFlow({
 
 
             {/* ════════════════════════════════════════════════════════════════ */}
-            {/* TAB 4: PAYOUTS                                                 */}
+            {/* TAB 4: EARNINGS & PAYOUTS                                       */}
             {/* ════════════════════════════════════════════════════════════════ */}
-            {activeTab === 'payouts' && (
-              <div className="max-w-4xl mx-auto space-y-6">
-                <div className="grid sm:grid-cols-3 gap-4">
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Today's Revenue</span>
-                    <div className="text-2xl font-bold text-[#1E2229] mt-1">${todayEarned}</div>
-                    <div className="text-xs text-[#9E593B] font-medium mt-1">Direct payment at studio pickup</div>
-                  </div>
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Total Collected</span>
-                    <div className="text-2xl font-bold text-emerald-800 mt-1">${totalClosedDisbursed}</div>
-                    <div className="text-xs text-[#6B7280] mt-1">Direct customer counter settlements</div>
-                  </div>
-                  <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
-                    <span className="text-[10px] font-bold uppercase text-[#6B7280] tracking-wider block">Studio Settlement</span>
-                    <div className="text-2xl font-bold text-[#1E2229] mt-1">100% Direct</div>
-                    <div className="text-xs text-[#6B7280] mt-1">0% Platform Fee · Direct at Pickup</div>
-                  </div>
-                </div>
+            {activeTab === 'payouts' && (() => {
+              const allLedgerOrders = orders.filter((o) => o.status !== 'Cancelled')
+              const collectedOrders = allLedgerOrders.filter((o) => o.status === 'Closed' || o.status === 'Collected')
+              const readyOrders = allLedgerOrders.filter((o) => o.status === 'Ready')
+              const inProgressOrders = allLedgerOrders.filter((o) =>
+                ['Work in Progress', 'Fitting Completed', 'Customer Arrived', 'Accepted', 'Allocated'].includes(o.status)
+              )
 
-                {/* Direct Payment Note */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3.5">
-                    <div className="size-10 rounded-xl bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20 grid place-items-center shrink-0">
-                      <CreditCard size={18} />
-                    </div>
+              const totalCollectedSum = collectedOrders.reduce((sum, o) => sum + (o.price || 0), 0)
+              const totalPendingPickupSum = readyOrders.reduce((sum, o) => sum + (o.price || 0), 0)
+              const totalInProgressSum = inProgressOrders.reduce((sum, o) => sum + (o.price || 0), 0)
+
+              // Filter orders based on active status tab and search query
+              const filteredLedger = allLedgerOrders.filter((o) => {
+                if (payoutsFilter === 'COLLECTED' && !(o.status === 'Closed' || o.status === 'Collected')) return false
+                if (payoutsFilter === 'DUE' && o.status !== 'Ready') return false
+                if (
+                  payoutsFilter === 'IN_PROGRESS' &&
+                  !['Work in Progress', 'Fitting Completed', 'Customer Arrived', 'Accepted', 'Allocated'].includes(o.status)
+                ) {
+                  return false
+                }
+
+                if (payoutsSearch.trim()) {
+                  const q = payoutsSearch.toLowerCase().trim()
+                  const matchId = o.id.toLowerCase().includes(q)
+                  const matchCustomer = (o.customerName || '').toLowerCase().includes(q)
+                  const matchGarment = (o.garmentName || o.garmentId || '').toLowerCase().includes(q)
+                  const matchService = (o.serviceName || '').toLowerCase().includes(q)
+                  const matchPhone = (o.customerPhone || '').toLowerCase().includes(q)
+                  return matchId || matchCustomer || matchGarment || matchService || matchPhone
+                }
+                return true
+              })
+
+              return (
+                <div className="w-full space-y-5 animate-in fade-in duration-200">
+                  {/* Clean Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-[#E8E1D5]">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-[#1E2229]">Direct Studio Settlement · Counter Payment</span>
-                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded">✓ Direct</span>
-                      </div>
-                      <p className="text-xs text-[#6B7280] mt-0.5">Customers pay the standard alteration price directly to your studio counter at pickup</p>
+                      <h1 className="text-xl font-bold text-[#1E2229]">
+                        Earnings &amp; Payouts
+                      </h1>
+                      <p className="text-xs text-[#6B7280] mt-0.5">
+                        Direct counter settlements and payment history
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                        100% Direct Payout &bull; 0% Platform Fee
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="p-1.5 rounded-xl border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-[#6B7280] hover:text-[#1E2229] transition-colors cursor-pointer"
+                        title="Sync latest records"
+                      >
+                        <RefreshCw size={14} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
+                      </button>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-[#6B7280]">Payment: </span>
-                    <span className="text-xs font-bold text-[#1E2229]">At Pickup</span>
-                  </div>
-                </div>
 
-                {/* Ledger */}
-                <div className="bg-white border border-[#E8E1D5] rounded-2xl p-6 shadow-2xs space-y-4">
-                  <h2 className="font-bold text-base text-[#1E2229]">Counter Payments &amp; Orders Ledger</h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#6B7280]">
-                        <tr>
-                          <th className="p-3.5 font-bold">Order / Customer</th>
-                          <th className="p-3.5 font-bold">Standard Price</th>
-                          <th className="p-3.5 font-bold">Platform Fee</th>
-                          <th className="p-3.5 font-bold">To Collect</th>
-                          <th className="p-3.5 font-bold text-right">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E8E1D5]">
-                        {orders
-                          .filter((o) => ['Closed', 'Collected', 'Ready', 'Work in Progress'].includes(o.status))
-                          .map((o) => {
+                  {/* ── 3 CLEAN METRIC TILES ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Card 1: Collected */}
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
+                          Collected Revenue
+                        </span>
+                        <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center">
+                          <DollarSign size={14} />
+                        </div>
+                      </div>
+                      <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
+                        ${totalCollectedSum}
+                      </div>
+                      <p className="text-xs text-emerald-700 font-semibold mt-1">
+                        {collectedOrders.length} order{collectedOrders.length === 1 ? '' : 's'} settled at counter
+                      </p>
+                    </div>
+
+                    {/* Card 2: Due at Pickup */}
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
+                          Due at Pickup
+                        </span>
+                        <div className="size-7 rounded-lg bg-amber-50 text-amber-700 border border-amber-200/60 grid place-items-center">
+                          <Clock size={14} />
+                        </div>
+                      </div>
+                      <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
+                        ${totalPendingPickupSum}
+                      </div>
+                      <p className="text-xs text-amber-800 font-medium mt-1">
+                        {readyOrders.length} ready on rack
+                      </p>
+                    </div>
+
+                    {/* Card 3: In Production */}
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
+                          In Progress
+                        </span>
+                        <div className="size-7 rounded-lg bg-sky-50 text-sky-600 border border-sky-200/60 grid place-items-center">
+                          <Scissors size={14} />
+                        </div>
+                      </div>
+                      <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
+                        ${totalInProgressSum}
+                      </div>
+                      <p className="text-xs text-[#6B7280] font-medium mt-1">
+                        {inProgressOrders.length} active in tailoring
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ── SIMPLE LEDGER TABLE CARD ── */}
+                  <div className="bg-white border border-[#E8E1D5] rounded-2xl shadow-2xs overflow-hidden">
+                    {/* Toolbar */}
+                    <div className="p-4 border-b border-[#E8E1D5] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-bold text-sm text-[#1E2229]">
+                          Payment Ledger
+                        </h2>
+                        <span className="text-xs text-[#6B7280] font-medium">
+                          ({filteredLedger.length})
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        {/* Search input */}
+                        <div className="relative">
+                          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                          <input
+                            type="text"
+                            value={payoutsSearch}
+                            onChange={(e) => setPayoutsSearch(e.target.value)}
+                            placeholder="Search orders..."
+                            className="w-48 sm:w-56 pl-7 pr-6 py-1.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-lg text-xs text-[#1E2229] placeholder:text-[#6B7280] focus:outline-none focus:border-[#9E593B] focus:bg-white"
+                          />
+                          {payoutsSearch && (
+                            <button
+                              type="button"
+                              onClick={() => setPayoutsSearch('')}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black cursor-pointer"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Filter pills */}
+                        <div className="inline-flex items-center bg-[#FAF8F5] border border-[#E8E1D5] p-0.5 rounded-lg gap-0.5 text-xs">
+                          {(
+                            [
+                              { key: 'ALL', label: 'All', count: allLedgerOrders.length },
+                              { key: 'COLLECTED', label: 'Collected', count: collectedOrders.length },
+                              { key: 'DUE', label: 'Due at Pickup', count: readyOrders.length },
+                              { key: 'IN_PROGRESS', label: 'In Progress', count: inProgressOrders.length },
+                            ] as const
+                          ).map((tab) => {
+                            const isSelected = payoutsFilter === tab.key
+                            return (
+                              <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setPayoutsFilter(tab.key)}
+                                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${
+                                  isSelected
+                                    ? 'bg-white text-[#1E2229] shadow-2xs font-bold'
+                                    : 'text-[#6B7280] hover:text-[#1E2229]'
+                                }`}
+                              >
+                                {tab.label} ({tab.count})
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#6B7280] font-bold text-[11px] uppercase tracking-wider">
+                          <tr>
+                            <th className="py-3 px-4">Order &amp; Customer</th>
+                            <th className="py-3 px-4">Garment &amp; Service</th>
+                            <th className="py-3 px-4">Date &amp; Slot</th>
+                            <th className="py-3 px-4 text-right">Amount</th>
+                            <th className="py-3 px-4 text-center">Status</th>
+                            <th className="py-3 px-4 text-right">Action</th>
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-[#E8E1D5]">
+                          {filteredLedger.map((o) => {
                             const price = o.price || 30
                             const isSettled = o.status === 'Closed' || o.status === 'Collected'
+                            const isReadyForPickup = o.status === 'Ready'
+                            const isInProduction = ['Work in Progress', 'Fitting Completed'].includes(o.status)
+                            const garmentImg = getGarmentPhoto(o)
+
                             return (
-                              <tr key={o.id}>
-                                <td className="p-3.5 font-semibold text-[#1E2229]">
-                                  #{o.id} · {o.customerName}
-                                  {o.retailSold !== undefined && o.retailSold !== null && (
-                                    <span className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${o.retailSold
-                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
-                                      : 'bg-stone-50 text-stone-600 border-stone-200'
-                                      }`}>
-                                      {o.retailSold ? '🛍️ Retail: Yes' : 'Retail: No'}
+                              <tr key={o.id} className="hover:bg-[#FAF8F5]/60 transition-colors">
+                                {/* 1. Order & Customer */}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <img
+                                      src={garmentImg}
+                                      alt={o.garmentName || 'Garment'}
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null
+                                        e.currentTarget.src = getDefaultGarmentImage(o.garmentId || o.garmentName)
+                                      }}
+                                      className="size-9 rounded-lg object-cover border border-[#E8E1D5] shrink-0"
+                                    />
+                                    <div>
+                                      <div className="font-mono font-bold text-xs text-[#1E2229]">
+                                        #{o.id}
+                                      </div>
+                                      <div className="font-semibold text-xs text-[#1E2229] mt-0.5">
+                                        {o.customerName || 'Customer'}
+                                      </div>
+                                      {o.customerPhone && (
+                                        <div className="text-[10px] text-[#6B7280]">
+                                          {o.customerPhone}
+                                        </div>
+                                      )}
+                                      {o.retailSold && (
+                                        <span className="inline-block mt-0.5 text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-200 px-1.5 rounded">
+                                          Retail +${o.retailValue || 15}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* 2. Garment & Service */}
+                                <td className="py-3 px-4">
+                                  <div className="font-semibold text-xs text-[#1E2229]">
+                                    {o.garmentName || 'Garment Alteration'}
+                                  </div>
+                                  <div className="text-xs text-[#6B7280] mt-0.5">
+                                    {o.serviceName || 'Custom Alteration'}
+                                  </div>
+                                </td>
+
+                                {/* 3. Date & Slot */}
+                                <td className="py-3 px-4 text-[#6B7280]">
+                                  <div className="text-xs text-[#1E2229] font-medium">
+                                    {o.date || 'Today'}
+                                  </div>
+                                  <div className="text-[10px] text-[#6B7280]">
+                                    {o.timeSlot || 'Standard Slot'}
+                                  </div>
+                                </td>
+
+                                {/* 4. Amount */}
+                                <td className="py-3 px-4 text-right">
+                                  <div className="font-bold text-xs text-[#1E2229]">
+                                    ${price}.00
+                                  </div>
+                                  <div className="text-[10px] text-emerald-700 font-semibold">
+                                    100% Studio
+                                  </div>
+                                </td>
+
+                                {/* 5. Status */}
+                                <td className="py-3 px-4 text-center">
+                                  {isSettled ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                      <CheckCircle2 size={11} />
+                                      <span>Collected</span>
+                                    </span>
+                                  ) : isReadyForPickup ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      <Clock size={11} />
+                                      <span>Due at Pickup</span>
+                                    </span>
+                                  ) : isInProduction ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                      <Scissors size={11} />
+                                      <span>In Tailoring</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                      <Package size={11} />
+                                      <span>Drop-Off</span>
                                     </span>
                                   )}
                                 </td>
-                                <td className="p-3.5 text-[#1E2229]">${price}.00</td>
-                                <td className="p-3.5 text-[#6B7280]">$0.00 (0%)</td>
-                                <td className="p-3.5 font-bold text-emerald-800">${price}.00</td>
-                                <td className="p-3.5 text-right">
-                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${isSettled ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'}`}>
-                                    {isSettled ? 'Collected' : 'Due at Pickup'}
-                                  </span>
-                                  {(() => {
-                                    const summary = formatOrderSpecsSummary(o)
-                                    return summary ? (
-                                      <div className="text-[11px] text-[#1E2229] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] truncate font-mono mt-1">
-                                        {summary}
-                                      </div>
-                                    ) : null
-                                  })()}
+
+                                {/* 6. Action */}
+                                <td className="py-3 px-4 text-right">
+                                  {isReadyForPickup ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setPickupModalOrder(o)
+                                        setPickupOtpInput('')
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-2xs transition-colors"
+                                    >
+                                      Verify PIN
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedOrder(o)
+                                        setActiveTab('cockpit')
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-[#F3EFEA] text-[#1E2229] border border-[#E8E1D5] font-semibold text-xs cursor-pointer transition-colors"
+                                    >
+                                      Inspect
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             )
                           })}
-                        {orders.filter((o) => ['Closed', 'Collected', 'Ready', 'Work in Progress'].includes(o.status)).length === 0 && (
-                          <tr>
-                            <td colSpan={5} className="p-6 text-center text-xs text-[#6B7280]">No settlements yet. Working orders will appear here.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+
+                          {filteredLedger.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="py-10 text-center text-xs text-[#6B7280]">
+                                No orders found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
+
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* TAB 5: STUDIO PROFILE & CONFIGURATION                           */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'profile' && user && (
-              <StudioProfileView
-                user={user}
-                onUpdateUser={onUpdateUser}
-                onBack={() => setActiveTab('cockpit')}
-                onSignOut={onSignOut}
-              />
+              <div className="animate-fadeIn">
+                <StudioProfileView
+                  user={user}
+                  onUpdateUser={onUpdateUser}
+                  onBack={() => setActiveTab('cockpit')}
+                  onSignOut={onSignOut}
+                />
+              </div>
             )}
 
           </div>
@@ -3611,10 +3940,13 @@ export function PartnerFlow({
             const Icon = item.icon
             const badge = item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length : null
             return (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
+                href={item.href}
+                onClick={() => {
+                  if (onTabChange) onTabChange(item.id)
+                }}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative no-underline ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
                   }`}
               >
                 <Icon size={18} />
@@ -3622,7 +3954,7 @@ export function PartnerFlow({
                 {badge && (
                   <span className="absolute -top-0.5 right-0.5 size-4 bg-amber-400 text-stone-950 text-[9px] font-bold rounded-full grid place-items-center">{badge}</span>
                 )}
-              </button>
+              </Link>
             )
           })}
         </nav>
