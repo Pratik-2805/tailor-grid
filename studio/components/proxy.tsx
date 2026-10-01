@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
@@ -20,9 +21,17 @@ interface StudioProxyProps {
  * and automatically redirects them to the customer site (port 3000).
  */
 export function StudioProxy({ children }: StudioProxyProps) {
-  const [isChecking, setIsChecking] = useState(true)
+  const pathname = usePathname()
+  const isAdminRoute = Boolean(pathname?.startsWith('/admin'))
+
+  const [isChecking, setIsChecking] = useState(!isAdminRoute)
   const [isCustomerBlocked, setIsCustomerBlocked] = useState(false)
   const hasRedirectedRef = useRef(false)
+
+  // 0. Super Admin route is completely independent and has its own auth gate
+  if (isAdminRoute) {
+    return <>{children}</>
+  }
 
   const handleCustomerRedirect = (identifier?: string) => {
     if (hasRedirectedRef.current) return
@@ -46,8 +55,21 @@ export function StudioProxy({ children }: StudioProxyProps) {
 
   const verifyRoleGate = async () => {
     try {
+      // 0. Always allow access to /admin portal routes or ADMIN role
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
+
       const storedRole = getAuthRole()
       const storedUser = getAuthUser<User>()
+
+      if (storedRole === 'ADMIN' || storedUser?.role === 'ADMIN') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
 
       // 1. Fast-path check from stored cookies
       if (storedRole === 'CUSTOMER' || storedUser?.role === 'CUSTOMER') {
@@ -57,6 +79,11 @@ export function StudioProxy({ children }: StudioProxyProps) {
 
       // 2. Server-side token validation
       const remoteUser = await getCurrentUser()
+      if (remoteUser && remoteUser.role === 'ADMIN') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
       if (remoteUser && remoteUser.role === 'CUSTOMER') {
         handleCustomerRedirect(remoteUser.email || remoteUser.phone || 'Customer')
         return
