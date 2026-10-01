@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, LogOut, Mail, Phone, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
 import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
 
 type AuthMode =
@@ -55,11 +55,11 @@ export function AuthModal({
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const isSendingOtpRef = useRef(false)
   const isSendingLinkOtpRef = useRef(false)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(0)
 
   useEffect(() => {
@@ -102,7 +102,6 @@ export function AuthModal({
       setPendingUser(null)
     }
     setRegisterStep(1)
-    setError('')
     setNotice('')
     setLoading(false)
     setAvatarError(false)
@@ -116,7 +115,6 @@ export function AuthModal({
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
-      setError('')
       setNotice('')
       return
     }
@@ -135,13 +133,11 @@ export function AuthModal({
   // ── Google OAuth token flow – Studio Partner (redirects to Step 1) ─────────
   const triggerGoogleStudio = () => {
     setLoading(true)
-    setError('')
     setNotice('')
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       setLoading(false)
       const msg = 'Google sign-in service is initializing. Please try again in a moment.'
-      setError(msg)
       toast.info(msg, { position: 'top-center' })
       if (typeof window !== 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         const s = document.createElement('script')
@@ -160,17 +156,14 @@ export function AuthModal({
           if (tokenResponse?.error) {
             setLoading(false)
             if (tokenResponse.error === 'popup_closed' || tokenResponse.error === 'access_denied') {
-              setError('Google sign-in was cancelled.')
               toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             } else {
-              setError(`Google sign-in error: ${tokenResponse.error}`)
               toast.error(`Google sign-in error: ${tokenResponse.error}`, { position: 'top-center' })
             }
             return
           }
           if (!tokenResponse?.access_token) {
             setLoading(false)
-            setError('Google sign-in was cancelled.')
             toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             return
           }
@@ -213,34 +206,30 @@ export function AuthModal({
           } catch (err: any) {
             setLoading(false)
             const msg = err.message || 'Google sign-in failed.'
-            setError(msg)
             toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
           setLoading(false)
           const msg = 'Google sign-in popup was blocked by your browser. Please allow popups for this site.'
-          setError(msg)
           toast.error(msg, { position: 'top-center' })
         },
       })
       tokenClient.requestAccessToken()
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Google sign-in initialization failed.')
+      toast.error(err.message || 'Google sign-in initialization failed.', { position: 'top-center' })
     }
   }
 
   // ── Google OAuth token flow ───────────────────────────────────────────────
   const triggerGoogle = (role: 'CUSTOMER' | 'STUDIO') => {
     setLoading(true)
-    setError('')
     setNotice('')
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       setLoading(false)
       const msg = 'Google sign-in service is initializing. Please try again in a moment.'
-      setError(msg)
       toast.info(msg, { position: 'top-center' })
       if (typeof window !== 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         const s = document.createElement('script')
@@ -259,17 +248,14 @@ export function AuthModal({
           if (tokenResponse?.error) {
             setLoading(false)
             if (tokenResponse.error === 'popup_closed' || tokenResponse.error === 'access_denied') {
-              setError('Google sign-in was cancelled.')
               toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             } else {
-              setError(`Google sign-in error: ${tokenResponse.error}`)
               toast.error(`Google sign-in error: ${tokenResponse.error}`, { position: 'top-center' })
             }
             return
           }
           if (!tokenResponse?.access_token) {
             setLoading(false)
-            setError('Google sign-in was cancelled.')
             toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             return
           }
@@ -297,26 +283,19 @@ export function AuthModal({
           } catch (err: any) {
             setLoading(false)
             const msg = err.message || 'Google sign-in failed.'
-            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-              setError('')
-              toast.error(msg, { position: 'top-center' })
-            } else {
-              setError(msg)
-              toast.error(msg, { position: 'top-center' })
-            }
+            toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
           setLoading(false)
           const msg = 'Google sign-in popup was blocked by your browser. Please allow popups for this site.'
-          setError(msg)
           toast.error(msg, { position: 'top-center' })
         },
       })
       tokenClient.requestAccessToken()
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Google sign-in initialization failed.')
+      toast.error(err.message || 'Google sign-in initialization failed.', { position: 'top-center' })
     }
   }
 
@@ -327,17 +306,33 @@ export function AuthModal({
     const cleanedDigits = cPhone.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     isSendingOtpRef.current = true
-    setLoading(true)
-    setError('')
+    setIsSendingOtp(true)
     setNotice('')
     try {
+      // 1. Check whether any user with that mobile number exists or not
+      const checkRes = await checkPhoneExists(cPhone.trim(), targetRole || 'CUSTOMER')
+
+      if (checkRes.roleMismatch) {
+        setIsSendingOtp(false)
+        isSendingOtpRef.current = false
+        toast.error(checkRes.error || 'This mobile number is registered under a different role.', { position: 'top-center' })
+        return
+      }
+
+      if (!checkRes.exists) {
+        setIsSendingOtp(false)
+        isSendingOtpRef.current = false
+        toast.error('no account with the entered mobile number . Please register yourself', { position: 'top-center' })
+        return
+      }
+
+      // 2. User exists: send OTP
       const res = await sendOtp(cPhone.trim(), force)
-      setLoading(false)
+      setIsSendingOtp(false)
       setCOtpSent(true)
       setResendCountdown(30)
       if (res.phone) setCPhone(res.phone)
@@ -347,9 +342,8 @@ export function AuthModal({
         toast.success(res.message || `Verification code sent via SMS to ${res.phone || cPhone.trim()}`, { position: 'top-center' })
       }
     } catch (err: any) {
-      setLoading(false)
+      setIsSendingOtp(false)
       const msg = err.message || 'Failed to send verification code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     } finally {
       isSendingOtpRef.current = false
@@ -358,20 +352,20 @@ export function AuthModal({
 
   const handleVerifyMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!cOtpSent) {
+      toast.warning('Please click Send OTP first to receive your code.', { position: 'top-center' })
+      return
+    }
     if (!cOtp || cOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const res = await verifyOtp({
         phone: cPhone.trim(),
         otp: cOtp.trim(),
-        name: cName || undefined,
-        email: cEmail || undefined,
         role: targetRole || 'CUSTOMER',
       })
       setLoading(false)
@@ -381,7 +375,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Invalid code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -391,18 +384,15 @@ export function AuthModal({
     e.preventDefault()
     if (!cEmail || !cEmail.includes('@')) {
       const msg = 'Please enter a valid email address.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     if (!cPhone || cPhone.trim().length < 6) {
       const msg = 'Mobile number is required for fitting passes.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const result = await signUpUser({
         name: cName || 'Darzi Member',
@@ -418,7 +408,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Sign up failed.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -430,13 +419,11 @@ export function AuthModal({
     const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     isSendingLinkOtpRef.current = true
     setLoading(true)
-    setError('')
     try {
       const res = await sendOtp(linkPhoneVal.trim(), force)
       setLoading(false)
@@ -450,7 +437,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     } finally {
       isSendingLinkOtpRef.current = false
@@ -461,12 +447,10 @@ export function AuthModal({
     e.preventDefault()
     if (!linkOtp || linkOtp.length < 4) {
       const msg = 'Please enter the 4-digit code.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const res = await linkPhone({
         phone: linkPhoneVal.trim(),
@@ -481,7 +465,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to verify code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -492,7 +475,6 @@ export function AuthModal({
     const cleanId = sLoginEmail.trim()
     if (!cleanId) {
       const msg = 'Please enter your registered email or mobile number.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
@@ -500,7 +482,6 @@ export function AuthModal({
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRegex.test(cleanId)) {
         const msg = 'Please enter a valid email address (e.g. atelier@domain.com).'
-        setError(msg)
         toast.warning(msg, { position: 'top-center' })
         return
       }
@@ -508,14 +489,12 @@ export function AuthModal({
       const digits = cleanId.replace(/\D/g, '')
       if (digits.length < 8) {
         const msg = 'Please enter a valid mobile number with country code.'
-        setError(msg)
         toast.warning(msg, { position: 'top-center' })
         return
       }
     }
 
     setLoading(true)
-    setError('')
     try {
       const result = await loginUser({ identifier: cleanId, role: 'STUDIO' })
       setLoading(false)
@@ -523,13 +502,7 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-        setError('')
-        toast.error(msg, { position: 'top-center' })
-      } else {
-        setError(msg)
-        toast.error(msg, { position: 'top-center' })
-      }
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -546,7 +519,6 @@ export function AuthModal({
       setMode('customer-options')
       setRegisterStep(1)
     }
-    setError('')
     setNotice('')
   }
 
@@ -597,31 +569,8 @@ export function AuthModal({
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* Error Banner */}
-          {error && !error.toLowerCase().includes('unauthorized') && !error.toLowerCase().includes('access denied') && (
-            <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug shadow-sm animate-in fade-in space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg shrink-0">⚠️</span>
-                <span>{error}</span>
-              </div>
-              {error.includes('Please sign in instead') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode(targetRole === 'STUDIO' ? 'studio-options' : 'customer-options')
-                  }}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer ml-7"
-                >
-                  Sign in to this account →
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Subtle Notice Banner */}
-          {notice && !error && (
+          {notice && (
             <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] px-3.5 py-2.5 text-xs text-[#9E593B] font-medium flex items-center justify-between animate-in fade-in">
               <span>{notice}</span>
             </div>
@@ -647,7 +596,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-options')
                   }}
@@ -680,7 +628,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('studio-options')
                   }}
@@ -708,6 +655,24 @@ export function AuthModal({
                     </svg>
                   </div>
                 </button>
+              </div>
+
+              {/* OR Divider & Already signed up option */}
+              <div className="pt-2 space-y-2.5">
+                <Divider />
+                <div className="text-center">
+                  <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setMode('customer-options')
+                    }}
+                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                  >
+                    Sign In →
+                  </button>
+                </div>
               </div>
 
               <p className="text-center text-[10px] text-[#9CA3AF]">
@@ -842,7 +807,6 @@ export function AuthModal({
                         onClick={() => {
                           setLinkOtpSent(false)
                           setLinkOtp('')
-                          setError('')
                           setNotice('')
                         }}
                         className="text-[#9E593B] font-semibold hover:underline"
@@ -908,7 +872,7 @@ export function AuthModal({
           )}
 
           {/* ================================================================ */}
-          {/* CUSTOMER – Sign In / Sign Up Options                             */}
+          {/* CUSTOMER – Sign In Options (Google, Mobile, Email)               */}
           {/* ================================================================ */}
           {mode === 'customer-options' && (
             <div className="space-y-4">
@@ -922,34 +886,36 @@ export function AuthModal({
               </div>
 
               <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Continue with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
+                <GoogleButton label="Login with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
 
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-mobile')
                   }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
                 >
                   <Phone size={14} className="text-[#9E593B]" />
-                  <span>Continue with Mobile</span>
+                  <span>Login with Mobile Number</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-email')
                   }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
                 >
                   <Mail size={14} className="text-[#9E593B]" />
-                  <span>Continue with Email</span>
+                  <span>Login with Email</span>
                 </button>
               </div>
+
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
+                By continuing you agree to our Terms &amp; Privacy Policy.
+              </p>
             </div>
           )}
 
@@ -960,76 +926,99 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  {cOtpSent ? 'Enter 4-Digit Code' : 'Enter mobile number'}
+                  Login with Mobile
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-0.5">
-                  {cOtpSent
-                    ? `Verification code sent to ${cPhone}`
-                    : 'We will send a 4-digit SMS verification code.'}
+                  Enter your registered mobile number to receive an OTP.
                 </p>
               </div>
 
-              {!cOtpSent ? (
-                <form onSubmit={handleSendMobileOtp} className="space-y-3 pt-1">
-                  <Field label="Your name (optional)" value={cName} onChange={setCName} placeholder="Sarah Jenkins" />
-                  <Field
-                    label="Mobile phone number *"
+              <form onSubmit={handleVerifyMobileOtp} className="space-y-4 pt-1">
+                {/* Mobile Phone Number Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Mobile Phone Number *
+                  </label>
+                  <input
                     type="tel"
                     required
                     value={cPhone}
-                    onChange={(val) => setCPhone(val.replace(/[^\d+ ]/g, ''))}
+                    onChange={(e) => setCPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
                     placeholder="+91 98765 43210"
+                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                   />
-                  <SubmitBtn loading={loading} label="Send Verification Code" />
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyMobileOtp} className="space-y-3 pt-1">
+                  {/* Lower right side Send OTP button / countdown in smaller font */}
+                  <div className="flex justify-end mt-1.5">
+                    <button
+                      type="button"
+                      disabled={isSendingOtp || resendCountdown > 0 || !cPhone.trim()}
+                      onClick={() => handleSendMobileOtp(undefined, cOtpSent)}
+                      className="text-[11px] font-semibold text-[#9E593B] hover:text-[#7A4027] hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    >
+                      {isSendingOtp
+                        ? 'Sending OTP...'
+                        : resendCountdown > 0
+                          ? `Resend OTP in ${resendCountdown}s`
+                          : cOtpSent
+                            ? 'Resend OTP'
+                            : 'Send OTP'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* OTP Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Enter OTP *
+                  </label>
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
                     required
-                    autoFocus
                     value={cOtp}
                     onChange={(e) => setCOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="• • • •"
-                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em] transition-colors"
                   />
-                  <SubmitBtn loading={loading} label="Verify & Sign In" />
-                  <div className="flex items-center justify-between text-xs pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setCOtpSent(false)}
-                      className="text-[#7A7E85] hover:text-[#18191B] underline"
-                    >
-                      Change number
-                    </button>
-                    <button
-                      type="button"
-                      disabled={loading || resendCountdown > 0}
-                      onClick={() => handleSendMobileOtp(undefined, true)}
-                      className="text-[#9E593B] font-semibold hover:underline disabled:opacity-50"
-                    >
-                      {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend code'}
-                    </button>
-                  </div>
-                </form>
-              )}
+                </div>
+
+                {/* Verify OTP Button */}
+                <SubmitBtn
+                  loading={loading}
+                  label="Verify OTP"
+                  disabled={!cPhone.trim() || cOtp.length < 4}
+                />
+
+                <div className="text-center pt-1 border-t border-[#F3EFEA]">
+                  <span className="text-xs text-[#7A7E85]">Don't have an account? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setMode('customer-email')
+                    }}
+                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                  >
+                    Register yourself
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
           {/* ================================================================ */}
-          {/* CUSTOMER – Email Form                                            */}
+          {/* CUSTOMER – Email / Registration Form                             */}
           {/* ================================================================ */}
           {mode === 'customer-email' && (
             <form onSubmit={handleCustomerEmail} className="space-y-3.5">
               <div>
                 <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  Continue with Email
+                  Register / Sign Up
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Connect your email and mobile for order tracking.
+                  Create your account for bespoke fitting passes.
                 </p>
               </div>
 
@@ -1041,10 +1030,24 @@ export function AuthModal({
                 required
                 value={cPhone}
                 onChange={setCPhone}
-                placeholder="+44 7700 900077"
+                placeholder="+91 98765 43210"
               />
 
-              <SubmitBtn loading={loading} label="Continue" />
+              <SubmitBtn loading={loading} label="Create Account & Continue" />
+
+              <div className="text-center pt-1 border-t border-[#F3EFEA]">
+                <span className="text-xs text-[#7A7E85]">Already registered? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotice('')
+                    setMode('customer-mobile')
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Login with Mobile
+                </button>
+              </div>
             </form>
           )}
 
@@ -1212,12 +1215,12 @@ function Field({
   )
 }
 
-function SubmitBtn({ loading, label }: { loading: boolean; label: string }) {
+function SubmitBtn({ loading, label, disabled }: { loading: boolean; label: string; disabled?: boolean }) {
   return (
     <button
       type="submit"
-      disabled={loading}
-      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm"
+      disabled={loading || disabled}
+      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
     >
       {loading ? 'Please wait…' : label}
     </button>

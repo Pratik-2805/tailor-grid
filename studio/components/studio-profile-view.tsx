@@ -14,6 +14,7 @@ import {
   Lock,
   LogOut,
   MapPin,
+  Pencil,
   Phone,
   Scissors,
   Sliders,
@@ -23,6 +24,7 @@ import {
   Upload,
   User,
   Wrench,
+  X,
 } from 'lucide-react'
 import type { User as UserType } from './data'
 import { updateUserProfile, sendOtp } from '@/lib/api'
@@ -71,6 +73,34 @@ const ATELIER_PRESETS = [
   },
 ]
 
+// Helper to split raw stored address into manual Shop No. and map-detected street address
+function parseAddressParts(rawAddress: string, userId?: string) {
+  let stored = typeof window !== 'undefined' && userId ? localStorage.getItem(`darzi_studio_shop_no_${userId}`) : null
+  let sNo = stored || ''
+  let street = rawAddress || ''
+
+  if (sNo && street) {
+    if (street.toLowerCase().startsWith(sNo.toLowerCase())) {
+      street = street.slice(sNo.length).replace(/^[,\s-]+/, '')
+    }
+  } else if (!sNo && street) {
+    const match = street.match(/^(Shop\s*[^,]+|Unit\s*[^,]+|Suite\s*[^,]+|Flat\s*[^,]+|Gala\s*[^,]+|G-\d+[^,]*|#\s*[^,]+),\s*(.+)$/i)
+    if (match) {
+      sNo = match[1].trim()
+      street = match[2].trim()
+    }
+  }
+
+  return { shopNo: sNo, mapStreet: street }
+}
+
+function buildFullAddress(shopNoStr: string, mapStreetStr: string) {
+  const s = shopNoStr.trim()
+  const m = mapStreetStr.trim()
+  if (s && m) return `${s}, ${m}`
+  return s || m || ''
+}
+
 export function StudioProfileView({
   user,
   onUpdateUser,
@@ -79,10 +109,10 @@ export function StudioProfileView({
 }: StudioProfileViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
 
-  const [name, setName] = useState(user.name || '')
-  const [studioName, setStudioName] = useState(user.studioName || '')
-  const [phone, setPhone] = useState(user.phone || '')
-  const [verifiedPhone, setVerifiedPhone] = useState(user.phone || '')
+  const [name, setName] = useState(user?.name ?? '')
+  const [studioName, setStudioName] = useState(user?.studioName ?? '')
+  const [phone, setPhone] = useState(user?.phone ?? '')
+  const [verifiedPhone, setVerifiedPhone] = useState(user?.phone ?? '')
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false)
   const [otpValue, setOtpValue] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
@@ -90,17 +120,64 @@ export function StudioProfileView({
   const [otpCountdown, setOtpCountdown] = useState(0)
   const [otpError, setOtpError] = useState('')
 
-  const [address, setAddress] = useState(user.address || '')
-  const [area, setArea] = useState(user.area || '')
-  const [postcode, setPostcode] = useState(user.postcode || '')
-  const [lat, setLat] = useState<number | null>(user.lat ?? null)
-  const [lng, setLng] = useState<number | null>(user.lng ?? null)
-  const [avatar, setAvatar] = useState(user.avatar || '')
+  // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
+  const [shopNo, setShopNo] = useState('')
+  const [mapStreetAddress, setMapStreetAddress] = useState('')
+  const [area, setArea] = useState(user?.area ?? '')
+  const [postcode, setPostcode] = useState(user?.postcode ?? '')
+  const [lat, setLat] = useState<number | null>(user?.lat ?? null)
+  const [lng, setLng] = useState<number | null>(user?.lng ?? null)
+  const [avatar, setAvatar] = useState(user?.avatar ?? '')
 
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
+
+  // Edit Atelier Identity Quick Modal State (Studio Name & Lead Craftsman)
+  const [isEditAtelierModalOpen, setIsEditAtelierModalOpen] = useState(false)
+  const [draftStudioName, setDraftStudioName] = useState('')
+  const [draftName, setDraftName] = useState('')
+  const [editAtelierSaving, setEditAtelierSaving] = useState(false)
+
+  const openEditAtelierModal = () => {
+    setDraftStudioName(studioName || '')
+    setDraftName(name || '')
+    setIsEditAtelierModalOpen(true)
+  }
+
+  const handleSaveEditAtelier = async () => {
+    const sName = draftStudioName.trim() || studioName
+    const cName = draftName.trim() || name
+
+    setStudioName(sName)
+    setName(cName)
+
+    const updates: Partial<UserType> = {
+      id: user.id,
+      email: user.email,
+      studioName: sName,
+      name: cName,
+    }
+
+    setEditAtelierSaving(true)
+    try {
+      const res = await updateUserProfile(updates)
+      if (onUpdateUser) {
+        onUpdateUser({
+          ...user,
+          ...updates,
+          ...(res?.user || {}),
+        })
+      }
+      toast.success('Atelier name & craftsman updated!', { position: 'top-center' })
+      setIsEditAtelierModalOpen(false)
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update atelier profile', { position: 'top-center' })
+    } finally {
+      setEditAtelierSaving(false)
+    }
+  }
 
   const [specialties, setSpecialties] = useState<string[]>(() => {
     if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
@@ -120,26 +197,37 @@ export function StudioProfileView({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const handleShopNoChange = (val: string) => {
+    setShopNo(val)
+    if (user?.id && typeof window !== 'undefined') {
+      localStorage.setItem(`darzi_studio_shop_no_${user.id}`, val)
+    }
+  }
+
   useEffect(() => {
     if (user) {
-      if (user.name !== undefined) setName(user.name || '')
-      if (user.studioName !== undefined) setStudioName(user.studioName || '')
+      if (user.name !== undefined) setName(user.name ?? '')
+      if (user.studioName !== undefined) setStudioName(user.studioName ?? '')
       if (user.phone !== undefined) {
-        setPhone(user.phone || '')
-        setVerifiedPhone(user.phone || '')
+        setPhone(user.phone ?? '')
+        setVerifiedPhone(user.phone ?? '')
       }
-      if (user.address !== undefined) setAddress(user.address || '')
-      if (user.area !== undefined) setArea(user.area || '')
-      if (user.postcode !== undefined) setPostcode(user.postcode || '')
+      
+      const { shopNo: initShopNo, mapStreet: initMapStreet } = parseAddressParts(user.address || '', user.id)
+      setShopNo(initShopNo ?? '')
+      setMapStreetAddress(initMapStreet ?? '')
+
+      if (user.area !== undefined) setArea(user.area ?? '')
+      if (user.postcode !== undefined) setPostcode(user.postcode ?? '')
       if (user.lat !== undefined) setLat(user.lat ?? null)
       if (user.lng !== undefined) setLng(user.lng ?? null)
       if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
         setSpecialties(user.specialties)
       }
-      if (user.openingHours) setOpeningHours(user.openingHours)
-      if (user.dailyCapacity) setDailyCapacity(user.dailyCapacity)
-      if (user.machines) setMachines(user.machines)
-      if (user.workers) setWorkers(user.workers)
+      if (user.openingHours !== undefined) setOpeningHours(user.openingHours ?? 'Mon–Sat: 09:00 – 19:00')
+      if (user.dailyCapacity !== undefined) setDailyCapacity(user.dailyCapacity ?? 25)
+      if (user.machines !== undefined) setMachines(user.machines ?? 4)
+      if (user.workers !== undefined) setWorkers(user.workers ?? 4)
       if (user.avatar) {
         setAvatar(user.avatar)
       } else {
@@ -202,6 +290,7 @@ export function StudioProfileView({
     setError('')
     try {
       const cleanPostcode = postcode.trim()
+      const fullAddr = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> & { otp: string } = {
         id: user.id,
         email: user.email,
@@ -209,7 +298,7 @@ export function StudioProfileView({
         studioName: studioName.trim(),
         phone: phone.trim(),
         otp: cleanOtp,
-        address: address.trim(),
+        address: fullAddr.trim(),
         area: area.trim(),
         postcode: cleanPostcode,
         lat: lat,
@@ -266,20 +355,21 @@ export function StudioProfileView({
   const handleSelectMapLocation = async (data: SelectedLocationData) => {
     setIsMapModalOpen(false)
 
-    const label = data.streetAddress || data.area || 'Workshop Location'
-    const newLocStr = [data.streetAddress, data.area, data.city, data.postcode ? `(${data.postcode})` : ''].filter(Boolean).join(', ') || label
-
-    const nextAddress = data.streetAddress || address
+    const nextStreet = data.streetAddress || mapStreetAddress
     const nextArea = data.area || area
     const nextPostcode = data.postcode || postcode
     const nextLat = data.lat ?? lat
     const nextLng = data.lng ?? lng
 
-    if (data.streetAddress) setAddress(data.streetAddress)
+    setMapStreetAddress(nextStreet)
     if (data.area) setArea(data.area)
     if (data.postcode) setPostcode(data.postcode)
     if (data.lat) setLat(data.lat)
     if (data.lng) setLng(data.lng)
+
+    const fullAddr = buildFullAddress(shopNo, nextStreet)
+    const label = nextStreet || nextArea || 'Workshop Location'
+    const newLocStr = [shopNo, nextStreet, nextArea, data.city, nextPostcode ? `(${nextPostcode})` : ''].filter(Boolean).join(', ') || label
 
     try {
       const updates: Partial<UserType> = {
@@ -288,7 +378,7 @@ export function StudioProfileView({
         name: name.trim(),
         studioName: studioName.trim(),
         phone: (verifiedPhone || user.phone || phone).trim(),
-        address: nextAddress.trim(),
+        address: fullAddr.trim(),
         area: nextArea.trim(),
         postcode: nextPostcode.trim(),
         lat: nextLat,
@@ -392,13 +482,14 @@ export function StudioProfileView({
 
     // Auto-save removal to backend immediately
     try {
+      const fullAddr = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
         phone: (verifiedPhone || user.phone || phone).trim(),
-        address: address.trim(),
+        address: fullAddr.trim(),
         area: area.trim(),
         postcode: postcode.trim(),
         lat: lat,
@@ -441,13 +532,22 @@ export function StudioProfileView({
       return
     }
 
-    const cleanPostcode = postcode.trim()
-    const pinDigits = cleanPostcode.replace(/\D/g, '')
-    if (pinDigits.length < 3 || pinDigits.length > 10) {
+    if (!shopNo.trim()) {
       setSaving(false)
-      setError('Please enter a valid postal / PIN code.')
+      setError('Please enter your Shop No. / Workshop Unit.')
+      toast.warning('Shop No. / Unit is required.', { position: 'top-center' })
       return
     }
+
+    if (!lat || !lng) {
+      setSaving(false)
+      setError('Please pin your exact workshop location on the map. Latitude & Longitude are compulsory.')
+      toast.warning('Workshop Map Pin is required.', { position: 'top-center' })
+      setIsMapModalOpen(true)
+      return
+    }
+
+    const cleanPostcode = postcode.trim()
 
     // If phone number was changed and not verified via OTP yet, prompt OTP verification modal!
     if (isPhoneChanged && !isNewPhoneVerified) {
@@ -457,13 +557,14 @@ export function StudioProfileView({
     }
 
     try {
+      const fullAddress = buildFullAddress(shopNo, mapStreetAddress)
       const updates: Partial<UserType> = {
         id: user.id,
         email: user.email,
         name: name.trim(),
         studioName: studioName.trim(),
         phone: cleanedPhone,
-        address: address.trim(),
+        address: fullAddress.trim(),
         area: area.trim(),
         postcode: cleanPostcode,
         lat: lat,
@@ -643,22 +744,43 @@ export function StudioProfileView({
                         Direct Studio Settlement
                       </span>
                       <span>·</span>
-                      <span className="truncate max-w-[200px]">{address || area || 'Studio Address'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsMapModalOpen(true)}
+                        className="truncate max-w-[200px] hover:text-[#9E593B] transition-colors cursor-pointer text-left underline decoration-dotted underline-offset-2"
+                        title="Click to adjust map pin"
+                      >
+                        {buildFullAddress(shopNo, mapStreetAddress) || area || 'Studio Address'}
+                      </button>
                       {lat && lng && (
                         <>
                           <span>·</span>
-                          <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsMapModalOpen(true)}
+                            className="text-emerald-700 hover:text-[#9E593B] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Click to adjust GPS pin"
+                          >
                             <span className="size-1.5 rounded-full bg-emerald-500 inline-block" />
                             GPS Pinned
-                          </span>
+                          </button>
                         </>
                       )}
                     </div>
                   </div>
                 </div>
 
-                {/* Photo Actions */}
+                {/* Photo & Profile Actions */}
                 <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={openEditAtelierModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#9E593B]/30 bg-[#FAF3EC] hover:bg-[#9E593B] text-xs font-bold text-[#9E593B] hover:text-white transition-all cursor-pointer shadow-2xs"
+                  >
+                    <Pencil size={13} />
+                    <span>Edit Atelier</span>
+                  </button>
+
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -748,7 +870,7 @@ export function StudioProfileView({
                 <div className="flex gap-2 animate-in fade-in">
                   <input
                     type="url"
-                    value={customUrl}
+                    value={customUrl ?? ''}
                     onChange={(e) => setCustomUrl(e.target.value)}
                     placeholder="https://images.unsplash.com/..."
                     className="flex-1 px-3.5 py-2 text-xs bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B]"
@@ -792,7 +914,7 @@ export function StudioProfileView({
                     type="text"
                     required
                     placeholder="e.g. Mayfair Sartoria or Atelier Studio"
-                    value={studioName}
+                    value={studioName ?? ''}
                     onChange={(e) => setStudioName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -806,62 +928,39 @@ export function StudioProfileView({
                     type="text"
                     required
                     placeholder="e.g. Master Tailor or Craftsman Name"
-                    value={name}
+                    value={name ?? ''}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
                 </div>
 
-                {/* ── Street Address (As in enroll form) ── */}
+                {/* ── Shop No. / Workshop Unit (ONLY address field entered manually) ── */}
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Street Address *
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                      Shop No. / Workshop Unit *
+                    </label>
+                    <span className="text-[10px] font-semibold text-[#9E593B] bg-[#FAF3EC] px-2 py-0.5 rounded-full border border-[#E8E1D5]">
+                      Manual Entry
+                    </span>
+                  </div>
                   <div className="relative">
-                    <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
+                    <Store size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 14 Savile Row, Suite 2B"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                      placeholder="e.g. Shop No. 4, Ground Floor, Gala 12, or Suite 2B"
+                      value={shopNo ?? ''}
+                      onChange={(e) => handleShopNoChange(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2.5 text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
                   </div>
+                  <p className="text-[11px] text-[#6B7280]">
+                    Only your shop / gala / unit number needs to be typed manually. Street, neighborhood, and PIN are auto-detected via the map pin below.
+                  </p>
                 </div>
 
-                {/* ── Area / Neighborhood (As in enroll form) ── */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Area / Neighborhood *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Mayfair, Soho, Bandra, Umela..."
-                    value={area}
-                    onChange={(e) => setArea(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                  />
-                </div>
-
-                {/* ── Postcode / PIN / ZIP (As in enroll form) ── */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                    Postcode / ZIP / PIN *
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={10}
-                    required
-                    placeholder="e.g. 10001, W1S 3JN, or 401201"
-                    value={postcode}
-                    onChange={(e) => setPostcode(e.target.value.replace(/[^\d\w\s\-]/g, '').slice(0, 10))}
-                    className="w-full px-3.5 py-2.5 text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                  />
-                </div>
-
-                {/* ── Interactive Live Map Pin Trigger (Matching Enroll Form) ── */}
+                {/* ── Interactive Live Map Pin Trigger ── */}
                 <div className="space-y-1.5 sm:col-span-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
@@ -893,7 +992,7 @@ export function StudioProfileView({
                       </div>
                       <div className="text-[11px] text-[#6B7280] truncate mt-0.5">
                         {lat && lng
-                          ? `${address || area || 'Pinned Workshop'}${postcode ? ` (${postcode})` : ''}`
+                          ? `${mapStreetAddress || area || 'Pinned Workshop'}${postcode ? ` (${postcode})` : ''}`
                           : 'Tap to position your pin on the live interactive map & auto-detect coordinates'}
                       </div>
                     </div>
@@ -901,6 +1000,68 @@ export function StudioProfileView({
                       {lat && lng ? 'Adjust Pin' : 'Pin on Map'}
                     </span>
                   </button>
+                </div>
+
+                {/* ── Auto-Synced Address Details (Derived via Map Changes) ── */}
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Map-Detected Workshop Address</span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        Auto-synced via Pin
+                      </span>
+                    </label>
+                    <span className="text-[10px] text-[#6B7280]">
+                      Updated dynamically via Map Pin
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Street / Road (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={mapStreetAddress || 'Set via Map Pin'}
+                      >
+                        {mapStreetAddress || (lat && lng ? 'Location Pinned' : 'Pin on map to detect')}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Area / Neighborhood (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={area || 'Set via Map Pin'}
+                      >
+                        {area || (lat && lng ? 'Location Pinned' : 'Pin on map to detect')}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider block">
+                        Postcode / ZIP / PIN (Via Map)
+                      </span>
+                      <div
+                        className="text-xs font-mono font-bold text-[#1E2229] bg-white border border-[#E8E1D5] rounded-lg px-2.5 py-1.5 truncate"
+                        title={postcode || 'Set via Map Pin'}
+                      >
+                        {postcode || (lat && lng ? 'Auto-detected' : '—')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Combined Dispatch Address Preview */}
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50/60 border border-emerald-200/80 text-[11px] text-[#1E2229]">
+                    <MapPin size={13} className="text-emerald-700 shrink-0" />
+                    <span className="font-bold text-emerald-900 shrink-0">Client Delivery Address:</span>
+                    <span className="truncate font-medium text-emerald-950">
+                      {[shopNo, mapStreetAddress || area, postcode ? `(${postcode})` : ''].filter(Boolean).join(', ') || 'Enter Shop No. and pin your workshop location on the map'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -932,7 +1093,7 @@ export function StudioProfileView({
                       inputMode="tel"
                       required
                       placeholder="+91 98765 43210 or +1 (555) 019-2834"
-                      value={phone}
+                      value={phone ?? ''}
                       onChange={(e) => {
                         setPhone(e.target.value.replace(/[^\d+ ]/g, ''))
                         setError('')
@@ -972,7 +1133,7 @@ export function StudioProfileView({
                     <input
                       type="email"
                       readOnly
-                      value={user.email || user.contact || ''}
+                      value={user?.email || user?.contact || ''}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#6B7280] bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl cursor-not-allowed select-none"
                     />
                   </div>
@@ -1023,7 +1184,7 @@ export function StudioProfileView({
                   <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                   <input
                     type="text"
-                    value={area}
+                    value={area ?? ''}
                     onChange={(e) => setArea(e.target.value)}
                     placeholder="e.g. Vasai Road, Umela or Soho & Central London"
                     className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1090,7 +1251,7 @@ export function StudioProfileView({
                     type="number"
                     min={1}
                     max={200}
-                    value={dailyCapacity}
+                    value={dailyCapacity ?? ''}
                     onChange={(e) => setDailyCapacity(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1105,7 +1266,7 @@ export function StudioProfileView({
                     type="number"
                     min={1}
                     max={50}
-                    value={machines}
+                    value={machines ?? ''}
                     onChange={(e) => setMachines(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1118,7 +1279,7 @@ export function StudioProfileView({
                   </label>
                   <input
                     type="text"
-                    value={openingHours}
+                    value={openingHours ?? ''}
                     onChange={(e) => setOpeningHours(e.target.value)}
                     placeholder="e.g. Mon–Sat: 09:00 – 19:00"
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1176,6 +1337,94 @@ export function StudioProfileView({
         )}
       </form>
 
+      {/* ── Edit Atelier Identity Modal ── */}
+      {isEditAtelierModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white rounded-2xl border border-[#E8E1D5] shadow-2xl overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-[#E8E1D5] flex items-center justify-between bg-[#FAF8F5]">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-[#FAF3EC] text-[#9E593B] border border-[#E8E1D5] flex items-center justify-center">
+                  <Store size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1E2229]">
+                    Edit Atelier Details
+                  </h3>
+                  <p className="text-xs text-[#6B7280]">
+                    Update your studio identity and lead master tailor
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditAtelierModalOpen(false)}
+                className="p-2 text-[#6B7280] hover:text-[#1E2229] hover:bg-stone-200/50 rounded-xl transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                  Atelier / Studio Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mayfair Sartoria or Atelier Studio"
+                  value={draftStudioName ?? ''}
+                  onChange={(e) => setDraftStudioName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
+                  Lead Master Tailor *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Master Tailor or Craftsman Name"
+                  value={draftName ?? ''}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-[#E8E1D5] bg-[#FAF8F5] flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsEditAtelierModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#6B7280] transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEditAtelier}
+                disabled={editAtelierSaving}
+                className="px-5 py-2 rounded-xl bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {editAtelierSaving ? (
+                  <span>Saving...</span>
+                ) : (
+                  <>
+                    <Check size={14} />
+                    <span>Save & Apply</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Uber-Style Locality Picker Google Map Modal */}
       <UberMapModal
         isOpen={isMapModalOpen}
@@ -1183,7 +1432,7 @@ export function StudioProfileView({
         onSelectLocation={handleSelectMapLocation}
         initialCity={area || ''}
         initialArea={area || ''}
-        initialAddress={address || ''}
+        initialAddress={mapStreetAddress || ''}
         initialPostcode={postcode || ''}
         initialLat={lat ?? undefined}
         initialLng={lng ?? undefined}

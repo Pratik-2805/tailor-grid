@@ -6,6 +6,7 @@ const { checkDbConnection } = require('./lib/prisma');
 const authRoutes = require('./routes/auth');
 const ordersRoutes = require('./routes/orders');
 const servicesRoutes = require('./routes/services');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ app.get('/api/health', async (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api', servicesRoutes);
 
 // Fallback 404 handler

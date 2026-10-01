@@ -555,8 +555,35 @@ export function PartnerFlow({
     return null
   }
 
-  // activeTab is directly derived from the current URL pathname or controlledTab prop
-  const activeTab: StudioTab = getTabFromPathname(pathname) || controlledTab || 'cockpit'
+  const [currentTab, setCurrentTab] = useState<StudioTab>(() => {
+    if (typeof window !== 'undefined') {
+      const fromPath = getTabFromPathname(window.location.pathname)
+      if (fromPath) return fromPath
+    }
+    return getTabFromPathname(pathname) || controlledTab || 'cockpit'
+  })
+
+  // Synchronize with external prop changes
+  useEffect(() => {
+    if (controlledTab) {
+      setCurrentTab(controlledTab)
+    }
+  }, [controlledTab])
+
+  // Synchronize on browser Back / Forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const fromPath = getTabFromPathname(window.location.pathname)
+      if (fromPath) {
+        setCurrentTab(fromPath)
+        if (onTabChange) onTabChange(fromPath)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [onTabChange])
+
+  const activeTab: StudioTab = currentTab
 
   const TAB_TO_ROUTE: Record<StudioTab, string> = {
     cockpit: '/dashboard',
@@ -566,10 +593,11 @@ export function PartnerFlow({
   }
 
   const setActiveTab = (tab: StudioTab) => {
+    setCurrentTab(tab)
     if (onTabChange) onTabChange(tab)
     const target = TAB_TO_ROUTE[tab]
-    if (target && pathname !== target) {
-      router.push(target)
+    if (target && typeof window !== 'undefined' && window.location.pathname !== target) {
+      window.history.pushState(null, '', target)
     }
   }
 
@@ -630,13 +658,26 @@ export function PartnerFlow({
 
   // ── 1. Live Broadcast Queue & 15-Second Countdown ───────────────────
   const [broadcastIdx, setBroadcastIdx] = useState(0)
+  const [isMorphing, setIsMorphing] = useState(false)
+  const morphTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [timerSecs, setTimerSecs] = useState(15)
   const [timerProgress, setTimerProgress] = useState(100)
   const broadcastExpiryRef = useRef<{ key: string; expiresAt: number; totalDurationMs: number } | null>(null)
   const [broadcastToast, setBroadcastToast] = useState<string | null>(null)
 
+  const handleMorphNext = (step = 1) => {
+    setIsMorphing(true)
+    if (morphTimeoutRef.current) clearTimeout(morphTimeoutRef.current)
+    setBroadcastIdx((prev) => prev + step)
+    morphTimeoutRef.current = setTimeout(() => {
+      setIsMorphing(false)
+    }, 380)
+  }
+
   // Skipped order IDs for this session only (resets on reload so orders are not permanently lost)
   const [permanentlySkippedIds, setPermanentlySkippedIds] = useState<string[]>([])
+  // Accepted order IDs to immediately prevent re-triggering broadcast bar upon acceptance
+  const [acceptedOrderIds, setAcceptedOrderIds] = useState<string[]>([])
 
   // Timed-out timestamps (unattended 15s timer expiry -> repeats every 2 minutes)
   const [timeoutTimestamps, setTimeoutTimestamps] = useState<Record<string, number>>({})
@@ -897,15 +938,22 @@ export function PartnerFlow({
   selectedOrderRef.current = selectedOrder
 
   const updateOrdersAndSelected = (fetched: FittingBooking[]) => {
-    setOrders(fetched)
-    if (fetched.length === 0) {
+    // Preserve accepted status for orders confirmed in this session
+    const sanitized = fetched.map((o) => {
+      if (acceptedOrderIds.includes(o.id) && o.status === 'Allocated') {
+        return { ...o, status: 'Accepted' as const }
+      }
+      return o
+    })
+    setOrders(sanitized)
+    if (sanitized.length === 0) {
       setSelectedOrder(null)
       return
     }
 
     const currentSelectedId = selectedOrderRef.current?.id
     if (currentSelectedId) {
-      const stillExists = fetched.find((o) => o.id === currentSelectedId)
+      const stillExists = sanitized.find((o) => o.id === currentSelectedId)
       setSelectedOrder(stillExists || null)
     }
   }
@@ -997,16 +1045,23 @@ export function PartnerFlow({
   const liveAllocatedOrders = orders.filter((o) => {
     if (o.status !== 'Allocated') return false
     if (permanentlySkippedIds.includes(o.id)) return false
+    if (acceptedOrderIds.includes(o.id)) return false
+    if (o.storeId && currentStudioId && o.storeId !== currentStudioId) return false
     return true
   })
 
+  const cleanDistanceLabel = (dist?: string | number) => {
+    if (!dist) return '0.8 mi away'
+    return String(dist).replace(/(\d+\.\d{1,})\s*mi/i, (_, n) => `${parseFloat(n).toFixed(1)} mi`)
+  }
+
   // Map incoming dispatch requests (Single Dispatch Engine in Server Cache)
   const dispatchBroadcasts: BroadcastRequest[] = pendingDispatches
-    .filter((pd) => !permanentlySkippedIds.includes(pd.orderId))
+    .filter((pd) => !permanentlySkippedIds.includes(pd.orderId) && !acceptedOrderIds.includes(pd.orderId))
     .map((pd) => ({
       id: pd.orderId,
       customerName: pd.customerName || pd.order?.customerName || 'Customer',
-      customerArea: pd.distance ? `${pd.distance} · Stage ${pd.stage || 1}` : 'Local Area · 0.8 mi away',
+      customerArea: pd.distance ? `${cleanDistanceLabel(pd.distance)} · Stage ${pd.stage || 1}` : 'Local Area · 0.8 mi away',
       distanceMiles: pd.distanceMiles || 0.8,
       garmentName: pd.garmentName || pd.order?.garmentName || 'Garment Alteration',
       serviceName: pd.serviceName || pd.order?.serviceName || 'Custom Fit & Alteration',
@@ -1050,14 +1105,27 @@ export function PartnerFlow({
   const uniqueAllocatedBroadcasts = allocatedBroadcasts.filter((a) => !dispatchOrderIds.has(a.id))
   const allBroadcasts: BroadcastRequest[] = [...dispatchBroadcasts, ...uniqueAllocatedBroadcasts]
 
-  const currentBroadcast = allBroadcasts.length > 0 ? allBroadcasts[broadcastIdx % allBroadcasts.length] : null
+  const totalBroadcasts = allBroadcasts.length
+  const currentBroadcastIndex = totalBroadcasts > 0 ? broadcastIdx % totalBroadcasts : 0
+  const currentBroadcast = totalBroadcasts > 0 ? allBroadcasts[currentBroadcastIndex] : null
   const currentBroadcastKey = currentBroadcast ? `${currentBroadcast.id}-stage-${currentBroadcast.stage || 1}` : null
+
+  // Next order in bundle (peeking behind front card)
+  const nextBroadcastIndex = totalBroadcasts > 1 ? (currentBroadcastIndex + 1) % totalBroadcasts : -1
+  const nextBroadcast = nextBroadcastIndex !== -1 ? allBroadcasts[nextBroadcastIndex] : null
+
+  // Third order in bundle (for deep stack if 3+ orders)
+  const thirdBroadcastIndex = totalBroadcasts > 2 ? (currentBroadcastIndex + 2) % totalBroadcasts : -1
+  const thirdBroadcast = thirdBroadcastIndex !== -1 ? allBroadcasts[thirdBroadcastIndex] : null
 
   const handleAcceptAllocatedOrder = async (order: FittingBooking) => {
     const assignedStudioId = currentStudioId
     const assignedStudioName = (user?.studioName && user.studioName.trim()) || studioName || (user?.name ? `${user.name}'s Atelier` : 'Partner Atelier')
     const assignedStudioPhone = user?.phone || user?.contact || ''
     const partnerPayout = order.price || order.partnerPayout || 30
+
+    // Immediately mark as accepted so broadcast bar will never re-open for this order
+    setAcceptedOrderIds((prev) => (prev.includes(order.id) ? prev : [...prev, order.id]))
 
     const updates: Partial<FittingBooking> = {
       status: 'Accepted',
@@ -1098,6 +1166,7 @@ export function PartnerFlow({
     setTimerSecs(15)
     setTimerProgress(100)
     setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
+    setAcceptedOrderIds((prev) => (prev.includes(bc.id) ? prev : [...prev, bc.id]))
 
     const studioDisplayName =
       (user?.studioName && user.studioName.trim()) ||
@@ -1134,9 +1203,36 @@ export function PartnerFlow({
       if (exists) {
         return prev.map((o) => (o.id === bc.id ? { ...o, ...promotionUpdates } : o))
       } else if (bc.realOrder) {
-        return [...prev, { ...bc.realOrder, ...promotionUpdates }]
+        return [{ ...bc.realOrder, ...promotionUpdates }, ...prev]
+      } else {
+        const initialOrder: FittingBooking = {
+          id: bc.id,
+          customerName: bc.customerName || 'Valued Customer',
+          customerEmail: 'customer@example.com',
+          customerPhone: '',
+          postcode: bc.customerArea || '',
+          garmentId: 'trousers',
+          garmentName: bc.garmentName || 'Garment Alteration',
+          serviceId: 'tailoring',
+          serviceName: bc.serviceName || 'Custom Fit & Alteration',
+          storeId: currentStudioId,
+          storeName: studioDisplayName,
+          storePhone: studioPhone,
+          date: new Date().toISOString().split('T')[0],
+          timeSlot: '14:00 - 15:00',
+          garmentBrand: bc.garmentBrand || '',
+          fitNotes: bc.notes || bc.fitNotes || '',
+          sewingNotes: '',
+          slaHours: bc.slaHours || 48,
+          partnerPayout: bc.price || bc.partnerPayout || 30,
+          retailSold: false,
+          intakePhotoUrl: bc.imageUrl || '',
+          status: 'Accepted',
+          price: bc.price || bc.partnerPayout || 30,
+          otp: bc.otp || '0000',
+        }
+        return [initialOrder, ...prev]
       }
-      return prev
     })
     setBroadcastToast(`⚡ Order #${bc.id} accepted! Added to workshop queue.`)
     setTimeout(() => setBroadcastToast(null), 5000)
@@ -1146,13 +1242,26 @@ export function PartnerFlow({
       if (!currentStudioId) return
       const res = await respondToDispatch(bc.id, currentStudioId, 'ACCEPT')
       if (res.success) {
+        if (res.order) {
+          setOrders((prev) => {
+            const idx = prev.findIndex((o) => o.id === bc.id)
+            if (idx >= 0) {
+              const copy = [...prev]
+              copy[idx] = { ...copy[idx], ...res.order, status: 'Accepted' }
+              return copy
+            }
+            return [{ ...res.order, status: 'Accepted' }, ...prev]
+          })
+        }
         updateOrder(bc.id, promotionUpdates).catch(() => { })
-        handleRefresh()
       } else {
         if (res.code === 'ORDER_ALREADY_ASSIGNED') {
           setBroadcastToast('Order was accepted by another partner atelier.')
+          setAcceptedOrderIds((prev) => prev.filter((id) => id !== bc.id))
+          setOrders((prev) => prev.filter((o) => o.id !== bc.id))
         } else {
           setBroadcastToast(res.message || 'Unable to accept request.')
+          setAcceptedOrderIds((prev) => prev.filter((id) => id !== bc.id))
         }
         setTimeout(() => setBroadcastToast(null), 4000)
         handleRefresh()
@@ -1163,7 +1272,6 @@ export function PartnerFlow({
     // 2. Database Allocated Order
     if (bc.isRealCustomerOrder && bc.realOrder) {
       await handleAcceptAllocatedOrder(bc.realOrder)
-      handleRefresh()
     }
   }
 
@@ -1174,13 +1282,16 @@ export function PartnerFlow({
     setTimerProgress(100)
     setBroadcastIdx((prev) => prev + 1)
 
+    // Store in permanentlySkippedIds so this studio never sees this order again in this session
+    setPermanentlySkippedIds((prev) => (prev.includes(bc.id) ? prev : [...prev, bc.id]))
+
     if (bc.isDispatchSession && currentStudioId) {
       respondToDispatch(bc.id, currentStudioId, 'SKIP').catch(() => { })
       setPendingDispatches((prev) => prev.filter((p) => p.orderId !== bc.id))
     }
   }
 
-  // Smooth Timestamp-Based Timer (50ms continuous ticker, re-anchored on every stage transition)
+  // Smooth Timestamp-Based Timer (50ms continuous ticker, re-anchored on every broadcast rotation or stage transition)
   useEffect(() => {
     if (!online || !currentBroadcast || !currentBroadcastKey) {
       broadcastExpiryRef.current = null
@@ -1190,39 +1301,29 @@ export function PartnerFlow({
     }
 
     const bKey = currentBroadcastKey
-    const bId = currentBroadcast.id
     const serverRemainingSec =
       typeof currentBroadcast.secondsRemaining === 'number' && currentBroadcast.secondsRemaining > 0
         ? currentBroadcast.secondsRemaining
         : 15
 
-    // Initialize or re-anchor expiry timestamp when broadcast OR stage changes
-    if (!broadcastExpiryRef.current || broadcastExpiryRef.current.key !== bKey) {
-      const remainingMs = Math.max(1000, Math.min(15, serverRemainingSec) * 1000)
-      broadcastExpiryRef.current = {
-        key: bKey,
-        expiresAt: Date.now() + remainingMs,
-        totalDurationMs: 15000,
-      }
-      setTimerProgress(Math.max(0, Math.min(100, (remainingMs / 15000) * 100)))
-      setTimerSecs(Math.ceil(remainingMs / 1000))
+    const remainingMs = Math.max(1000, Math.min(15, serverRemainingSec) * 1000)
+    broadcastExpiryRef.current = {
+      key: bKey,
+      expiresAt: Date.now() + remainingMs,
+      totalDurationMs: 15000,
     }
+    setTimerProgress(Math.max(0, Math.min(100, (remainingMs / 15000) * 100)))
+    setTimerSecs(Math.ceil(remainingMs / 1000))
 
     const interval = setInterval(() => {
-      if (!broadcastExpiryRef.current || broadcastExpiryRef.current.key !== bKey) return
+      if (!broadcastExpiryRef.current) return
 
       const now = Date.now()
       const remainingMs = broadcastExpiryRef.current.expiresAt - now
 
       if (remainingMs <= 0) {
-        // Cycle to next broadcast order in queue and immediately re-anchor
-        setBroadcastIdx((prev) => prev + 1)
-        const nextDurationMs = 15000
-        broadcastExpiryRef.current = {
-          key: bKey,
-          expiresAt: now + nextDurationMs,
-          totalDurationMs: nextDurationMs,
-        }
+        // Cycle to next broadcast order in queue and immediately re-anchor with depth morphism
+        handleMorphNext(1)
         setTimerSecs(15)
         setTimerProgress(100)
       } else {
@@ -1234,7 +1335,7 @@ export function PartnerFlow({
     }, 50)
 
     return () => clearInterval(interval)
-  }, [online, currentBroadcastKey])
+  }, [online, currentBroadcastKey, broadcastIdx])
 
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {
@@ -1764,7 +1865,7 @@ export function PartnerFlow({
 
     // 3. New Booking Requests (Allocated orders awaiting studio confirmation)
     ...orders
-      .filter((o) => o.status === 'Allocated' && !permanentlySkippedIds.includes(o.id))
+      .filter((o) => o.status === 'Allocated' && !permanentlySkippedIds.includes(o.id) && !acceptedOrderIds.includes(o.id))
       .map((o) => ({
         id: `allocated-${o.id}`,
         category: 'dispatch' as const,
@@ -1941,16 +2042,16 @@ export function PartnerFlow({
                 item.id === 'pipeline' ? pendingDropOffs : null
 
             return (
-              <Link
+              <button
+                type="button"
                 key={item.id}
-                href={item.href}
                 onClick={() => {
                   setSidebarOpen(false)
-                  if (onTabChange) onTabChange(item.id)
+                  setActiveTab(item.id)
                 }}
                 title={sidebarCollapsed ? item.label : undefined}
                 className={`
-                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer no-underline
+                  w-full flex items-center gap-3.5 text-[13px] font-semibold rounded-xl transition-all cursor-pointer text-left
                   ${sidebarCollapsed ? 'justify-center p-3' : 'px-4 py-3.5'}
                   ${active
                     ? 'bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white shadow-md shadow-[#9E593B]/25 ring-1 ring-white/15'
@@ -1970,7 +2071,7 @@ export function PartnerFlow({
                     )}
                   </>
                 )}
-              </Link>
+              </button>
             )
           })}
         </nav>
@@ -1978,27 +2079,29 @@ export function PartnerFlow({
         {/* User / Studio Footer */}
         <div className={`p-3.5 border-t border-slate-800/80 space-y-1.5 shrink-0 ${sidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           {sidebarCollapsed ? (
-            <Link
-              href="/settings"
+            <button
+              type="button"
               onClick={() => {
-                if (onTabChange) onTabChange('profile')
+                setSidebarOpen(false)
+                setActiveTab('profile')
               }}
               title={tailorName}
-              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer no-underline"
+              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
             >
               {user?.avatar ? (
                 <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
               ) : (
                 tailorName.charAt(0)
               )}
-            </Link>
+            </button>
           ) : (
-            <Link
-              href="/settings"
+            <button
+              type="button"
               onClick={() => {
-                if (onTabChange) onTabChange('profile')
+                setSidebarOpen(false)
+                setActiveTab('profile')
               }}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors no-underline"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors text-left"
             >
               <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
                 {user?.avatar ? (
@@ -2011,7 +2114,7 @@ export function PartnerFlow({
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
               </div>
-            </Link>
+            </button>
           )}
 
           <button
@@ -2293,97 +2396,158 @@ export function PartnerFlow({
         {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
 
-          {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION ── */}
+          {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION (STACKED BUNDLE SUPPORT) ── */}
           {online && currentBroadcast && currentBroadcastKey ? (
-            <div
-              key={currentBroadcastKey}
-              className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl shadow-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in"
-            >
-              <div className="bg-[#0F1115]/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-[#9E593B]/60 relative overflow-hidden ring-1 ring-white/10">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  {/* Left: Garment Info */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="relative size-14 rounded-xl bg-stone-800 overflow-hidden shrink-0 border border-white/10 shadow-inner">
-                      <img
-                        src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                        alt={currentBroadcast.garmentName || 'Garment'}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.onerror = null
-                          e.currentTarget.src = getDefaultGarmentImage(currentBroadcast.garmentName)
-                        }}
-                      />
-                    </div>
-
-                    <div className="space-y-0.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-[#9E593B] text-white rounded-md shadow-sm">
-                          {currentBroadcast.isRealCustomerOrder ? 'New Alteration Request' : 'Incoming Dispatch'}
-                        </span>
-                        {currentBroadcast.garmentBrand && (
-                          <span className="text-[10px] text-stone-300 bg-white/10 px-1.5 py-0.5 rounded-md">
-                            {currentBroadcast.garmentBrand}
-                          </span>
-                        )}
-                      </div>
-
-                      <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
-
-                      <div className="flex items-center gap-2 text-[11px] text-stone-400">
-                        <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
-                        <span>·</span>
-                        <span>{currentBroadcast.customerArea}</span>
-                        <span>·</span>
-                        <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
-                      </div>
-                      {(() => {
-                        const noteText = getCleanCustomerNote(currentBroadcast.realOrder || currentBroadcast)
-                        if (!noteText) return null
-                        return (
-                          <div className="mt-1 text-[11px] bg-white/10 rounded-md px-2 py-0.5 text-stone-200 flex items-center gap-1.5 max-w-sm truncate">
-                            <FileText size={11} className="text-[#E8A588] shrink-0" />
-                            <span className="truncate">
-                              <strong className="text-white font-semibold">Note:</strong> {noteText}
-                            </span>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Right: Payout + Actions */}
-                  <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
-                    <div className="text-left sm:text-right pr-1">
-                      <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Order Price</span>
-                      <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.price || currentBroadcast.partnerPayout}</div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleSkipBroadcast(currentBroadcast)}
-                        className="px-3.5 py-1.5 rounded-full border border-white/20 hover:bg-white/10 text-xs font-medium text-stone-300 transition-colors cursor-pointer"
-                      >
-                        Skip
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                        className="px-4 py-1.5 rounded-full bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-                      >
-                        <Zap size={13} className="fill-white" />
-                        <span>Accept (${currentBroadcast.price || currentBroadcast.partnerPayout})</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Countdown Progress Bar */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-800/80 overflow-hidden">
+            <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in">
+              <div className="relative">
+                {/* 3rd Stacked Card (Deep glassmorphism background layer - visible when 3+ requests exist) */}
+                {totalBroadcasts > 2 && thirdBroadcast && (
                   <div
-                    className="h-full bg-[#9E593B] transition-[width] duration-75 ease-linear"
-                    style={{ width: `${timerProgress}%` }}
-                  />
+                    onClick={() => handleMorphNext(2)}
+                    className={`absolute -bottom-8 inset-x-6 sm:inset-x-8 h-16 rounded-2xl bg-[#090B10]/75 backdrop-blur-md border border-white/10 shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] -z-20 cursor-pointer opacity-70 hover:opacity-100 hover:-bottom-9 active:scale-[0.99] transition-all duration-200 flex items-end justify-center pb-1 text-[10px] text-stone-300 font-semibold tracking-wide ${
+                      isMorphing ? 'animate-card-morph-recede' : ''
+                    }`}
+                    title={`+${totalBroadcasts - 2} more requests waiting in queue — Click to view`}
+                  >
+                    <span>+{totalBroadcasts - 2} More Request{totalBroadcasts - 2 > 1 ? 's' : ''} Waiting In Stack · Tap to View</span>
+                  </div>
+                )}
+
+                {/* 2nd Stacked Card (Frosted glass layer directly behind front card - clickable back card) */}
+                {totalBroadcasts > 1 && nextBroadcast && (
+                  <div
+                    onClick={() => handleMorphNext(1)}
+                    className={`absolute -bottom-7 inset-x-2.5 sm:inset-x-3 h-20 rounded-2xl bg-[#141720]/80 backdrop-blur-xl border border-white/15 hover:border-[#9E593B]/80 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] -z-10 cursor-pointer hover:-bottom-8 active:scale-[0.99] transition-all duration-200 group flex items-end justify-between px-3.5 sm:px-4 pb-2 ${
+                      isMorphing ? 'animate-card-morph-recede' : ''
+                    }`}
+                    title={`Next Request: ${nextBroadcast.garmentName} — Click to bring to front`}
+                  >
+                    <div className="flex items-center gap-2 sm:gap-2.5 text-[11px] text-stone-300 min-w-0 pr-2">
+                      <span className="relative flex h-2 w-2 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E8A588] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#9E593B]"></span>
+                      </span>
+                      <span className="font-semibold text-white group-hover:text-[#E8A588] transition-colors truncate">
+                        Next: {nextBroadcast.garmentName}
+                      </span>
+                      <span className="text-stone-500 hidden sm:inline">·</span>
+                      <span className="text-stone-300 truncate hidden sm:inline">{nextBroadcast.customerArea}</span>
+                      <span className="text-stone-500">·</span>
+                      <span className="text-emerald-400 font-bold shrink-0">${nextBroadcast.price || nextBroadcast.partnerPayout}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0 bg-white/10 group-hover:bg-[#9E593B] text-[#E8A588] group-hover:text-white backdrop-blur-md border border-white/15 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide transition-all shadow-sm">
+                      <span>Click to View</span>
+                      <span className="text-xs group-hover:translate-x-0.5 transition-transform">↴</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Front / Active Request Card (Luxury Dark Glassmorphism with Depth Morphism Forward) */}
+                <div
+                  className={`bg-[#0F1116]/85 backdrop-blur-2xl text-white rounded-2xl p-4 border border-white/20 ring-1 ring-[#9E593B]/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),inset_0_1px_2px_rgba(255,255,255,0.22),inset_0_0_24px_rgba(158,89,59,0.12)] relative overflow-hidden z-10 transition-all duration-200 ${
+                    isMorphing ? 'animate-card-morph-forward' : ''
+                  }`}
+                >
+                  {/* Subtle Diagonal Glass Sheen Highlight */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.02] via-transparent to-white/[0.08] pointer-events-none rounded-2xl" />
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
+                    {/* Left: Garment Info */}
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="relative size-14 rounded-xl bg-black/40 backdrop-blur-md overflow-hidden shrink-0 border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
+                        <img
+                          src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                          alt={currentBroadcast.garmentName || 'Garment'}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = getDefaultGarmentImage(currentBroadcast.garmentName)
+                          }}
+                        />
+                      </div>
+
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-gradient-to-r from-[#9E593B] to-[#B36846] text-white rounded-md shadow-sm border border-white/20">
+                            {currentBroadcast.isRealCustomerOrder ? 'New Alteration Request' : 'Incoming Dispatch'}
+                          </span>
+
+                          {/* Scalable Compact Order Counter with Glass styling */}
+                          {totalBroadcasts > 1 && (
+                            <span className="text-[10px] text-stone-200 bg-white/10 backdrop-blur-md border border-white/15 px-2 py-0.5 rounded-md font-semibold tracking-wide shadow-xs">
+                              {currentBroadcastIndex + 1} of {totalBroadcasts}
+                            </span>
+                          )}
+
+                          {currentBroadcast.garmentBrand && (
+                            <span className="text-[10px] text-stone-300 bg-white/10 backdrop-blur-md border border-white/10 px-1.5 py-0.5 rounded-md">
+                              {currentBroadcast.garmentBrand}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
+
+                        <div className="flex items-center gap-2 text-[11px] text-stone-400">
+                          <span className="text-stone-300 font-medium">{currentBroadcast.serviceName}</span>
+                          <span>·</span>
+                          <span>{currentBroadcast.customerArea}</span>
+                          <span>·</span>
+                          <span className="text-emerald-400 font-medium">{currentBroadcast.slaHours}h SLA</span>
+                        </div>
+                        {(() => {
+                          const noteText = getCleanCustomerNote(currentBroadcast.realOrder || currentBroadcast)
+                          if (!noteText) return null
+                          return (
+                            <div className="mt-1 text-[11px] bg-white/[0.08] backdrop-blur-md border border-white/10 rounded-md px-2 py-0.5 text-stone-200 flex items-center gap-1.5 max-w-sm truncate shadow-2xs">
+                              <FileText size={11} className="text-[#E8A588] shrink-0" />
+                              <span className="truncate">
+                                <strong className="text-white font-semibold">Note:</strong> {noteText}
+                              </span>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Right: Payout + Actions */}
+                    <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
+                      <div className="text-left sm:text-right pr-1">
+                        <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Order Price</span>
+                        <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.price || currentBroadcast.partnerPayout}</div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSkipBroadcast(currentBroadcast)}
+                          className="px-3.5 py-1.5 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] backdrop-blur-md text-xs font-medium text-stone-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
+                        >
+                          Skip
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                          className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#9E593B] to-[#B36846] hover:from-[#8A4C32] hover:to-[#9E593B] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_4px_16px_rgba(158,89,59,0.45),inset_0_1px_0_rgba(255,255,255,0.25)] border border-white/20 active:scale-95"
+                        >
+                          <Zap size={13} className="fill-white" />
+                          <span>Accept (${currentBroadcast.price || currentBroadcast.partnerPayout})</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Countdown Progress Bar with Glowing Copper Beam */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-stone-900/90 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#9E593B] via-[#E8A588] to-[#9E593B] shadow-[0_0_10px_rgba(232,165,136,0.6)]"
+                      style={{
+                        width: `${timerProgress}%`,
+                        transition: timerProgress >= 98 ? 'none' : 'width 75ms linear'
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
