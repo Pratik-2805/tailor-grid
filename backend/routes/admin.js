@@ -41,7 +41,7 @@ function formatAdminOrder(order) {
     pinnedAdjustment: order.pinnedAdjustment,
     sewingNotes: order.sewingNotes,
     slaHours: order.slaHours,
-    partnerPayout: order.partnerPayout,
+    partnerPayout: order.partnerPayout ?? order.price,
     retailSold: Boolean(order.retailSold),
     retailValue: order.retailValue || 0,
     retailCategory: order.retailCategory || null,
@@ -88,9 +88,9 @@ router.post('/login', async (req, res) => {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: identifier },
+          { email: { equals: identifier, mode: 'insensitive' } },
           { id: identifier },
-          { contact: identifier },
+          { contact: { equals: identifier, mode: 'insensitive' } },
         ],
       },
     });
@@ -212,7 +212,7 @@ router.get('/overview', async (req, res) => {
       prisma.user.count({ where: { role: 'CUSTOMER', status: 'ACTIVE' } }),
     ]);
 
-    // Financial GMV calculation
+    // Financial GMV & Studio Earnings calculation (studios earn 100% actual order value)
     const allOrdersPrice = await prisma.order.aggregate({
       _sum: {
         price: true,
@@ -221,8 +221,8 @@ router.get('/overview', async (req, res) => {
     });
 
     const totalGMV = allOrdersPrice._sum.price || 0;
-    const totalPayouts = allOrdersPrice._sum.partnerPayout || 0;
-    const platformMargin = totalGMV > 0 ? totalGMV - totalPayouts : 0;
+    const totalPayouts = totalGMV;
+    const platformMargin = 0;
 
     // Status breakdown
     const statusCounts = {

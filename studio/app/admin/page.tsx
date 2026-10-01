@@ -66,9 +66,12 @@ import {
 type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
 
 export default function SuperAdminPage() {
-  // Authentication states - initialize as false so login renders immediately without stuck loading screen
+  // Authentication states - initialize authChecking based on whether a token actually exists in localStorage
   const [adminUser, setAdminUser] = useState<any | null>(null)
-  const [authChecking, setAuthChecking] = useState(false)
+  const [authChecking, setAuthChecking] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return Boolean(localStorage.getItem('tg_super_admin_token'))
+  })
 
   // Login form states — NOT PREFETCHED: initialized clean & empty
   const [loginId, setLoginId] = useState('')
@@ -144,40 +147,62 @@ export default function SuperAdminPage() {
 
   // Check persistent session on mount
   useEffect(() => {
+    let isMounted = true
     const token = getAdminToken()
     if (!token) {
       setAuthChecking(false)
       return
     }
 
-    setAuthChecking(true)
     const safetyTimer = setTimeout(() => {
-      setAuthChecking(false)
-    }, 1500)
+      if (isMounted) setAuthChecking(false)
+    }, 2000)
 
     async function initSession() {
       try {
         const user = await checkSuperAdminSession()
-        if (user && user.role === 'ADMIN') {
+        if (isMounted && user && user.role === 'ADMIN') {
           setAdminUser(user)
           loadAllData(true)
         }
       } catch (err) {
         console.warn('Session check notice:', err)
       } finally {
-        setAuthChecking(false)
-        clearTimeout(safetyTimer)
+        if (isMounted) {
+          setAuthChecking(false)
+          clearTimeout(safetyTimer)
+        }
       }
     }
 
     initSession()
-    return () => clearTimeout(safetyTimer)
+    return () => {
+      isMounted = false
+      clearTimeout(safetyTimer)
+    }
   }, [])
 
   // Handle Login submission
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!loginId.trim() || !loginPassword.trim()) {
+
+    // Read directly from DOM elements first (supports browser autofill & password managers on first click)
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const emailVal = (
+      (formData.get('email') as string) ||
+      (form.elements.namedItem('email') as HTMLInputElement)?.value ||
+      loginId ||
+      ''
+    ).trim()
+    const passwordVal = (
+      (formData.get('password') as string) ||
+      (form.elements.namedItem('password') as HTMLInputElement)?.value ||
+      loginPassword ||
+      ''
+    ).trim()
+
+    if (!emailVal || !passwordVal) {
       setLoginError('Please enter both Admin ID and Password.')
       return
     }
@@ -185,16 +210,25 @@ export default function SuperAdminPage() {
     setLoginLoading(true)
     setLoginError(null)
 
-    const res = await loginSuperAdmin(loginId, loginPassword)
-    if (res.success && res.user) {
-      toast.success('Super Admin session authenticated successfully')
-      setAdminUser(res.user)
-      loadAllData()
-    } else {
-      setLoginError(res.error || 'Invalid Super Admin credentials')
-      toast.error(res.error || 'Authentication failed')
+    try {
+      const res = await loginSuperAdmin(emailVal, passwordVal)
+      if (res.success && res.user) {
+        toast.success('Super Admin session authenticated successfully')
+        setAdminUser(res.user)
+        setLoginId(emailVal)
+        setLoginPassword('')
+        // Silent background load of data so UI switches immediately
+        loadAllData(true)
+      } else {
+        setLoginError(res.error || 'Invalid Super Admin credentials')
+        toast.error(res.error || 'Authentication failed')
+      }
+    } catch (err: any) {
+      setLoginError(err.message || 'Login attempt failed')
+      toast.error(err.message || 'Login attempt failed')
+    } finally {
+      setLoginLoading(false)
     }
-    setLoginLoading(false)
   }
 
   const handleLogout = () => {
@@ -534,17 +568,21 @@ export default function SuperAdminPage() {
             )}
 
             {/* Login Form: Clean, NOT pre-fetched */}
-            <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleLoginSubmit} method="POST" className="space-y-4 text-xs">
               <div>
-                <label className="font-bold text-[#1E2229] block mb-1.5">
+                <label htmlFor="admin-email" className="font-bold text-[#1E2229] block mb-1.5">
                   Email or Admin ID
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-3 size-4 text-[#A8A29E] pointer-events-none" />
                   <input
+                    id="admin-email"
+                    name="email"
                     type="text"
                     required
                     autoFocus
+                    autoComplete="username"
+                    autoCapitalize="none"
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value)}
                     placeholder="Enter your email or admin ID"
@@ -554,14 +592,17 @@ export default function SuperAdminPage() {
               </div>
 
               <div>
-                <label className="font-bold text-[#1E2229] block mb-1.5">
+                <label htmlFor="admin-password" className="font-bold text-[#1E2229] block mb-1.5">
                   Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3 size-4 text-[#A8A29E] pointer-events-none" />
                   <input
+                    id="admin-password"
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     required
+                    autoComplete="current-password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Enter your password"
@@ -878,7 +919,7 @@ export default function SuperAdminPage() {
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* Top Stat Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
                   <span className="text-xs font-semibold uppercase tracking-wider">Total Customers</span>
@@ -926,30 +967,15 @@ export default function SuperAdminPage() {
 
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Total Sales</span>
-                  <TrendingUp size={16} className="text-emerald-700" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Earnings</span>
+                  <Scissors size={16} className="text-[#9E593B]" />
                 </div>
                 <div>
                   <span className="text-2xl font-black text-[#1E2229]">
-                    ${overview?.kpis?.totalGMV?.toLocaleString() ?? '0'}
+                    ${(overview?.kpis?.totalGMV ?? overview?.kpis?.totalPayouts ?? orders.reduce((sum, o) => sum + (o.price || 0), 0)).toLocaleString()}
                   </span>
                   <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    Total order value
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Earnings</span>
-                  <Scissors size={16} className="text-amber-700" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    ${overview?.kpis?.totalPayouts?.toLocaleString() ?? '0'}
-                  </span>
-                  <p className="text-[11px] text-amber-800 font-semibold mt-0.5">
-                    Paid to studios
+                    Actual from orders
                   </p>
                 </div>
               </div>
@@ -1536,7 +1562,7 @@ export default function SuperAdminPage() {
                       <th className="py-3 px-4">Customer</th>
                       <th className="py-3 px-4">Service & Garment</th>
                       <th className="py-3 px-4">Assigned Studio</th>
-                      <th className="py-3 px-4">Price / Payout</th>
+                      <th className="py-3 px-4">Price</th>
                       <th className="py-3 px-4">Status</th>
                       <th className="py-3 px-4">Date / Slot</th>
                       <th className="py-3 px-4 text-right">Dispatch Actions</th>
@@ -1577,8 +1603,7 @@ export default function SuperAdminPage() {
                         </td>
 
                         <td className="py-3 px-4">
-                          <span className="font-bold text-[#1E2229] block">${o.price}</span>
-                          <span className="text-[10px] text-amber-800">Payout: ${o.partnerPayout || o.price}</span>
+                          <span className="font-bold text-[#1E2229] text-sm block">${o.price}</span>
                         </td>
 
                         <td className="py-3 px-4">

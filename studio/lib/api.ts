@@ -675,10 +675,11 @@ export async function loginSuperAdmin(idOrEmail: string, password: string): Prom
   error?: string
 }> {
   try {
+    const trimmedIdentifier = idOrEmail.trim()
     const res = await fetch(`${API_BASE}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: idOrEmail.trim(), password }),
+      body: JSON.stringify({ email: trimmedIdentifier, id: trimmedIdentifier, password }),
     })
     const data = await res.json()
     if (!res.ok || !data.success) {
@@ -687,6 +688,12 @@ export async function loginSuperAdmin(idOrEmail: string, password: string): Prom
 
     setAdminToken(data.token)
     setAdminUser(data.user)
+
+    // Synchronize unified auth tokens & cookies so proxy recognizes Admin role across routes
+    setAuthToken(data.token)
+    setAuthRole('ADMIN')
+    setAuthUser(data.user)
+
     return { success: true, token: data.token, user: data.user }
   } catch (err: any) {
     return { success: false, error: err.message || 'Network error during login' }
@@ -712,17 +719,23 @@ export async function checkSuperAdminSession(): Promise<any | null> {
       const data = await res.json()
       if (data.user) {
         setAdminUser(data.user)
+        setAuthRole('ADMIN')
+        setAuthUser(data.user)
         return data.user
       }
     }
-    // Token is invalid/expired
-    removeAdminToken()
-    removeAdminUser()
+    // Token is invalid/expired only if the token in storage hasn't been replaced
+    if (getAdminToken() === token) {
+      removeAdminToken()
+      removeAdminUser()
+    }
     return null
   } catch {
-    // If timeout or network error, clear tokens and return null
-    removeAdminToken()
-    removeAdminUser()
+    // If timeout or network error, only clear if the token hasn't changed
+    if (getAdminToken() === token) {
+      removeAdminToken()
+      removeAdminUser()
+    }
     return null
   }
 }
@@ -730,6 +743,9 @@ export async function checkSuperAdminSession(): Promise<any | null> {
 export function logoutSuperAdmin(): void {
   removeAdminToken()
   removeAdminUser()
+  removeAuthToken()
+  removeAuthRole()
+  removeAuthUser()
 }
 
 
