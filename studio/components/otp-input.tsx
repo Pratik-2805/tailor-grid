@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useRef, useEffect, useState, KeyboardEvent, ClipboardEvent } from 'react'
+import React, { useRef, useEffect, KeyboardEvent, ClipboardEvent } from 'react'
 import { X, Loader2 } from 'lucide-react'
 
 interface OtpInputProps {
@@ -39,22 +39,7 @@ export function OtpVerificationCard({
   error = '',
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const [digits, setDigits] = useState<string[]>(() => {
-    const arr = Array(length).fill('')
-    for (let i = 0; i < Math.min(value.length, length); i++) {
-      arr[i] = value[i]
-    }
-    return arr
-  })
-
-  // Sync internal digits when external value changes
-  useEffect(() => {
-    const arr = Array(length).fill('')
-    for (let i = 0; i < Math.min(value.length, length); i++) {
-      arr[i] = value[i]
-    }
-    setDigits(arr)
-  }, [value, length])
+  const digits = Array.from({ length }, (_, i) => value[i] || '')
 
   // Auto-focus first empty input on mount
   useEffect(() => {
@@ -67,13 +52,10 @@ export function OtpVerificationCard({
 
   const handleChange = (index: number, val: string) => {
     const cleanDigit = val.replace(/\D/g, '').slice(-1)
-    setDigits((prevDigits) => {
-      const newDigits = [...prevDigits]
-      newDigits[index] = cleanDigit
-      const combined = newDigits.join('')
-      onChange(combined)
-      return newDigits
-    })
+    const newDigits = [...digits]
+    newDigits[index] = cleanDigit
+    const combined = newDigits.join('')
+    onChange(combined)
 
     // Advance focus to next input if digit entered
     if (cleanDigit && index < length - 1) {
@@ -83,17 +65,14 @@ export function OtpVerificationCard({
 
   const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace') {
-      setDigits((prevDigits) => {
-        const newDigits = [...prevDigits]
-        if (!newDigits[index] && index > 0) {
-          inputRefs.current[index - 1]?.focus()
-          newDigits[index - 1] = ''
-        } else {
-          newDigits[index] = ''
-        }
-        onChange(newDigits.join(''))
-        return newDigits
-      })
+      const newDigits = [...digits]
+      if (!newDigits[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus()
+        newDigits[index - 1] = ''
+      } else {
+        newDigits[index] = ''
+      }
+      onChange(newDigits.join(''))
     } else if (e.key === 'ArrowLeft' && index > 0) {
       inputRefs.current[index - 1]?.focus()
     } else if (e.key === 'ArrowRight' && index < length - 1) {
@@ -110,11 +89,6 @@ export function OtpVerificationCard({
     const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, length)
     if (!pastedData) return
 
-    const newDigits = Array(length).fill('')
-    for (let i = 0; i < pastedData.length; i++) {
-      newDigits[i] = pastedData[i]
-    }
-    setDigits(newDigits)
     onChange(pastedData)
 
     const focusIndex = Math.min(pastedData.length, length - 1)

@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { ArrowLeft, LogOut, Mail, Phone, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp } from '@/lib/api'
+import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
 import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
 
 type AuthMode =
@@ -59,6 +59,7 @@ export function AuthModal({
 
   const isSendingOtpRef = useRef(false)
   const isSendingLinkOtpRef = useRef(false)
+  const [isSendingOtp, setIsSendingOtp] = useState(false)
   const [resendCountdown, setResendCountdown] = useState(0)
 
   useEffect(() => {
@@ -309,11 +310,29 @@ export function AuthModal({
       return
     }
     isSendingOtpRef.current = true
-    setLoading(true)
+    setIsSendingOtp(true)
     setNotice('')
     try {
+      // 1. Check whether any user with that mobile number exists or not
+      const checkRes = await checkPhoneExists(cPhone.trim(), targetRole || 'CUSTOMER')
+
+      if (checkRes.roleMismatch) {
+        setIsSendingOtp(false)
+        isSendingOtpRef.current = false
+        toast.error(checkRes.error || 'This mobile number is registered under a different role.', { position: 'top-center' })
+        return
+      }
+
+      if (!checkRes.exists) {
+        setIsSendingOtp(false)
+        isSendingOtpRef.current = false
+        toast.error('no account with the entered mobile number . Please register yourself', { position: 'top-center' })
+        return
+      }
+
+      // 2. User exists: send OTP
       const res = await sendOtp(cPhone.trim(), force)
-      setLoading(false)
+      setIsSendingOtp(false)
       setCOtpSent(true)
       setResendCountdown(30)
       if (res.phone) setCPhone(res.phone)
@@ -323,7 +342,7 @@ export function AuthModal({
         toast.success(res.message || `Verification code sent via SMS to ${res.phone || cPhone.trim()}`, { position: 'top-center' })
       }
     } catch (err: any) {
-      setLoading(false)
+      setIsSendingOtp(false)
       const msg = err.message || 'Failed to send verification code.'
       toast.error(msg, { position: 'top-center' })
     } finally {
@@ -333,6 +352,10 @@ export function AuthModal({
 
   const handleVerifyMobileOtp = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!cOtpSent) {
+      toast.warning('Please click Send OTP first to receive your code.', { position: 'top-center' })
+      return
+    }
     if (!cOtp || cOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
       toast.warning(msg, { position: 'top-center' })
@@ -343,8 +366,6 @@ export function AuthModal({
       const res = await verifyOtp({
         phone: cPhone.trim(),
         otp: cOtp.trim(),
-        name: cName || undefined,
-        email: cEmail || undefined,
         role: targetRole || 'CUSTOMER',
       })
       setLoading(false)
@@ -636,6 +657,24 @@ export function AuthModal({
                 </button>
               </div>
 
+              {/* OR Divider & Already signed up option */}
+              <div className="pt-2 space-y-2.5">
+                <Divider />
+                <div className="text-center">
+                  <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setMode('customer-options')
+                    }}
+                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                  >
+                    Sign In →
+                  </button>
+                </div>
+              </div>
+
               <p className="text-center text-[10px] text-[#9CA3AF]">
                 By continuing you agree to our Terms &amp; Privacy Policy.
               </p>
@@ -833,7 +872,7 @@ export function AuthModal({
           )}
 
           {/* ================================================================ */}
-          {/* CUSTOMER – Sign In / Sign Up Options                             */}
+          {/* CUSTOMER – Sign In Options (Google, Mobile, Email)               */}
           {/* ================================================================ */}
           {mode === 'customer-options' && (
             <div className="space-y-4">
@@ -847,7 +886,7 @@ export function AuthModal({
               </div>
 
               <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Continue with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
+                <GoogleButton label="Login with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
 
                 <button
                   type="button"
@@ -855,10 +894,10 @@ export function AuthModal({
                     setNotice('')
                     setMode('customer-mobile')
                   }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
                 >
                   <Phone size={14} className="text-[#9E593B]" />
-                  <span>Continue with Mobile</span>
+                  <span>Login with Mobile Number</span>
                 </button>
 
                 <button
@@ -867,12 +906,16 @@ export function AuthModal({
                     setNotice('')
                     setMode('customer-email')
                   }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
                 >
                   <Mail size={14} className="text-[#9E593B]" />
-                  <span>Continue with Email</span>
+                  <span>Login with Email</span>
                 </button>
               </div>
+
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
+                By continuing you agree to our Terms &amp; Privacy Policy.
+              </p>
             </div>
           )}
 
@@ -883,76 +926,99 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  {cOtpSent ? 'Enter 4-Digit Code' : 'Enter mobile number'}
+                  Login with Mobile
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-0.5">
-                  {cOtpSent
-                    ? `Verification code sent to ${cPhone}`
-                    : 'We will send a 4-digit SMS verification code.'}
+                  Enter your registered mobile number to receive an OTP.
                 </p>
               </div>
 
-              {!cOtpSent ? (
-                <form onSubmit={handleSendMobileOtp} className="space-y-3 pt-1">
-                  <Field label="Your name (optional)" value={cName} onChange={setCName} placeholder="Sarah Jenkins" />
-                  <Field
-                    label="Mobile phone number *"
+              <form onSubmit={handleVerifyMobileOtp} className="space-y-4 pt-1">
+                {/* Mobile Phone Number Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Mobile Phone Number *
+                  </label>
+                  <input
                     type="tel"
                     required
                     value={cPhone}
-                    onChange={(val) => setCPhone(val.replace(/[^\d+ ]/g, ''))}
+                    onChange={(e) => setCPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
                     placeholder="+91 98765 43210"
+                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                   />
-                  <SubmitBtn loading={loading} label="Send Verification Code" />
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyMobileOtp} className="space-y-3 pt-1">
+                  {/* Lower right side Send OTP button / countdown in smaller font */}
+                  <div className="flex justify-end mt-1.5">
+                    <button
+                      type="button"
+                      disabled={isSendingOtp || resendCountdown > 0 || !cPhone.trim()}
+                      onClick={() => handleSendMobileOtp(undefined, cOtpSent)}
+                      className="text-[11px] font-semibold text-[#9E593B] hover:text-[#7A4027] hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed cursor-pointer transition-colors"
+                    >
+                      {isSendingOtp
+                        ? 'Sending OTP...'
+                        : resendCountdown > 0
+                          ? `Resend OTP in ${resendCountdown}s`
+                          : cOtpSent
+                            ? 'Resend OTP'
+                            : 'Send OTP'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* OTP Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Enter OTP *
+                  </label>
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={4}
                     required
-                    autoFocus
                     value={cOtp}
                     onChange={(e) => setCOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
                     placeholder="• • • •"
-                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+                    className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em] transition-colors"
                   />
-                  <SubmitBtn loading={loading} label="Verify & Sign In" />
-                  <div className="flex items-center justify-between text-xs pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setCOtpSent(false)}
-                      className="text-[#7A7E85] hover:text-[#18191B] underline"
-                    >
-                      Change number
-                    </button>
-                    <button
-                      type="button"
-                      disabled={loading || resendCountdown > 0}
-                      onClick={() => handleSendMobileOtp(undefined, true)}
-                      className="text-[#9E593B] font-semibold hover:underline disabled:opacity-50"
-                    >
-                      {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend code'}
-                    </button>
-                  </div>
-                </form>
-              )}
+                </div>
+
+                {/* Verify OTP Button */}
+                <SubmitBtn
+                  loading={loading}
+                  label="Verify OTP"
+                  disabled={!cPhone.trim() || cOtp.length < 4}
+                />
+
+                <div className="text-center pt-1 border-t border-[#F3EFEA]">
+                  <span className="text-xs text-[#7A7E85]">Don't have an account? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setMode('customer-email')
+                    }}
+                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                  >
+                    Register yourself
+                  </button>
+                </div>
+              </form>
             </div>
           )}
 
           {/* ================================================================ */}
-          {/* CUSTOMER – Email Form                                            */}
+          {/* CUSTOMER – Email / Registration Form                             */}
           {/* ================================================================ */}
           {mode === 'customer-email' && (
             <form onSubmit={handleCustomerEmail} className="space-y-3.5">
               <div>
                 <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  Continue with Email
+                  Register / Sign Up
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Connect your email and mobile for order tracking.
+                  Create your account for bespoke fitting passes.
                 </p>
               </div>
 
@@ -964,10 +1030,24 @@ export function AuthModal({
                 required
                 value={cPhone}
                 onChange={setCPhone}
-                placeholder="+44 7700 900077"
+                placeholder="+91 98765 43210"
               />
 
-              <SubmitBtn loading={loading} label="Continue" />
+              <SubmitBtn loading={loading} label="Create Account & Continue" />
+
+              <div className="text-center pt-1 border-t border-[#F3EFEA]">
+                <span className="text-xs text-[#7A7E85]">Already registered? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotice('')
+                    setMode('customer-mobile')
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Login with Mobile
+                </button>
+              </div>
             </form>
           )}
 
@@ -1135,12 +1215,12 @@ function Field({
   )
 }
 
-function SubmitBtn({ loading, label }: { loading: boolean; label: string }) {
+function SubmitBtn({ loading, label, disabled }: { loading: boolean; label: string; disabled?: boolean }) {
   return (
     <button
       type="submit"
-      disabled={loading}
-      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm"
+      disabled={loading || disabled}
+      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
     >
       {loading ? 'Please wait…' : label}
     </button>
