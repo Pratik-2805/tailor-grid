@@ -55,7 +55,6 @@ export function AuthModal({
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const isSendingOtpRef = useRef(false)
@@ -102,7 +101,6 @@ export function AuthModal({
       setPendingUser(null)
     }
     setRegisterStep(1)
-    setError('')
     setNotice('')
     setLoading(false)
     setAvatarError(false)
@@ -116,7 +114,6 @@ export function AuthModal({
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
-      setError('')
       setNotice('')
       return
     }
@@ -135,13 +132,11 @@ export function AuthModal({
   // ── Google OAuth token flow – Studio Partner (redirects to Step 1) ─────────
   const triggerGoogleStudio = () => {
     setLoading(true)
-    setError('')
     setNotice('')
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       setLoading(false)
       const msg = 'Google sign-in service is initializing. Please try again in a moment.'
-      setError(msg)
       toast.info(msg, { position: 'top-center' })
       if (typeof window !== 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         const s = document.createElement('script')
@@ -160,17 +155,14 @@ export function AuthModal({
           if (tokenResponse?.error) {
             setLoading(false)
             if (tokenResponse.error === 'popup_closed' || tokenResponse.error === 'access_denied') {
-              setError('Google sign-in was cancelled.')
               toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             } else {
-              setError(`Google sign-in error: ${tokenResponse.error}`)
               toast.error(`Google sign-in error: ${tokenResponse.error}`, { position: 'top-center' })
             }
             return
           }
           if (!tokenResponse?.access_token) {
             setLoading(false)
-            setError('Google sign-in was cancelled.')
             toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             return
           }
@@ -213,34 +205,30 @@ export function AuthModal({
           } catch (err: any) {
             setLoading(false)
             const msg = err.message || 'Google sign-in failed.'
-            setError(msg)
             toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
           setLoading(false)
           const msg = 'Google sign-in popup was blocked by your browser. Please allow popups for this site.'
-          setError(msg)
           toast.error(msg, { position: 'top-center' })
         },
       })
       tokenClient.requestAccessToken()
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Google sign-in initialization failed.')
+      toast.error(err.message || 'Google sign-in initialization failed.', { position: 'top-center' })
     }
   }
 
   // ── Google OAuth token flow ───────────────────────────────────────────────
   const triggerGoogle = (role: 'CUSTOMER' | 'STUDIO') => {
     setLoading(true)
-    setError('')
     setNotice('')
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       setLoading(false)
       const msg = 'Google sign-in service is initializing. Please try again in a moment.'
-      setError(msg)
       toast.info(msg, { position: 'top-center' })
       if (typeof window !== 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
         const s = document.createElement('script')
@@ -259,17 +247,14 @@ export function AuthModal({
           if (tokenResponse?.error) {
             setLoading(false)
             if (tokenResponse.error === 'popup_closed' || tokenResponse.error === 'access_denied') {
-              setError('Google sign-in was cancelled.')
               toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             } else {
-              setError(`Google sign-in error: ${tokenResponse.error}`)
               toast.error(`Google sign-in error: ${tokenResponse.error}`, { position: 'top-center' })
             }
             return
           }
           if (!tokenResponse?.access_token) {
             setLoading(false)
-            setError('Google sign-in was cancelled.')
             toast.warning('Google sign-in was cancelled.', { position: 'top-center' })
             return
           }
@@ -297,26 +282,19 @@ export function AuthModal({
           } catch (err: any) {
             setLoading(false)
             const msg = err.message || 'Google sign-in failed.'
-            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-              setError('')
-              toast.error(msg, { position: 'top-center' })
-            } else {
-              setError(msg)
-              toast.error(msg, { position: 'top-center' })
-            }
+            toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
           setLoading(false)
           const msg = 'Google sign-in popup was blocked by your browser. Please allow popups for this site.'
-          setError(msg)
           toast.error(msg, { position: 'top-center' })
         },
       })
       tokenClient.requestAccessToken()
     } catch (err: any) {
       setLoading(false)
-      setError(err.message || 'Google sign-in initialization failed.')
+      toast.error(err.message || 'Google sign-in initialization failed.', { position: 'top-center' })
     }
   }
 
@@ -327,13 +305,11 @@ export function AuthModal({
     const cleanedDigits = cPhone.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     isSendingOtpRef.current = true
     setLoading(true)
-    setError('')
     setNotice('')
     try {
       const res = await sendOtp(cPhone.trim(), force)
@@ -349,7 +325,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     } finally {
       isSendingOtpRef.current = false
@@ -360,12 +335,10 @@ export function AuthModal({
     e.preventDefault()
     if (!cOtp || cOtp.length < 4) {
       const msg = 'Please enter the 4-digit verification code.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const res = await verifyOtp({
         phone: cPhone.trim(),
@@ -381,7 +354,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Invalid code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -391,18 +363,15 @@ export function AuthModal({
     e.preventDefault()
     if (!cEmail || !cEmail.includes('@')) {
       const msg = 'Please enter a valid email address.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     if (!cPhone || cPhone.trim().length < 6) {
       const msg = 'Mobile number is required for fitting passes.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const result = await signUpUser({
         name: cName || 'Darzi Member',
@@ -418,7 +387,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Sign up failed.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -430,13 +398,11 @@ export function AuthModal({
     const cleanedDigits = linkPhoneVal.replace(/\D/g, '')
     if (cleanedDigits.length < 10) {
       const msg = 'Please enter a valid 10-digit mobile number with country code (e.g. +91 98765 43210).'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     isSendingLinkOtpRef.current = true
     setLoading(true)
-    setError('')
     try {
       const res = await sendOtp(linkPhoneVal.trim(), force)
       setLoading(false)
@@ -450,7 +416,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to send verification code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     } finally {
       isSendingLinkOtpRef.current = false
@@ -461,12 +426,10 @@ export function AuthModal({
     e.preventDefault()
     if (!linkOtp || linkOtp.length < 4) {
       const msg = 'Please enter the 4-digit code.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
     setLoading(true)
-    setError('')
     try {
       const res = await linkPhone({
         phone: linkPhoneVal.trim(),
@@ -481,7 +444,6 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Failed to verify code.'
-      setError(msg)
       toast.error(msg, { position: 'top-center' })
     }
   }
@@ -492,7 +454,6 @@ export function AuthModal({
     const cleanId = sLoginEmail.trim()
     if (!cleanId) {
       const msg = 'Please enter your registered email or mobile number.'
-      setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
     }
@@ -500,7 +461,6 @@ export function AuthModal({
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRegex.test(cleanId)) {
         const msg = 'Please enter a valid email address (e.g. atelier@domain.com).'
-        setError(msg)
         toast.warning(msg, { position: 'top-center' })
         return
       }
@@ -508,14 +468,12 @@ export function AuthModal({
       const digits = cleanId.replace(/\D/g, '')
       if (digits.length < 8) {
         const msg = 'Please enter a valid mobile number with country code.'
-        setError(msg)
         toast.warning(msg, { position: 'top-center' })
         return
       }
     }
 
     setLoading(true)
-    setError('')
     try {
       const result = await loginUser({ identifier: cleanId, role: 'STUDIO' })
       setLoading(false)
@@ -523,13 +481,7 @@ export function AuthModal({
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Unauthorized user, access denied.'
-      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-        setError('')
-        toast.error(msg, { position: 'top-center' })
-      } else {
-        setError(msg)
-        toast.error(msg, { position: 'top-center' })
-      }
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -546,7 +498,6 @@ export function AuthModal({
       setMode('customer-options')
       setRegisterStep(1)
     }
-    setError('')
     setNotice('')
   }
 
@@ -597,31 +548,8 @@ export function AuthModal({
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* Error Banner */}
-          {error && !error.toLowerCase().includes('unauthorized') && !error.toLowerCase().includes('access denied') && (
-            <div className="rounded-xl bg-red-50 border border-red-300 px-4 py-3.5 text-[15px] sm:text-base text-red-700 font-bold leading-snug shadow-sm animate-in fade-in space-y-2">
-              <div className="flex items-center gap-2.5">
-                <span className="text-lg shrink-0">⚠️</span>
-                <span>{error}</span>
-              </div>
-              {error.includes('Please sign in instead') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setError('')
-                    setNotice('')
-                    setMode(targetRole === 'STUDIO' ? 'studio-options' : 'customer-options')
-                  }}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer ml-7"
-                >
-                  Sign in to this account →
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Subtle Notice Banner */}
-          {notice && !error && (
+          {notice && (
             <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] px-3.5 py-2.5 text-xs text-[#9E593B] font-medium flex items-center justify-between animate-in fade-in">
               <span>{notice}</span>
             </div>
@@ -647,7 +575,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-options')
                   }}
@@ -680,7 +607,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('studio-options')
                   }}
@@ -842,7 +768,6 @@ export function AuthModal({
                         onClick={() => {
                           setLinkOtpSent(false)
                           setLinkOtp('')
-                          setError('')
                           setNotice('')
                         }}
                         className="text-[#9E593B] font-semibold hover:underline"
@@ -927,7 +852,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-mobile')
                   }}
@@ -940,7 +864,6 @@ export function AuthModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setError('')
                     setNotice('')
                     setMode('customer-email')
                   }}
