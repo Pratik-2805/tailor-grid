@@ -6,7 +6,6 @@ import { HeroSection } from './hero-section'
 import { HowItWorksPreview } from './how-it-works-preview'
 import { PartnerBanner } from './partner-banner'
 import { ServiceGrid } from './service-grid'
-import { StudiosPreview } from './studios-preview'
 import { TestimonialsSection } from './testimonials-section'
 import { TrustBar } from './trust-bar'
 import { type Screen, type StoreOption, type User } from './data'
@@ -65,9 +64,6 @@ export function HomeView({
 
       {/* 5. Complete Garment Catalog & Upfront Pricing Matrix */}
       <CatalogSection go={go} onSelectService={onSelectService} />
-
-      {/* 6. Verified Local Studios & Ateliers Network */}
-      <StudiosPreview go={go} onSelectStore={onSelectStore} />
 
 
 

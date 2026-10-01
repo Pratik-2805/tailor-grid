@@ -58,6 +58,7 @@ import {
   searchAdminGlobal,
   loginSuperAdmin,
   checkSuperAdminSession,
+  getAdminToken,
   logoutSuperAdmin,
   CUSTOMER_SITE_URL,
 } from '@/lib/api'
@@ -65,9 +66,9 @@ import {
 type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
 
 export default function SuperAdminPage() {
-  // Authentication states
+  // Authentication states - initialize as false so login renders immediately without stuck loading screen
   const [adminUser, setAdminUser] = useState<any | null>(null)
-  const [authChecking, setAuthChecking] = useState(true)
+  const [authChecking, setAuthChecking] = useState(false)
 
   // Login form states — NOT PREFETCHED: initialized clean & empty
   const [loginId, setLoginId] = useState('')
@@ -143,20 +144,34 @@ export default function SuperAdminPage() {
 
   // Check persistent session on mount
   useEffect(() => {
+    const token = getAdminToken()
+    if (!token) {
+      setAuthChecking(false)
+      return
+    }
+
+    setAuthChecking(true)
+    const safetyTimer = setTimeout(() => {
+      setAuthChecking(false)
+    }, 1500)
+
     async function initSession() {
       try {
         const user = await checkSuperAdminSession()
         if (user && user.role === 'ADMIN') {
           setAdminUser(user)
-          loadAllData()
+          loadAllData(true)
         }
       } catch (err) {
         console.warn('Session check notice:', err)
       } finally {
         setAuthChecking(false)
+        clearTimeout(safetyTimer)
       }
     }
+
     initSession()
+    return () => clearTimeout(safetyTimer)
   }, [])
 
   // Handle Login submission
@@ -451,14 +466,14 @@ export default function SuperAdminPage() {
   }
 
   // ── 1. LOADING SESSION GATE ──
-  if (authChecking) {
+  if (authChecking && !adminUser) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center text-[#1E2229] p-6 font-sans">
         <div className="size-12 rounded-2xl bg-[#9E593B] text-white grid place-items-center mb-4 shadow-sm animate-pulse">
           <ShieldCheck size={24} />
         </div>
         <p className="text-xs font-semibold tracking-wide text-[#78716C]">
-          Verifying Super Admin Authorization Gate...
+          Verifying Super Admin session...
         </p>
       </div>
     )
@@ -476,10 +491,10 @@ export default function SuperAdminPage() {
             </div>
             <div>
               <span className="font-bold text-base tracking-tight text-[#1E2229] block leading-tight">
-                TailorGrid Atelier
+                TailorGrid
               </span>
               <span className="text-[10px] text-[#78716C] font-semibold">
-                Super Admin Master Control
+                Super Admin Portal
               </span>
             </div>
           </div>
@@ -501,13 +516,13 @@ export default function SuperAdminPage() {
                 <Lock size={22} />
               </div>
               <div className="inline-block px-3 py-0.5 rounded-full bg-[#FAF3ED] border border-[#EADBCE] text-[#9E593B] text-[10px] font-extrabold uppercase tracking-widest">
-                Master Security Gate
+                Admin Access
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-[#1E2229]">
                 Super Admin Login
               </h1>
               <p className="text-xs text-[#78716C] max-w-sm mx-auto leading-relaxed">
-                Enter your administrative ID and password to access the platform fleet control console.
+                Enter your admin ID and password to access the dashboard.
               </p>
             </div>
 
@@ -522,7 +537,7 @@ export default function SuperAdminPage() {
             <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="font-bold text-[#1E2229] block mb-1.5">
-                  Super Admin ID / Email
+                  Email or Admin ID
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-3 size-4 text-[#A8A29E] pointer-events-none" />
@@ -532,7 +547,7 @@ export default function SuperAdminPage() {
                     autoFocus
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="e.g. admin_7087@tailorgrid.com"
+                    placeholder="Enter your email or admin ID"
                     className="w-full pl-10 pr-3 py-2.5 bg-white border border-[#E8E1D5] rounded-xl text-[#1E2229] placeholder-[#A8A29E] focus:outline-none focus:ring-2 focus:ring-[#9E593B] focus:border-transparent transition-all font-mono text-xs"
                   />
                 </div>
@@ -540,7 +555,7 @@ export default function SuperAdminPage() {
 
               <div>
                 <label className="font-bold text-[#1E2229] block mb-1.5">
-                  Security Password
+                  Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3.5 top-3 size-4 text-[#A8A29E] pointer-events-none" />
@@ -549,7 +564,7 @@ export default function SuperAdminPage() {
                     required
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="Enter master password"
+                    placeholder="Enter your password"
                     className="w-full pl-10 pr-10 py-2.5 bg-white border border-[#E8E1D5] rounded-xl text-[#1E2229] placeholder-[#A8A29E] focus:outline-none focus:ring-2 focus:ring-[#9E593B] focus:border-transparent transition-all text-xs"
                   />
                   <button
@@ -570,36 +585,22 @@ export default function SuperAdminPage() {
                 {loginLoading ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    <span>Authenticating...</span>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
                     <ShieldCheck size={15} />
-                    <span>Authenticate & Access Console</span>
+                    <span>Sign In to Dashboard</span>
                   </>
                 )}
               </button>
             </form>
-
-            {/* Clean CLI Generator Guidance */}
-            <div className="bg-[#FAF8F5] p-4 rounded-2xl border border-[#E8E1D5] space-y-1.5 text-[11px] text-[#78716C]">
-              <div className="flex items-center gap-1.5 font-bold text-[#1E2229]">
-                <Sparkles size={13} className="text-[#9E593B]" />
-                <span>Need New Super Admin Credentials?</span>
-              </div>
-              <p className="text-[11px] text-[#78716C]">
-                To create a fresh Super Admin with a new secure password, run in your terminal:
-              </p>
-              <div className="p-2 bg-white rounded-lg border border-[#E8E1D5] font-mono text-[10px] text-[#9E593B] font-semibold select-all">
-                npm run admin:create
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Bottom Minimal Footer */}
         <div className="p-6 text-center text-xs text-[#78716C] relative z-10">
-          TailorGrid Operational Master Administration Node • Secure Session Protocol
+          TailorGrid Super Admin • Secure Admin Session
         </div>
 
         <ToastContainer position="top-right" autoClose={3000} theme="light" />
@@ -621,12 +622,12 @@ export default function SuperAdminPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold tracking-tight text-[#1E2229] text-base">TailorGrid</span>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE] tracking-wider">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE]">
                   Super Admin
                 </span>
               </div>
               <p className="text-[11px] text-[#78716C] hidden sm:block">
-                Master Control • Omnichannel Studio & Customer Fleet
+                Manage customers, studios, and orders
               </p>
             </div>
           </div>
@@ -639,7 +640,7 @@ export default function SuperAdminPage() {
                 type="text"
                 value={globalSearchQuery}
                 onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                placeholder="Global search: Customer name, phone, Order ID, Hang Tag, Studio postcode..."
+                placeholder="Search by customer name, phone, order ID, or studio..."
                 className="w-full bg-[#FAF8F5] border border-[#E8E1D5] rounded-full pl-10 pr-9 py-2 text-xs text-[#1E2229] placeholder-[#A8A29E] focus:outline-none focus:ring-2 focus:ring-[#9E593B] focus:border-transparent transition-all"
               />
               {globalSearchQuery && (
@@ -815,7 +816,7 @@ export default function SuperAdminPage() {
             }`}
           >
             <Activity size={14} />
-            <span>Platform Overview</span>
+            <span>Overview</span>
           </button>
 
           <button
@@ -827,7 +828,7 @@ export default function SuperAdminPage() {
             }`}
           >
             <Users size={14} />
-            <span>Customer Master</span>
+            <span>Customers</span>
             <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
               activeTab === 'customers' ? 'bg-white/20 text-white' : 'bg-[#E8E1D5] text-[#1E2229]'
             }`}>
@@ -844,7 +845,7 @@ export default function SuperAdminPage() {
             }`}
           >
             <Store size={14} />
-            <span>Studio Fleet</span>
+            <span>Studios</span>
             <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
               activeTab === 'studios' ? 'bg-white/20 text-white' : 'bg-[#E8E1D5] text-[#1E2229]'
             }`}>
@@ -861,7 +862,7 @@ export default function SuperAdminPage() {
             }`}
           >
             <Layers size={14} />
-            <span>Orders & Dispatch</span>
+            <span>Orders</span>
             <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
               activeTab === 'orders' ? 'bg-white/20 text-white' : 'bg-[#E8E1D5] text-[#1E2229]'
             }`}>
@@ -880,7 +881,7 @@ export default function SuperAdminPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Actual Customers</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Total Customers</span>
                   <Users size={16} className="text-[#9E593B]" />
                 </div>
                 <div>
@@ -888,7 +889,7 @@ export default function SuperAdminPage() {
                     {overview?.kpis?.totalCustomers ?? customers.length}
                   </span>
                   <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                    {overview?.kpis?.activeCustomers ?? customers.length} Active Accounts
+                    {overview?.kpis?.activeCustomers ?? customers.length} Active Customers
                   </p>
                 </div>
               </div>
@@ -903,7 +904,7 @@ export default function SuperAdminPage() {
                     {overview?.kpis?.totalStudios ?? studios.length}
                   </span>
                   <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
-                    {overview?.kpis?.totalCapacity ?? 125} slots/day capacity
+                    {overview?.kpis?.totalCapacity ?? 125} items/day capacity
                   </p>
                 </div>
               </div>
@@ -918,14 +919,14 @@ export default function SuperAdminPage() {
                     {overview?.kpis?.totalOrders ?? orders.length}
                   </span>
                   <p className="text-[11px] text-purple-700 font-semibold mt-0.5">
-                    {overview?.kpis?.activeOrders ?? 0} in active pipeline
+                    {overview?.kpis?.activeOrders ?? 0} active orders
                   </p>
                 </div>
               </div>
 
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Total GMV</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Total Sales</span>
                   <TrendingUp size={16} className="text-emerald-700" />
                 </div>
                 <div>
@@ -933,14 +934,14 @@ export default function SuperAdminPage() {
                     ${overview?.kpis?.totalGMV?.toLocaleString() ?? '0'}
                   </span>
                   <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    Platform Volume
+                    Total order value
                   </p>
                 </div>
               </div>
 
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Partner Payouts</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Earnings</span>
                   <Scissors size={16} className="text-amber-700" />
                 </div>
                 <div>
@@ -948,14 +949,14 @@ export default function SuperAdminPage() {
                     ${overview?.kpis?.totalPayouts?.toLocaleString() ?? '0'}
                   </span>
                   <p className="text-[11px] text-amber-800 font-semibold mt-0.5">
-                    Studio Earnings
+                    Paid to studios
                   </p>
                 </div>
               </div>
 
               <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
                 <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Fleet Load</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Capacity</span>
                   <Activity size={16} className="text-rose-600" />
                 </div>
                 <div>
@@ -963,7 +964,7 @@ export default function SuperAdminPage() {
                     {overview?.kpis?.fleetUtilization ?? 0}%
                   </span>
                   <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    Capacity Utilization
+                    Used today
                   </p>
                 </div>
               </div>
@@ -973,7 +974,7 @@ export default function SuperAdminPage() {
             <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
               <h2 className="text-sm font-bold text-[#1E2229] uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Activity size={16} className="text-[#9E593B]" />
-                Live Order Pipeline by Status
+                Orders by Status
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
@@ -1014,13 +1015,13 @@ export default function SuperAdminPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-sm font-bold text-[#1E2229] tracking-tight flex items-center gap-2">
                     <Clock size={16} className="text-[#9E593B]" />
-                    Recent Live Order Dispatches
+                    Recent Orders
                   </h2>
                   <button
                     onClick={() => setActiveTab('orders')}
                     className="text-xs font-semibold text-[#9E593B] hover:underline"
                   >
-                    View All {orders.length} Orders &rarr;
+                    View all {orders.length} orders &rarr;
                   </button>
                 </div>
 
@@ -1073,9 +1074,9 @@ export default function SuperAdminPage() {
               <div className="space-y-4">
                 <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                    Master Console Quick Ops
+                    Quick Actions
                   </span>
-                  <h3 className="text-base font-bold text-[#1E2229] mt-1 mb-4">Master Administration Actions</h3>
+                  <h3 className="text-base font-bold text-[#1E2229] mt-1 mb-4">Manage Platform</h3>
 
                   <div className="space-y-2.5">
                     <button
@@ -1084,7 +1085,7 @@ export default function SuperAdminPage() {
                     >
                       <span className="flex items-center gap-2">
                         <UserPlus size={15} className="text-[#9E593B]" />
-                        Register New Customer
+                        Add New Customer
                       </span>
                       <Plus size={14} />
                     </button>
@@ -1095,7 +1096,7 @@ export default function SuperAdminPage() {
                     >
                       <span className="flex items-center gap-2">
                         <Store size={15} className="text-blue-600" />
-                        Onboard Partner Studio
+                        Add Partner Studio
                       </span>
                       <Plus size={14} />
                     </button>
@@ -1109,7 +1110,7 @@ export default function SuperAdminPage() {
                     >
                       <span className="flex items-center gap-2">
                         <Scissors size={15} className="text-[#9E593B]" />
-                        Review Unaccepted Orders
+                        Review Pending Orders
                       </span>
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
                         {overview?.statusCounts?.['Allocated'] ?? 0} Pending
@@ -1122,25 +1123,25 @@ export default function SuperAdminPage() {
                 <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
                   <h4 className="text-xs font-bold text-[#1E2229] uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <Shield size={14} className="text-emerald-700" />
-                    Fleet Health & Safety
+                    System Status
                   </h4>
                   <p className="text-xs text-[#78716C] mb-3">
-                    All {studios.length} partner stores are monitored with automated SLA and geolocation tracking.
+                    All {studios.length} partner studios are running normally.
                   </p>
                   <div className="space-y-2 text-xs">
                     <div className="flex items-center justify-between py-1 border-b border-[#E8E1D5]">
-                      <span className="text-[#78716C]">Active Studio Nodes</span>
+                      <span className="text-[#78716C]">Active Studios</span>
                       <strong className="text-emerald-700">{studios.length} Online</strong>
                     </div>
                     <div className="flex items-center justify-between py-1 border-b border-[#E8E1D5]">
-                      <span className="text-[#78716C]">Daily Fleet Capacity</span>
+                      <span className="text-[#78716C]">Total Daily Capacity</span>
                       <strong className="text-[#1E2229]">{overview?.kpis?.totalCapacity || 125} items</strong>
                     </div>
                     <div className="flex items-center justify-between py-1">
-                      <span className="text-[#78716C]">Platform Database</span>
+                      <span className="text-[#78716C]">Database Connection</span>
                       <strong className="text-emerald-700 flex items-center gap-1">
                         <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                        PostgreSQL Active
+                        Connected
                       </strong>
                     </div>
                   </div>
@@ -1353,7 +1354,7 @@ export default function SuperAdminPage() {
                   className="flex items-center gap-1.5 px-4 py-2 bg-[#9E593B] text-white text-xs font-bold rounded-xl hover:bg-[#8A4C32] transition-colors shadow-xs cursor-pointer"
                 >
                   <Plus size={14} />
-                  <span>+ Onboard Studio</span>
+                  <span>+ Add Studio</span>
                 </button>
               </div>
             </div>
@@ -1401,7 +1402,7 @@ export default function SuperAdminPage() {
                     {/* Capacity & Load Bar */}
                     <div className="bg-[#FAF8F5] p-3 rounded-xl border border-[#E8E1D5] mb-3 space-y-1.5">
                       <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-[#78716C]">Active Load:</span>
+                        <span className="text-[#78716C]">Active Orders:</span>
                         <span className="text-[#1E2229]">
                           <strong>{s.activeOrdersCount ?? 0}</strong> / {s.dailyCapacity} max
                         </span>
@@ -2168,13 +2169,13 @@ export default function SuperAdminPage() {
                   ))}
                 </select>
                 <p className="text-[10px] text-[#78716C] mt-1.5">
-                  Re-assigning will automatically update store contacts and transfer the dispatch pipeline.
+                  Re-assigning will transfer this order to the selected partner studio.
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-[#1E2229] block mb-1">Pipeline Status</label>
+                  <label className="font-bold text-[#1E2229] block mb-1">Order Status</label>
                   <select
                     value={editingOrder.status}
                     onChange={(e) => setEditingOrder({ ...editingOrder, status: e.target.value })}

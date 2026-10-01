@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
@@ -20,9 +21,17 @@ interface StudioProxyProps {
  * and automatically redirects them to the customer site (port 3000).
  */
 export function StudioProxy({ children }: StudioProxyProps) {
-  const [isChecking, setIsChecking] = useState(true)
+  const pathname = usePathname()
+  const isAdminRoute = Boolean(pathname?.startsWith('/admin'))
+
+  const [isChecking, setIsChecking] = useState(!isAdminRoute)
   const [isCustomerBlocked, setIsCustomerBlocked] = useState(false)
   const hasRedirectedRef = useRef(false)
+
+  // 0. Super Admin route is completely independent and has its own auth gate
+  if (isAdminRoute) {
+    return <>{children}</>
+  }
 
   const handleCustomerRedirect = (identifier?: string) => {
     if (hasRedirectedRef.current) return

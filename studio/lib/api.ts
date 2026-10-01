@@ -698,9 +698,16 @@ export async function checkSuperAdminSession(): Promise<any | null> {
   if (!token) return null
 
   try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 2500)
+
     const res = await fetch(`${API_BASE}/admin/me`, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+      cache: 'no-store',
     })
+    clearTimeout(timer)
+
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
@@ -713,8 +720,10 @@ export async function checkSuperAdminSession(): Promise<any | null> {
     removeAdminUser()
     return null
   } catch {
-    // If offline/network glitch, fallback to cached user if token exists
-    return getAdminUser()
+    // If timeout or network error, clear tokens and return null
+    removeAdminToken()
+    removeAdminUser()
+    return null
   }
 }
 
