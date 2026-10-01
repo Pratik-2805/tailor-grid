@@ -444,3 +444,284 @@ export async function respondToDispatch(
   }
 }
 
+// ==========================================
+// SUPER ADMIN API METHODS
+// ==========================================
+
+export async function fetchAdminOverview(): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/overview`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch admin overview')
+    return await res.json()
+  } catch (err) {
+    console.error('fetchAdminOverview error:', err)
+    return null
+  }
+}
+
+export async function fetchAdminCustomers(search?: string, status?: string, role: string = 'CUSTOMER'): Promise<any[]> {
+  try {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (status && status !== 'ALL') params.append('status', status)
+    if (role && role !== 'ALL') params.append('role', role)
+    const res = await fetch(`${API_BASE}/admin/customers?${params.toString()}`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch customers')
+    const data = await res.json()
+    return data.customers || []
+  } catch (err) {
+    console.error('fetchAdminCustomers error:', err)
+    return []
+  }
+}
+
+export async function createAdminCustomer(data: any): Promise<{ success: boolean; customer?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/customers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    const resData = await res.json()
+    if (!res.ok) return { success: false, error: resData.error || 'Failed to create customer' }
+    return { success: true, customer: resData.customer }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updateAdminCustomer(id: string, updates: any): Promise<{ success: boolean; customer?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to update customer' }
+    return { success: true, customer: data.customer }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteAdminCustomer(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    return res.ok
+  } catch (err) {
+    return false
+  }
+}
+
+export async function fetchAdminStudios(search?: string, area?: string): Promise<any[]> {
+  try {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (area && area !== 'ALL') params.append('area', area)
+    const res = await fetch(`${API_BASE}/admin/studios?${params.toString()}`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch studios')
+    const data = await res.json()
+    return data.studios || []
+  } catch (err) {
+    console.error('fetchAdminStudios error:', err)
+    return []
+  }
+}
+
+export async function createAdminStudio(studioData: any): Promise<{ success: boolean; studio?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/studios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(studioData),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to create studio' }
+    return { success: true, studio: data.studio }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function updateAdminStudio(id: string, updates: any): Promise<{ success: boolean; studio?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to update studio' }
+    return { success: true, studio: data.studio }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteAdminStudio(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+    return res.ok
+  } catch (err) {
+    return false
+  }
+}
+
+export async function fetchAdminOrders(search?: string, status?: string, storeId?: string): Promise<any[]> {
+  try {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (status && status !== 'ALL') params.append('status', status)
+    if (storeId && storeId !== 'ALL') params.append('storeId', storeId)
+    const res = await fetch(`${API_BASE}/admin/orders?${params.toString()}`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch orders')
+    const data = await res.json()
+    return data.orders || []
+  } catch (err) {
+    console.error('fetchAdminOrders error:', err)
+    return []
+  }
+}
+
+export async function updateAdminOrder(id: string, updates: any): Promise<{ success: boolean; order?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to update order' }
+    return { success: true, order: data.order }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[] }> {
+  try {
+    if (!q || !q.trim()) return { customers: [], studios: [], orders: [] }
+    const res = await fetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' })
+    if (!res.ok) return { customers: [], studios: [], orders: [] }
+    const data = await res.json()
+    return data.results || { customers: [], studios: [], orders: [] }
+  } catch (err) {
+    return { customers: [], studios: [], orders: [] }
+  }
+}
+
+// -------------------------------------------------------------
+// SUPER ADMIN AUTH & SESSION HELPERS
+// -------------------------------------------------------------
+const ADMIN_TOKEN_KEY = 'tg_super_admin_token'
+const ADMIN_USER_KEY = 'tg_super_admin_user'
+
+export function getAdminToken(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return localStorage.getItem(ADMIN_TOKEN_KEY) || null
+  } catch {
+    return null
+  }
+}
+
+export function setAdminToken(token: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(ADMIN_TOKEN_KEY, token)
+  } catch {}
+}
+
+export function removeAdminToken(): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(ADMIN_TOKEN_KEY)
+  } catch {}
+}
+
+export function getAdminUser(): any | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(ADMIN_USER_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+export function setAdminUser(user: any): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(user))
+  } catch {}
+}
+
+export function removeAdminUser(): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(ADMIN_USER_KEY)
+  } catch {}
+}
+
+export async function loginSuperAdmin(idOrEmail: string, password: string): Promise<{
+  success: boolean
+  token?: string
+  user?: any
+  error?: string
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: idOrEmail.trim(), password }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Authentication failed' }
+    }
+
+    setAdminToken(data.token)
+    setAdminUser(data.user)
+    return { success: true, token: data.token, user: data.user }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Network error during login' }
+  }
+}
+
+export async function checkSuperAdminSession(): Promise<any | null> {
+  const token = getAdminToken()
+  if (!token) return null
+
+  try {
+    const res = await fetch(`${API_BASE}/admin/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.user) {
+        setAdminUser(data.user)
+        return data.user
+      }
+    }
+    // Token is invalid/expired
+    removeAdminToken()
+    removeAdminUser()
+    return null
+  } catch {
+    // If offline/network glitch, fallback to cached user if token exists
+    return getAdminUser()
+  }
+}
+
+export function logoutSuperAdmin(): void {
+  removeAdminToken()
+  removeAdminUser()
+}
+
+
+

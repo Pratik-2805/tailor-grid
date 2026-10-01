@@ -46,8 +46,21 @@ export function StudioProxy({ children }: StudioProxyProps) {
 
   const verifyRoleGate = async () => {
     try {
+      // 0. Always allow access to /admin portal routes or ADMIN role
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
+
       const storedRole = getAuthRole()
       const storedUser = getAuthUser<User>()
+
+      if (storedRole === 'ADMIN' || storedUser?.role === 'ADMIN') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
 
       // 1. Fast-path check from stored cookies
       if (storedRole === 'CUSTOMER' || storedUser?.role === 'CUSTOMER') {
@@ -57,6 +70,11 @@ export function StudioProxy({ children }: StudioProxyProps) {
 
       // 2. Server-side token validation
       const remoteUser = await getCurrentUser()
+      if (remoteUser && remoteUser.role === 'ADMIN') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
       if (remoteUser && remoteUser.role === 'CUSTOMER') {
         handleCustomerRedirect(remoteUser.email || remoteUser.phone || 'Customer')
         return
