@@ -650,6 +650,56 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
+// GET /api/auth/check-phone
+router.get('/check-phone', async (req, res) => {
+  try {
+    const { phone, role = 'CUSTOMER' } = req.query;
+    if (!phone) return res.json({ exists: false });
+
+    const phoneValidation = validateAndFormatPhone(phone);
+    if (!phoneValidation.isValid) {
+      return res.status(400).json({ error: phoneValidation.error });
+    }
+
+    const cleanPhone = phoneValidation.formatted;
+    const rawDigits = phone.replace(/\D/g, '');
+
+    // Search user by formatted phone, raw contact, or digits
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: cleanPhone },
+          { contact: cleanPhone },
+          { phone: phone.trim() },
+          { contact: phone.trim() },
+          ...(rawDigits.length >= 10 ? [{ phone: { contains: rawDigits.slice(-10) } }, { contact: { contains: rawDigits.slice(-10) } }] : [])
+        ],
+      },
+    });
+
+    if (existingUser) {
+      if (role && existingUser.role && existingUser.role !== role) {
+        const roleName = existingUser.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+        return res.json({
+          exists: true,
+          user: existingUser,
+          roleMismatch: true,
+          error: `This mobile number is already registered as a ${roleName} account. Please use a different mobile number.`,
+        });
+      }
+      return res.json({
+        exists: true,
+        user: existingUser,
+        phone: cleanPhone,
+      });
+    }
+
+    return res.json({ exists: false, phone: cleanPhone });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // In-memory cache for pending Google signups (as optional fallback)
 const pendingGoogleSignups = new Map();
 

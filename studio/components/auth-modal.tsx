@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, CUSTOMER_SITE_URL } from '@/lib/api'
+import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, checkPhoneExists, CUSTOMER_SITE_URL } from '@/lib/api'
 import { OtpVerificationCard } from './otp-input'
 import { CustomSelect } from './custom-select'
 
@@ -267,6 +267,20 @@ export function AuthModal({
     setLoading(true)
     setError('')
     try {
+      const checkRes = await checkPhoneExists(sPhoneLogin.trim(), 'STUDIO')
+      if (checkRes.roleMismatch) {
+        setLoading(false)
+        isSendingOtpRef.current = false
+        toast.error(checkRes.error || 'This mobile number is registered under a different role.', { position: 'top-center' })
+        return
+      }
+      if (!checkRes.exists) {
+        setLoading(false)
+        isSendingOtpRef.current = false
+        toast.error('no account with the entered mobile number . Please register yourself', { position: 'top-center' })
+        return
+      }
+
       const res = await sendOtp(sPhoneLogin.trim(), force)
       setLoading(false)
       setSOtpSent(true)

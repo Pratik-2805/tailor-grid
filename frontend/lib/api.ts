@@ -640,3 +640,20 @@ export async function fetchNearbyTailors(
   }
 }
 
+// Check if a user with given phone exists in the backend
+export async function checkPhoneExists(
+  phone: string,
+  role: string = 'CUSTOMER'
+): Promise<{ exists: boolean; user?: any; error?: string; roleMismatch?: boolean; phone?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/check-phone?phone=${encodeURIComponent(phone)}&role=${encodeURIComponent(role)}`)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      return { exists: false, error: err.error }
+    }
+    return await res.json()
+  } catch (err) {
+    return { exists: false }
+  }
+}
+
