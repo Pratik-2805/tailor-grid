@@ -111,7 +111,30 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, targetRole, authType, currentUser, mandatoryPhoneRequired])
 
-  const finalizeAuth = (user: UserType, role?: UserType['role']) => {
+  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string) => {
+    const effectiveRole = user.role || role || 'CUSTOMER'
+    const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+
+    if (effectiveRole === 'STUDIO') {
+      if (effectiveToken) {
+        setAuthToken(effectiveToken)
+      }
+      setAuthRole('STUDIO')
+      setAuthUser(user)
+      toast.success(`Welcome back, ${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
+      onClose()
+
+      const targetParam = authCode || effectiveToken
+      if (targetParam) {
+        window.location.href = getStudioUrl('/auth/callback', targetParam)
+      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE') {
+        window.location.href = getStudioUrl('/?step=1')
+      } else {
+        window.location.href = getStudioUrl('/')
+      }
+      return
+    }
+
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
@@ -186,22 +209,7 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              // Close modal and redirect to studio onboarding Step 1
-              onClose()
-              const token = result.token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
-              if (result.token) {
-                setAuthToken(result.token)
-              }
-              setAuthRole('STUDIO')
-              setAuthUser(result.user)
-
-              if (!result.isNewUser && result.user.studioName && result.user.phone) {
-                // Existing verified studio partner — go straight to dashboard
-                window.location.href = getStudioUrl('/', token)
-              } else {
-                // New partner or incomplete registration — direct to Step 1 form!
-                window.location.href = getStudioUrl('/?step=1', token)
-              }
+              finalizeAuth(result.user, result.user.role || 'STUDIO', result.token, result.authCode)
             }
           } catch (err: any) {
             setLoading(false)
@@ -223,7 +231,7 @@ export function AuthModal({
   }
 
   // ── Google OAuth token flow ───────────────────────────────────────────────
-  const triggerGoogle = (role: 'CUSTOMER' | 'STUDIO') => {
+  const triggerGoogle = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER') => {
     setLoading(true)
     setNotice('')
 
@@ -278,7 +286,7 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              finalizeAuth(result.user, result.user.role || role)
+              finalizeAuth(result.user, result.user.role || role, result.token, result.authCode)
             }
           } catch (err: any) {
             setLoading(false)
@@ -314,19 +322,12 @@ export function AuthModal({
     setNotice('')
     try {
       // 1. Check whether any user with that mobile number exists or not
-      const checkRes = await checkPhoneExists(cPhone.trim(), targetRole || 'CUSTOMER')
-
-      if (checkRes.roleMismatch) {
-        setIsSendingOtp(false)
-        isSendingOtpRef.current = false
-        toast.error(checkRes.error || 'This mobile number is registered under a different role.', { position: 'top-center' })
-        return
-      }
+      const checkRes = await checkPhoneExists(cPhone.trim())
 
       if (!checkRes.exists) {
         setIsSendingOtp(false)
         isSendingOtpRef.current = false
-        toast.error('no account with the entered mobile number . Please register yourself', { position: 'top-center' })
+        toast.error('No account found with this mobile number. Please register yourself.', { position: 'top-center' })
         return
       }
 
@@ -366,11 +367,10 @@ export function AuthModal({
       const res = await verifyOtp({
         phone: cPhone.trim(),
         otp: cOtp.trim(),
-        role: targetRole || 'CUSTOMER',
       })
       setLoading(false)
       if (res?.user) {
-        onSuccess(res.user)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
       }
     } catch (err: any) {
       setLoading(false)
@@ -403,7 +403,7 @@ export function AuthModal({
       })
       setLoading(false)
       if (result?.user) {
-        onSuccess(result.user)
+        finalizeAuth(result.user, result.user.role || 'CUSTOMER', result.token, result.authCode)
       }
     } catch (err: any) {
       setLoading(false)
@@ -460,7 +460,7 @@ export function AuthModal({
       setLoading(false)
       if (res?.user) {
         toast.success('Mobile number linked successfully!', { position: 'top-center' })
-        onSuccess(res.user)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
       }
     } catch (err: any) {
       setLoading(false)
@@ -496,12 +496,12 @@ export function AuthModal({
 
     setLoading(true)
     try {
-      const result = await loginUser({ identifier: cleanId, role: 'STUDIO' })
+      const result = await loginUser({ identifier: cleanId })
       setLoading(false)
-      if (result?.user) finalizeAuth(result.user, 'STUDIO')
+      if (result?.user) finalizeAuth(result.user, result.user.role, result.token, result.authCode)
     } catch (err: any) {
       setLoading(false)
-      const msg = err.message || 'Unauthorized user, access denied.'
+      const msg = err.message || 'Login failed.'
       toast.error(msg, { position: 'top-center' })
     }
   }

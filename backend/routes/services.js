@@ -128,14 +128,14 @@ router.get('/stores', async (req, res) => {
       const storeLng = s.lng;
 
       let calculatedDist = 0;
+      let hasDynamicDistance = false;
       if (!isNaN(lat) && !isNaN(lng)) {
-        calculatedDist = calculateDistanceInMiles(lat, lng, storeLat, storeLng);
+        calculatedDist = Number(calculateDistanceInMiles(lat, lng, storeLat, storeLng).toFixed(2));
         // Purely lat/lng filtering: ignore stores beyond radiusMiles
         if (calculatedDist > radiusMiles) {
           continue;
         }
-      } else {
-        calculatedDist = s.distanceMiles || 0;
+        hasDynamicDistance = true;
       }
 
       stores.push({
@@ -144,8 +144,8 @@ router.get('/stores', async (req, res) => {
         area: s.area,
         address: (matchingUser && matchingUser.address) ? matchingUser.address : s.address,
         postcode: (matchingUser && matchingUser.postcode) ? matchingUser.postcode : s.postcode,
-        distance: `${calculatedDist} mi away`,
-        distanceMiles: calculatedDist,
+        distance: hasDynamicDistance ? `${calculatedDist} mi away` : null,
+        distanceMiles: hasDynamicDistance ? calculatedDist : null,
         rating: s.rating || 5.0,
         reviewCount: s.reviewCount || 1,
         openingHours: s.openingHours || 'Mon–Sat: 09:00 – 19:00',
@@ -163,7 +163,7 @@ router.get('/stores', async (req, res) => {
     }
 
     if (!isNaN(lat) && !isNaN(lng)) {
-      stores.sort((a, b) => a.distanceMiles - b.distanceMiles);
+      stores.sort((a, b) => (a.distanceMiles || 0) - (b.distanceMiles || 0));
     }
 
     return res.json({ stores, total: stores.length });
