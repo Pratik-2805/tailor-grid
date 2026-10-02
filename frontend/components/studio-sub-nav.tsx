@@ -9,6 +9,7 @@ import {
 import { type Screen, type User } from './data'
 import { getStudioUrl } from '../lib/api'
 import { getAuthToken, getAuthRole } from '../lib/cookies'
+import { triggerStudioGoogleAuth } from '../lib/google-auth'
 
 interface StudioSubNavProps {
   currentScreen: Screen
@@ -158,8 +159,10 @@ export function StudioSubNav({
                   const role = isClient ? getAuthRole() : null
                   if (role === 'STUDIO') {
                     window.location.href = getStudioUrl('/', getAuthToken())
+                  } else if (onOpenAuth) {
+                    onOpenAuth('STUDIO', 'signup')
                   } else {
-                    window.location.href = getStudioUrl('/?step=1')
+                    go('for-partners')
                   }
                 }}
                 className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-3.5 sm:px-4 py-1.5 text-[12px] sm:text-[12.5px] font-semibold text-white hover:bg-[#9E593B] shadow-xs transition-all whitespace-nowrap cursor-pointer active:scale-95 animate-in fade-in duration-200"
