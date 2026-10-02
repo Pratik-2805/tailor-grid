@@ -197,6 +197,7 @@ export async function signUpUser(data: {
   storeName?: string
   storeArea?: string
   machines?: string
+  specialties?: string[]
   lat?: number
   lng?: number
 }): Promise<{ token: string; user: User; needsPhone?: boolean }> {

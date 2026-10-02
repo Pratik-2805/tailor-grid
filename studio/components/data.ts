@@ -43,6 +43,7 @@ export type StoreOption = {
   address: string
   postcode: string
   phone?: string
+  email?: string
   distance: string
   distanceMiles: number
   rating: number

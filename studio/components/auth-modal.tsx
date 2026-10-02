@@ -472,6 +472,7 @@ export function AuthModal({
         storeName: sName,
         storeArea: sArea,
         machines: sMachines,
+        specialties: sSpecialties,
       })
       setLoading(false)
       if (result?.user) {

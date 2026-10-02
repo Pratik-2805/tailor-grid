@@ -178,6 +178,8 @@ router.post('/stores', async (req, res) => {
   try {
     const {
       name,
+      email,
+      phone,
       area,
       address,
       postcode,
@@ -202,9 +204,11 @@ router.post('/stores', async (req, res) => {
       data: {
         id: storeId,
         name,
+        email: email ? email.trim().toLowerCase() : null,
+        phone: phone ? phone.trim() : null,
         area: area || 'Neighborhood Atelier',
-        address: address || '18 Kensington Church St',
-        postcode: postcode || 'W8 4EP',
+        address: address || (area ? area : 'Studio Address'),
+        postcode: postcode ? postcode.trim().toUpperCase() : '',
         distance: '0.4 mi away',
         distanceMiles: 0.4,
         rating: 5.0,
