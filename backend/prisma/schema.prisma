@@ -85,8 +85,6 @@ model PartnerStore {
   area          String
   address       String
   postcode      String
-  distance      String?
-  distanceMiles Float    @default(0.5)
   rating        Float    @default(4.9)
   reviewCount   Int      @default(100)
   openingHours  String   @default("09:00 - 19:00")
