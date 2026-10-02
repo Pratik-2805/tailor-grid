@@ -283,7 +283,9 @@ export default function SuperAdminPage() {
         (s.name && s.name.toLowerCase().includes(q)) ||
         (s.area && s.area.toLowerCase().includes(q)) ||
         (s.postcode && s.postcode.toLowerCase().includes(q)) ||
-        (s.leadTailor && s.leadTailor.toLowerCase().includes(q))
+        (s.leadTailor && s.leadTailor.toLowerCase().includes(q)) ||
+        (s.phone && s.phone.toLowerCase().includes(q)) ||
+        (s.email && s.email.toLowerCase().includes(q))
       return matchArea && matchSearch
     })
   }, [studios, studioSearch, studioAreaFilter])
@@ -402,6 +404,7 @@ export default function SuperAdminPage() {
         address: editingStudio.address,
         postcode: editingStudio.postcode,
         phone: editingStudio.phone,
+        email: editingStudio.email,
         leadTailor: editingStudio.leadTailor,
         dailyCapacity: editingStudio.dailyCapacity,
         machines: editingStudio.machines,
@@ -433,6 +436,7 @@ export default function SuperAdminPage() {
       address: formData.get('address') as string,
       postcode: formData.get('postcode') as string,
       phone: formData.get('phone') as string,
+      email: formData.get('email') as string,
       leadTailor: formData.get('leadTailor') as string,
       dailyCapacity: parseInt(formData.get('dailyCapacity') as string || '25', 10),
       machines: parseInt(formData.get('machines') as string || '6', 10),
@@ -1258,9 +1262,16 @@ export default function SuperAdminPage() {
                         </td>
 
                         <td className="py-3 px-4">
-                          <span className="font-mono font-medium text-[#1E2229]">
-                            {c.postcode || '—'}
-                          </span>
+                          <div>
+                            <span className="font-mono font-medium text-[#1E2229] block">
+                              {c.postcode || '—'}
+                            </span>
+                            {c.address && (
+                              <span className="text-[10px] text-[#78716C] line-clamp-1 block max-w-[200px]" title={c.address}>
+                                {c.address}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-3 px-4">
@@ -1461,9 +1472,22 @@ export default function SuperAdminPage() {
                     </div>
 
                     <div className="text-[11px] text-[#78716C] space-y-1 mb-2">
-                      <p>Lead Tailor: <strong className="text-[#1E2229]">{s.leadTailor || 'Master Tailor'}</strong></p>
-                      <p>Phone: <strong className="text-[#1E2229]">{s.phone || '—'}</strong></p>
-                      <p>Hours: <strong className="text-[#1E2229]">{s.openingHours || '09:00 - 19:00'}</strong></p>
+                      <p className="flex items-center justify-between">
+                        <span>Lead Tailor:</span>
+                        <strong className="text-[#1E2229] font-semibold">{s.leadTailor || 'Master Tailor'}</strong>
+                      </p>
+                      <p className="flex items-center justify-between">
+                        <span>Phone:</span>
+                        <strong className="text-[#1E2229] font-mono font-semibold">{s.phone || '—'}</strong>
+                      </p>
+                      <p className="flex items-center justify-between">
+                        <span>Email:</span>
+                        <strong className="text-[#1E2229] font-medium truncate max-w-[190px]" title={s.email}>{s.email || '—'}</strong>
+                      </p>
+                      <p className="flex items-center justify-between">
+                        <span>Hours:</span>
+                        <strong className="text-[#1E2229]">{s.openingHours || '09:00 - 19:00'}</strong>
+                      </p>
                     </div>
                   </div>
 
@@ -1960,9 +1984,21 @@ export default function SuperAdminPage() {
                     type="text"
                     value={editingStudio.phone || ''}
                     onChange={(e) => setEditingStudio({ ...editingStudio, phone: e.target.value })}
-                    className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-[#1E2229] block mb-1">Studio Email</label>
+                <input
+                  type="email"
+                  value={editingStudio.email || ''}
+                  onChange={(e) => setEditingStudio({ ...editingStudio, email: e.target.value })}
+                  placeholder="e.g. atelier@darzi.com"
+                  className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -2094,10 +2130,20 @@ export default function SuperAdminPage() {
                   <label className="font-bold text-[#1E2229] block mb-1">Phone</label>
                   <input
                     name="phone"
-                    placeholder="+44 20 7946 0912"
-                    className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
+                    placeholder="e.g. +91 98765 43210"
+                    className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none font-mono"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-[#1E2229] block mb-1">Studio Email</label>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="e.g. atelier@darzi.com"
+                  className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-3">

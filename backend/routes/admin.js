@@ -336,6 +336,8 @@ router.get('/customers', async (req, res) => {
         { name: { contains: q, mode: 'insensitive' } },
         { email: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
+        { contact: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
         { postcode: { contains: q, mode: 'insensitive' } },
       ];
     }
@@ -355,6 +357,9 @@ router.get('/customers', async (req, res) => {
             retailValue: true,
             retailCategory: true,
             storeName: true,
+            customerPhone: true,
+            customerEmail: true,
+            postcode: true,
             date: true,
             createdAt: true,
           },
@@ -379,15 +384,19 @@ router.get('/customers', async (req, res) => {
         }
       }
 
+      const resolvedPhone = c.phone || (c.contact && !c.contact.includes('@') ? c.contact : null) || c.orders.find((o) => o.customerPhone)?.customerPhone || null;
+      const resolvedEmail = c.email || (c.contact && c.contact.includes('@') ? c.contact : null) || c.orders.find((o) => o.customerEmail)?.customerEmail || null;
+      const resolvedPostcode = c.postcode || c.orders.find((o) => o.postcode)?.postcode || null;
+
       return {
         id: c.id,
         name: c.name,
-        email: c.email,
-        phone: c.phone,
+        email: resolvedEmail,
+        phone: resolvedPhone,
         contact: c.contact,
         avatar: c.avatar,
         address: c.address,
-        postcode: c.postcode,
+        postcode: resolvedPostcode,
         method: c.method,
         role: c.role,
         status: c.status,
@@ -553,26 +562,65 @@ router.get('/studios', async (req, res) => {
         { postcode: { contains: q, mode: 'insensitive' } },
         { leadTailor: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
       ];
     }
 
-    const stores = await prisma.partnerStore.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      include: {
-        orders: {
-          select: {
-            id: true,
-            status: true,
-            price: true,
-            partnerPayout: true,
-            createdAt: true,
+    const [stores, studioUsers] = await Promise.all([
+      prisma.partnerStore.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        include: {
+          orders: {
+            select: {
+              id: true,
+              status: true,
+              price: true,
+              partnerPayout: true,
+              createdAt: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.user.findMany({
+        where: { role: 'STUDIO' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          contact: true,
+          studioId: true,
+          studioName: true,
+        },
+      }),
+    ]);
 
     const formatted = stores.map((s) => {
+      // Find matching user for studio to resolve actual phone and email if missing or defaulted
+      const matchedUser = studioUsers.find(
+        (u) => (u.studioId && u.studioId === s.id) ||
+               (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
+               (u.name && s.leadTailor && u.name.toLowerCase() === s.leadTailor.toLowerCase())
+      );
+
+      let actualPhone = s.phone;
+      if (!actualPhone || actualPhone.includes('7946 0912')) {
+        actualPhone = matchedUser?.phone || matchedUser?.contact || (s.phone && !s.phone.includes('7946 0912') ? s.phone : null);
+      }
+      const actualEmail = s.email || matchedUser?.email || (matchedUser?.contact && matchedUser.contact.includes('@') ? matchedUser.contact : null) || null;
+
+      // If store in DB has the dummy number or missing email, heal it in the background
+      if ((s.phone && s.phone.includes('7946 0912') && actualPhone && !actualPhone.includes('7946 0912')) || (!s.email && actualEmail)) {
+        prisma.partnerStore.update({
+          where: { id: s.id },
+          data: {
+            phone: actualPhone,
+            email: actualEmail,
+          },
+        }).catch(() => {});
+      }
+
       const activeOrders = s.orders.filter(
         (o) => !['Collected', 'Closed', 'Cancelled'].includes(o.status)
       );
@@ -591,7 +639,8 @@ router.get('/studios', async (req, res) => {
         area: s.area,
         address: s.address,
         postcode: s.postcode,
-        phone: s.phone,
+        phone: actualPhone,
+        email: actualEmail,
         leadTailor: s.leadTailor,
         dailyCapacity: capacity,
         machines: s.machines,
@@ -633,6 +682,7 @@ router.post('/studios', async (req, res) => {
       address,
       postcode,
       phone,
+      email,
       leadTailor,
       dailyCapacity,
       machines,
@@ -657,7 +707,8 @@ router.post('/studios', async (req, res) => {
         area: area ? area.trim() : (postcode.split(' ')[0] || 'Central'),
         address: address.trim(),
         postcode: postcode.trim().toUpperCase(),
-        phone: phone ? phone.trim() : '+44 20 7946 0912',
+        phone: phone ? phone.trim() : null,
+        email: email ? email.trim().toLowerCase() : null,
         leadTailor: leadTailor ? leadTailor.trim() : 'Master Tailor',
         dailyCapacity: dailyCapacity ? parseInt(dailyCapacity, 10) : 25,
         machines: machines ? parseInt(machines, 10) : 6,
@@ -689,6 +740,7 @@ router.put('/studios/:id', async (req, res) => {
       address,
       postcode,
       phone,
+      email,
       leadTailor,
       dailyCapacity,
       machines,
@@ -705,7 +757,8 @@ router.put('/studios/:id', async (req, res) => {
     if (area !== undefined) data.area = area.trim();
     if (address !== undefined) data.address = address.trim();
     if (postcode !== undefined) data.postcode = postcode.trim().toUpperCase();
-    if (phone !== undefined) data.phone = phone.trim();
+    if (phone !== undefined) data.phone = phone ? phone.trim() : null;
+    if (email !== undefined) data.email = email ? email.trim().toLowerCase() : null;
     if (leadTailor !== undefined) data.leadTailor = leadTailor.trim();
     if (dailyCapacity !== undefined) data.dailyCapacity = parseInt(dailyCapacity, 10);
     if (machines !== undefined) data.machines = parseInt(machines, 10);
@@ -724,6 +777,28 @@ router.put('/studios/:id', async (req, res) => {
       where: { id },
       data,
     });
+
+    // Also sync updated phone / email to linked studio user
+    try {
+      const studioUser = await prisma.user.findFirst({
+        where: {
+          role: 'STUDIO',
+          OR: [{ studioId: id }, { studioName: updated.name }],
+        },
+      });
+      if (studioUser) {
+        const userUpdate = {};
+        if (data.phone) userUpdate.phone = data.phone;
+        if (data.email) userUpdate.email = data.email;
+        if (data.leadTailor) userUpdate.name = data.leadTailor;
+        if (data.name) userUpdate.studioName = data.name;
+        if (Object.keys(userUpdate).length > 0) {
+          await prisma.user.update({ where: { id: studioUser.id }, data: userUpdate });
+        }
+      }
+    } catch (e) {
+      console.warn('Sync studio user error on store update:', e.message);
+    }
 
     return res.json({ success: true, studio: updated });
   } catch (err) {
@@ -913,6 +988,8 @@ router.get('/search', async (req, res) => {
             { area: { contains: query, mode: 'insensitive' } },
             { postcode: { contains: query, mode: 'insensitive' } },
             { leadTailor: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
           ],
         },
         take: 10,
