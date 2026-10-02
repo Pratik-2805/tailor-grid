@@ -158,8 +158,6 @@ async function findOrLinkUser({
             area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
             address: address || '18 Kensington Church St',
             postcode: postcode || 'W8 4EP',
-            distance: '0.4 mi away',
-            distanceMiles: 0.4,
             rating: 5.0,
             reviewCount: 1,
             openingHours: 'Mon–Sat: 09:00 – 19:00',
