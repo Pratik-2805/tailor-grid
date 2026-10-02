@@ -972,10 +972,10 @@ export default function SuperAdminPage() {
                 </div>
                 <div>
                   <span className="text-2xl font-black text-[#1E2229]">
-                    ${(overview?.kpis?.totalGMV ?? overview?.kpis?.totalPayouts ?? orders.reduce((sum, o) => sum + (o.price || 0), 0)).toLocaleString()}
+                    ${(overview?.kpis?.totalEarnings ?? overview?.kpis?.totalPayouts ?? orders.filter(o => ['Work in Progress', 'Ready', 'Collected', 'Closed'].includes(o.status)).reduce((sum, o) => sum + (o.price || 0), 0)).toLocaleString()}
                   </span>
                   <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    Actual from orders
+                    From Work in Progress & onwards
                   </p>
                 </div>
               </div>

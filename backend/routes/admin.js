@@ -212,16 +212,33 @@ router.get('/overview', async (req, res) => {
       prisma.user.count({ where: { role: 'CUSTOMER', status: 'ACTIVE' } }),
     ]);
 
-    // Financial GMV & Studio Earnings calculation (studios earn 100% actual order value)
-    const allOrdersPrice = await prisma.order.aggregate({
-      _sum: {
-        price: true,
-        partnerPayout: true,
-      },
-    });
+    // Financial GMV & Studio Earnings calculation
+    // Orders qualify for Studio Earnings only from 'Work in Progress' onwards (cancellation locked)
+    const EARNINGS_ELIGIBLE_STATUSES = ['Work in Progress', 'Ready', 'Collected', 'Closed'];
 
-    const totalGMV = allOrdersPrice._sum.price || 0;
-    const totalPayouts = totalGMV;
+    const [earnedOrdersAggregate, pendingIntakeAggregate] = await Promise.all([
+      prisma.order.aggregate({
+        where: {
+          status: { in: EARNINGS_ELIGIBLE_STATUSES },
+        },
+        _sum: {
+          price: true,
+          partnerPayout: true,
+        },
+      }),
+      prisma.order.aggregate({
+        where: {
+          status: { in: ['Allocated', 'Accepted', 'Customer Arrived', 'Fitting Completed'] },
+        },
+        _sum: {
+          price: true,
+        },
+      }),
+    ]);
+
+    const totalPayouts = earnedOrdersAggregate._sum.price || 0;
+    const totalGMV = totalPayouts;
+    const pendingIntakeAmount = pendingIntakeAggregate._sum.price || 0;
     const platformMargin = 0;
 
     // Status breakdown
@@ -278,8 +295,10 @@ router.get('/overview', async (req, res) => {
         totalOrders,
         activeOrders: activeOrdersCount,
         totalGMV: Math.round(totalGMV * 100) / 100,
+        totalEarnings: Math.round(totalPayouts * 100) / 100,
         totalPayouts: Math.round(totalPayouts * 100) / 100,
-        platformMargin: Math.round(platformMargin * 100) / 100,
+        pendingIntakeAmount: Math.round(pendingIntakeAmount * 100) / 100,
+        platformMargin: 0,
         totalCapacity,
         totalActiveLoad,
         fleetUtilization,
@@ -344,7 +363,9 @@ router.get('/customers', async (req, res) => {
     });
 
     const formatted = customers.map((c) => {
-      const totalSpend = c.orders.reduce((sum, o) => sum + (o.price || 0), 0);
+      const totalSpend = c.orders
+        .filter((o) => o.status !== 'Cancelled')
+        .reduce((sum, o) => sum + (o.price || 0), 0);
       const activeOrders = c.orders.filter(
         (o) => !['Collected', 'Closed', 'Cancelled'].includes(o.status)
       ).length;
@@ -558,7 +579,9 @@ router.get('/studios', async (req, res) => {
       const completedOrders = s.orders.filter((o) =>
         ['Collected', 'Closed'].includes(o.status)
       );
-      const totalPayoutEarned = s.orders.reduce((sum, o) => sum + (o.partnerPayout || 0), 0);
+      const totalPayoutEarned = s.orders
+        .filter((o) => ['Work in Progress', 'Ready', 'Collected', 'Closed'].includes(o.status))
+        .reduce((sum, o) => sum + (o.partnerPayout || o.price || 0), 0);
       const capacity = s.dailyCapacity || 25;
       const utilization = Math.min(100, Math.round((activeOrders.length / capacity) * 100));
 

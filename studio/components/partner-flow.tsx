@@ -382,8 +382,8 @@ export function renderCustomerFitNotesBanner(rawNotes?: string | null) {
               <span
                 key={key}
                 className={`inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg border shadow-2xs ${isPending
-                    ? 'bg-amber-50/70 border-amber-200 text-amber-900'
-                    : 'bg-white border-[#E3DCD1] text-[#1E2229]'
+                  ? 'bg-amber-50/70 border-amber-200 text-amber-900'
+                  : 'bg-white border-[#E3DCD1] text-[#1E2229]'
                   }`}
               >
                 <span className={`size-1.5 rounded-full shrink-0 ${isPending ? 'bg-amber-500' : 'bg-emerald-500'}`} />
@@ -1801,6 +1801,22 @@ export function PartnerFlow({
   }
 
   // ── Workshop Notifications Generation ──────────────────────────────────────
+  const cleanGarmentTitle = (name?: string) => {
+    if (!name) return 'Garment'
+    return name
+      .replace(/trousers\s*&\s*jeans/i, 'Trousers')
+      .replace(/\s*&\s*jeans/i, '')
+      .trim()
+  }
+
+  const cleanServiceTitle = (service?: string) => {
+    if (!service) return 'Alteration'
+    return service
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/\s*-\s*standard/i, '')
+      .trim()
+  }
+
   interface WorkshopNotificationItem {
     id: string
     category: 'dropoff' | 'dispatch' | 'ready' | 'bench'
@@ -1819,11 +1835,11 @@ export function PartnerFlow({
       .map((o) => ({
         id: `arrived-${o.id}`,
         category: 'dropoff' as const,
-        title: `Customer at Counter: ${o.customerName}`,
-        subtitle: `${o.garmentName} • ${o.serviceName}`,
-        time: 'At Counter Now',
-        badge: 'At Counter',
-        actionLabel: 'Enter Customer OTP',
+        title: `At Counter · ${o.customerName}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · ${cleanServiceTitle(o.serviceName)}`,
+        time: 'Now',
+        badge: 'Counter',
+        actionLabel: 'Enter OTP',
         onAction: () => {
           setReadNotificationIds((prev) => Array.from(new Set([...prev, `arrived-${o.id}`])))
           setPinInput('')
@@ -1844,11 +1860,11 @@ export function PartnerFlow({
       .map((o) => ({
         id: `dropoff-${o.id}`,
         category: 'dropoff' as const,
-        title: `Drop-off: ${o.customerName}`,
-        subtitle: `${o.garmentName} • ${o.serviceName}`,
-        time: o.timeSlot || 'Scheduled Today',
+        title: `Drop-off · ${o.customerName}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · ${cleanServiceTitle(o.serviceName)}`,
+        time: o.timeSlot || 'Today',
         badge: 'Drop-off',
-        actionLabel: 'Enter Customer OTP',
+        actionLabel: 'Enter OTP',
         onAction: () => {
           setReadNotificationIds((prev) => Array.from(new Set([...prev, `dropoff-${o.id}`])))
           setPinInput('')
@@ -1869,11 +1885,11 @@ export function PartnerFlow({
       .map((o) => ({
         id: `allocated-${o.id}`,
         category: 'dispatch' as const,
-        title: `New Booking: ${o.customerName}`,
-        subtitle: `${o.garmentName} • ${o.serviceName} ($${o.price || 35})`,
-        time: 'New Request',
-        badge: 'New Booking',
-        actionLabel: 'Accept Booking',
+        title: `Booking · ${o.customerName}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · ${cleanServiceTitle(o.serviceName)} · $${o.price || 35}`,
+        time: 'New',
+        badge: 'Booking',
+        actionLabel: 'Accept',
         onAction: () => {
           setReadNotificationIds((prev) => Array.from(new Set([...prev, `allocated-${o.id}`])))
           setNotificationOpen(false)
@@ -1886,11 +1902,11 @@ export function PartnerFlow({
     ...dispatchBroadcasts.map((bc) => ({
       id: `dispatch-${bc.id}`,
       category: 'dispatch' as const,
-      title: `Incoming Request #${bc.id}`,
-      subtitle: `${bc.garmentName} • ${bc.serviceName} ($${bc.price || bc.partnerPayout})`,
-      time: bc.secondsRemaining ? `${bc.secondsRemaining}s left` : 'Live Now',
-      badge: 'Live Dispatch',
-      actionLabel: 'Review Request',
+      title: 'New Request',
+      subtitle: `${cleanGarmentTitle(bc.garmentName)} · ${cleanServiceTitle(bc.serviceName)} · $${bc.price || bc.partnerPayout}`,
+      time: bc.secondsRemaining ? `${bc.secondsRemaining}s left` : 'Live',
+      badge: 'Live',
+      actionLabel: 'Review',
       onAction: () => {
         setReadNotificationIds((prev) => Array.from(new Set([...prev, `dispatch-${bc.id}`])))
         setNotificationOpen(false)
@@ -1905,11 +1921,11 @@ export function PartnerFlow({
       .map((o) => ({
         id: `ready-${o.id}`,
         category: 'ready' as const,
-        title: `Ready for Pickup: ${o.customerName}`,
-        subtitle: `${o.garmentName} (${o.hangTagNo || 'Rack A-1'})`,
-        time: 'Ready on Rack',
-        badge: 'Ready',
-        actionLabel: 'Enter Pickup PIN',
+        title: `Ready · ${o.customerName}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · Rack ${o.hangTagNo || 'A-1'}`,
+        time: 'Ready',
+        badge: 'Rack',
+        actionLabel: 'Handover',
         onAction: () => {
           setReadNotificationIds((prev) => Array.from(new Set([...prev, `ready-${o.id}`])))
           setSelectedOrder(o)
@@ -1926,11 +1942,11 @@ export function PartnerFlow({
       .map((o) => ({
         id: `bench-${o.id}`,
         category: 'bench' as const,
-        title: `On Bench: ${o.customerName}`,
-        subtitle: `${o.garmentName} • Tag #${o.hangTagNo || 'A-1'}`,
-        time: 'In Progress',
+        title: `On Bench · ${o.customerName}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · Tag #${o.hangTagNo || 'A-1'}`,
+        time: 'Sewing',
         badge: 'Bench',
-        actionLabel: 'View Specs',
+        actionLabel: 'View',
         onAction: () => {
           setReadNotificationIds((prev) => Array.from(new Set([...prev, `bench-${o.id}`])))
           setSelectedOrder(o)
@@ -2196,8 +2212,8 @@ export function PartnerFlow({
                 type="button"
                 onClick={() => setNotificationOpen(!notificationOpen)}
                 className={`relative size-9 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${notificationOpen
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                    : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-slate-200 shadow-2xs'
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 border-slate-200 shadow-2xs'
                   }`}
                 title="Workshop Notifications & Alerts"
                 aria-label="Workshop Notifications"
@@ -2256,7 +2272,7 @@ export function PartnerFlow({
                     {[
                       { id: 'all', label: 'All', count: visibleNotifications.length, unread: visibleNotifications.filter((n) => !readNotificationIds.includes(n.id)).length },
                       { id: 'dropoff', label: 'Drop-Offs', count: visibleNotifications.filter((n) => n.category === 'dropoff').length, unread: visibleNotifications.filter((n) => n.category === 'dropoff' && !readNotificationIds.includes(n.id)).length },
-                      { id: 'dispatch', label: 'Dispatches', count: visibleNotifications.filter((n) => n.category === 'dispatch').length, unread: visibleNotifications.filter((n) => n.category === 'dispatch' && !readNotificationIds.includes(n.id)).length },
+                      { id: 'dispatch', label: 'Requests', count: visibleNotifications.filter((n) => n.category === 'dispatch').length, unread: visibleNotifications.filter((n) => n.category === 'dispatch' && !readNotificationIds.includes(n.id)).length },
                       { id: 'ready', label: 'Ready', count: visibleNotifications.filter((n) => n.category === 'ready').length, unread: visibleNotifications.filter((n) => n.category === 'ready' && !readNotificationIds.includes(n.id)).length },
                     ].map((tab) => (
                       <button
@@ -2264,8 +2280,8 @@ export function PartnerFlow({
                         type="button"
                         onClick={() => setNotificationTab(tab.id as any)}
                         className={`px-2.5 py-1 rounded-lg font-semibold shrink-0 cursor-pointer transition-all flex items-center gap-1.5 ${notificationTab === tab.id
-                            ? 'bg-slate-900 text-white shadow-2xs'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                          ? 'bg-slate-900 text-white shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                           }`}
                       >
                         <span>{tab.label}</span>
@@ -2299,12 +2315,12 @@ export function PartnerFlow({
                           >
                             <div
                               className={`size-8.5 rounded-xl flex items-center justify-center shrink-0 mt-0.5 shadow-2xs ${item.category === 'dropoff'
-                                  ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
-                                  : item.category === 'dispatch'
-                                    ? 'bg-[#9E593B]/10 text-[#9E593B] border border-[#9E593B]/20'
-                                    : item.category === 'ready'
-                                      ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
-                                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
+                                : item.category === 'dispatch'
+                                  ? 'bg-[#9E593B]/10 text-[#9E593B] border border-[#9E593B]/20'
+                                  : item.category === 'ready'
+                                    ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
                                 }`}
                             >
                               {item.category === 'dropoff' && <Package size={15} />}
@@ -2332,7 +2348,7 @@ export function PartnerFlow({
                                   {item.actionLabel} →
                                 </span>
                                 {item.badge && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/70">
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200/70">
                                     {item.badge}
                                   </span>
                                 )}
@@ -2361,7 +2377,7 @@ export function PartnerFlow({
                         </div>
                         <div className="text-xs font-bold text-slate-800">No Notifications</div>
                         <p className="text-[11px] text-slate-400 max-w-[220px] mx-auto leading-relaxed">
-                          Drop-off arrivals, new dispatch requests, and ready rack pickups will appear here.
+                          All caught up. New requests and drop-offs will appear here.
                         </p>
                       </div>
                     )}
@@ -2404,9 +2420,8 @@ export function PartnerFlow({
                 {totalBroadcasts > 2 && thirdBroadcast && (
                   <div
                     onClick={() => handleMorphNext(2)}
-                    className={`absolute -bottom-8 inset-x-6 sm:inset-x-8 h-16 rounded-2xl bg-[#090B10]/75 backdrop-blur-md border border-white/10 shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] -z-20 cursor-pointer opacity-70 hover:opacity-100 hover:-bottom-9 active:scale-[0.99] transition-all duration-200 flex items-end justify-center pb-1 text-[10px] text-stone-300 font-semibold tracking-wide ${
-                      isMorphing ? 'animate-card-morph-recede' : ''
-                    }`}
+                    className={`absolute -bottom-8 inset-x-6 sm:inset-x-8 h-16 rounded-2xl bg-[#090B10]/75 backdrop-blur-md border border-white/10 shadow-[0_15px_30px_-5px_rgba(0,0,0,0.6)] -z-20 cursor-pointer opacity-70 hover:opacity-100 hover:-bottom-9 active:scale-[0.99] transition-all duration-200 flex items-end justify-center pb-1 text-[10px] text-stone-300 font-semibold tracking-wide ${isMorphing ? 'animate-card-morph-recede' : ''
+                      }`}
                     title={`+${totalBroadcasts - 2} more requests waiting in queue — Click to view`}
                   >
                     <span>+{totalBroadcasts - 2} More Request{totalBroadcasts - 2 > 1 ? 's' : ''} Waiting In Stack · Tap to View</span>
@@ -2417,9 +2432,8 @@ export function PartnerFlow({
                 {totalBroadcasts > 1 && nextBroadcast && (
                   <div
                     onClick={() => handleMorphNext(1)}
-                    className={`absolute -bottom-7 inset-x-2.5 sm:inset-x-3 h-20 rounded-2xl bg-[#141720]/80 backdrop-blur-xl border border-white/15 hover:border-[#9E593B]/80 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] -z-10 cursor-pointer hover:-bottom-8 active:scale-[0.99] transition-all duration-200 group flex items-end justify-between px-3.5 sm:px-4 pb-2 ${
-                      isMorphing ? 'animate-card-morph-recede' : ''
-                    }`}
+                    className={`absolute -bottom-7 inset-x-2.5 sm:inset-x-3 h-20 rounded-2xl bg-[#141720]/80 backdrop-blur-xl border border-white/15 hover:border-[#9E593B]/80 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] -z-10 cursor-pointer hover:-bottom-8 active:scale-[0.99] transition-all duration-200 group flex items-end justify-between px-3.5 sm:px-4 pb-2 ${isMorphing ? 'animate-card-morph-recede' : ''
+                      }`}
                     title={`Next Request: ${nextBroadcast.garmentName} — Click to bring to front`}
                   >
                     <div className="flex items-center gap-2 sm:gap-2.5 text-[11px] text-stone-300 min-w-0 pr-2">
@@ -2445,9 +2459,8 @@ export function PartnerFlow({
 
                 {/* Front / Active Request Card (Luxury Dark Glassmorphism with Depth Morphism Forward) */}
                 <div
-                  className={`bg-[#0F1116]/85 backdrop-blur-2xl text-white rounded-2xl p-4 border border-white/20 ring-1 ring-[#9E593B]/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),inset_0_1px_2px_rgba(255,255,255,0.22),inset_0_0_24px_rgba(158,89,59,0.12)] relative overflow-hidden z-10 transition-all duration-200 ${
-                    isMorphing ? 'animate-card-morph-forward' : ''
-                  }`}
+                  className={`bg-[#0F1116]/85 backdrop-blur-2xl text-white rounded-2xl p-4 border border-white/20 ring-1 ring-[#9E593B]/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),inset_0_1px_2px_rgba(255,255,255,0.22),inset_0_0_24px_rgba(158,89,59,0.12)] relative overflow-hidden z-10 transition-all duration-200 ${isMorphing ? 'animate-card-morph-forward' : ''
+                    }`}
                 >
                   {/* Subtle Diagonal Glass Sheen Highlight */}
                   <div className="absolute inset-0 bg-gradient-to-tr from-white/[0.02] via-transparent to-white/[0.08] pointer-events-none rounded-2xl" />
@@ -2965,8 +2978,8 @@ export function PartnerFlow({
                             onClick={() => handleLookupPin(pinInput)}
                             disabled={pinInput.length === 0}
                             className={`px-5 py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer ${pinInput.length === 4
-                                ? 'bg-slate-900 hover:bg-[#9E593B] text-white active:scale-95 shadow-sm'
-                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                              ? 'bg-slate-900 hover:bg-[#9E593B] text-white active:scale-95 shadow-sm'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                               }`}
                           >
                             <ShieldCheck size={16} />
@@ -3908,11 +3921,10 @@ export function PartnerFlow({
                                 key={tab.key}
                                 type="button"
                                 onClick={() => setPayoutsFilter(tab.key)}
-                                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${
-                                  isSelected
+                                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer text-xs ${isSelected
                                     ? 'bg-white text-[#1E2229] shadow-2xs font-bold'
                                     : 'text-[#6B7280] hover:text-[#1E2229]'
-                                }`}
+                                  }`}
                               >
                                 {tab.label} ({tab.count})
                               </button>
