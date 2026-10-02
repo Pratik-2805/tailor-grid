@@ -23,7 +23,7 @@ interface OtpInputProps {
 
 export function OtpVerificationCard({
   length = 4,
-  value,
+  value = '',
   onChange,
   onVerify,
   onResend,
@@ -39,7 +39,7 @@ export function OtpVerificationCard({
   error = '',
 }: OtpInputProps) {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const digits = Array.from({ length }, (_, i) => value[i] || '')
+  const digits = Array.from({ length }, (_, i) => (value || '')[i] || '')
 
   // Auto-focus first empty input on mount
   useEffect(() => {

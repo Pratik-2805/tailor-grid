@@ -250,17 +250,23 @@ export function UberMapModal({
         mapInstanceRef.current = map
         setIsMapReady(true)
 
-        // Event Listeners for center-pin positioning (WITHOUT reverse geocoding on every move)
+        // Event Listeners for center-pin positioning
         map.addListener('dragstart', () => {
           setIsDragging(true)
+        })
+
+        map.addListener('click', (e: google.maps.MapMouseEvent) => {
+          if (e.latLng) {
+            map.panTo(e.latLng)
+          }
         })
 
         map.addListener('idle', () => {
           setIsDragging(false)
           const center = map.getCenter()
           if (center) {
-            const newLat = typeof center.lat === 'function' ? center.lat() : center.lat
-            const newLng = typeof center.lng === 'function' ? center.lng() : center.lng
+            const newLat = typeof center.lat === 'function' ? center.lat() : Number(center.lat)
+            const newLng = typeof center.lng === 'function' ? center.lng() : Number(center.lng)
             setCoords({ lat: newLat, lng: newLng })
           }
         })
@@ -495,6 +501,17 @@ export function UberMapModal({
     if (isSubmitting) return
     setIsSubmitting(true)
 
+    // ALWAYS read live center directly from Google Map instance to ensure exact pin position
+    let activeLat: number = coords.lat
+    let activeLng: number = coords.lng
+    if (mapInstanceRef.current) {
+      const center = mapInstanceRef.current.getCenter()
+      if (center) {
+        activeLat = typeof center.lat === 'function' ? center.lat() : Number(center.lat)
+        activeLng = typeof center.lng === 'function' ? center.lng() : Number(center.lng)
+      }
+    }
+
     let area = initialArea || 'Neighborhood'
     let streetAddress = initialAddress || ''
     let city = initialCity || ''
@@ -503,7 +520,7 @@ export function UberMapModal({
 
     try {
       // 1. Check local cache
-      const cached = getCachedReverseGeocode(coords.lat, coords.lng)
+      const cached = getCachedReverseGeocode(activeLat, activeLng)
       if (cached) {
         area = cached.locality || cached.city || area
         streetAddress = cached.houseNo ? `${cached.houseNo} ${cached.locality}` : (cached.locality || streetAddress)
@@ -517,7 +534,7 @@ export function UberMapModal({
 
         if (geocoderRef.current) {
           const response = await geocoderRef.current.geocode({
-            location: { lat: coords.lat, lng: coords.lng },
+            location: { lat: activeLat, lng: activeLng },
           })
 
           if (response.results && response.results.length > 0) {
@@ -529,7 +546,7 @@ export function UberMapModal({
               postcode = parsed.postcode
               fullAddress = parsed.fullAddress
 
-              setCachedReverseGeocode(coords.lat, coords.lng, {
+              setCachedReverseGeocode(activeLat, activeLng, {
                 houseNo: '',
                 apartment: '',
                 locality: parsed.area,
@@ -550,8 +567,8 @@ export function UberMapModal({
       postcode: postcode,
       streetAddress: streetAddress || fullAddress || area,
       city: city,
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: activeLat,
+      lng: activeLng,
       fullAddress: fullAddress || `${streetAddress}, ${area}`,
     })
 
