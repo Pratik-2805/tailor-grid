@@ -82,6 +82,7 @@ model AlterationService {
 model PartnerStore {
   id            String   @id
   name          String
+  email         String?
   area          String
   address       String
   postcode      String
@@ -93,7 +94,7 @@ model PartnerStore {
   workers       Int      @default(4)
   leadTailor    String
   specialties   String[]
-  phone         String?  @default("+44 20 7946 0912")
+  phone         String?
   retailSold    Boolean  @default(true)
   lat           Float
   lng           Float
@@ -104,6 +105,8 @@ model PartnerStore {
 
   @@index([area])
   @@index([postcode])
+  @@index([email])
+  @@index([phone])
   @@map("partner_stores")
 }
 

@@ -21,15 +21,15 @@ export default function PartnerOnboardingPage() {
     const cachedUser = getAuthUser<any>()
     const isCustomer = role === 'CUSTOMER' || cachedUser?.role === 'CUSTOMER'
 
-    setTimeout(() => {
-      if (isCustomer) {
-        router.replace('/book')
-      } else if (role === 'STUDIO') {
-        window.location.href = getStudioUrl('/', token)
-      } else {
-        window.location.href = getStudioUrl('/?step=1')
-      }
-    }, 600)
+      setTimeout(() => {
+        if (isCustomer) {
+          router.replace('/book')
+        } else if (role === 'STUDIO') {
+          window.location.href = getStudioUrl('/', token)
+        } else {
+          router.replace('/for-partners')
+        }
+      }, 600)
   }, [router])
 
   return (

@@ -39,27 +39,28 @@ export function StudioProxy({ children }: StudioProxyProps) {
     setIsCustomerBlocked(true)
     setIsChecking(false)
 
-    toast.error('Unauthorized access, redirecting to user portal.', {
-      position: 'top-center',
-      autoClose: 2500,
-      toastId: 'unauthorized-customer-redirect',
-    })
-
-    // Smooth redirect after toast notification
-    setTimeout(() => {
-      if (typeof window !== 'undefined') {
-        window.location.href = CUSTOMER_SITE_URL
-      }
-    }, 1800)
+    if (typeof window !== 'undefined') {
+      window.location.replace(CUSTOMER_SITE_URL)
+    }
   }
 
   const verifyRoleGate = async () => {
     try {
-      // 0. Always allow access to /admin portal routes or ADMIN role
-      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
-        setIsChecking(false)
-        setIsCustomerBlocked(false)
-        return
+      if (typeof window !== 'undefined') {
+        const path = window.location.pathname
+        // 0. Always allow access to /admin portal routes or /auth/callback
+        if (path.startsWith('/admin') || path.startsWith('/auth/callback')) {
+          setIsChecking(false)
+          setIsCustomerBlocked(false)
+          return
+        }
+
+        // If URL has authorization code or token, forward immediately to callback
+        const params = new URLSearchParams(window.location.search)
+        if (params.has('code') || params.has('token')) {
+          window.location.replace('/auth/callback' + window.location.search)
+          return
+        }
       }
 
       const storedRole = getAuthRole()
@@ -84,17 +85,17 @@ export function StudioProxy({ children }: StudioProxyProps) {
         setIsCustomerBlocked(false)
         return
       }
-      if (remoteUser && remoteUser.role === 'CUSTOMER') {
-        handleCustomerRedirect(remoteUser.email || remoteUser.phone || 'Customer')
+      if (remoteUser && remoteUser.role === 'STUDIO') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
         return
       }
 
-      setIsCustomerBlocked(false)
+      // If user is not authenticated or not STUDIO, redirect to main portal
+      handleCustomerRedirect(remoteUser?.email || remoteUser?.phone || 'Unauthenticated')
     } catch (err) {
       console.warn('[StudioProxy] Verification note:', err)
-      setIsCustomerBlocked(false)
-    } finally {
-      setIsChecking(false)
+      handleCustomerRedirect('Unauthenticated')
     }
   }
 

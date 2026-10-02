@@ -106,13 +106,12 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               )}
             </div>
           ) : (
-            <button
-              onClick={() => onOpenAuth?.('signin')}
-              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0 cursor-pointer"
+            <a
+              href={customerSiteUrl}
+              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
             >
-              <UserIcon size={14} className="shrink-0" />
-              <span>Sign In / Up</span>
-            </button>
+              <span>Return to Customer Site</span>
+            </a>
           )}
         </div>
 

@@ -610,6 +610,7 @@ router.post('/studios', async (req, res) => {
       address,
       postcode,
       phone,
+      email,
       leadTailor,
       dailyCapacity,
       machines,
@@ -631,10 +632,11 @@ router.post('/studios', async (req, res) => {
       data: {
         id: uniqueId,
         name: name.trim(),
+        email: email ? email.trim().toLowerCase() : null,
         area: area ? area.trim() : (postcode.split(' ')[0] || 'Central'),
         address: address.trim(),
         postcode: postcode.trim().toUpperCase(),
-        phone: phone ? phone.trim() : '+44 20 7946 0912',
+        phone: phone ? phone.trim() : null,
         leadTailor: leadTailor ? leadTailor.trim() : 'Master Tailor',
         dailyCapacity: dailyCapacity ? parseInt(dailyCapacity, 10) : 25,
         machines: machines ? parseInt(machines, 10) : 6,
@@ -666,6 +668,7 @@ router.put('/studios/:id', async (req, res) => {
       address,
       postcode,
       phone,
+      email,
       leadTailor,
       dailyCapacity,
       machines,
@@ -679,10 +682,11 @@ router.put('/studios/:id', async (req, res) => {
 
     const data = {};
     if (name !== undefined) data.name = name.trim();
+    if (email !== undefined) data.email = email ? email.trim().toLowerCase() : null;
     if (area !== undefined) data.area = area.trim();
     if (address !== undefined) data.address = address.trim();
     if (postcode !== undefined) data.postcode = postcode.trim().toUpperCase();
-    if (phone !== undefined) data.phone = phone.trim();
+    if (phone !== undefined) data.phone = phone ? phone.trim() : null;
     if (leadTailor !== undefined) data.leadTailor = leadTailor.trim();
     if (dailyCapacity !== undefined) data.dailyCapacity = parseInt(dailyCapacity, 10);
     if (machines !== undefined) data.machines = parseInt(machines, 10);
