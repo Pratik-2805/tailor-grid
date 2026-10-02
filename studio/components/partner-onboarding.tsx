@@ -23,6 +23,7 @@ import {
   verifyOtp,
   checkEmailExists,
   CUSTOMER_SITE_URL,
+  getCustomerSiteUrl,
 } from '@/lib/api'
 import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, getAuthUser } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
@@ -528,15 +529,25 @@ export function PartnerOnboarding({
 
             setAuthLoading(false)
 
-            // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
-            if (!result.isNewUser && result.user && result.user.status === 'ACTIVE' && result.user.studioName && result.user.phone) {
-              if (result.user.role && result.user.role !== 'STUDIO') {
-                setError('This Google account is registered as a Customer. Please use a Studio partner account.')
+            // If customer account -> redirect to customer site directly
+            if (result.user && result.user.role === 'CUSTOMER') {
+              if (typeof window !== 'undefined') {
+                setAuthRole('CUSTOMER')
+                if (result.token) setAuthToken(result.token)
+                setAuthUser(result.user)
+                toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
+                const targetParam = result.authCode || result.token
+                window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
                 return
               }
+            }
+
+            // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
+            if (!result.isNewUser && result.user && result.user.status === 'ACTIVE' && result.user.studioName && result.user.phone) {
               if (typeof window !== 'undefined') {
                 setAuthRole('STUDIO')
                 if (result.token) setAuthToken(result.token)
+                setAuthUser(result.user)
                 window.location.href = '/'
                 return
               }
@@ -686,9 +697,21 @@ export function PartnerOnboarding({
       }
 
       if (res?.user) {
+        if (res.user.role === 'CUSTOMER') {
+          if (typeof window !== 'undefined') {
+            setAuthRole('CUSTOMER')
+            if (res.token) setAuthToken(res.token)
+            setAuthUser(res.user)
+            toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
+            const targetParam = res.authCode || res.token
+            window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
+            return
+          }
+        }
         if (typeof window !== 'undefined') {
           setAuthRole('STUDIO')
           if (res.token) setAuthToken(res.token)
+          setAuthUser(res.user)
         }
         toast.success(`Authenticated as ${res.user.name || 'Studio Partner'}!`, {
           position: 'top-center',
@@ -798,9 +821,21 @@ export function PartnerOnboarding({
         const res = await loginUser({ identifier: cleanEmail, role: 'STUDIO' })
         setAuthLoading(false)
         if (res?.user) {
+          if (res.user.role === 'CUSTOMER') {
+            if (typeof window !== 'undefined') {
+              setAuthRole('CUSTOMER')
+              if (res.token) setAuthToken(res.token)
+              setAuthUser(res.user)
+              toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
+              const targetParam = res.authCode || res.token
+              window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
+              return
+            }
+          }
           if (typeof window !== 'undefined') {
             setAuthRole('STUDIO')
             if (res.token) setAuthToken(res.token)
+            setAuthUser(res.user)
             window.location.href = '/'
           }
         }

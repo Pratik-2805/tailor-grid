@@ -19,10 +19,48 @@ export const CUSTOMER_SITE_URL =
   process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
   (process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT}` : 'http://localhost:3000')
 
-export function getCustomerSiteUrl(path: string = ''): string {
+export function getCustomerSiteUrl(path: string = '', tokenOrCode?: string | null): string {
   const base = CUSTOMER_SITE_URL.replace(/\/$/, '')
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
-  return `${base}${cleanPath}`
+  const url = `${base}${cleanPath}`
+  
+  if (tokenOrCode) {
+    const separator = url.includes('?') ? '&' : '?'
+    const paramName = tokenOrCode.startsWith('ac_') ? 'code' : 'token'
+    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCode)}`
+  }
+  return url
+}
+
+export async function exchangeAuthCode(code: string): Promise<{
+  success: boolean
+  token: string
+  user: User
+  role: string
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to exchange authorization code')
+    }
+    const data = await res.json()
+    if (data.token) {
+      clearUnnecessaryDataOnLogin()
+      setAuthToken(data.token)
+      if (data.user) {
+        setAuthUser(data.user)
+        setAuthRole(data.user.role || data.role || 'STUDIO')
+      }
+    }
+    return data
+  } catch (err: any) {
+    throw err
+  }
 }
 
 export async function logoutUser(): Promise<void> {
@@ -34,6 +72,7 @@ export async function logoutUser(): Promise<void> {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      body: JSON.stringify({}),
     })
   } catch (err) {
     console.warn('Backend studio logout request notice:', err)
@@ -71,6 +110,7 @@ export async function verifyOtp(params: {
   role?: 'CUSTOMER' | 'STUDIO'
 }): Promise<{
   token?: string
+  authCode?: string
   user?: User
   hasPhone?: boolean
   isNewUser?: boolean
@@ -81,7 +121,7 @@ export async function verifyOtp(params: {
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, role: 'STUDIO' }),
+      body: JSON.stringify(params),
     })
 
     if (!res.ok) {
@@ -95,7 +135,7 @@ export async function verifyOtp(params: {
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
-        setAuthRole('STUDIO')
+        setAuthRole(data.user.role || 'STUDIO')
       }
     }
     return data
@@ -108,7 +148,7 @@ export async function linkPhone(params: {
   phone: string
   otp?: string
   userId?: string
-}): Promise<{ success: boolean; user: User; token: string; hasPhone: boolean }> {
+}): Promise<{ success: boolean; user: User; token: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
@@ -146,12 +186,12 @@ export async function loginWithGoogle(params: {
   profile?: Partial<User>
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
   isSignup?: boolean
-}): Promise<{ token?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
+}): Promise<{ token?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...params, role: 'STUDIO' }),
+      body: JSON.stringify(params),
     })
 
     if (!res.ok) {
@@ -165,7 +205,7 @@ export async function loginWithGoogle(params: {
       setAuthToken(data.token)
       if (data.user) {
         setAuthUser(data.user)
-        setAuthRole('STUDIO')
+        setAuthRole(data.user.role || 'STUDIO')
       }
     }
     return data
@@ -199,7 +239,7 @@ export async function signUpUser(data: {
   machines?: string
   lat?: number
   lng?: number
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
@@ -222,7 +262,7 @@ export async function signUpUser(data: {
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)
-        setAuthRole('STUDIO')
+        setAuthRole(result.user.role || 'STUDIO')
       }
     }
     return result
@@ -236,12 +276,12 @@ export async function loginUser(data: {
   phone?: string
   identifier?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, role: 'STUDIO' }),
+      body: JSON.stringify(data),
     })
 
     if (!res.ok) {
@@ -255,7 +295,7 @@ export async function loginUser(data: {
       setAuthToken(result.token)
       if (result.user) {
         setAuthUser(result.user)
-        setAuthRole('STUDIO')
+        setAuthRole(result.user.role || 'STUDIO')
       }
     }
     return result
