@@ -9,11 +9,7 @@ import {
   X,
   AlertTriangle,
   Check,
-  Plus,
-  Minus,
   Loader2,
-  Navigation,
-  Layers,
 } from 'lucide-react'
 import {
   getCachedReverseGeocode,
@@ -47,52 +43,47 @@ interface GoogleMapModalProps {
 const GOOGLE_MAPS_API_KEY =
   process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
 
-// High-contrast, sharp building outlines and architectural clarity
-const ENHANCED_BUILDING_STYLES: google.maps.MapTypeStyle[] = [
+// Crisp, high-contrast, beautiful Google Maps styling matching the Customer site
+const CLEAN_CHOOSING_MAP_STYLES: google.maps.MapTypeStyle[] = [
   {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#DFDBD3' }],
+    featureType: 'all',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
   },
   {
-    featureType: 'landscape.man_made',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#A39D90' }, { weight: 1.2 }],
+    featureType: 'all',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#111827' }],
+  },
+  {
+    featureType: 'all',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#ffffff' }, { weight: 3 }],
+  },
+  {
+    featureType: 'poi',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
   },
   {
     featureType: 'road',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#FFFFFF' }],
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
   },
   {
     featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#D5D2C9' }, { weight: 1 }],
+    elementType: 'geometry',
+    stylers: [{ visibility: 'on' }, { lightness: 10 }],
   },
   {
-    featureType: 'road.highway',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#FFE082' }],
+    featureType: 'administrative',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
   },
   {
-    featureType: 'road.highway',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#F5C84C' }],
-  },
-  {
-    featureType: 'landscape.natural',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#F4F2EC' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#D5EDD0' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry.fill',
-    stylers: [{ color: '#C5DCF2' }],
+    featureType: 'transit',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
   },
 ]
 
@@ -111,13 +102,13 @@ export function UberMapModal({
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const geocoderRef = useRef<google.maps.Geocoder | null>(null)
   const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
 
   // Coordinates & Map State (Use provided initial coordinates or Mumbai fallback)
   const [coords, setCoords] = useState<{ lat: number; lng: number }>(() => ({
     lat: initialLat && !isNaN(initialLat) ? initialLat : 19.076,
     lng: initialLng && !isNaN(initialLng) ? initialLng : 72.8777,
   }))
-  const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap')
   const [isMapReady, setIsMapReady] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
@@ -150,6 +141,8 @@ export function UberMapModal({
       }
       setIsSubmitting(false)
       setIsDragging(false)
+      setShowDropdown(false)
+      setSearchQuery('')
     }
   }, [isOpen, initialLat, initialLng])
 
@@ -239,7 +232,7 @@ export function UberMapModal({
         const map = new Map(mapContainerRef.current, {
           center: initialCenter,
           zoom: 17,
-          styles: ENHANCED_BUILDING_STYLES,
+          styles: CLEAN_CHOOSING_MAP_STYLES,
           disableDefaultUI: true,
           gestureHandling: 'greedy',
           clickableIcons: true,
@@ -348,7 +341,7 @@ export function UberMapModal({
     searchDebounceTimerRef.current = setTimeout(async () => {
       const sessionToken = getOrCreatePlacesSessionToken()
 
-      // 1. Modern Google Maps Places AutocompleteSuggestion API (Recommended Places API)
+      // 1. Modern Google Maps Places AutocompleteSuggestion API
       if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
         try {
           const req: any = {
@@ -384,7 +377,7 @@ export function UberMapModal({
         }
       }
 
-      // 2. Fallback to AutocompleteService if AutocompleteSuggestion is not supported
+      // 2. Fallback to AutocompleteService
       if (!autocompleteServiceRef.current && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
         try {
           autocompleteServiceRef.current = new google.maps.places.AutocompleteService()
@@ -438,6 +431,7 @@ export function UberMapModal({
     description: string
     placeId: string
     primaryText?: string
+    secondaryText?: string
   }) => {
     setSearchQuery(result.description)
     setShowDropdown(false)
@@ -484,15 +478,6 @@ export function UberMapModal({
     if (mapInstanceRef.current) {
       const cur = mapInstanceRef.current.getZoom() || 16
       mapInstanceRef.current.setZoom(Math.max(4, cur - 1))
-    }
-  }
-
-  // Toggle between Enhanced Street Map & Real-world Satellite View
-  const toggleMapType = () => {
-    const nextType = mapType === 'roadmap' ? 'hybrid' : 'roadmap'
-    setMapType(nextType)
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.setMapTypeId(nextType)
     }
   }
 
@@ -579,261 +564,208 @@ export function UberMapModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-5 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl h-[90vh] max-h-[720px] bg-white text-[#202124] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-200">
-        {/* Top Header Bar */}
-        <div className="relative z-20 px-4 sm:px-6 py-3 bg-white border-b border-gray-200 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
-              <MapPin size={20} className="text-[#1A73E8]" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold tracking-tight text-[#202124] flex items-center gap-2">
-                <span>Google Maps Store Locator</span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md hidden sm:inline">
-                  Google Maps API Active
-                </span>
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={acquireUserLocation}
-              disabled={isLocating}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-[#1A73E8] text-xs font-bold transition-all cursor-pointer border border-blue-200 shadow-xs"
-            >
-              {isLocating ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Crosshair size={13} />
-              )}
-              <span>{isLocating ? 'Locating…' : 'Use Current Location'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="size-8 rounded-full hover:bg-gray-100 text-gray-500 hover:text-black flex items-center justify-center cursor-pointer transition-colors"
-              title="Close"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* Location Inactive Warning Banner */}
-        {locationError && (
-          <div className="relative z-20 px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2 text-xs text-amber-900 animate-in fade-in shrink-0">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={15} className="text-amber-600 shrink-0" />
-              <span className="text-[11px] leading-tight font-medium">{locationError}</span>
-            </div>
-            <button
-              type="button"
-              onClick={acquireUserLocation}
-              className="px-2.5 py-1 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase tracking-wider shrink-0 transition-colors cursor-pointer"
-            >
-              Turn On / Retry
-            </button>
-          </div>
-        )}
-
-        {/* Google Map Canvas Area */}
-        <div className="relative flex-1 min-h-0 w-full bg-[#E5E3DF] overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-2 sm:p-5 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200 font-sans">
+      <div className="relative w-full max-w-3xl h-[88vh] max-h-[720px] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-gray-200">
+        {/* Google Map Full-Bleed Canvas */}
+        <div className="relative w-full h-full bg-[#E5E3DF] overflow-hidden">
           <div
             ref={mapContainerRef}
             className="w-full h-full"
-            style={{ width: '100%', height: '100%', minHeight: '300px' }}
+            style={{ width: '100%', height: '100%' }}
           />
 
-          {/* Floating Google Maps Search Bar */}
-          <div className="absolute top-4 left-3 sm:left-4 right-3 sm:right-auto sm:w-[420px] z-[1000]">
-            <form onSubmit={handleSearchSubmit} className="relative">
-              <div className="flex items-center bg-white rounded-xl px-3.5 py-2.5 shadow-xl border border-gray-200 focus-within:border-[#1A73E8] focus-within:ring-2 focus-within:ring-[#1A73E8]/20 transition-all">
-                <Search size={17} className="text-gray-400 shrink-0 mr-2.5" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  placeholder="Search shop, street, locality, PIN code..."
-                  className="w-full bg-transparent text-sm text-[#202124] placeholder:text-gray-400 outline-none font-medium"
-                />
-                {isSearching && <Loader2 size={15} className="text-gray-400 animate-spin mr-2 shrink-0" />}
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setSearchResults([])
-                      setShowDropdown(false)
-                    }}
-                    className="p-1 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-700 cursor-pointer shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              {/* Live Autocomplete Dropdown */}
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto z-[1001] divide-y divide-gray-100">
-                  {searchResults.map((res, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectSearchResult(res)}
-                      className="w-full text-left px-4 py-3 hover:bg-blue-50/80 flex items-start gap-3 transition-colors cursor-pointer"
-                    >
-                      <MapPin size={16} className="text-[#1A73E8] shrink-0 mt-0.5" />
-                      <div className="min-w-0 flex-1">
-                        {res.primaryText && (
-                          <div className="text-xs font-bold text-gray-900 truncate">
-                            {res.primaryText}
-                          </div>
-                        )}
-                        <div className="text-[11px] font-normal text-gray-600 leading-snug line-clamp-2">
-                          {res.secondaryText || res.description}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+          {/* Floating Search Bar (Top Left - matching Customer Map) */}
+          <div
+            ref={searchContainerRef}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute top-3.5 left-3.5 right-14 sm:right-auto sm:w-[340px] md:w-[380px] z-30 flex flex-col font-sans"
+          >
+            <form
+              onSubmit={handleSearchSubmit}
+              className="w-full relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] transition-all overflow-hidden h-11 px-3.5 gap-2.5"
+            >
+              {isSearching ? (
+                <Loader2 className="size-4 text-black animate-spin shrink-0" />
+              ) : (
+                <Search className="size-4 text-neutral-400 shrink-0" />
+              )}
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => {
+                  if (searchResults.length > 0) setShowDropdown(true)
+                }}
+                placeholder="Search area, landmark or street..."
+                className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 focus:outline-hidden"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setSearchResults([])
+                    setShowDropdown(false)
+                  }}
+                  className="size-5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                  title="Clear search"
+                >
+                  <X size={12} />
+                </button>
               )}
             </form>
-          </div>
 
-          {/* Sleek Compact & Curvy Blue Location Pin Marker (Exact Map Center) */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-[1000]">
-            <div className="relative flex flex-col items-center select-none">
-              {/* Floating Pin with Smooth Lift & Drop Animation */}
-              <div
-                className="transition-all duration-200 ease-out origin-bottom flex flex-col items-center"
-                style={{
-                  transform: isDragging ? 'translateY(-8px) scale(1.06)' : 'translateY(0) scale(1)',
-                }}
-              >
-                <div className="filter drop-shadow-[0_4px_10px_rgba(29,78,216,0.32)]">
-                  <svg
-                    width="24"
-                    height="32"
-                    viewBox="0 0 24 32"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
+            {/* Live Autocomplete Dropdown */}
+            {showDropdown && searchResults.length > 0 && (
+              <div className="mt-1.5 w-full bg-white/98 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.14)] overflow-hidden py-1 max-h-56 overflow-y-auto z-40">
+                {searchResults.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectSearchResult(item)}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-neutral-100/80 transition-colors flex items-start gap-2.5 cursor-pointer border-b border-gray-50 last:border-0"
                   >
-                    <defs>
-                      <linearGradient id="curvyBluePin" x1="12" y1="0" x2="12" y2="32" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stopColor="#3B82F6" />
-                        <stop offset="100%" stopColor="#1D4ED8" />
-                      </linearGradient>
-                    </defs>
-                    {/* Soft Curvy Organic Droplet Pin */}
-                    <path
-                      d="M12 0C5.37258 0 0 5.37258 0 12C0 19.8 10.2 30.7 11.2 31.7C11.6 32.1 12.4 32.1 12.8 31.7C13.8 30.7 24 19.8 24 12C24 5.37258 18.6274 0 12 0Z"
-                      fill="url(#curvyBluePin)"
-                    />
-                    {/* Inner White Focal Circle */}
-                    <circle cx="12" cy="11.5" r="4.2" fill="#FFFFFF" />
-                    {/* Core Blue Dot */}
-                    <circle cx="12" cy="11.5" r="2.1" fill="#1D4ED8" />
-                  </svg>
-                </div>
+                    <MapPin className="size-3.5 text-neutral-400 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-black truncate">
+                        {item.primaryText || item.description.split(',')[0]}
+                      </p>
+                      {item.secondaryText && (
+                        <p className="text-[11px] text-neutral-500 truncate">{item.secondaryText}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
               </div>
-
-              {/* Compact Ground Shadow directly beneath pin point */}
-              <div className="absolute -bottom-0.5 flex items-center justify-center">
-                <div
-                  className={`w-2.5 h-1 bg-black/25 rounded-full blur-[0.6px] transition-all duration-200 ${isDragging ? 'scale-50 opacity-20' : 'scale-100 opacity-80'
-                    }`}
-                />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Google Maps Controls (Right Side) */}
-          <div className="absolute bottom-5 right-4 z-[1000] flex flex-col gap-2.5">
-            {/* Satellite / Street Map Switcher */}
+          {/* Floating Controls (Top Right) */}
+          <div className="absolute top-3.5 right-3.5 z-30 flex flex-col gap-2">
+            {/* Close Button */}
             <button
               type="button"
-              onClick={toggleMapType}
-              className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${mapType === 'hybrid'
-                  ? 'bg-[#0F172A] border-slate-700 text-white shadow-slate-900/30 ring-2 ring-blue-500/50'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              title={mapType === 'hybrid' ? 'Switch to Street Map' : 'Switch to High-Res Satellite View'}
+              onClick={onClose}
+              className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
+              title="Close modal"
             >
-              <Layers size={19} className={mapType === 'hybrid' ? 'text-cyan-400' : 'text-gray-700'} />
+              <X size={16} />
             </button>
 
-            {/* GPS Current Location Target Button */}
+            {/* Locate Current GPS Position */}
             <button
               type="button"
               onClick={acquireUserLocation}
               disabled={isLocating}
-              className={`size-11 rounded-xl shadow-lg border flex items-center justify-center transition-all cursor-pointer active:scale-95 ${gpsActive
-                  ? 'bg-[#1A73E8] border-[#1A73E8] text-white shadow-blue-500/30'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                }`}
-              title="Locate My Current GPS Position"
+              className={`size-9 rounded-xl border border-gray-200 shadow-md flex items-center justify-center transition-all cursor-pointer active:scale-95 ${
+                gpsActive
+                  ? 'bg-[#276EF1] text-white border-[#276EF1]'
+                  : 'bg-white hover:bg-neutral-100 text-black'
+              }`}
+              title="Locate my position"
             >
-              {isLocating ? (
-                <Loader2 size={20} className="animate-spin text-[#1A73E8]" />
-              ) : (
-                <Crosshair size={20} />
-              )}
+              {isLocating ? <Loader2 size={16} className="animate-spin" /> : <Crosshair size={16} />}
             </button>
 
             {/* Zoom Controls */}
-            <div className="flex flex-col rounded-xl bg-white border border-gray-300 shadow-lg overflow-hidden">
+            <div className="flex flex-col gap-1.5">
               <button
                 type="button"
                 onClick={handleZoomIn}
-                className="size-10 flex items-center justify-center text-gray-700 hover:bg-gray-100 cursor-pointer border-b border-gray-200"
+                className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
                 title="Zoom in"
               >
-                <Plus size={17} />
+                +
               </button>
               <button
                 type="button"
                 onClick={handleZoomOut}
-                className="size-10 flex items-center justify-center text-gray-700 hover:bg-gray-100 cursor-pointer"
+                className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
                 title="Zoom out"
               >
-                <Minus size={17} />
+                &minus;
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Clean Bottom Action Bar */}
-        <div className="relative z-20 bg-white border-t border-gray-200 px-5 py-3.5 shadow-md shrink-0 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="px-4 py-2.5 rounded-xl border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-bold transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirmLocation}
-            disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-xl bg-[#1A73E8] hover:bg-[#1557B0] text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-75"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                <span>Saving Location…</span>
-              </>
-            ) : (
-              <>
-                <Check size={16} className="stroke-[2.5]" />
-                <span>Confirm Store Location</span>
-              </>
-            )}
-          </button>
+          {/* Location Warning Alert Banner */}
+          {locationError && (
+            <div className="absolute top-16 left-3.5 right-3.5 sm:left-4 sm:right-auto sm:w-[380px] z-30 px-3.5 py-2 bg-amber-50/95 backdrop-blur-md border border-amber-200 rounded-xl shadow-lg flex items-center gap-2 text-xs text-amber-900 animate-in fade-in">
+              <AlertTriangle size={14} className="text-amber-600 shrink-0" />
+              <span className="text-[11px] font-medium leading-tight flex-1">{locationError}</span>
+              <button
+                type="button"
+                onClick={acquireUserLocation}
+                className="px-2 py-0.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold uppercase shrink-0 cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Center Precision Blue Pin */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20 pointer-events-none flex flex-col items-center select-none">
+            <div
+              className={`transition-transform duration-150 ease-out ${
+                isDragging ? '-translate-y-2.5 scale-105' : 'translate-y-0 scale-100'
+              }`}
+            >
+              <div className="w-5 h-7 relative flex items-center justify-center filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.3)]">
+                <svg width="20" height="28" viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M14 0C6.26801 0 0 6.26801 0 14C0 23.8 12.3 35.7 12.9 36.3C13.5 36.9 14.5 36.9 15.1 36.3C15.7 35.7 28 23.8 28 14C28 6.26801 21.732 0 14 0Z"
+                    fill="#276EF1"
+                  />
+                  <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF" />
+                  <circle cx="14" cy="13.5" r="2.8" fill="#1B4FB8" />
+                </svg>
+              </div>
+            </div>
+            {/* Ground Target Shadow */}
+            <div
+              className={`bg-black/35 rounded-full filter blur-[0.8px] -mt-0.5 transition-all duration-150 ${
+                isDragging ? 'w-1.5 h-0.5 opacity-25 scale-75' : 'w-2 h-0.5 opacity-60 scale-100'
+              }`}
+            />
+          </div>
+
+          {/* Bottom Action Bar */}
+          <div className="absolute bottom-4 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
+            <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-gray-200/90 rounded-2xl px-4 py-2 shadow-lg hidden sm:flex items-center gap-2">
+              <MapPin size={15} className="text-[#276EF1]" />
+              <span className="text-xs font-semibold text-gray-800">
+                {isDragging ? 'Adjusting Pin...' : 'Drag map or search to place pin over your shop'}
+              </span>
+            </div>
+            <div className="pointer-events-auto ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className="px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-gray-200/90 hover:bg-gray-100 text-gray-700 text-xs font-bold shadow-lg transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLocation}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-2xl bg-[#18191B] hover:bg-black text-white text-xs font-bold flex items-center gap-2 shadow-lg transition-all cursor-pointer active:scale-95 disabled:opacity-75"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Saving Location…</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={14} className="stroke-[2.5]" />
+                    <span>Confirm Workshop Location</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

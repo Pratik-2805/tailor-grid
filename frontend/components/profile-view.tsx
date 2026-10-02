@@ -9,6 +9,7 @@ import {
   Edit2,
   User as UserIcon,
 } from 'lucide-react'
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import type { FittingBooking, Screen, User as UserType } from './data'
 import { fetchOrders, updateUserProfile } from '@/lib/api'
 import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
@@ -45,36 +46,46 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       async (pos) => {
         const { latitude, longitude } = pos.coords
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          )
-          if (res.ok) {
-            const data = await res.json()
-            const addr = data.address || {}
-            const road = addr.road || addr.pedestrian || addr.suburb || addr.neighbourhood || addr.residential || ''
-            const city = addr.city || addr.town || addr.village || addr.county || addr.state || ''
-            const pin = addr.postcode || ''
-            const fullAddr = [road, city].filter(Boolean).join(', ') || data.display_name?.split(',').slice(0, 2).join(',') || ''
+          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
+          if (apiKey && typeof window !== 'undefined') {
+            const w = window as any
+            if (!w.__googleMapsOptionsConfiguredCustomerProfile) {
+              try {
+                setOptions({ key: apiKey, v: 'weekly' })
+                w.__googleMapsOptionsConfiguredCustomerProfile = true
+              } catch { }
+            }
+          }
+
+          const { Geocoder } = (await importLibrary('geocoding')) as any
+          const geocoder = new Geocoder()
+          const res = await geocoder.geocode({ location: { lat: latitude, lng: longitude } })
+
+          if (res.results && res.results.length > 0) {
+            const best = res.results[0]
+            let streetNumber = ''
+            let route = ''
+            let sublocality = ''
+            let city = ''
+            let postalCode = ''
+
+            for (const comp of best.address_components) {
+              const types = comp.types
+              if (types.includes('street_number')) streetNumber = comp.long_name
+              if (types.includes('route')) route = comp.long_name
+              if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality = comp.long_name
+              if (types.includes('locality') && !city) city = comp.long_name
+              if (types.includes('postal_code') && !postalCode) postalCode = comp.long_name
+            }
+
+            const street = [streetNumber, route].filter(Boolean).join(' ') || sublocality || city
+            const fullAddr = [street, city || sublocality].filter(Boolean).join(', ') || best.formatted_address.split(',').slice(0, 2).join(',')
 
             if (fullAddr) setAddress(fullAddr)
-            if (pin) setPostcode(pin)
-          } else {
-            throw new Error('Fallback to BigDataCloud')
+            if (postalCode) setPostcode(postalCode)
           }
-        } catch {
-          try {
-            const res2 = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-            )
-            if (res2.ok) {
-              const data2 = await res2.json()
-              const locality = data2.locality || data2.city || data2.principalSubdivision || ''
-              const pin2 = data2.postcode || ''
-              if (locality) setAddress(locality)
-              if (pin2) setPostcode(pin2)
-            }
-          } catch { }
+        } catch (err) {
+          console.warn('Google Maps Geocoding failed:', err)
         } finally {
           setIsLocating(false)
         }
