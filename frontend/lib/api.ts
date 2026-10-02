@@ -47,18 +47,48 @@ export const STUDIO_BASE_URL =
   process.env.NEXT_PUBLIC_STUDIO_URL ||
   (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
 
-export function getStudioUrl(path: string = '', token?: string | null): string {
+export function getStudioUrl(path: string = '', tokenOrCode?: string | null): string {
   const base = STUDIO_BASE_URL.replace(/\/$/, '')
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
   const url = `${base}${cleanPath}`
   
-  // Hand over token to Studio domain if explicitly passed or if current user is STUDIO
-  const effectiveToken = token || (getAuthRole() === 'STUDIO' ? getAuthToken() : null)
-  if (effectiveToken) {
+  if (tokenOrCode) {
     const separator = url.includes('?') ? '&' : '?'
-    return `${url}${separator}token=${encodeURIComponent(effectiveToken)}`
+    const paramName = tokenOrCode.startsWith('ac_') ? 'code' : 'token'
+    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCode)}`
   }
   return url
+}
+
+export async function exchangeAuthCode(code: string): Promise<{
+  success: boolean
+  token: string
+  user: User
+  role: string
+}> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to exchange authorization code')
+    }
+    const data = await res.json()
+    if (data.token) {
+      clearUnnecessaryDataOnLogin()
+      setAuthToken(data.token)
+      if (data.user) {
+        setAuthUser(data.user)
+        setAuthRole(data.user.role || data.role || 'CUSTOMER')
+      }
+    }
+    return data
+  } catch (err: any) {
+    throw err
+  }
 }
 
 // Send OTP to phone number
@@ -92,6 +122,7 @@ export async function verifyOtp(params: {
   role?: 'CUSTOMER' | 'STUDIO'
 }): Promise<{
   token?: string
+  authCode?: string
   user?: User
   hasPhone?: boolean
   isNewUser?: boolean
@@ -133,7 +164,7 @@ export async function linkPhone(params: {
   phone: string
   otp?: string
   userId?: string
-}): Promise<{ success: boolean; user: User; token: string; hasPhone: boolean }> {
+}): Promise<{ success: boolean; user: User; token: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
@@ -174,7 +205,7 @@ export async function loginWithGoogle(params: {
   profile?: Partial<User>
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
   isSignup?: boolean
-}): Promise<{ token?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
+}): Promise<{ token?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
@@ -228,7 +259,7 @@ export async function signUpUser(data: {
   storeName?: string
   storeArea?: string
   machines?: string
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
@@ -268,7 +299,7 @@ export async function loginUser(data: {
   phone?: string
   identifier?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',

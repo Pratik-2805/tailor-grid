@@ -15,6 +15,32 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 // In-memory OTP storage: phone -> { code, expiresAt }
 const otpStore = new Map();
 
+// One-time authorization code registry for cross-app handover (Option A)
+// Map: authCode -> { token, user, role, expiresAt }
+const authCodeStore = new Map();
+
+function createAuthCode(user, token) {
+  if (!user || !token) return null;
+  const code = `ac_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
+  authCodeStore.set(code, {
+    token,
+    user,
+    role: user.role || 'CUSTOMER',
+    expiresAt: Date.now() + 60 * 1000, // 60 seconds TTL (single-use)
+  });
+  return code;
+}
+
+// Periodic cleanup of expired authorization codes
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, item] of authCodeStore.entries()) {
+    if (item.expiresAt < now) {
+      authCodeStore.delete(code);
+    }
+  }
+}, 30 * 1000);
+
 // Helper to generate auth token
 function generateToken(user) {
   return jwt.sign(
@@ -445,27 +471,17 @@ router.post('/verify-otp', async (req, res) => {
       });
 
       if (existingUser) {
-        // Strict role validation
-        if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
-          return res.status(403).json({
-            error: 'This mobile number is already registered as a Customer account. Please use a different number to register as a Studio partner.',
-          });
-        }
-        if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
-          return res.status(403).json({
-            error: 'This mobile number is registered as a Studio partner account. Please use a different number or sign in to Darzi Studio.',
-          });
-        }
-        if (role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName)) {
+        user = existingUser;
+        if (existingUser.role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName)) {
           return res.json({
             success: true,
             isNewUser: true,
             phone: cleanPhone,
             user: existingUser,
+            role: 'STUDIO',
             message: 'Mobile number verified. Please complete your studio registration.',
           });
         }
-        user = existingUser;
       } else {
         // User does not exist
         if (role === 'STUDIO') {
@@ -473,6 +489,7 @@ router.post('/verify-otp', async (req, res) => {
             success: true,
             isNewUser: true,
             phone: cleanPhone,
+            role: 'STUDIO',
             message: 'Mobile number verified. Please complete your studio registration.',
           });
         }
@@ -491,12 +508,15 @@ router.post('/verify-otp', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(user);
+    const token = generateToken(returnUser);
+    const authCode = createAuthCode(returnUser, token);
     return res.json({
       success: true,
       message: 'Mobile number verified and authenticated successfully',
       token,
+      authCode,
       user: returnUser,
+      role: returnUser.role,
       hasPhone: true,
     });
   } catch (err) {
@@ -606,11 +626,13 @@ router.post('/link-phone', async (req, res) => {
     }
 
     const token = generateToken(user);
+    const authCode = createAuthCode(user, token);
     return res.json({
       success: true,
       message: 'Mobile number linked successfully',
       user,
       token,
+      authCode,
       hasPhone: true,
     });
   } catch (err) {
@@ -678,19 +700,11 @@ router.get('/check-phone', async (req, res) => {
     });
 
     if (existingUser) {
-      if (role && existingUser.role && existingUser.role !== role) {
-        const roleName = existingUser.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
-        return res.json({
-          exists: true,
-          user: existingUser,
-          roleMismatch: true,
-          error: `This mobile number is already registered as a ${roleName} account. Please use a different mobile number.`,
-        });
-      }
       return res.json({
         exists: true,
         user: existingUser,
         phone: cleanPhone,
+        role: existingUser.role || 'CUSTOMER',
       });
     }
 
@@ -818,17 +832,6 @@ router.post('/google', async (req, res) => {
     });
 
     if (existingUser) {
-      if (role === 'STUDIO' && existingUser.role !== 'STUDIO') {
-        return res.status(403).json({
-          error: 'This Google account is already registered as a Customer account. Please use a different account to register as a Studio partner.',
-        });
-      }
-      if (role === 'CUSTOMER' && (existingUser.role === 'STUDIO' || existingUser.status === 'INACTIVE')) {
-        return res.status(403).json({
-          error: 'This Google account is registered as a Studio partner account. Please sign in to Darzi Studio.',
-        });
-      }
-
       if (existingUser.method !== 'google') {
         await prisma.user.update({
           where: { id: existingUser.id },
@@ -837,23 +840,31 @@ router.post('/google', async (req, res) => {
         existingUser.method = 'google';
       }
 
+      let returnUser = existingUser;
+      if (existingUser.role === 'STUDIO') {
+        returnUser = await enrichStudioUser(existingUser);
+      }
+
       const isRegisteredStudio = Boolean(
         existingUser.role === 'STUDIO' &&
         existingUser.status === 'ACTIVE' &&
         existingUser.studioName &&
         existingUser.phone
       );
-      const isNewUser = role === 'STUDIO' ? !isRegisteredStudio : false;
+      const isNewUser = existingUser.role === 'STUDIO' ? !isRegisteredStudio : false;
 
-      const token = generateToken(existingUser);
+      const token = generateToken(returnUser);
+      const authCode = createAuthCode(returnUser, token);
       return res.json({
         success: true,
         message: 'Authenticated with Google successfully',
         token,
-        user: existingUser,
+        authCode,
+        user: returnUser,
+        role: returnUser.role,
         isNewUser,
-        needsPhone: !existingUser.phone,
-        hasPhone: Boolean(existingUser.phone),
+        needsPhone: !returnUser.phone,
+        hasPhone: Boolean(returnUser.phone),
       });
     }
 
@@ -1034,9 +1045,11 @@ router.post('/signup', async (req, res) => {
     }
 
     const token = generateToken(user);
+    const authCode = createAuthCode(user, token);
     return res.json({
       success: true,
       token,
+      authCode,
       user,
       needsPhone: !user.phone,
       hasPhone: Boolean(user.phone),
@@ -1095,26 +1108,8 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user) {
-      if (role === 'STUDIO') {
-        return res.status(403).json({
-          error: 'Unauthorized user, access denied. Please register your atelier first.',
-        });
-      }
       return res.status(404).json({
         error: 'No account found with this email or mobile number. Please register first.',
-      });
-    }
-
-    // Role Validation
-    if (role === 'STUDIO' && user.role !== 'STUDIO') {
-      return res.status(403).json({
-        error: 'This account is registered as a Customer account. It cannot be used to log in to Darzi Studio.',
-      });
-    }
-
-    if (role === 'CUSTOMER' && (user.role === 'STUDIO' || user.status === 'INACTIVE')) {
-      return res.status(403).json({
-        error: 'This account is registered as a Studio partner account. Please sign in to Darzi Studio.',
       });
     }
 
@@ -1131,10 +1126,13 @@ router.post('/login', async (req, res) => {
     }
 
     const token = generateToken(returnUser);
+    const authCode = createAuthCode(returnUser, token);
     return res.json({
       success: true,
       token,
+      authCode,
       user: returnUser,
+      role: returnUser.role,
       needsPhone: !returnUser.phone,
       hasPhone: Boolean(returnUser.phone),
     });
@@ -1511,15 +1509,73 @@ router.post('/logout', (req, res) => {
       `auth_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
     ]);
 
-    return res.json({
-      success: true,
-      message: 'Logged out successfully, server cookies cleared',
-    });
+    return res.json({ success: true, message: 'Logged out successfully' });
   } catch (err) {
     console.error('Logout error:', err);
-    return res.status(500).json({ error: 'Failed to complete logout' });
+    return res.status(500).json({ error: 'Failed to log out' });
+  }
+});
+
+// POST /api/auth/oauth/code - Generate single-use auth code for current authenticated user
+router.post('/oauth/code', (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized: Missing token.' });
+    }
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const code = createAuthCode(decoded, token);
+    return res.json({ success: true, code, expiresIn: 60 });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+});
+
+// POST /api/auth/oauth/exchange - One-time auth code exchange (Option A)
+router.post('/oauth/exchange', async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: 'Authorization code is required.' });
+    }
+
+    const item = authCodeStore.get(code);
+    if (!item) {
+      return res.status(400).json({ error: 'Invalid or already consumed authorization code.' });
+    }
+
+    // Immediately consume & delete the code to guarantee single-use!
+    authCodeStore.delete(code);
+
+    if (Date.now() > item.expiresAt) {
+      return res.status(400).json({ error: 'Authorization code has expired. Please sign in again.' });
+    }
+
+    let returnUser = item.user;
+    if (returnUser?.id) {
+      const freshUser = await prisma.user.findUnique({ where: { id: returnUser.id } }).catch(() => null);
+      if (freshUser) returnUser = freshUser;
+    }
+
+    if (returnUser && returnUser.role === 'STUDIO') {
+      returnUser = await enrichStudioUser(returnUser);
+    }
+
+    const token = item.token || generateToken(returnUser);
+
+    return res.json({
+      success: true,
+      token,
+      user: returnUser,
+      role: returnUser.role || item.role,
+    });
+  } catch (err) {
+    console.error('OAuth exchange error:', err);
+    return res.status(500).json({ error: 'Failed to exchange authorization code.' });
   }
 });
 
 module.exports = router;
+
 

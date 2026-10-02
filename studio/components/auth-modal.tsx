@@ -16,7 +16,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, checkPhoneExists, CUSTOMER_SITE_URL } from '@/lib/api'
+import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, checkPhoneExists, CUSTOMER_SITE_URL, getCustomerSiteUrl } from '@/lib/api'
+import { setAuthRole, setAuthToken, setAuthUser } from '@/lib/cookies'
 import { OtpVerificationCard } from './otp-input'
 import { CustomSelect } from './custom-select'
 
@@ -117,13 +118,28 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, authType])
 
-  const finalizeAuth = (user: UserType) => {
-    if (user.role && user.role !== 'STUDIO') {
-      const errMsg = 'Unauthorized user, access denied.'
-      setError('')
-      toast.error(errMsg, { position: 'top-center' })
+  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string) => {
+    const effectiveRole = user.role || role || 'STUDIO'
+    const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+
+    if (effectiveRole === 'CUSTOMER') {
+      if (effectiveToken) {
+        setAuthToken(effectiveToken)
+      }
+      setAuthRole('CUSTOMER')
+      setAuthUser(user)
+      toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
+      if (onClose) onClose()
+
+      const targetParam = authCode || effectiveToken
+      if (targetParam) {
+        window.location.href = getCustomerSiteUrl('/auth/callback', targetParam)
+      } else {
+        window.location.href = CUSTOMER_SITE_URL
+      }
       return
     }
+
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone-step')
@@ -204,38 +220,25 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              if (result.user.role && result.user.role !== 'STUDIO') {
-                const msg = 'Unauthorized user, access denied.'
-                setError('')
-                toast.error(msg, { position: 'top-center' })
+              if (result.user.role === 'CUSTOMER') {
+                finalizeAuth(result.user, 'CUSTOMER', result.token, result.authCode)
                 return
               }
               if (!result.user.studioName) {
-                if (mode === 'studio-options') {
-                  const msg = 'Unauthorized user, access denied.'
-                  setError('')
-                  toast.error(msg, { position: 'top-center' })
-                  return
-                }
                 setMode('studio-register')
                 setRegisterStep(1)
                 setSTailorName(result.user.name || '')
                 setSEmail(result.user.email || result.user.contact || '')
                 toast.info('Google account verified! Please enter your workshop location details to complete registration.', { position: 'top-center' })
               } else {
-                finalizeAuth(result.user)
+                finalizeAuth(result.user, 'STUDIO', result.token, result.authCode)
               }
             }
           } catch (err: any) {
             setLoading(false)
-            const msg = err.message || 'Unauthorized user, access denied.'
-            if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-              setError('')
-              toast.error(msg, { position: 'top-center' })
-            } else {
-              setError(msg)
-              toast.error(msg, { position: 'top-center' })
-            }
+            const msg = err.message || 'Google sign-in failed.'
+            setError(msg)
+            toast.error(msg, { position: 'top-center' })
           }
         },
         error_callback: (err: any) => {
@@ -267,17 +270,11 @@ export function AuthModal({
     setLoading(true)
     setError('')
     try {
-      const checkRes = await checkPhoneExists(sPhoneLogin.trim(), 'STUDIO')
-      if (checkRes.roleMismatch) {
-        setLoading(false)
-        isSendingOtpRef.current = false
-        toast.error(checkRes.error || 'This mobile number is registered under a different role.', { position: 'top-center' })
-        return
-      }
+      const checkRes = await checkPhoneExists(sPhoneLogin.trim())
       if (!checkRes.exists) {
         setLoading(false)
         isSendingOtpRef.current = false
-        toast.error('no account with the entered mobile number . Please register yourself', { position: 'top-center' })
+        toast.error('No account found with this mobile number. Please register yourself.', { position: 'top-center' })
         return
       }
 
@@ -316,20 +313,14 @@ export function AuthModal({
       const res = await verifyOtp({
         phone: sPhoneLogin.trim(),
         otp: sOtp.trim(),
-        role: 'STUDIO',
       })
       setLoading(false)
-      if (res?.user) finalizeAuth(res.user)
+      if (res?.user) finalizeAuth(res.user, res.user.role, res.token, res.authCode)
     } catch (err: any) {
       setLoading(false)
-      const msg = err.message || 'Unauthorized user, access denied.'
-      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-        setError('')
-        toast.error(msg, { position: 'top-center' })
-      } else {
-        setError(msg)
-        toast.error(msg, { position: 'top-center' })
-      }
+      const msg = err.message || 'Invalid verification code.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
@@ -386,18 +377,13 @@ export function AuthModal({
       setLoading(false)
       if (res?.user) {
         toast.success('Mobile number linked successfully!', { position: 'top-center' })
-        finalizeAuth(res.user)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
       }
     } catch (err: any) {
       setLoading(false)
-      const msg = err.message || 'Unauthorized user, access denied.'
-      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('access denied')) {
-        setError('')
-        toast.error(msg, { position: 'top-center' })
-      } else {
-        setError(msg)
-        toast.error(msg, { position: 'top-center' })
-      }
+      const msg = err.message || 'Verification failed.'
+      setError(msg)
+      toast.error(msg, { position: 'top-center' })
     }
   }
 
