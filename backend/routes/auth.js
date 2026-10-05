@@ -1341,7 +1341,7 @@ router.post('/login', async (req, res) => {
 });
 
 async function enrichStudioUser(user) {
-  if (!user || user.role !== 'STUDIO') return user;
+  if (!user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) return user;
   try {
     let store = null;
     if (user.studioId) {
@@ -1369,11 +1369,13 @@ async function enrichStudioUser(user) {
         ...user,
         email: user.email || store.email || null,
         phone: user.phone || store.phone || null,
+        address: user.address || store.address || null,
+        postcode: user.postcode || store.postcode || null,
         storeEmail: store.email || null,
         storePhone: store.phone || null,
-        area: store.area || null,
-        lat: store.lat ?? null,
-        lng: store.lng ?? null,
+        area: user.area || store.area || null,
+        lat: user.lat ?? store.lat ?? null,
+        lng: user.lng ?? store.lng ?? null,
         openingHours: store.openingHours || 'Mon–Sat: 09:00 – 19:00',
         dailyCapacity: store.dailyCapacity ?? 25,
         machines: store.machines ?? 4,

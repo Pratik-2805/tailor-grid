@@ -76,18 +76,21 @@ const ATELIER_PRESETS = [
 // Helper to split raw stored address into manual Shop No. and map-detected street address
 function parseAddressParts(rawAddress: string, userId?: string) {
   let stored = typeof window !== 'undefined' && userId ? localStorage.getItem(`darzi_studio_shop_no_${userId}`) : null
-  let sNo = stored || ''
-  let street = rawAddress || ''
+  let sNo = (stored || '').trim()
+  let street = (rawAddress || '').trim()
 
   if (sNo && street) {
     if (street.toLowerCase().startsWith(sNo.toLowerCase())) {
-      street = street.slice(sNo.length).replace(/^[,\s-]+/, '')
+      street = street.slice(sNo.length).replace(/^[,\s-]+/, '').trim()
     }
   } else if (!sNo && street) {
-    const match = street.match(/^(Shop\s*[^,]+|Unit\s*[^,]+|Suite\s*[^,]+|Flat\s*[^,]+|Gala\s*[^,]+|G-\d+[^,]*|#\s*[^,]+),\s*(.+)$/i)
+    const match = street.match(/^([^,]+),\s*(.+)$/)
     if (match) {
       sNo = match[1].trim()
       street = match[2].trim()
+    } else {
+      sNo = street
+      street = ''
     }
   }
 
@@ -121,8 +124,9 @@ export function StudioProfileView({
   const [otpError, setOtpError] = useState('')
 
   // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
-  const [shopNo, setShopNo] = useState('')
-  const [mapStreetAddress, setMapStreetAddress] = useState('')
+  const initialAddress = parseAddressParts(user?.address || '', user?.id)
+  const [shopNo, setShopNo] = useState(initialAddress.shopNo)
+  const [mapStreetAddress, setMapStreetAddress] = useState(initialAddress.mapStreet)
   const [area, setArea] = useState(user?.area ?? '')
   const [postcode, setPostcode] = useState(user?.postcode ?? '')
   const [lat, setLat] = useState<number | null>(user?.lat ?? null)
