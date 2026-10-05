@@ -1,8 +1,10 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const dispatchService = require('../services/dispatch.service');
+const { authenticateUser } = require('../lib/auth-middleware');
 
 const router = express.Router();
+router.use(authenticateUser);
 
 // GET /api/orders/dispatch/pending - Live feed of pending requests for a tailor studio
 router.get('/dispatch/pending', async (req, res) => {
@@ -11,6 +13,12 @@ router.get('/dispatch/pending', async (req, res) => {
     if (!storeId) {
       return res.status(400).json({ error: 'storeId is required' });
     }
+
+    // Security: If studio is authenticated, verify ownership
+    if (req.user && req.user.role === 'STUDIO' && req.user.studioId && req.user.studioId !== storeId) {
+      return res.status(403).json({ error: 'Forbidden: Cannot access dispatch feed of another studio partner.' });
+    }
+
     const pending = dispatchService.getPendingRequestsForTailor(storeId);
     return res.json({ success: true, pendingRequests: pending });
   } catch (err) {
@@ -417,23 +425,40 @@ router.get('/', async (req, res) => {
     const searchContact = (contact || email || phone || '').toLowerCase().trim();
 
     const where = {};
-    const orClauses = [];
-    if (searchContact) {
-      orClauses.push({ customerEmail: { equals: searchContact, mode: 'insensitive' } });
-      orClauses.push({ customerPhone: searchContact });
-      orClauses.push({ userId: searchContact });
-    }
-    if (userId) {
-      orClauses.push({ userId: userId });
-    }
-    if (email) {
-      orClauses.push({ customerEmail: { equals: email.toLowerCase().trim(), mode: 'insensitive' } });
-    }
-    if (orClauses.length > 0) {
-      where.OR = orClauses;
+
+    // Security: Scope queries by authenticated caller role
+    if (req.user) {
+      if (req.user.role === 'STUDIO' && req.user.studioId) {
+        // Studio partners can only view orders assigned to their studio
+        where.storeId = req.user.studioId;
+      } else if (req.user.role === 'CUSTOMER') {
+        // Customers can only view their own orders
+        const customerOrs = [{ userId: req.user.id }];
+        if (req.user.email) customerOrs.push({ customerEmail: { equals: req.user.email.toLowerCase().trim(), mode: 'insensitive' } });
+        if (req.user.phone) customerOrs.push({ customerPhone: req.user.phone.trim() });
+        where.OR = customerOrs;
+      }
     }
 
-    if (storeId) {
+    const orClauses = [];
+    if (!where.OR) {
+      if (searchContact) {
+        orClauses.push({ customerEmail: { equals: searchContact, mode: 'insensitive' } });
+        orClauses.push({ customerPhone: searchContact });
+        orClauses.push({ userId: searchContact });
+      }
+      if (userId) {
+        orClauses.push({ userId: userId });
+      }
+      if (email) {
+        orClauses.push({ customerEmail: { equals: email.toLowerCase().trim(), mode: 'insensitive' } });
+      }
+      if (orClauses.length > 0) {
+        where.OR = orClauses;
+      }
+    }
+
+    if (storeId && (!where.storeId || req.user?.role === 'ADMIN')) {
       where.storeId = storeId;
     }
     if (status) {
@@ -706,6 +731,41 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Security: Check existing order & authorization
+    const existingOrder = await prisma.order.findUnique({ where: { id } });
+    if (!existingOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    // If caller is authenticated, verify BOLA/IDOR permissions
+    if (req.user) {
+      const isSuperAdmin = req.user.role === 'ADMIN';
+      const isAssignedStudio =
+        req.user.role === 'STUDIO' &&
+        (!existingOrder.storeId || existingOrder.storeId === req.user.studioId);
+      const isCustomerOwner =
+        req.user.role === 'CUSTOMER' &&
+        (existingOrder.userId === req.user.id ||
+          (existingOrder.customerEmail && existingOrder.customerEmail.toLowerCase() === req.user.email?.toLowerCase()));
+
+      if (!isSuperAdmin && !isAssignedStudio && !isCustomerOwner) {
+        return res.status(403).json({ error: 'Forbidden: You do not have permission to modify this order.' });
+      }
+
+      // If customer is modifying, restrict to rating/feedback or notes only
+      if (isCustomerOwner && !isSuperAdmin && !isAssignedStudio) {
+        const allowedCustomerFields = ['rating', 'ratingFeedback', 'fitNotes'];
+        const incomingFields = Object.keys(req.body);
+        const hasForbiddenField = incomingFields.some(
+          (f) => !allowedCustomerFields.includes(f) && req.body[f] !== undefined
+        );
+        if (hasForbiddenField) {
+          return res.status(403).json({ error: 'Forbidden: Customers cannot alter internal order status or pricing.' });
+        }
+      }
+    }
+
     const {
       status,
       storeId,
