@@ -109,10 +109,10 @@ export function StudioProfileView({
 }: StudioProfileViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
 
-  const [name, setName] = useState(user?.name ?? '')
-  const [studioName, setStudioName] = useState(user?.studioName ?? '')
-  const [phone, setPhone] = useState(user?.phone ?? '')
-  const [verifiedPhone, setVerifiedPhone] = useState(user?.phone ?? '')
+  const [name, setName] = useState(user?.name || '')
+  const [studioName, setStudioName] = useState(user?.studioName || '')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [verifiedPhone, setVerifiedPhone] = useState(user?.phone || '')
   const [isOtpModalOpen, setIsOtpModalOpen] = useState(false)
   const [otpValue, setOtpValue] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
@@ -123,11 +123,11 @@ export function StudioProfileView({
   // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
   const [shopNo, setShopNo] = useState('')
   const [mapStreetAddress, setMapStreetAddress] = useState('')
-  const [area, setArea] = useState(user?.area ?? '')
-  const [postcode, setPostcode] = useState(user?.postcode ?? '')
+  const [area, setArea] = useState(user?.area || '')
+  const [postcode, setPostcode] = useState(user?.postcode || '')
   const [lat, setLat] = useState<number | null>(user?.lat ?? null)
   const [lng, setLng] = useState<number | null>(user?.lng ?? null)
-  const [avatar, setAvatar] = useState(user?.avatar ?? '')
+  const [avatar, setAvatar] = useState(user?.avatar || '')
 
   const [showPresets, setShowPresets] = useState(false)
   const [showUrlInput, setShowUrlInput] = useState(false)
@@ -186,10 +186,10 @@ export function StudioProfileView({
     return ['Custom Alterations', 'Precision Hemming', 'Express Tailoring']
   })
 
-  const [openingHours, setOpeningHours] = useState(user.openingHours || 'Mon–Sat: 09:00 – 19:00')
-  const [dailyCapacity, setDailyCapacity] = useState(user.dailyCapacity || 25)
-  const [machines, setMachines] = useState(user.machines || 4)
-  const [workers, setWorkers] = useState(user.workers || 4)
+  const [openingHours, setOpeningHours] = useState(user?.openingHours || 'Mon–Sat: 09:00 – 19:00')
+  const [dailyCapacity, setDailyCapacity] = useState<number>(Number(user?.dailyCapacity) || 25)
+  const [machines, setMachines] = useState<number>(Number(user?.machines) || 4)
+  const [workers, setWorkers] = useState<number>(Number(user?.workers) || 4)
 
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -206,33 +206,29 @@ export function StudioProfileView({
 
   useEffect(() => {
     if (user) {
-      if (user.name !== undefined) setName(user.name ?? '')
-      if (user.studioName !== undefined) setStudioName(user.studioName ?? '')
-      if (user.phone !== undefined) {
-        setPhone(user.phone ?? '')
-        setVerifiedPhone(user.phone ?? '')
+      setName(user.name || '')
+      setStudioName(user.studioName || '')
+      if (user.phone) {
+        setPhone(user.phone)
+        setVerifiedPhone(user.phone)
       }
       
       const { shopNo: initShopNo, mapStreet: initMapStreet } = parseAddressParts(user.address || '', user.id)
-      setShopNo(initShopNo ?? '')
-      setMapStreetAddress(initMapStreet ?? '')
+      setShopNo(initShopNo || '')
+      setMapStreetAddress(initMapStreet || '')
 
-      if (user.area !== undefined) setArea(user.area ?? '')
-      if (user.postcode !== undefined) setPostcode(user.postcode ?? '')
-      if (user.lat !== undefined) setLat(user.lat ?? null)
-      if (user.lng !== undefined) setLng(user.lng ?? null)
+      setArea(user.area || '')
+      setPostcode(user.postcode || '')
+      setLat(user.lat ?? null)
+      setLng(user.lng ?? null)
       if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
         setSpecialties(user.specialties)
       }
-      if (user.openingHours !== undefined) setOpeningHours(user.openingHours ?? 'Mon–Sat: 09:00 – 19:00')
-      if (user.dailyCapacity !== undefined) setDailyCapacity(user.dailyCapacity ?? 25)
-      if (user.machines !== undefined) setMachines(user.machines ?? 4)
-      if (user.workers !== undefined) setWorkers(user.workers ?? 4)
-      if (user.avatar) {
-        setAvatar(user.avatar)
-      } else {
-        setAvatar('')
-      }
+      setOpeningHours(user.openingHours || 'Mon–Sat: 09:00 – 19:00')
+      setDailyCapacity(Number(user.dailyCapacity) || 25)
+      setMachines(Number(user.machines) || 4)
+      setWorkers(Number(user.workers) || 4)
+      setAvatar(user.avatar || '')
     }
   }, [user])
 
@@ -782,6 +778,8 @@ export function StudioProfileView({
                   </button>
 
                   <input
+                    key="atelier-avatar-file-input"
+                    id="atelier-avatar-file-input"
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
@@ -869,8 +867,10 @@ export function StudioProfileView({
               {showUrlInput && (
                 <div className="flex gap-2 animate-in fade-in">
                   <input
+                    key="atelier-avatar-url-input"
+                    id="atelier-avatar-url-input"
                     type="url"
-                    value={customUrl ?? ''}
+                    value={customUrl || ''}
                     onChange={(e) => setCustomUrl(e.target.value)}
                     placeholder="https://images.unsplash.com/..."
                     className="flex-1 px-3.5 py-2 text-xs bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B]"
@@ -911,10 +911,12 @@ export function StudioProfileView({
                     Atelier / Studio Name *
                   </label>
                   <input
+                    key="atelier-studio-name-input"
+                    id="atelier-studio-name-input"
                     type="text"
                     required
                     placeholder="e.g. Mayfair Sartoria or Atelier Studio"
-                    value={studioName ?? ''}
+                    value={studioName || ''}
                     onChange={(e) => setStudioName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -925,10 +927,12 @@ export function StudioProfileView({
                     Lead Master Tailor *
                   </label>
                   <input
+                    key="atelier-lead-craftsman-input"
+                    id="atelier-lead-craftsman-input"
                     type="text"
                     required
                     placeholder="e.g. Master Tailor or Craftsman Name"
-                    value={name ?? ''}
+                    value={name || ''}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -947,10 +951,12 @@ export function StudioProfileView({
                   <div className="relative">
                     <Store size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
+                      key="atelier-shop-no-input"
+                      id="atelier-shop-no-input"
                       type="text"
                       required
                       placeholder="e.g. Shop No. 4, Ground Floor, Gala 12, or Suite 2B"
-                      value={shopNo ?? ''}
+                      value={shopNo || ''}
                       onChange={(e) => handleShopNoChange(e.target.value)}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs font-medium text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                     />
@@ -1089,11 +1095,13 @@ export function StudioProfileView({
                   <div className="relative">
                     <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
+                      key="atelier-phone-input"
+                      id="atelier-phone-input"
                       type="tel"
                       inputMode="tel"
                       required
                       placeholder="+91 98765 43210 or +1 (555) 019-2834"
-                      value={phone ?? ''}
+                      value={phone || ''}
                       onChange={(e) => {
                         setPhone(e.target.value.replace(/[^\d+ ]/g, ''))
                         setError('')
@@ -1131,6 +1139,8 @@ export function StudioProfileView({
                   <div className="relative">
                     <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                     <input
+                      key="atelier-email-input"
+                      id="atelier-email-input"
                       type="email"
                       readOnly
                       value={user?.email || user?.contact || ''}
@@ -1183,8 +1193,10 @@ export function StudioProfileView({
                 <div className="relative">
                   <MapPin size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#6B7280]" />
                   <input
+                    key="atelier-area-input"
+                    id="atelier-area-input"
                     type="text"
-                    value={area ?? ''}
+                    value={area || ''}
                     onChange={(e) => setArea(e.target.value)}
                     placeholder="e.g. Vasai Road, Umela or Soho & Central London"
                     className="w-full pl-9 pr-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1248,10 +1260,12 @@ export function StudioProfileView({
                     Daily Capacity (Garments/Day)
                   </label>
                   <input
+                    key="atelier-daily-capacity-input"
+                    id="atelier-daily-capacity-input"
                     type="number"
                     min={1}
                     max={200}
-                    value={dailyCapacity ?? ''}
+                    value={dailyCapacity !== undefined && dailyCapacity !== null ? dailyCapacity : 25}
                     onChange={(e) => setDailyCapacity(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1263,10 +1277,12 @@ export function StudioProfileView({
                     Sewing Bench Machines
                   </label>
                   <input
+                    key="atelier-machines-input"
+                    id="atelier-machines-input"
                     type="number"
                     min={1}
                     max={50}
-                    value={machines ?? ''}
+                    value={machines !== undefined && machines !== null ? machines : 4}
                     onChange={(e) => setMachines(parseInt(e.target.value, 10) || 0)}
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                   />
@@ -1278,8 +1294,10 @@ export function StudioProfileView({
                     Weekly Operating Hours
                   </label>
                   <input
+                    key="atelier-opening-hours-input"
+                    id="atelier-opening-hours-input"
                     type="text"
-                    value={openingHours ?? ''}
+                    value={openingHours || 'Mon–Sat: 09:00 – 19:00'}
                     onChange={(e) => setOpeningHours(e.target.value)}
                     placeholder="e.g. Mon–Sat: 09:00 – 19:00"
                     className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
@@ -1372,10 +1390,12 @@ export function StudioProfileView({
                   Atelier / Studio Name *
                 </label>
                 <input
+                  key="modal-draft-studio-name-input"
+                  id="modal-draft-studio-name-input"
                   type="text"
                   required
                   placeholder="e.g. Mayfair Sartoria or Atelier Studio"
-                  value={draftStudioName ?? ''}
+                  value={draftStudioName || ''}
                   onChange={(e) => setDraftStudioName(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                 />
@@ -1386,10 +1406,12 @@ export function StudioProfileView({
                   Lead Master Tailor *
                 </label>
                 <input
+                  key="modal-draft-craftsman-name-input"
+                  id="modal-draft-craftsman-name-input"
                   type="text"
                   required
                   placeholder="e.g. Master Tailor or Craftsman Name"
-                  value={draftName ?? ''}
+                  value={draftName || ''}
                   onChange={(e) => setDraftName(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
                 />

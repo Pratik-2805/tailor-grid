@@ -3750,6 +3750,8 @@ export function PartnerFlow({
                                 <label className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-1 rounded-lg shadow-2xs transition-all active:scale-95">
                                   <Plus size={11} /> Add Photo
                                   <input
+                                    key="order-garment-add-photo-input"
+                                    id="order-garment-add-photo-input"
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
