@@ -66,12 +66,9 @@ import {
 type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
 
 export default function SuperAdminPage() {
-  // Authentication states - initialize authChecking based on whether a token actually exists in localStorage
+  // Authentication states - initialize authChecking consistently to prevent SSR hydration mismatch
   const [adminUser, setAdminUser] = useState<any | null>(null)
-  const [authChecking, setAuthChecking] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return Boolean(localStorage.getItem('tg_super_admin_token'))
-  })
+  const [authChecking, setAuthChecking] = useState<boolean>(true)
 
   // Login form states — NOT PREFETCHED: initialized clean & empty
   const [loginId, setLoginId] = useState('')

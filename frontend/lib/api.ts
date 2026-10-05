@@ -403,11 +403,17 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export async function fetchOrders(query?: string, userId?: string): Promise<FittingBooking[]> {
   try {
+    const token = getAuthToken()
     const params = new URLSearchParams()
     if (query) params.append('contact', query)
     if (userId) params.append('userId', userId)
     const url = params.toString() ? `${API_BASE}/orders?${params.toString()}` : `${API_BASE}/orders`
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return []
     const data = await res.json()
     return data.orders || []
@@ -418,8 +424,14 @@ export async function fetchOrders(query?: string, userId?: string): Promise<Fitt
 
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
+    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return []
     const data = await res.json()
     return data.orders || []
@@ -430,7 +442,13 @@ export async function fetchStudioOrders(storeId?: string | null): Promise<Fittin
 
 export async function fetchOrderById(id: string): Promise<FittingBooking | null> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`)
+    const token = getAuthToken()
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return null
     const data = await res.json()
     return data.order || null
@@ -441,8 +459,14 @@ export async function fetchOrderById(id: string): Promise<FittingBooking | null>
 
 export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
+    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return null
     const data = await res.json()
     return data.stats
@@ -453,9 +477,13 @@ export async function fetchStudioStats(storeId?: string | null): Promise<any> {
 
 export async function updateOrder(id: string, updates: Partial<FittingBooking>): Promise<FittingBooking | null> {
   try {
+    const token = getAuthToken()
     const res = await fetch(`${API_BASE}/orders/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(updates),
     })
     if (!res.ok) return null
