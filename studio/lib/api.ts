@@ -419,8 +419,14 @@ export async function getCurrentUser(): Promise<User | null> {
 
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
+    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return []
     const data = await res.json()
     return data.orders || []
@@ -431,8 +437,14 @@ export async function fetchStudioOrders(storeId?: string | null): Promise<Fittin
 
 export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
+    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
-    const res = await fetch(url)
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
     if (!res.ok) return null
     const data = await res.json()
     return data.stats
@@ -443,9 +455,13 @@ export async function fetchStudioStats(storeId?: string | null): Promise<any> {
 
 export async function updateOrder(id: string, updates: Partial<FittingBooking>): Promise<FittingBooking | null> {
   try {
+    const token = getAuthToken()
     const res = await fetch(`${API_BASE}/orders/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(updates),
     })
     if (!res.ok) return null
@@ -458,8 +474,12 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
 
 export async function deleteOrder(id: string): Promise<boolean> {
   try {
+    const token = getAuthToken()
     const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     })
     return res.ok
   } catch (err) {
@@ -519,9 +539,20 @@ export async function respondToDispatch(
 // SUPER ADMIN API METHODS
 // ==========================================
 
+function getAdminHeaders(): HeadersInit {
+  const token = typeof window !== 'undefined' ? (localStorage.getItem(ADMIN_TOKEN_KEY) || getAuthToken()) : null
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
+
 export async function fetchAdminOverview(): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE}/admin/overview`, { cache: 'no-store' })
+    const res = await fetch(`${API_BASE}/admin/overview`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store',
+    })
     if (!res.ok) throw new Error('Failed to fetch admin overview')
     return await res.json()
   } catch (err) {
@@ -536,7 +567,10 @@ export async function fetchAdminCustomers(search?: string, status?: string, role
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (role && role !== 'ALL') params.append('role', role)
-    const res = await fetch(`${API_BASE}/admin/customers?${params.toString()}`, { cache: 'no-store' })
+    const res = await fetch(`${API_BASE}/admin/customers?${params.toString()}`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store',
+    })
     if (!res.ok) throw new Error('Failed to fetch customers')
     const data = await res.json()
     return data.customers || []
@@ -550,7 +584,7 @@ export async function createAdminCustomer(data: any): Promise<{ success: boolean
   try {
     const res = await fetch(`${API_BASE}/admin/customers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(data),
     })
     const resData = await res.json()
@@ -565,7 +599,7 @@ export async function updateAdminCustomer(id: string, updates: any): Promise<{ s
   try {
     const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -580,6 +614,7 @@ export async function deleteAdminCustomer(id: string): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+      headers: getAdminHeaders(),
     })
     return res.ok
   } catch (err) {
@@ -592,7 +627,10 @@ export async function fetchAdminStudios(search?: string, area?: string): Promise
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (area && area !== 'ALL') params.append('area', area)
-    const res = await fetch(`${API_BASE}/admin/studios?${params.toString()}`, { cache: 'no-store' })
+    const res = await fetch(`${API_BASE}/admin/studios?${params.toString()}`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store',
+    })
     if (!res.ok) throw new Error('Failed to fetch studios')
     const data = await res.json()
     return data.studios || []
@@ -606,7 +644,7 @@ export async function createAdminStudio(studioData: any): Promise<{ success: boo
   try {
     const res = await fetch(`${API_BASE}/admin/studios`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(studioData),
     })
     const data = await res.json()
@@ -621,7 +659,7 @@ export async function updateAdminStudio(id: string, updates: any): Promise<{ suc
   try {
     const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -636,6 +674,7 @@ export async function deleteAdminStudio(id: string): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+      headers: getAdminHeaders(),
     })
     return res.ok
   } catch (err) {
@@ -649,7 +688,10 @@ export async function fetchAdminOrders(search?: string, status?: string, storeId
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (storeId && storeId !== 'ALL') params.append('storeId', storeId)
-    const res = await fetch(`${API_BASE}/admin/orders?${params.toString()}`, { cache: 'no-store' })
+    const res = await fetch(`${API_BASE}/admin/orders?${params.toString()}`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store',
+    })
     if (!res.ok) throw new Error('Failed to fetch orders')
     const data = await res.json()
     return data.orders || []
@@ -663,7 +705,7 @@ export async function updateAdminOrder(id: string, updates: any): Promise<{ succ
   try {
     const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -677,7 +719,10 @@ export async function updateAdminOrder(id: string, updates: any): Promise<{ succ
 export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[] }> {
   try {
     if (!q || !q.trim()) return { customers: [], studios: [], orders: [] }
-    const res = await fetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, { cache: 'no-store' })
+    const res = await fetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, {
+      headers: getAdminHeaders(),
+      cache: 'no-store',
+    })
     if (!res.ok) return { customers: [], studios: [], orders: [] }
     const data = await res.json()
     return data.results || { customers: [], studios: [], orders: [] }

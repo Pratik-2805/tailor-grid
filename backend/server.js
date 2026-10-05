@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { checkDbConnection } = require('./lib/prisma');
 
 const authRoutes = require('./routes/auth');
@@ -12,13 +14,82 @@ const newsletterRoutes = require('./routes/newsletter');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for frontend and studio requests with cookie/credentials support
+// 1. Security Headers (Disable tech stack fingerprinting & prevent clickjacking/sniffing)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+// 2. Production-Ready CORS Policy (Configured via Environment Variables)
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Parse production/staging allowed domains from environment variables
+const envOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.STUDIO_URL,
+  process.env.ALLOWED_ORIGINS,
+]
+  .filter(Boolean)
+  .flatMap((entry) => entry.split(',').map((o) => o.trim()));
+
+// Local development origins (strictly disabled when NODE_ENV === 'production')
+const devOrigins = isProduction
+  ? []
+  : [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:3002',
+    ];
+
+const ALLOWED_ORIGINS = new Set([...envOrigins, ...devOrigins]);
+
 app.use(cors({
-  origin: true,
+  origin: (origin, callback) => {
+    // 1. Allow non-browser requests (mobile apps, server-to-server, Postman, health monitors)
+    if (!origin) return callback(null, true);
+
+    // 2. In non-production only, allow dynamic localhost & 127.0.0.1 ports
+    if (!isProduction && /^https?:\/\/(localhost|127\.0\.0\.1)(:[0-9]+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    // 3. Match against configured allowed origins (exact match or subdomain wildcard)
+    if (ALLOWED_ORIGINS.has(origin)) {
+      return callback(null, true);
+    }
+
+    // 4. Reject untrusted web origins gracefully
+    return callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
 }));
+
+// 3. Rate Limiting Protection (Anti-DoS / Brute Force)
+const globalApiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again later.' },
+});
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down and try again shortly.' },
+});
+
+app.use('/api', globalApiLimiter);
+app.use('/api/newsletter/subscribe', sensitiveLimiter);
+app.use('/api/auth/send-otp', sensitiveLimiter);
+app.use('/api/auth/login', sensitiveLimiter);
+app.use('/api/admin/login', sensitiveLimiter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
