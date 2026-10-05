@@ -51,7 +51,7 @@ export function AuthModal({
   inline = false,
   onDemoAccess,
 }: AuthModalProps) {
-  const initialMode = (): AuthMode => 'role-select'
+  const initialMode = (): AuthMode => (authType === 'signup' ? 'studio-signup-options' : 'studio-options')
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [registerStep, setRegisterStep] = useState<1 | 2 | 3>(1)
   const [loading, setLoading] = useState(false)
@@ -576,35 +576,6 @@ export function AuthModal({
       </div>
 
       <div className="px-6 py-6 space-y-5">
-        {error && !error.toLowerCase().includes('unauthorized') && !error.toLowerCase().includes('access denied') && (
-          <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3.5 text-xs text-red-700 font-bold leading-snug shadow-xs animate-in fade-in space-y-1.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm shrink-0">⚠️</span>
-              <span>{error}</span>
-            </div>
-            {error.includes('Please sign in instead') && (
-              <button
-                type="button"
-                onClick={() => {
-                  setError('')
-                  setNotice('')
-                  setMode('studio-options')
-                }}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#9E593B] hover:underline cursor-pointer ml-6"
-              >
-                Sign in to this account →
-              </button>
-            )}
-          </div>
-        )}
-
-        {notice && (
-          <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-xs text-amber-800 font-medium flex items-center gap-2">
-            <CheckCircle2 size={16} className="text-amber-600 shrink-0" />
-            <span>{notice}</span>
-          </div>
-        )}
-
         {/* ROLE SELECTION – Customer vs Studio Partner */}
         {mode === 'role-select' && (
           <div className="space-y-4">

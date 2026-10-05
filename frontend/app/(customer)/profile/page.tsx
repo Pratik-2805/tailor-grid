@@ -35,7 +35,7 @@ export default function ProfilePage() {
       go={navigate}
       user={user}
       onUpdateUser={(updated) => setUser(updated)}
-      onOpenAuth={() => openAuth('CUSTOMER', 'signin')}
+      onOpenAuth={(authType = 'signin') => openAuth('CUSTOMER', authType)}
       onSignOut={handleSignOut}
     />
   )

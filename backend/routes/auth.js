@@ -787,11 +787,11 @@ function removePendingGoogleSignup(tempId) {
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
   try {
-    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false } = req.body;
+    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false, flow, isLogin } = req.body;
 
-    let email = '';
-    let name = '';
-    let avatar = '';
+    let email = req.body.email || '';
+    let name = req.body.name || '';
+    let avatar = req.body.avatar || '';
 
     if (idToken) {
       try {
@@ -800,9 +800,9 @@ router.post('/google', async (req, res) => {
           audience: GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
-        email = payload.email;
-        name = payload.name || payload.given_name || 'Google User';
-        avatar = payload.picture;
+        email = email || payload.email;
+        name = name || payload.name || payload.given_name || 'Google User';
+        avatar = avatar || payload.picture;
       } catch (verifyErr) {
         console.warn('ID Token verification warning:', verifyErr.message);
       }
@@ -816,8 +816,8 @@ router.post('/google', async (req, res) => {
         if (userInfoRes.ok) {
           const uInfo = await userInfoRes.json();
           email = uInfo.email;
-          name = uInfo.name || uInfo.given_name || 'Google User';
-          avatar = uInfo.picture;
+          name = name || uInfo.name || uInfo.given_name || 'Google User';
+          avatar = avatar || uInfo.picture;
         }
       } catch (apiErr) {
         console.warn('Google userinfo fetch error:', apiErr.message);
@@ -826,8 +826,8 @@ router.post('/google', async (req, res) => {
 
     if (!email && profile) {
       email = profile.email || profile.contact;
-      name = profile.name || 'Google User';
-      avatar = profile.avatar || profile.picture;
+      name = name || profile.name || 'Google User';
+      avatar = avatar || profile.avatar || profile.picture;
     }
 
     if (!email) {
@@ -879,6 +879,14 @@ router.post('/google', async (req, res) => {
         isNewUser,
         needsPhone: !returnUser.phone,
         hasPhone: Boolean(returnUser.phone),
+      });
+    }
+
+    // If login flow (not signup) and account is not found in DB
+    if (flow === 'login' || isLogin) {
+      return res.status(404).json({
+        error: 'No account with Google Id , please sign up',
+        noAccount: true,
       });
     }
 
