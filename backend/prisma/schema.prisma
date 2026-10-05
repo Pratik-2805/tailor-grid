@@ -83,6 +83,7 @@ model PartnerStore {
   id            String   @id
   name          String
   email         String?
+  phone         String?
   area          String
   address       String
   postcode      String
@@ -94,10 +95,11 @@ model PartnerStore {
   workers       Int      @default(4)
   leadTailor    String
   specialties   String[]
-  phone         String?
   retailSold    Boolean  @default(true)
   lat           Float
   lng           Float
+  distance      String?
+  distanceMiles Float?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -166,3 +168,18 @@ model Order {
   @@index([status])
   @@map("orders")
 }
+
+model NewsletterSubscription {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  status    String   @default("ACTIVE") // ACTIVE, UNSUBSCRIBED
+  source    String   @default("footer")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@map("newsletter_subscriptions")
+}
+
+

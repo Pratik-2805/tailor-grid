@@ -688,3 +688,26 @@ export async function checkPhoneExists(
   }
 }
 
+// Subscribe an email to newsletter offers & updates
+export async function subscribeNewsletter(
+  email: string,
+  source: string = 'footer'
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Failed to subscribe. Please try again.' }
+    }
+    return { success: true, message: data.message || 'Subscribed successfully!' }
+  } catch (err) {
+    console.error('Error subscribing to newsletter:', err)
+    return { success: false, error: 'Network error. Please try again later.' }
+  }
+}
+
+

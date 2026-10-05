@@ -171,8 +171,6 @@ async function findOrLinkUser({
             area: resolvedArea,
             address: resolvedAddress,
             postcode: resolvedPostcode,
-            distance: '0.4 mi away',
-            distanceMiles: 0.4,
             rating: 5.0,
             reviewCount: 1,
             openingHours: 'Mon–Sat: 09:00 – 19:00',
@@ -852,7 +850,7 @@ router.post('/google', async (req, res) => {
         await prisma.user.update({
           where: { id: existingUser.id },
           data: { method: 'google' },
-        }).catch(() => {});
+        }).catch(() => { });
         existingUser.method = 'google';
       }
 
@@ -1347,6 +1345,8 @@ router.post('/update-profile', async (req, res) => {
             ...((cleanEmail || updateData.email) ? { email: cleanEmail || updateData.email } : (user.email ? { email: user.email } : {})),
             ...((cleanPhone || updateData.phone) ? { phone: cleanPhone || updateData.phone } : (user.phone ? { phone: user.phone } : {})),
             ...(leadTailor || name ? { leadTailor: leadTailor || name } : {}),
+            ...(phone !== undefined ? { phone: phone.trim() } : {}),
+            ...(email !== undefined ? { email: email.trim().toLowerCase() } : {}),
             ...(address !== undefined ? { address } : {}),
             ...(postcode !== undefined ? { postcode } : {}),
             ...(area !== undefined ? { area } : {}),
@@ -1506,7 +1506,7 @@ router.get('/me', async (req, res) => {
 router.post('/logout', (req, res) => {
   try {
     const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
-    
+
     // Express clearCookie helper across common configurations
     const cookieOptionsList = [
       { path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' },
@@ -1519,7 +1519,7 @@ router.post('/logout', (req, res) => {
 
     cookieNames.forEach(name => {
       cookieOptionsList.forEach(opts => {
-        try { res.clearCookie(name, opts); } catch (_) {}
+        try { res.clearCookie(name, opts); } catch (_) { }
       });
     });
 
