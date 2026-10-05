@@ -1,8 +1,10 @@
 
 'use client'
 
-import { useRef, useEffect, useCallback, useState } from 'react'
-import { useLottie } from 'lottie-react'
+import { useRef, useEffect, useState } from 'react'
+import { Lottie, type LottieHandle } from 'lottie-react'
+import spinningPinData from '@/public/animated/spinning_location_pin.json'
+import droppedPinData from '@/public/animated/dropped_location_pin.json'
 
 interface AnimatedLocationPinProps {
   size?: number
@@ -25,25 +27,10 @@ export function AnimatedLocationPin({
 }: AnimatedLocationPinProps) {
   const [mounted, setMounted] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const lottieRef = useRef<LottieHandle | null>(null)
 
-  const confirmed = isConfirmed || isPinned
-  const animationSrc = confirmed
-    ? '/animated/dropped_location_pin.json'
-    : '/animated/spinning_location_pin.json'
-
-  const lottie = useLottie({
-    src: animationSrc,
-    loop,
-    autoplay: confirmed ? true : autoplay,
-  })
-
-  const setRefs = useCallback(
-    (node: HTMLDivElement | null) => {
-      containerRef.current = node
-      lottie.setDisplayRef(node)
-    },
-    [lottie]
-  )
+  const confirmed = Boolean(isConfirmed || isPinned)
+  const animationData = confirmed ? droppedPinData : spinningPinData
 
   useEffect(() => {
     setMounted(true)
@@ -51,29 +38,35 @@ export function AnimatedLocationPin({
 
   // Auto-play once when newly confirmed
   useEffect(() => {
-    if (confirmed && lottie.animationItem) {
-      lottie.animationItem.goToAndPlay(0, true)
+    if (confirmed && mounted) {
+      if (lottieRef.current?.animationItem) {
+        lottieRef.current.animationItem.goToAndPlay(0, true)
+      } else if (lottieRef.current) {
+        lottieRef.current.seek(0)
+        lottieRef.current.play()
+      }
     }
-  }, [confirmed, lottie.animationItem])
+  }, [confirmed, mounted])
 
   useEffect(() => {
+    if (!mounted || !hoverTrigger) return
     const el = containerRef.current
-    if (!el || !hoverTrigger) return
+    if (!el) return
 
     const target = el.closest('button, [role="button"], .group, a') || el
 
     const onEnter = () => {
-      if (lottie.animationItem) {
-        lottie.animationItem.goToAndPlay(0, true)
-      } else {
-        lottie.seek(0)
-        lottie.play()
+      if (lottieRef.current?.animationItem) {
+        lottieRef.current.animationItem.goToAndPlay(0, true)
+      } else if (lottieRef.current) {
+        lottieRef.current.seek(0)
+        lottieRef.current.play()
       }
     }
 
     const onLeave = () => {
-      if (loop) {
-        lottie.stop()
+      if (loop && lottieRef.current) {
+        lottieRef.current.stop()
       }
     }
 
@@ -93,7 +86,7 @@ export function AnimatedLocationPin({
         el.removeEventListener('mouseleave', onLeave)
       }
     }
-  }, [hoverTrigger, loop, lottie.animationItem, lottie])
+  }, [mounted, hoverTrigger, loop, confirmed])
 
   if (!mounted) {
     return (
@@ -101,19 +94,37 @@ export function AnimatedLocationPin({
         className={`inline-flex items-center justify-center shrink-0 ${className}`}
         style={{ width: size, height: size }}
       >
-        <span className="size-3 rounded-full bg-[#EA4335] animate-ping" />
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
+          fill="#EA4335"
+          className="shrink-0"
+        >
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+          <circle cx="12" cy="9" r="2.5" fill="#FFFFFF" />
+        </svg>
       </div>
     )
   }
 
   return (
     <div
-      key={animationSrc}
-      ref={setRefs}
+      ref={containerRef}
       className={`inline-flex items-center justify-center shrink-0 ${className}`}
       style={{ width: size, height: size }}
-    />
+    >
+      <Lottie
+        key={confirmed ? 'pinned' : 'unpinned'}
+        lottieRef={lottieRef}
+        src={animationData}
+        loop={loop}
+        autoplay={confirmed ? true : autoplay}
+        style={{ width: size, height: size }}
+      />
+    </div>
   )
 }
 
 export default AnimatedLocationPin
+
