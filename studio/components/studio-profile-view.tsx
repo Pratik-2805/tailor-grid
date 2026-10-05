@@ -31,6 +31,7 @@ import { updateUserProfile, sendOtp } from '@/lib/api'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
+import { StudioAvatar } from './studio-avatar'
 import { toast } from 'react-toastify'
 
 interface StudioProfileViewProps {
@@ -713,16 +714,14 @@ export function StudioProfileView({
             <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="relative size-20 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] overflow-hidden shadow-xs shrink-0 flex items-center justify-center">
-                    {avatar ? (
-                      <img src={avatar} alt="Studio Avatar" className="size-full object-cover" />
-                    ) : (
-                      <div className="size-full bg-[#FAF3EC] text-[#9E593B] flex items-center justify-center text-2xl font-bold font-serif">
-                        {studioName ? studioName.charAt(0) : 'A'}
-                      </div>
-                    )}
-                    <span className="absolute bottom-1 right-1 size-3 rounded-full bg-emerald-500 border-2 border-white" />
-                  </div>
+                  <StudioAvatar
+                    avatar={avatar}
+                    name={studioName || name || 'Master Tailor'}
+                    size="xl"
+                    shape="rounded"
+                    showStatusDot={true}
+                    className="border border-[#E8E1D5]"
+                  />
 
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">

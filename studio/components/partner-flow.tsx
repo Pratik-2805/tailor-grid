@@ -56,6 +56,7 @@ import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispat
 import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
+import { StudioAvatar } from './studio-avatar'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile'
 
@@ -2117,13 +2118,9 @@ export function PartnerFlow({
                 setActiveTab('profile')
               }}
               title={tailorName}
-              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+              className="hover:scale-105 transition-transform cursor-pointer"
             >
-              {user?.avatar ? (
-                <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
-              ) : (
-                tailorName.charAt(0)
-              )}
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="md" showStatusDot={true} />
             </button>
           ) : (
             <button
@@ -2134,13 +2131,7 @@ export function PartnerFlow({
               }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors text-left"
             >
-              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
-                ) : (
-                  tailorName.charAt(0)
-                )}
-              </div>
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="sm" showStatusDot={true} />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
@@ -2407,13 +2398,13 @@ export function PartnerFlow({
                 title="Edit Studio Profile & Configuration"
                 className="flex items-center gap-2.5 hover:opacity-85 transition-opacity cursor-pointer group text-left"
               >
-                <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-2xs ring-2 ring-[#9E593B]/20 group-hover:scale-105 transition-transform overflow-hidden shrink-0">
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
-                  ) : (
-                    tailorName.charAt(0)
-                  )}
-                </div>
+                <StudioAvatar
+                  avatar={user?.avatar}
+                  name={tailorName}
+                  size="sm"
+                  showStatusDot={true}
+                  className="group-hover:scale-105 transition-transform"
+                />
                 <div className="hidden lg:block text-left">
                   <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
                   <div className="text-[10px] text-[#9E593B] font-semibold flex items-center gap-1">
@@ -2439,13 +2430,12 @@ export function PartnerFlow({
                 <div className="bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3 space-y-2 text-left">
                   {/* Profile Header */}
                   <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100">
-                    <div className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-xs ring-2 ring-[#9E593B]/20 overflow-hidden shrink-0">
-                      {user?.avatar ? (
-                        <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
-                      ) : (
-                        tailorName.charAt(0)
-                      )}
-                    </div>
+                    <StudioAvatar
+                      avatar={user?.avatar}
+                      name={tailorName}
+                      size="md"
+                      showStatusDot={true}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
                       <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
