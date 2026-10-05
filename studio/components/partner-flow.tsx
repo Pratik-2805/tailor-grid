@@ -52,8 +52,8 @@ import {
   FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, type PendingDispatchRequest } from '@/lib/api'
-import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, type PendingDispatchRequest } from '@/lib/api'
+import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
 
@@ -542,6 +542,21 @@ export function PartnerFlow({
         : 'Master Tailor'
 
   const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
+
+  const handleSignOutClick = async () => {
+    if (onSignOut) {
+      onSignOut()
+    } else {
+      try {
+        await logoutUser()
+      } catch {
+        clearAllAuth()
+      }
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
+    }
+  }
 
   const router = useRouter()
   const pathname = usePathname()
@@ -2135,10 +2150,7 @@ export function PartnerFlow({
 
           <button
             type="button"
-            onClick={() => {
-              if (onSignOut) onSignOut()
-              else go('partner')
-            }}
+            onClick={handleSignOutClick}
             title="Sign Out"
             className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all cursor-pointer
               ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
@@ -2387,25 +2399,86 @@ export function PartnerFlow({
             </div>
 
 
-            {/* Master Tailor Profile Pill */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              title="Edit Studio Profile & Configuration"
-              className="flex items-center gap-2.5 pl-3 border-l border-slate-200 hover:opacity-85 transition-opacity cursor-pointer group text-left"
-            >
-              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-2xs ring-2 ring-[#9E593B]/20 group-hover:scale-105 transition-transform overflow-hidden">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
-                ) : (
-                  tailorName.charAt(0)
-                )}
+            {/* Master Tailor Profile Pill & Hover Sign Out */}
+            <div className="relative group/profile flex items-center gap-2 pl-3 border-l border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                title="Edit Studio Profile & Configuration"
+                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity cursor-pointer group text-left"
+              >
+                <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-2xs ring-2 ring-[#9E593B]/20 group-hover:scale-105 transition-transform overflow-hidden shrink-0">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
+                  ) : (
+                    tailorName.charAt(0)
+                  )}
+                </div>
+                <div className="hidden lg:block text-left">
+                  <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+                  <div className="text-[10px] text-[#9E593B] font-semibold flex items-center gap-1">
+                    <span>Master Tailor</span>
+                    <span className="opacity-70">✎</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Dedicated Hover Sign Out Button */}
+              <button
+                type="button"
+                onClick={handleSignOutClick}
+                title="Sign Out"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer shrink-0 opacity-70 group-hover/profile:opacity-100"
+                aria-label="Sign Out"
+              >
+                <LogOut size={14} />
+              </button>
+
+              {/* Hover Flyout Dropdown Menu */}
+              <div className="absolute right-0 top-full pt-2 w-60 opacity-0 pointer-events-none group-hover/profile:opacity-100 group-hover/profile:pointer-events-auto transition-all duration-200 z-50">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3 space-y-2 text-left">
+                  {/* Profile Header */}
+                  <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100">
+                    <div className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-xs ring-2 ring-[#9E593B]/20 overflow-hidden shrink-0">
+                      {user?.avatar ? (
+                        <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
+                      ) : (
+                        tailorName.charAt(0)
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Active Studio</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Actions */}
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('profile')}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-[#9E593B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                    >
+                      <Edit3 size={13} className="text-[#9E593B]" />
+                      <span>Edit Studio Profile</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSignOutClick}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <LogOut size={13} className="text-red-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="hidden lg:block text-left">
-                <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
-                <div className="text-[10px] text-[#9E593B] font-semibold">Master Tailor ✎</div>
-              </div>
-            </button>
+            </div>
           </div>
         </header>
 

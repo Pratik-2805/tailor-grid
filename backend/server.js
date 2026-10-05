@@ -69,9 +69,21 @@ app.use(cors({
 }));
 
 // 3. Rate Limiting Protection (Anti-DoS / Brute Force)
+const isLoopbackIp = (req) => {
+  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '';
+  return (
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip === '::ffff:127.0.0.1' ||
+    ip.endsWith('127.0.0.1') ||
+    ip === 'localhost'
+  );
+};
+
 const globalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: isProduction ? 600 : 50000,
+  skip: (req) => !isProduction && isLoopbackIp(req),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests from this IP, please try again later.' },
@@ -79,7 +91,8 @@ const globalApiLimiter = rateLimit({
 
 const sensitiveLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 20,
+  max: isProduction ? 20 : 1000,
+  skip: (req) => !isProduction && isLoopbackIp(req),
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down and try again shortly.' },
