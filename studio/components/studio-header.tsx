@@ -15,12 +15,11 @@ import { CUSTOMER_SITE_URL } from '@/lib/api'
 
 interface StudioHeaderProps {
   user?: User | null
-  onOpenAuth?: (authType?: 'signin' | 'signup') => void
   onSignOut?: () => void
   onOpenProfile?: () => void
 }
 
-export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: StudioHeaderProps) {
+export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderProps) {
   const [open, setOpen] = useState(false)
   const customerSiteUrl = CUSTOMER_SITE_URL
 
@@ -58,18 +57,6 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-
-          {/* Link back to Main Customer Site - only when NOT logged in */}
-          {!user && (
-            <a
-              href={customerSiteUrl}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-[#1E2229] hover:text-black transition-colors whitespace-nowrap shrink-0 hover:bg-[#F3EFEA] rounded-full border border-[#E8E1D5] bg-white shadow-2xs"
-            >
-              <ArrowLeft size={13} className="text-[#9E593B] shrink-0" />
-              <span>Customer Site</span>
-            </a>
-          )}
-
           {user && user.studioName && user.phone ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">
               <button
@@ -106,34 +93,13 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              {onOpenAuth ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth('signin')}
-                    className="flex items-center gap-1.5 rounded-full border border-[#E8E1D5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] hover:border-[#0F1115] transition-all whitespace-nowrap shrink-0 shadow-2xs cursor-pointer"
-                  >
-                    <UserIcon size={12} className="shrink-0 text-[#9E593B]" />
-                    <span>Log In</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onOpenAuth('signup')}
-                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#9E593B] transition-all whitespace-nowrap shrink-0 shadow-xs active:scale-[0.98] cursor-pointer"
-                  >
-                    <span>Sign Up</span>
-                  </button>
-                </>
-              ) : (
-                <a
-                  href={customerSiteUrl}
-                  className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
-                >
-                  <span>Return to Customer Site</span>
-                </a>
-              )}
-            </div>
+            <a
+              href={customerSiteUrl}
+              className="flex items-center gap-2 rounded-full border border-[#E8E1D5] bg-white px-4 py-2 text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all whitespace-nowrap shrink-0 shadow-2xs"
+            >
+              <ArrowLeft size={13} className="text-[#9E593B] shrink-0" />
+              <span>Return to Customer Site</span>
+            </a>
           )}
         </div>
 
@@ -155,51 +121,33 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               <ShieldCheck size={14} className="text-[#9E593B]" />
               <span>Studio Workbench</span>
             </div>
-            {!user && (
-              <a
-                href={customerSiteUrl}
-                className="text-xs px-2.5 py-1 rounded bg-white text-[#1E2229] font-medium border border-[#E8E1D5] flex items-center gap-1"
-              >
-                <ArrowLeft size={11} /> Customer Site
-              </a>
-            )}
+            <a
+              href={customerSiteUrl}
+              className="text-xs px-2.5 py-1 rounded bg-white text-[#1E2229] font-medium border border-[#E8E1D5] flex items-center gap-1"
+            >
+              <ArrowLeft size={11} /> Customer Site
+            </a>
           </div>
 
           <div className="pt-1 flex flex-col gap-2">
-            {!user || !user.studioName || !user.phone ? (
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false)
-                    onOpenAuth?.('signin')
-                  }}
-                  className="w-full flex items-center justify-center gap-2 border border-[#E8E1D5] bg-white rounded-xl py-2.5 text-center text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all cursor-pointer shadow-2xs"
-                >
-                  <UserIcon size={14} className="text-[#9E593B]" />
-                  <span>Log In</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false)
-                    onOpenAuth?.('signup')
-                  }}
-                  className="w-full flex items-center justify-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] rounded-xl py-2.5 text-center text-xs font-semibold text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
-                >
-                  <span>Sign Up</span>
-                </button>
-              </div>
-            ) : (
+            {user && user.studioName && user.phone ? (
               <button
                 onClick={() => {
                   setOpen(false)
                   onSignOut?.()
                 }}
-                className="w-full border border-red-200 rounded-xl bg-red-50 text-red-700 py-2 text-center text-xs font-medium"
+                className="w-full border border-red-200 rounded-xl bg-red-50 text-red-700 py-2 text-center text-xs font-medium cursor-pointer"
               >
                 Sign Out
               </button>
+            ) : (
+              <a
+                href={customerSiteUrl}
+                className="w-full flex items-center justify-center gap-2 border border-[#E8E1D5] bg-white rounded-xl py-2.5 text-center text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all shadow-2xs"
+              >
+                <ArrowLeft size={14} className="text-[#9E593B]" />
+                <span>Return to Customer Site</span>
+              </a>
             )}
           </div>
         </div>

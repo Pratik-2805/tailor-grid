@@ -20,7 +20,7 @@ model User {
   postcode   String?
   method     String   @default("email") // google, email, mobile, apple
   password   String?
-  role       String   @default("CUSTOMER") // CUSTOMER, STUDIO, ADMIN
+  role       String   @default("CUSTOMER") // CUSTOMER, TEMP_STUDIO, STUDIO, ADMIN
   status     String   @default("ACTIVE") // ACTIVE, INACTIVE
   studioId   String?
   studioName String?

@@ -72,6 +72,13 @@ export function StudioProxy({ children }: StudioProxyProps) {
         return
       }
 
+      // Allow authenticated STUDIO and TEMP_STUDIO partners
+      if (storedRole === 'STUDIO' || storedRole === 'TEMP_STUDIO' || storedUser?.role === 'STUDIO' || storedUser?.role === 'TEMP_STUDIO') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
+
       // 1. Fast-path check from stored cookies
       if (storedRole === 'CUSTOMER' || storedUser?.role === 'CUSTOMER') {
         handleCustomerRedirect(storedUser?.email || storedUser?.phone || 'Customer')
@@ -80,21 +87,23 @@ export function StudioProxy({ children }: StudioProxyProps) {
 
       // 2. Server-side token validation
       const remoteUser = await getCurrentUser()
-      if (remoteUser && remoteUser.role === 'ADMIN') {
-        setIsChecking(false)
-        setIsCustomerBlocked(false)
-        return
-      }
-      if (remoteUser && remoteUser.role === 'STUDIO') {
+      if (remoteUser && (remoteUser.role === 'ADMIN' || remoteUser.role === 'STUDIO' || remoteUser.role === 'TEMP_STUDIO')) {
         setIsChecking(false)
         setIsCustomerBlocked(false)
         return
       }
 
-      // If user is not authenticated or not STUDIO, redirect to main portal
+      // If user is not authenticated or not STUDIO / TEMP_STUDIO, redirect to customer portal
       handleCustomerRedirect(remoteUser?.email || remoteUser?.phone || 'Unauthenticated')
     } catch (err) {
       console.warn('[StudioProxy] Verification note:', err)
+      const storedRole = getAuthRole()
+      const storedUser = getAuthUser<User>()
+      if (storedRole === 'STUDIO' || storedRole === 'TEMP_STUDIO' || storedUser?.role === 'STUDIO' || storedUser?.role === 'TEMP_STUDIO') {
+        setIsChecking(false)
+        setIsCustomerBlocked(false)
+        return
+      }
       handleCustomerRedirect('Unauthenticated')
     }
   }
@@ -102,12 +111,30 @@ export function StudioProxy({ children }: StudioProxyProps) {
   useEffect(() => {
     verifyRoleGate()
 
-    // Suppress third-party Chrome Extension unhandled promise rejections from noise-polluting console
+    // Suppress third-party Chrome Extension and XHR invalidState errors from triggering dev error overlays
+    const handleWindowError = (e: ErrorEvent) => {
+      const msg = String(e.message || e.error || '')
+      if (
+        msg.includes('responseText') ||
+        msg.includes('InvalidStateError') ||
+        msg.includes('chrome-extension://') ||
+        msg.includes("reading 'M_ID'") ||
+        msg.includes('eppiocemhmnlbhjplcgkofciiegomcon')
+      ) {
+        e.preventDefault()
+        e.stopImmediatePropagation()
+        return true
+      }
+    }
+    window.addEventListener('error', handleWindowError, true)
+
     const handleUnhandledRejection = (e: PromiseRejectionEvent) => {
       const reason = e.reason
       const reasonStr = String(reason || '')
       const stack = reason?.stack || ''
       if (
+        reasonStr.includes('responseText') ||
+        reasonStr.includes('InvalidStateError') ||
         reasonStr.includes('chrome-extension://') ||
         stack.includes('chrome-extension://') ||
         reasonStr.includes("reading 'M_ID'") ||
@@ -117,14 +144,17 @@ export function StudioProxy({ children }: StudioProxyProps) {
         e.stopImmediatePropagation()
       }
     }
-    window.addEventListener('unhandledrejection', handleUnhandledRejection)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
 
-    const handleStorageChange = () => {
-      verifyRoleGate()
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!e.key || e.key === 'tg_token' || e.key === 'tg_user_role' || e.key === 'tg_user_data') {
+        verifyRoleGate()
+      }
     }
     window.addEventListener('storage', handleStorageChange)
     return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
+      window.removeEventListener('error', handleWindowError, true)
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
       window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
