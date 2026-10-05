@@ -21,7 +21,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     if (inMemoryUser) return inMemoryUser
     if (typeof window !== 'undefined') {
       const cached = getAuthUser<User>()
-      if (cached && (cached.email || cached.method === 'google') && cached.role === 'STUDIO') {
+      if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN' || cached.role === 'TEMP_STUDIO')) {
         inMemoryUser = cached
         return cached
       }
@@ -33,7 +33,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     if (inMemoryUser) return false
     if (typeof window !== 'undefined') {
       const cached = getAuthUser<User>()
-      if (cached && (cached.email || cached.method === 'google') && cached.role === 'STUDIO') {
+      if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN')) {
         return false
       }
     }
@@ -49,12 +49,12 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     getCurrentUser()
       .then((u) => {
         if (!isMounted) return
-        if (u && u.role === 'STUDIO') {
+        if (u && (u.role === 'STUDIO' || u.role === 'ADMIN' || u.role === 'TEMP_STUDIO')) {
           inMemoryUser = u
           setUser(u)
         } else {
           const cached = getAuthUser<User>()
-          if (cached && (cached.email || cached.method === 'google') && cached.role === 'STUDIO') {
+          if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN' || cached.role === 'TEMP_STUDIO')) {
             inMemoryUser = cached
             setUser(cached)
           } else {
@@ -66,7 +66,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
       .catch(() => {
         if (!isMounted) return
         const cached = getAuthUser<User>()
-        if (cached && (cached.email || cached.method === 'google') && cached.role === 'STUDIO') {
+        if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN' || cached.role === 'TEMP_STUDIO')) {
           inMemoryUser = cached
           setUser(cached)
         } else {
@@ -83,10 +83,14 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     }
   }, [])
 
-  // If auth check completes and user is not an active studio, redirect to customer portal
+  // If auth check completes and user is not an active studio, redirect appropriately
   useEffect(() => {
     if (!loadingUser) {
-      if (!user || user.role !== 'STUDIO' || user.status !== 'ACTIVE' || !user.studioName || !user.phone) {
+      if (user?.role === 'TEMP_STUDIO' || (user?.role === 'STUDIO' && (!user.studioName || !user.phone || user.status === 'INACTIVE'))) {
+        window.location.replace('/?step=1')
+        return
+      }
+      if (!user || (user.role !== 'STUDIO' && user.role !== 'ADMIN')) {
         window.location.replace(customerSiteUrl)
       }
     }

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { exchangeAuthCode, getCurrentUser } from '@/lib/api'
-import { setAuthToken } from '@/lib/cookies'
+import { setAuthToken, setAuthRole, setAuthUser } from '@/lib/cookies'
 import { ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
 
 function StudioAuthCallbackInner() {
@@ -29,10 +29,11 @@ function StudioAuthCallbackInner() {
 
       try {
         let user: any = null
+        let result: any = null
 
         if (code) {
           // Option A: Exchange single-use authorization code
-          const result = await exchangeAuthCode(code)
+          result = await exchangeAuthCode(code)
           user = result.user
         } else if (token) {
           // Fallback if legacy token was passed
@@ -46,11 +47,17 @@ function StudioAuthCallbackInner() {
           return
         }
 
+        const effectiveRole = (result?.role === 'STUDIO' || user.role === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+        const effectiveUser = { ...user, role: effectiveRole }
+        setAuthRole(effectiveRole)
+        setAuthUser(effectiveUser)
+
         // Determine destination based on studio profile completeness
         const isProfileComplete = Boolean(
-          user.studioName &&
-          user.phone &&
-          user.status !== 'INACTIVE'
+          effectiveRole === 'STUDIO' &&
+          effectiveUser.studioName &&
+          effectiveUser.phone &&
+          effectiveUser.status !== 'INACTIVE'
         )
 
         if (isProfileComplete) {

@@ -19,13 +19,13 @@ const otpStore = new Map();
 // Map: authCode -> { token, user, role, expiresAt }
 const authCodeStore = new Map();
 
-function createAuthCode(user, token) {
+function createAuthCode(user, token, roleOverride) {
   if (!user || !token) return null;
   const code = `ac_${Date.now()}_${Math.random().toString(36).substring(2, 12)}`;
   authCodeStore.set(code, {
     token,
     user,
-    role: user.role || 'CUSTOMER',
+    role: roleOverride || user.role || 'CUSTOMER',
     expiresAt: Date.now() + 60 * 1000, // 60 seconds TTL (single-use)
   });
   return code;
@@ -40,6 +40,60 @@ setInterval(() => {
     }
   }
 }, 30 * 1000);
+
+// 24-Hour Expiration Cleanup for TEMP_STUDIO accounts
+async function cleanupExpiredTempStudioUsers() {
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const expiredUsers = await prisma.user.findMany({
+      where: {
+        role: 'TEMP_STUDIO',
+        createdAt: { lt: cutoff },
+      },
+      select: { id: true, studioId: true },
+    });
+
+    if (expiredUsers && expiredUsers.length > 0) {
+      const userIds = expiredUsers.map((u) => u.id);
+      const studioIds = expiredUsers.map((u) => u.studioId).filter(Boolean);
+
+      if (studioIds.length > 0) {
+        await prisma.partnerStore.deleteMany({
+          where: { id: { in: studioIds } },
+        }).catch(() => {});
+      }
+
+      const deleted = await prisma.user.deleteMany({
+        where: { id: { in: userIds } },
+      });
+
+      console.log(`[TEMP-STUDIO-CLEANUP] Cleared ${deleted.count} expired TEMP_STUDIO accounts (>24h old).`);
+    }
+  } catch (err) {
+    console.warn('[TEMP-STUDIO-CLEANUP] Notice:', err.message);
+  }
+}
+
+// Run cleanup on launch and every 15 minutes
+cleanupExpiredTempStudioUsers();
+setInterval(cleanupExpiredTempStudioUsers, 15 * 60 * 1000);
+
+// Helper to check if a TEMP_STUDIO user has exceeded 24 hours
+async function isUserExpiredTempStudio(user) {
+  if (!user || user.role !== 'TEMP_STUDIO') return false;
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (new Date(user.createdAt) < cutoff) {
+    try {
+      if (user.studioId) {
+        await prisma.partnerStore.delete({ where: { id: user.studioId } }).catch(() => {});
+      }
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+      console.log(`[TEMP-STUDIO] Expired user ${user.id} (${user.email || user.phone}) cleared after 24h.`);
+    } catch (_) {}
+    return true;
+  }
+  return false;
+}
 
 // Helper to generate auth token
 function generateToken(user) {
@@ -107,10 +161,20 @@ async function findOrLinkUser({
     });
   }
 
+  // Check if existing user is an expired TEMP_STUDIO account (>24h)
+  if (user && await isUserExpiredTempStudio(user)) {
+    user = null;
+  }
+
   // STRICT ROLE GATE: Reject any cross-role switching or reuse
-  if (user && user.role && user.role !== role) {
-    const currentRoleName = user.role === 'CUSTOMER' ? 'Customer' : user.role === 'STUDIO' ? 'Studio partner' : user.role;
-    const requestedRoleName = role === 'CUSTOMER' ? 'Customer' : role === 'STUDIO' ? 'Studio partner' : role;
+  // Allow TEMP_STUDIO -> STUDIO progression
+  const isStudioProgression =
+    (user?.role === 'TEMP_STUDIO' && (role === 'STUDIO' || role === 'TEMP_STUDIO')) ||
+    (user?.role === 'STUDIO' && (role === 'STUDIO' || role === 'TEMP_STUDIO'));
+
+  if (user && user.role && user.role !== role && !isStudioProgression) {
+    const currentRoleName = user.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+    const requestedRoleName = role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
     const roleErr = new Error(
       `This account is registered as a ${currentRoleName}. It cannot be switched or used as a ${requestedRoleName} account. Please use a different phone or email.`
     );
@@ -121,7 +185,8 @@ async function findOrLinkUser({
   // 3. If Studio role and creating a store
   let actualStudioId = studioId || user?.studioId;
   let resolvedStore = null;
-  if (role === 'STUDIO' && (studioName || studioId || user?.studioId)) {
+  const isStudioRole = role === 'STUDIO' || role === 'TEMP_STUDIO';
+  if (isStudioRole && (studioName || studioId || user?.studioId)) {
     const actualStoreName = studioName || user?.studioName || `${name || 'Master'}'s Studio`;
 
     try {
@@ -454,11 +519,35 @@ router.post('/verify-otp', async (req, res) => {
 
     console.log(`[AUTH-VERIFY] Code "${cleanOtp}" verified successfully for ${cleanPhone}!`);
 
+    let targetUserId = userId;
+    const authHeader = req.headers.authorization;
+    if (!targetUserId && authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        if (decoded.id && !String(decoded.id).startsWith('temp_g_')) {
+          targetUserId = decoded.id;
+        } else if (decoded.email) {
+          const u = await prisma.user.findFirst({
+            where: { OR: [{ email: decoded.email.toLowerCase() }, { contact: decoded.email.toLowerCase() }] },
+          });
+          if (u) targetUserId = u.id;
+        }
+      } catch (_) {}
+    }
+
+    if (!targetUserId && email) {
+      const cleanEmail = email.trim().toLowerCase();
+      const userByEmail = await prisma.user.findFirst({
+        where: { OR: [{ email: cleanEmail }, { contact: cleanEmail }] },
+      });
+      if (userByEmail) targetUserId = userByEmail.id;
+    }
+
     let user;
-    if (userId) {
+    if (targetUserId) {
       // Linking phone to existing user account
       const phoneConflict = await prisma.user.findFirst({
-        where: { phone: cleanPhone, NOT: { id: userId } },
+        where: { phone: cleanPhone, NOT: { id: targetUserId } },
       });
       if (phoneConflict) {
         return res.status(409).json({
@@ -466,13 +555,14 @@ router.post('/verify-otp', async (req, res) => {
         });
       }
 
-      user = await prisma.user.findUnique({ where: { id: userId } });
+      user = await prisma.user.findUnique({ where: { id: targetUserId } });
       if (user) {
         user = await prisma.user.update({
-          where: { id: userId },
+          where: { id: targetUserId },
           data: {
             phone: cleanPhone,
-            ...(email && !user.email ? { email: email.toLowerCase() } : {}),
+            ...(email && !user.email ? { email: email.toLowerCase().trim() } : {}),
+            ...(role === 'STUDIO' || role === 'TEMP_STUDIO' ? { role: user.role === 'CUSTOMER' ? 'TEMP_STUDIO' : user.role } : {}),
           },
         });
       }
@@ -485,25 +575,48 @@ router.post('/verify-otp', async (req, res) => {
       });
 
       if (existingUser) {
-        user = existingUser;
-        if (existingUser.role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName)) {
-          return res.json({
-            success: true,
-            isNewUser: true,
-            phone: cleanPhone,
-            user: existingUser,
-            role: 'STUDIO',
-            message: 'Mobile number verified. Please complete your studio registration.',
-          });
+        if (await isUserExpiredTempStudio(existingUser)) {
+          user = null;
+        } else {
+          user = existingUser;
+          if (existingUser.role === 'TEMP_STUDIO' || (existingUser.role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName))) {
+            const tempToken = generateToken(existingUser);
+            const tempAuthCode = createAuthCode(existingUser, tempToken);
+            return res.json({
+              success: true,
+              isNewUser: true,
+              phone: cleanPhone,
+              user: existingUser,
+              role: 'TEMP_STUDIO',
+              token: tempToken,
+              authCode: tempAuthCode,
+              message: 'Mobile number verified. Please complete your studio registration.',
+            });
+          }
         }
-      } else {
-        // User does not exist
-        if (role === 'STUDIO') {
+      }
+
+      if (!user) {
+        if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
+          user = await findOrLinkUser({
+            phone: cleanPhone,
+            email,
+            name,
+            method: 'mobile',
+            role: 'TEMP_STUDIO',
+            status: 'INACTIVE',
+          });
+
+          const tempToken = generateToken(user);
+          const tempAuthCode = createAuthCode(user, tempToken);
           return res.json({
             success: true,
             isNewUser: true,
             phone: cleanPhone,
-            role: 'STUDIO',
+            user,
+            role: 'TEMP_STUDIO',
+            token: tempToken,
+            authCode: tempAuthCode,
             message: 'Mobile number verified. Please complete your studio registration.',
           });
         }
@@ -518,7 +631,7 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       returnUser = await enrichStudioUser(user);
     }
 
@@ -787,11 +900,11 @@ function removePendingGoogleSignup(tempId) {
 // POST /api/auth/google
 router.post('/google', async (req, res) => {
   try {
-    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false } = req.body;
+    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false, flow, isLogin } = req.body;
 
-    let email = '';
-    let name = '';
-    let avatar = '';
+    let email = req.body.email || '';
+    let name = req.body.name || '';
+    let avatar = req.body.avatar || '';
 
     if (idToken) {
       try {
@@ -800,9 +913,9 @@ router.post('/google', async (req, res) => {
           audience: GOOGLE_CLIENT_ID,
         });
         const payload = ticket.getPayload();
-        email = payload.email;
-        name = payload.name || payload.given_name || 'Google User';
-        avatar = payload.picture;
+        email = email || payload.email;
+        name = name || payload.name || payload.given_name || 'Google User';
+        avatar = avatar || payload.picture;
       } catch (verifyErr) {
         console.warn('ID Token verification warning:', verifyErr.message);
       }
@@ -816,8 +929,8 @@ router.post('/google', async (req, res) => {
         if (userInfoRes.ok) {
           const uInfo = await userInfoRes.json();
           email = uInfo.email;
-          name = uInfo.name || uInfo.given_name || 'Google User';
-          avatar = uInfo.picture;
+          name = name || uInfo.name || uInfo.given_name || 'Google User';
+          avatar = avatar || uInfo.picture;
         }
       } catch (apiErr) {
         console.warn('Google userinfo fetch error:', apiErr.message);
@@ -826,8 +939,8 @@ router.post('/google', async (req, res) => {
 
     if (!email && profile) {
       email = profile.email || profile.contact;
-      name = profile.name || 'Google User';
-      avatar = profile.avatar || profile.picture;
+      name = name || profile.name || 'Google User';
+      avatar = avatar || profile.avatar || profile.picture;
     }
 
     if (!email) {
@@ -839,51 +952,101 @@ router.post('/google', async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
 
     // Check if user already exists in DB
-    const existingUser = await prisma.user.findFirst({
+    let existingUser = await prisma.user.findFirst({
       where: {
         OR: [{ email: cleanEmail }, { contact: cleanEmail }],
       },
     });
 
     if (existingUser) {
-      if (existingUser.method !== 'google') {
-        await prisma.user.update({
-          where: { id: existingUser.id },
-          data: { method: 'google' },
-        }).catch(() => { });
-        existingUser.method = 'google';
+      if (await isUserExpiredTempStudio(existingUser)) {
+        existingUser = null;
+      } else {
+        if (existingUser.method !== 'google') {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: { method: 'google' },
+          }).catch(() => { });
+          existingUser.method = 'google';
+        }
+
+        if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
+          if (existingUser.role === 'CUSTOMER' || !existingUser.role) {
+            existingUser = await prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                role: 'TEMP_STUDIO',
+                status: existingUser.status === 'ACTIVE' ? existingUser.status : 'INACTIVE',
+              },
+            });
+          }
+        }
+
+        let returnUser = existingUser;
+        if (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') {
+          returnUser = await enrichStudioUser(existingUser);
+        }
+
+        const isRegisteredStudio = Boolean(
+          existingUser.role === 'STUDIO' &&
+          existingUser.status === 'ACTIVE' &&
+          existingUser.studioName &&
+          existingUser.phone
+        );
+        const isNewUser = (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') ? !isRegisteredStudio : false;
+
+        const token = generateToken(returnUser);
+        const authCode = createAuthCode(returnUser, token);
+        return res.json({
+          success: true,
+          message: 'Authenticated with Google successfully',
+          token,
+          authCode,
+          user: returnUser,
+          role: returnUser.role,
+          isNewUser,
+          needsPhone: !returnUser.phone,
+          hasPhone: Boolean(returnUser.phone),
+        });
       }
+    }
 
-      let returnUser = existingUser;
-      if (existingUser.role === 'STUDIO') {
-        returnUser = await enrichStudioUser(existingUser);
-      }
-
-      const isRegisteredStudio = Boolean(
-        existingUser.role === 'STUDIO' &&
-        existingUser.status === 'ACTIVE' &&
-        existingUser.studioName &&
-        existingUser.phone
-      );
-      const isNewUser = existingUser.role === 'STUDIO' ? !isRegisteredStudio : false;
-
-      const token = generateToken(returnUser);
-      const authCode = createAuthCode(returnUser, token);
-      return res.json({
-        success: true,
-        message: 'Authenticated with Google successfully',
-        token,
-        authCode,
-        user: returnUser,
-        role: returnUser.role,
-        isNewUser,
-        needsPhone: !returnUser.phone,
-        hasPhone: Boolean(returnUser.phone),
+    // If login flow (not signup) and account is not found in DB
+    if (flow === 'login' || isLogin) {
+      return res.status(404).json({
+        error: 'No account with Google Id , please sign up',
+        noAccount: true,
       });
     }
 
-    // Do NOT write to DB if user is not registered yet!
-    // Store in temporary cache / signed token until full registration completion.
+    // When signing up for STUDIO, create a temporary DB record with role TEMP_STUDIO
+    if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
+      const createdTempUser = await findOrLinkUser({
+        name: name || 'Google User',
+        email: cleanEmail,
+        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        method: 'google',
+        role: 'TEMP_STUDIO',
+        status: 'INACTIVE',
+      });
+
+      const token = generateToken(createdTempUser);
+      const authCode = createAuthCode(createdTempUser, token);
+
+      return res.json({
+        success: true,
+        isNewUser: true,
+        message: 'Google identity verified successfully. Please complete studio onboarding.',
+        token,
+        authCode,
+        user: createdTempUser,
+        role: 'TEMP_STUDIO',
+        needsPhone: true,
+        hasPhone: false,
+      });
+    }
+
+    // Customer fallback token / cache
     const tempPayloadToken = jwt.sign(
       {
         email: cleanEmail,
@@ -912,7 +1075,7 @@ router.post('/google', async (req, res) => {
       email: cleanEmail,
       avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
-      status: role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE',
+      status: 'ACTIVE',
       contact: cleanEmail,
       method: 'google',
     };
@@ -965,8 +1128,6 @@ router.post('/signup', async (req, res) => {
     let cachedGoogleData = null;
     if (tempSignupId) {
       cachedGoogleData = getPendingGoogleSignup(tempSignupId);
-      // Resilient fallback: If cache entry is missing or expired, but the client provides email or phone,
-      // allow registration to proceed so active onboarding users never get blocked by timeouts or restarts.
       if (!cachedGoogleData && !email && !phone) {
         return res.status(400).json({
           error: 'Your sign-up session has expired. Please sign up with Google again.',
@@ -1000,14 +1161,14 @@ router.post('/signup', async (req, res) => {
         },
       });
       if (existingEmail) {
-        if (existingEmail.role !== role) {
+        if (await isUserExpiredTempStudio(existingEmail)) {
+          // expired, continue fresh
+        } else if (existingEmail.role !== role && !(existingEmail.role === 'TEMP_STUDIO' && role === 'STUDIO')) {
           const roleName = existingEmail.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
           return res.status(403).json({
             error: `This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email.`,
           });
-        }
-        // If Customer role, prevent duplicate registration
-        if (role === 'CUSTOMER') {
+        } else if (role === 'CUSTOMER') {
           return res.status(409).json({
             error: 'An account with this email address is already registered. Please sign in instead.',
           });
@@ -1023,19 +1184,26 @@ router.post('/signup', async (req, res) => {
         },
       });
       if (existingPhone) {
-        if (existingPhone.role !== role) {
+        if (await isUserExpiredTempStudio(existingPhone)) {
+          // expired, continue fresh
+        } else if (existingPhone.role !== role && !(existingPhone.role === 'TEMP_STUDIO' && role === 'STUDIO')) {
           const roleName = existingPhone.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
           return res.status(403).json({
             error: `This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`,
           });
-        }
-        if (existingPhone.email && finalEmail && existingPhone.email !== finalEmail) {
+        } else if (existingPhone.email && finalEmail && existingPhone.email !== finalEmail) {
           return res.status(409).json({
             error: 'An account with this mobile number is already registered to another email.',
           });
         }
       }
     }
+
+    // Determine target role: If studio registration has completed storeName/shop details, role becomes STUDIO
+    const isStudioSignup = role === 'STUDIO' || role === 'TEMP_STUDIO';
+    const isCompletedStudio = Boolean(isStudioSignup && storeName);
+    const targetRole = isStudioSignup ? (isCompletedStudio ? 'STUDIO' : 'TEMP_STUDIO') : (role || 'CUSTOMER');
+    const targetStatus = targetRole === 'TEMP_STUDIO' ? 'INACTIVE' : 'ACTIVE';
 
     // Now write to database
     const user = await findOrLinkUser({
@@ -1046,8 +1214,8 @@ router.post('/signup', async (req, res) => {
       method: finalMethod,
       address,
       postcode,
-      role: role || cachedGoogleData?.role || 'CUSTOMER',
-      status: 'ACTIVE',
+      role: targetRole,
+      status: targetStatus,
       studioName: storeName,
       storeArea,
       machines,
@@ -1060,15 +1228,21 @@ router.post('/signup', async (req, res) => {
       removePendingGoogleSignup(tempSignupId);
     }
 
-    const token = generateToken(user);
-    const authCode = createAuthCode(user, token);
+    let returnUser = user;
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+      returnUser = await enrichStudioUser(user);
+    }
+
+    const token = generateToken(returnUser);
+    const authCode = createAuthCode(returnUser, token);
     return res.json({
       success: true,
       token,
       authCode,
-      user,
-      needsPhone: !user.phone,
-      hasPhone: Boolean(user.phone),
+      user: returnUser,
+      role: returnUser.role,
+      needsPhone: !returnUser.phone,
+      hasPhone: Boolean(returnUser.phone),
     });
   } catch (err) {
     console.error('Signup Error:', err);
@@ -1129,6 +1303,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    // Check if user is expired TEMP_STUDIO (>24h)
+    if (await isUserExpiredTempStudio(user)) {
+      return res.status(404).json({
+        error: 'Your temporary studio registration expired after 24 hours. Please sign up again.',
+        expired: true,
+      });
+    }
+
     // Account Status Validation
     if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
       return res.status(403).json({
@@ -1137,7 +1319,7 @@ router.post('/login', async (req, res) => {
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       returnUser = await enrichStudioUser(user);
     }
 
@@ -1425,7 +1607,7 @@ router.get('/me', async (req, res) => {
             email: decoded.email,
             name: decoded.name || 'Google User',
             avatar: decoded.avatar || null,
-            role: decoded.role || 'STUDIO',
+            role: decoded.role || 'TEMP_STUDIO',
             status: 'INACTIVE',
             isNewUser: true,
           },
@@ -1434,7 +1616,21 @@ router.get('/me', async (req, res) => {
       return res.status(404).json({ error: 'User profile not found' });
     }
 
-    if (user.role === 'STUDIO') {
+    if (await isUserExpiredTempStudio(user)) {
+      return res.status(401).json({
+        error: 'Your temporary studio registration expired after 24 hours. Please sign up again.',
+        expired: true,
+      });
+    }
+
+    if ((decoded.role === 'STUDIO' || decoded.role === 'TEMP_STUDIO') && user && user.role === 'CUSTOMER') {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { role: 'TEMP_STUDIO' },
+      }).catch(() => ({ ...user, role: 'TEMP_STUDIO' }));
+    }
+
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       try {
         let store = null;
         if (user.studioId) {
@@ -1481,7 +1677,7 @@ router.get('/me', async (req, res) => {
     }
 
     if (!user.status) {
-      const defaultStatus = (user.role === 'STUDIO' && (!user.studioName || !user.phone)) ? 'INACTIVE' : 'ACTIVE';
+      const defaultStatus = ((user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') && (!user.studioName || !user.phone)) ? 'INACTIVE' : 'ACTIVE';
       user = await prisma.user.update({
         where: { id: user.id },
         data: { status: defaultStatus },
@@ -1489,7 +1685,7 @@ router.get('/me', async (req, res) => {
     }
 
     let enrichedUser = user;
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       enrichedUser = await enrichStudioUser(user);
     }
 
@@ -1549,7 +1745,9 @@ router.post('/oauth/code', (req, res) => {
     }
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, JWT_SECRET);
-    const code = createAuthCode(decoded, token);
+    const { targetRole } = req.body || {};
+    const effectiveRole = targetRole || (decoded.role === 'CUSTOMER' ? 'TEMP_STUDIO' : decoded.role);
+    const code = createAuthCode({ ...decoded, role: effectiveRole }, token, effectiveRole);
     return res.json({ success: true, code, expiresIn: 60 });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token.' });
@@ -1582,11 +1780,19 @@ router.post('/oauth/exchange', async (req, res) => {
       if (freshUser) returnUser = freshUser;
     }
 
-    if (returnUser && returnUser.role === 'STUDIO') {
+    // If exchange is for studio and returnUser was customer, upgrade to TEMP_STUDIO
+    if ((item.role === 'STUDIO' || item.role === 'TEMP_STUDIO' || !item.role) && returnUser && returnUser.role === 'CUSTOMER') {
+      returnUser = await prisma.user.update({
+        where: { id: returnUser.id },
+        data: { role: 'TEMP_STUDIO' },
+      }).catch(() => ({ ...returnUser, role: 'TEMP_STUDIO' }));
+    }
+
+    if (returnUser && (returnUser.role === 'STUDIO' || returnUser.role === 'TEMP_STUDIO')) {
       returnUser = await enrichStudioUser(returnUser);
     }
 
-    const token = item.token || generateToken(returnUser);
+    const token = generateToken(returnUser);
 
     return res.json({
       success: true,
