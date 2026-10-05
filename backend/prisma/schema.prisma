@@ -25,6 +25,7 @@ model User {
   studioId   String?
   studioName String?
   measurements String?
+  refreshToken String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

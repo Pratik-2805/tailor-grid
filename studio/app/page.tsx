@@ -61,31 +61,13 @@ export default function StudioPage() {
           setAuthRole(effectiveRole)
           setAuthUser(finalUser)
         } else {
-          const cached = getAuthUser<User>()
-          const currentRole = getAuthRole()
-          if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' || currentRole === 'STUDIO')) {
-            const roleToUse: 'STUDIO' | 'TEMP_STUDIO' = (cached.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
-            const updated: User = { ...cached, role: roleToUse }
-            setUser(updated)
-            setAuthRole(roleToUse)
-            setAuthUser(updated)
-          } else {
-            setUser(null)
-          }
+          setUser(null)
+          clearAllAuth()
         }
       })
       .catch(() => {
-        const cached = getAuthUser<User>()
-        const currentRole = getAuthRole()
-        if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' || currentRole === 'STUDIO')) {
-          const roleToUse: 'STUDIO' | 'TEMP_STUDIO' = (cached.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
-          const updated: User = { ...cached, role: roleToUse }
-          setUser(updated)
-          setAuthRole(roleToUse)
-          setAuthUser(updated)
-        } else {
-          setUser(null)
-        }
+        setUser(null)
+        clearAllAuth()
       })
       .finally(() => {
         setLoadingUser(false)

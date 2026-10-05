@@ -3,6 +3,9 @@ import {
   getAuthToken,
   setAuthToken,
   removeAuthToken,
+  getRefreshToken,
+  setRefreshToken,
+  removeRefreshToken,
   getAuthUser,
   setAuthUser,
   removeAuthUser,
@@ -24,6 +27,60 @@ export function syncAuthCookies(token?: string | null, role?: string | null) {
 
 export function clearAuthCookies() {
   clearAllAuth()
+}
+
+let isRefreshing = false
+let refreshPromise: Promise<string | null> | null = null
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    clearAllAuth()
+    return null
+  }
+
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise
+  }
+
+  isRefreshing = true
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!res.ok) {
+        clearAllAuth()
+        return null
+      }
+
+      const data = await res.json()
+      const newAt = data.accessToken || data.token
+      if (newAt) {
+        setAuthToken(newAt)
+        if (data.refreshToken) setRefreshToken(data.refreshToken)
+        if (data.user) {
+          setAuthUser(data.user)
+          if (data.user.role) setAuthRole(data.user.role)
+        }
+        return newAt
+      }
+
+      clearAllAuth()
+      return null
+    } catch {
+      clearAllAuth()
+      return null
+    } finally {
+      isRefreshing = false
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
 }
 
 export async function logoutUser(): Promise<void> {
@@ -63,6 +120,8 @@ export function getStudioUrl(path: string = '', tokenOrCode?: string | null): st
 export async function exchangeAuthCode(code: string): Promise<{
   success: boolean
   token: string
+  accessToken?: string
+  refreshToken?: string
   user: User
   role: string
 }> {
@@ -77,12 +136,14 @@ export async function exchangeAuthCode(code: string): Promise<{
       throw new Error(err.error || 'Failed to exchange authorization code')
     }
     const data = await res.json()
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       if (data.user) {
         setAuthUser(data.user)
-        setAuthRole(data.user.role || data.role || 'CUSTOMER')
+        setAuthRole(data.role || data.user.role || 'CUSTOMER')
       }
     }
     return data
@@ -123,6 +184,8 @@ export async function verifyOtp(params: {
   postcode?: string
 }): Promise<{
   token?: string
+  accessToken?: string
+  refreshToken?: string
   authCode?: string
   user?: User
   hasPhone?: boolean
@@ -146,9 +209,11 @@ export async function verifyOtp(params: {
     if (data.user) {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       if (data.user) {
         setAuthUser(data.user)
         setAuthRole(data.user.role)
@@ -165,7 +230,7 @@ export async function linkPhone(params: {
   phone: string
   otp?: string
   userId?: string
-}): Promise<{ success: boolean; user: User; token: string; authCode?: string; hasPhone: boolean }> {
+}): Promise<{ success: boolean; user: User; token: string; accessToken?: string; refreshToken?: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
@@ -186,9 +251,11 @@ export async function linkPhone(params: {
     if (data.user) {
       data.user.role = data.user.role ?? 'CUSTOMER'
     }
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
     }
     if (data.user) {
       setAuthUser(data.user)
@@ -212,7 +279,7 @@ export async function loginWithGoogle(params: {
   isSignup?: boolean
   flow?: 'login' | 'signup'
   isLogin?: boolean
-}): Promise<{ token?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
+}): Promise<{ token?: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
@@ -229,9 +296,11 @@ export async function loginWithGoogle(params: {
     if (data.user) {
       data.user.role = data.user.role ?? params.role ?? 'CUSTOMER'
     }
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       if (data.user) {
         setAuthUser(data.user)
         setAuthRole(data.user.role)
@@ -266,7 +335,7 @@ export async function signUpUser(data: {
   storeName?: string
   storeArea?: string
   machines?: string
-}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
@@ -287,9 +356,11 @@ export async function signUpUser(data: {
     if (result.user) {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
-    if (result.token) {
+    const at = result.accessToken || result.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(result.token)
+      setAuthToken(at)
+      if (result.refreshToken) setRefreshToken(result.refreshToken)
       if (result.user) {
         setAuthUser(result.user)
         setAuthRole(result.user.role)
@@ -306,7 +377,7 @@ export async function loginUser(data: {
   phone?: string
   identifier?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
@@ -323,9 +394,11 @@ export async function loginUser(data: {
     if (result.user) {
       result.user.role = result.user.role ?? data.role ?? 'CUSTOMER'
     }
-    if (result.token) {
+    const at = result.accessToken || result.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(result.token)
+      setAuthToken(at)
+      if (result.refreshToken) setRefreshToken(result.refreshToken)
       if (result.user) {
         setAuthUser(result.user)
         setAuthRole(result.user.role)
@@ -337,9 +410,9 @@ export async function loginUser(data: {
   }
 }
 
-export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string }> {
-  const token = getAuthToken()
-  const res = await fetch(`${API_BASE}/auth/update-profile`, {
+export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string; accessToken?: string; refreshToken?: string }> {
+  let token = getAuthToken()
+  let res = await fetch(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -348,14 +421,32 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
     body: JSON.stringify(updates),
   })
 
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      res = await fetch(`${API_BASE}/auth/update-profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${newToken}`,
+        },
+        body: JSON.stringify(updates),
+      })
+    }
+  }
+
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
     throw new Error(errData.error || `Server error (${res.status})`)
   }
 
   const data = await res.json()
-  if (data.token) {
-    setAuthToken(data.token)
+  const at = data.accessToken || data.token
+  if (at) {
+    setAuthToken(at)
+  }
+  if (data.refreshToken) {
+    setRefreshToken(data.refreshToken)
   }
   if (data.user) {
     setAuthUser(data.user)
@@ -365,21 +456,35 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = getAuthToken()
+  let token = getAuthToken()
   if (!token) {
-    clearAllAuth()
-    return null
+    token = await refreshAccessToken()
+    if (!token) {
+      clearAllAuth()
+      return null
+    }
   }
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    let res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken()
+      if (newToken) {
+        res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${newToken}` },
+        })
+      }
+    }
+
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
         // Strict Gate: If user status is INACTIVE or incomplete studio enroll, do NOT log in on customer site
         if (data.user.status === 'INACTIVE' || (data.user.role === 'STUDIO' && (!data.user.studioName || !data.user.phone))) {
+          clearAllAuth()
           return null
         }
         setAuthUser(data.user)
@@ -392,11 +497,7 @@ export async function getCurrentUser(): Promise<User | null> {
     clearAllAuth()
     return null
   } catch (err) {
-    // API offline - only fall back to cached user in cookie if network failed completely
-    const stored = getAuthUser<User>()
-    if (stored && stored.status !== 'INACTIVE') {
-      return stored
-    }
+    clearAllAuth()
     return null
   }
 }
