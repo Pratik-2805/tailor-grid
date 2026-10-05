@@ -106,12 +106,34 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
               )}
             </div>
           ) : (
-            <a
-              href={customerSiteUrl}
-              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
-            >
-              <span>Return to Customer Site</span>
-            </a>
+            <div className="flex items-center gap-2">
+              {onOpenAuth ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuth('signin')}
+                    className="flex items-center gap-1.5 rounded-full border border-[#E8E1D5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] hover:border-[#0F1115] transition-all whitespace-nowrap shrink-0 shadow-2xs cursor-pointer"
+                  >
+                    <UserIcon size={12} className="shrink-0 text-[#9E593B]" />
+                    <span>Log In</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenAuth('signup')}
+                    className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#9E593B] transition-all whitespace-nowrap shrink-0 shadow-xs active:scale-[0.98] cursor-pointer"
+                  >
+                    <span>Sign Up</span>
+                  </button>
+                </>
+              ) : (
+                <a
+                  href={customerSiteUrl}
+                  className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
+                >
+                  <span>Return to Customer Site</span>
+                </a>
+              )}
+            </div>
           )}
         </div>
 
@@ -145,16 +167,29 @@ export function StudioHeader({ user, onOpenAuth, onSignOut, onOpenProfile }: Stu
 
           <div className="pt-1 flex flex-col gap-2">
             {!user || !user.studioName || !user.phone ? (
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  onOpenAuth?.('signin')
-                }}
-                className="w-full flex items-center justify-center gap-2 border border-[#0F1115] rounded-xl py-2.5 text-center text-xs font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all"
-              >
-                <UserIcon size={14} />
-                <span>Sign In / Up</span>
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onOpenAuth?.('signin')
+                  }}
+                  className="w-full flex items-center justify-center gap-2 border border-[#E8E1D5] bg-white rounded-xl py-2.5 text-center text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all cursor-pointer shadow-2xs"
+                >
+                  <UserIcon size={14} className="text-[#9E593B]" />
+                  <span>Log In</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onOpenAuth?.('signup')
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] rounded-xl py-2.5 text-center text-xs font-semibold text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                >
+                  <span>Sign Up</span>
+                </button>
+              </div>
             ) : (
               <button
                 onClick={() => {

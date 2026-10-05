@@ -28,7 +28,7 @@ import { fetchOrders, updateOrder } from '@/lib/api'
 interface OrdersViewProps {
   go: (s: Screen) => void
   user?: User | null
-  onOpenAuth?: () => void
+  onOpenAuth?: (authType?: 'signin' | 'signup') => void
 }
 
 export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
@@ -288,11 +288,20 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
 
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
-                onClick={onOpenAuth}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] shadow-sm transition-all active:scale-95"
+                type="button"
+                onClick={() => onOpenAuth?.('signin')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-[#0F1115] bg-white px-7 py-3 text-xs font-bold uppercase tracking-wider text-[#0F1115] hover:bg-[#F3EFEA] shadow-xs transition-all active:scale-95 cursor-pointer"
               >
-                <LogIn size={15} />
-                <span>Sign In / Register</span>
+                <LogIn size={14} className="text-[#9E593B]" />
+                <span>Log In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.('signup')}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#0F1115] px-7 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9E593B] shadow-sm transition-all active:scale-95 cursor-pointer"
+              >
+                <UserIcon size={14} />
+                <span>Sign Up</span>
               </button>
             </div>
 

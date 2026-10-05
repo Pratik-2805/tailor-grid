@@ -34,7 +34,7 @@ export default function OrdersPage() {
     <OrdersView
       go={navigate}
       user={user}
-      onOpenAuth={() => openAuth('CUSTOMER', 'signin')}
+      onOpenAuth={(authType = 'signin') => openAuth('CUSTOMER', authType)}
     />
   )
 }
