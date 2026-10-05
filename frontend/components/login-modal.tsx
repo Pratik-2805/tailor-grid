@@ -91,19 +91,19 @@ export function LoginModal({
     const effectiveRole = user.role || role || 'CUSTOMER'
     const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
 
-    if (effectiveRole === 'STUDIO') {
+    if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
       if (effectiveToken) {
         setAuthToken(effectiveToken)
       }
-      setAuthRole('STUDIO')
+      setAuthRole(effectiveRole)
       setAuthUser(user)
-      toast.success(`Welcome back, ${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
+      toast.success(`Welcome ${effectiveRole === 'TEMP_STUDIO' ? '' : 'back, '}${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
       onClose()
 
       const targetParam = authCode || effectiveToken
       if (targetParam) {
         window.location.href = getStudioUrl('/auth/callback', targetParam)
-      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE') {
+      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE' || effectiveRole === 'TEMP_STUDIO') {
         window.location.href = getStudioUrl('/?step=1')
       } else {
         window.location.href = getStudioUrl('/')
@@ -434,7 +434,7 @@ export function LoginModal({
               </div>
 
               <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Login with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
+                <GoogleButton label="Login with Google" loading={loading} onClick={() => triggerGoogle(targetRole)} bordered />
 
                 <button
                   type="button"
@@ -776,9 +776,9 @@ function GoogleButton({
       type="button"
       disabled={loading}
       onClick={onClick}
-      className={`w-full flex items-center justify-center gap-3 rounded-xl py-2.5 px-4 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
+      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3 px-4 text-[13.5px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
         bordered
-          ? 'bg-white hover:bg-[#FAF8F5] border border-[#DDD6CB] text-[#18191B] shadow-2xs'
+          ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B] shadow-2xs'
           : 'bg-[#0F1115] hover:bg-[#1e2229] text-white shadow-xs'
       }`}
     >

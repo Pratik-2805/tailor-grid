@@ -52,9 +52,11 @@ export async function exchangeAuthCode(code: string): Promise<{
     if (data.token) {
       clearUnnecessaryDataOnLogin()
       setAuthToken(data.token)
-      if (data.user) {
-        setAuthUser(data.user)
-        setAuthRole(data.user.role || data.role || 'STUDIO')
+      const effectiveRole = (data.role === 'STUDIO' || data.user?.role === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+      const enrichedUser = data.user ? { ...data.user, role: effectiveRole } : null
+      if (enrichedUser) {
+        setAuthUser(enrichedUser)
+        setAuthRole(effectiveRole)
       }
     }
     return data
@@ -118,10 +120,14 @@ export async function verifyOtp(params: {
   phone?: string
   message?: string
 }> {
+  const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(params),
     })
 
@@ -353,42 +359,59 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
-        setAuthUser(data.user)
-        if (data.user.role === 'STUDIO') {
-          setAuthRole('STUDIO')
-        }
-        return data.user
+        const currentRole = getAuthRole()
+        const effectiveRole = (data.user.role === 'STUDIO' || currentRole === 'STUDIO')
+          ? 'STUDIO'
+          : (data.user.role === 'ADMIN' ? 'ADMIN' : (data.user.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' ? 'TEMP_STUDIO' : (data.user.role || 'TEMP_STUDIO')))
+        const userObj: User = { ...data.user, role: effectiveRole }
+        setAuthUser(userObj)
+        setAuthRole(effectiveRole)
+        return userObj
       }
     }
 
     // If user is completing registration via Google or mobile, retain pending onboarding session
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google') && payload.email) {
+      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google' || payload.role === 'TEMP_STUDIO' || payload.role === 'STUDIO') && payload.email) {
+        const effectiveRole = payload.role || 'TEMP_STUDIO'
         const pendingUser: User = getAuthUser<User>() || {
           id: payload.id || `temp_g_${payload.email}`,
           contact: payload.email,
           email: payload.email,
           name: payload.name || 'Studio Partner',
-          role: 'STUDIO',
-          method: 'google',
+          role: effectiveRole,
+          method: payload.method || 'google',
           status: 'INACTIVE',
         }
+        setAuthUser(pendingUser)
+        setAuthRole(effectiveRole)
         return pendingUser
       }
     } catch {}
 
-    // User not found in DB or token expired/invalid -> clear stale session
+    // Fallback: check cached user in storage before giving up
+    const cachedUser = getAuthUser<User>()
+    if (cachedUser && (cachedUser.role === 'STUDIO' || cachedUser.role === 'TEMP_STUDIO')) {
+      setAuthRole(cachedUser.role)
+      return cachedUser
+    }
+
     clearAllAuth()
     return null
   } catch (err) {
-    // Network error (backend unreachable)
+    // Network error (backend unreachable): preserve local session
     try {
       const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google') && payload.email) {
-        return getAuthUser<User>()
+      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google' || payload.role === 'TEMP_STUDIO' || payload.role === 'STUDIO') && payload.email) {
+        const cachedUser = getAuthUser<User>()
+        if (cachedUser) return cachedUser
       }
     } catch {}
+    const cachedUser = getAuthUser<User>()
+    if (cachedUser && (cachedUser.role === 'STUDIO' || cachedUser.role === 'TEMP_STUDIO')) {
+      return cachedUser
+    }
     clearAllAuth()
     return null
   }

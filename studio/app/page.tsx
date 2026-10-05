@@ -10,14 +10,33 @@ import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { CustomLoader } from '@/components/custom-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser } from '@/lib/api'
-import { getAuthUser, setAuthUser, setAuthRole, clearAllAuth } from '@/lib/cookies'
+import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth } from '@/lib/cookies'
 
 export default function StudioPage() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getAuthUser<User>()
+      const role = getAuthRole()
+      if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || role === 'TEMP_STUDIO' || role === 'STUDIO')) {
+        const roleToUse: 'STUDIO' | 'TEMP_STUDIO' = (cached.role === 'STUDIO' || role === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+        return { ...cached, role: roleToUse }
+      }
+    }
+    return null
+  })
   const [partnerTab, setPartnerTab] = useState<StudioTab>('cockpit')
   const [otp] = useState(() => makeOtp())
-  const [loadingUser, setLoadingUser] = useState(true)
+  const [loadingUser, setLoadingUser] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = getAuthUser<User>()
+      const role = getAuthRole()
+      if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || role === 'TEMP_STUDIO' || role === 'STUDIO')) {
+        return false
+      }
+    }
+    return true
+  })
 
   const customerSiteUrl = CUSTOMER_SITE_URL
 
@@ -34,14 +53,22 @@ export default function StudioPage() {
     // 2. Fetch authenticated studio user
     getCurrentUser()
       .then((u) => {
-        if (u && u.role === 'STUDIO') {
-          setUser(u)
-          setAuthRole('STUDIO')
-          setAuthUser(u)
+        if (u) {
+          const currentRole = getAuthRole()
+          const effectiveRole: 'STUDIO' | 'TEMP_STUDIO' = (u.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+          const finalUser: User = { ...u, role: effectiveRole }
+          setUser(finalUser)
+          setAuthRole(effectiveRole)
+          setAuthUser(finalUser)
         } else {
           const cached = getAuthUser<User>()
-          if (cached && cached.role === 'STUDIO') {
-            setUser(cached)
+          const currentRole = getAuthRole()
+          if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' || currentRole === 'STUDIO')) {
+            const roleToUse: 'STUDIO' | 'TEMP_STUDIO' = (cached.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+            const updated: User = { ...cached, role: roleToUse }
+            setUser(updated)
+            setAuthRole(roleToUse)
+            setAuthUser(updated)
           } else {
             setUser(null)
           }
@@ -49,8 +76,13 @@ export default function StudioPage() {
       })
       .catch(() => {
         const cached = getAuthUser<User>()
-        if (cached && cached.role === 'STUDIO') {
-          setUser(cached)
+        const currentRole = getAuthRole()
+        if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' || currentRole === 'STUDIO')) {
+          const roleToUse: 'STUDIO' | 'TEMP_STUDIO' = (cached.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
+          const updated: User = { ...cached, role: roleToUse }
+          setUser(updated)
+          setAuthRole(roleToUse)
+          setAuthUser(updated)
         } else {
           setUser(null)
         }
@@ -63,7 +95,7 @@ export default function StudioPage() {
   // 3. Strict Role-based Redirection
   useEffect(() => {
     if (!loadingUser) {
-      if (!user || user.role !== 'STUDIO') {
+      if (!user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) {
         // Unauthenticated or customer: redirect to main website
         if (typeof window !== 'undefined') {
           window.location.replace(customerSiteUrl)
@@ -72,7 +104,7 @@ export default function StudioPage() {
       }
 
       // Active & complete Studio partner: redirect directly to dashboard
-      if (user.status === 'ACTIVE' && user.studioName && user.phone) {
+      if (user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone) {
         router.replace('/dashboard')
       }
     }
@@ -111,7 +143,7 @@ export default function StudioPage() {
   }
 
   // ── Loading state or Redirecting to Customer Portal ──
-  if (loadingUser || !user || user.role !== 'STUDIO') {
+  if (loadingUser || !user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6">
         <CustomLoader
@@ -142,6 +174,7 @@ export default function StudioPage() {
   }
 
   const isProfileComplete = Boolean(
+    user.role === 'STUDIO' &&
     user.status === 'ACTIVE' &&
     user.studioName &&
     user.phone
@@ -177,7 +210,6 @@ export default function StudioPage() {
               <PartnerOnboarding
                 user={user}
                 hideHeader={true}
-                initialTab="signup"
                 onComplete={handleAuthSuccess}
                 onSignOut={handleSignOut}
               />

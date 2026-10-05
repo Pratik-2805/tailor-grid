@@ -17,13 +17,10 @@ import { toast } from 'react-toastify'
 import type { User } from '@/components/data'
 import {
   signUpUser,
-  loginUser,
-  loginWithGoogle,
   sendOtp,
   verifyOtp,
   checkEmailExists,
   CUSTOMER_SITE_URL,
-  getCustomerSiteUrl,
 } from '@/lib/api'
 import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, getAuthUser } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
@@ -35,14 +32,12 @@ interface PartnerOnboardingProps {
   user?: User | null
   onComplete?: (user: User) => void
   onSignOut?: () => void
-  initialTab?: 'signin' | 'signup'
   hideHeader?: boolean
 }
 
-type Step = 'auth' | 'location' | 'shop-info' | 'phone-verify'
+type Step = 'location' | 'shop-info' | 'phone-verify'
 
 const stepToUrlNum: Record<Step, string> = {
-  'auth': 'auth',
   'location': '1',
   'shop-info': '2',
   'phone-verify': '3',
@@ -54,13 +49,8 @@ const urlParamToStep = (param: string | null): Step | null => {
   if (p === '1' || p === 'location' || p === 'step1' || p === 'step-1') return 'location'
   if (p === '2' || p === 'shop-info' || p === 'shopinfo' || p === 'step2' || p === 'step-2') return 'shop-info'
   if (p === '3' || p === 'phone-verify' || p === 'phone' || p === 'step3' || p === 'step-3') return 'phone-verify'
-  if (p === 'auth' || p === 'signin' || p === 'signup' || p === 'login') return 'auth'
   return null
 }
-
-const GOOGLE_CLIENT_ID =
-  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-  '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com'
 
 const LANGUAGES = [
   'English',
@@ -76,7 +66,6 @@ export function PartnerOnboarding({
   user,
   onComplete,
   onSignOut,
-  initialTab = 'signup',
   hideHeader = false,
 }: PartnerOnboardingProps) {
   // ──────── Session-persisted state helpers ────────
@@ -92,7 +81,7 @@ export function PartnerOnboarding({
   }
 
   // Check if we have cached pending Google data from session / local storage or JWT payload
-  const [pendingGoogle, setPendingGoogle] = useState<{
+  const [pendingGoogle] = useState<{
     tempSignupId?: string
     email?: string
     name?: string
@@ -121,77 +110,27 @@ export function PartnerOnboarding({
     return null
   })
 
-  // Auth Card State: single card with options, mobile, or email subviews
-  const [signInMode, setSignInMode] = useState<'options' | 'mobile' | 'email'>(() => {
-    if (typeof window !== 'undefined') {
-      const modeParam = new URLSearchParams(window.location.search).get('mode')
-      if (modeParam === 'mobile') return 'mobile'
-      if (modeParam === 'email') return 'email'
-    }
-    return 'options'
-  })
-  const [authLoading, setAuthLoading] = useState(false)
-
   // Double-submit locks
-  const isSendingMobileOtpRef = useRef(false)
   const isSendingStep3OtpRef = useRef(false)
-  const [resendCountdown, setResendCountdown] = useState(0)
   const [step3Countdown, setStep3Countdown] = useState(0)
 
   // Countdown timer effect
   useEffect(() => {
-    if (resendCountdown <= 0 && step3Countdown <= 0) return
+    if (step3Countdown <= 0) return
     const interval = setInterval(() => {
-      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
       setStep3Countdown((prev) => (prev > 0 ? prev - 1 : 0))
     }, 1000)
     return () => clearInterval(interval)
-  }, [resendCountdown, step3Countdown])
+  }, [step3Countdown])
 
-  // Sign In with Mobile fields
-  const [sPhoneLogin, setSPhoneLogin] = useState('')
-  const [sOtpSent, setSOtpSent] = useState(false)
-  const [sOtp, setSOtp] = useState('')
-
-  // Sign In with Email field
-  const [sLoginEmail, setSLoginEmail] = useState('')
-
-  // Multi-step Flow State — restore from URL ?step= first ONLY IF an authenticated or pending Google session exists
+  // Multi-step Flow State (strictly location, shop-info, phone-verify)
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
-    const cachedUser = getAuthUser<User>()
-    const hasPendingMobile = !!(
-      ssGet('tg_pending_mobile') ||
-      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
-    )
-    const hasPendingGoogle = !!(
-      ssGet('tg_pending_google') ||
-      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
-    )
-    const token = typeof window !== 'undefined' ? getAuthToken() : null
-    let hasTokenAuth = !!token
-    if (token) {
-      try {
-        const p = JSON.parse(atob(token.split('.')[1]))
-        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
-      } catch { }
-    }
-    const hasAuth = !!(
-      user?.email ||
-      pendingGoogle?.email ||
-      cachedUser?.email ||
-      hasTokenAuth ||
-      hasPendingGoogle ||
-      hasPendingMobile
-    )
     if (typeof window !== 'undefined') {
       const urlStep = urlParamToStep(new URLSearchParams(window.location.search).get('step'))
       if (urlStep) return urlStep
     }
-    if (!hasAuth) {
-      return 'auth'
-    }
     const cached = ssGet('tg_onboard_step')
-    if (cached && ['auth', 'location', 'shop-info', 'phone-verify'].includes(cached)) {
+    if (cached && ['location', 'shop-info', 'phone-verify'].includes(cached)) {
       return cached as Step
     }
     return 'location'
@@ -204,11 +143,7 @@ export function PartnerOnboarding({
     if (typeof window !== 'undefined') {
       try { localStorage.setItem('tg_onboard_step', step) } catch { }
       const url = new URL(window.location.href)
-      if (step === 'auth') {
-        url.searchParams.delete('step')
-      } else {
-        url.searchParams.set('step', stepToUrlNum[step])
-      }
+      url.searchParams.set('step', stepToUrlNum[step])
       if (pushHistory) {
         window.history.pushState({}, '', url.toString())
       } else {
@@ -220,47 +155,6 @@ export function PartnerOnboarding({
   // Continuously sync URL query param ?step=1, ?step=2, etc.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const cachedUser = getAuthUser<User>()
-    const hasPendingMobile = !!(
-      ssGet('tg_pending_mobile') ||
-      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))
-    )
-    const hasPendingGoogle = !!(
-      ssGet('tg_pending_google') ||
-      (typeof window !== 'undefined' && localStorage.getItem('tg_pending_google'))
-    )
-    const token = getAuthToken()
-    let hasTokenAuth = !!token
-    if (token) {
-      try {
-        const p = JSON.parse(atob(token.split('.')[1]))
-        if (p && (p.email || p.role === 'STUDIO')) hasTokenAuth = true
-      } catch { }
-    }
-    const hasAuth = !!(
-      user?.email ||
-      pendingGoogle?.email ||
-      cachedUser?.email ||
-      hasTokenAuth ||
-      hasPendingGoogle ||
-      hasPendingMobile
-    )
-    if (!hasAuth) {
-      if (currentStep !== 'auth') {
-        setCurrentStepRaw('auth')
-        // Only reset signInMode if there's no mode param in the URL
-        const urlModeParam = new URLSearchParams(window.location.search).get('mode')
-        if (!urlModeParam) {
-          setSignInMode('options')
-        }
-      }
-      const url = new URL(window.location.href)
-      if (url.searchParams.has('step')) {
-        url.searchParams.delete('step')
-        window.history.replaceState({}, '', url.toString())
-      }
-      return
-    }
 
     const params = new URLSearchParams(window.location.search)
     const stepFromUrl = urlParamToStep(params.get('step'))
@@ -270,7 +164,7 @@ export function PartnerOnboarding({
         setCurrentStepRaw(stepFromUrl)
       }
       ssSet('tg_onboard_step', stepFromUrl)
-    } else if (currentStep !== 'auth') {
+    } else {
       const url = new URL(window.location.href)
       url.searchParams.set('step', stepToUrlNum[currentStep])
       window.history.replaceState({}, '', url.toString())
@@ -278,13 +172,13 @@ export function PartnerOnboarding({
 
     const handlePopState = () => {
       const p = new URLSearchParams(window.location.search)
-      const s = urlParamToStep(p.get('step')) || (hasAuth ? 'location' : 'auth')
+      const s = urlParamToStep(p.get('step')) || 'location'
       setCurrentStepRaw(s)
       ssSet('tg_onboard_step', s)
     }
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [user?.email, pendingGoogle?.email, currentStep])
+  }, [currentStep])
 
   // Map Modal State
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
@@ -296,7 +190,7 @@ export function PartnerOnboarding({
     try { return JSON.parse(raw) } catch { return null }
   })()
 
-  // Step 1: Location & Referral (Image 2 - Earn with Darzi)
+  // Step 1: Location & Referral
   const [locationCity, setLocationCity] = useState(cachedForm?.locationCity || '')
   const [referralCode, setReferralCode] = useState(cachedForm?.referralCode || '')
 
@@ -338,7 +232,7 @@ export function PartnerOnboarding({
     return `${String(h).padStart(2, '0')}:${m}`
   }
 
-  // Step 3: Shop Info — only restore from sessionStorage (user's own typed data), never prefill from user object
+  // Step 3: Shop Info
   const [shopName, setShopName] = useState(cachedForm?.shopName || '')
   const [shopNo, setShopNo] = useState(cachedForm?.shopNo || '')
   const [shopArea, setShopArea] = useState(cachedForm?.shopArea || '')
@@ -357,7 +251,7 @@ export function PartnerOnboarding({
     cachedForm?.emailVal || pendingGoogle?.email || user?.email || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_email') : '') || ''
   )
 
-  // Step 4 Direct Mobile Phone Twilio OTP Verification State
+  // Direct Mobile Phone Twilio OTP Verification State
   const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
     const cached = ssGet('tg_phone_verified') || (typeof window !== 'undefined' ? localStorage.getItem('tg_phone_verified') : null)
     if (cached === 'true') return true
@@ -461,12 +355,12 @@ export function PartnerOnboarding({
   }, [step3VerifiedPhone])
 
   useEffect(() => {
-    const cachedUser = getAuthUser<User>()
-    const email = user?.email || pendingGoogle?.email || cachedUser?.email
+    const cached = getAuthUser<User>()
+    const email = user?.email || pendingGoogle?.email || cached?.email
     if (email && !emailVal) {
       setEmailVal(email)
     }
-    const name = user?.name || pendingGoogle?.name || cachedUser?.name
+    const name = user?.name || pendingGoogle?.name || cached?.name
     if (name && !tailorName && name !== 'Google User' && name !== 'Studio Partner') {
       setTailorName(name)
     }
@@ -481,254 +375,6 @@ export function PartnerOnboarding({
       })
     }
   }, [user?.email, user?.name, pendingGoogle?.email, pendingGoogle?.name])
-
-  // Google OAuth trigger
-  const triggerGoogleAuth = async () => {
-    setAuthLoading(true)
-    setError('')
-    setNotice('')
-
-    const loadGsi = (): Promise<void> =>
-      new Promise((resolve) => {
-        if ((window as any).google?.accounts?.oauth2) return resolve()
-        const s = document.createElement('script')
-        s.src = 'https://accounts.google.com/gsi/client'
-        s.async = true
-        s.onload = () => resolve()
-        document.head.appendChild(s)
-      })
-
-    try {
-      await loadGsi()
-      const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'email profile openid',
-        callback: async (tokenResponse: any) => {
-          if (!tokenResponse?.access_token) {
-            setAuthLoading(false)
-            setError('Google sign-in was cancelled.')
-            return
-          }
-          try {
-            const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-            })
-            const profile = await profileRes.json()
-            const result = await loginWithGoogle({
-              accessToken: tokenResponse.access_token,
-              role: 'STUDIO',
-              profile: {
-                name: profile.name || 'Google User',
-                contact: profile.email,
-                email: profile.email,
-                avatar: profile.picture,
-                method: 'google',
-                role: 'STUDIO',
-              },
-            })
-
-            setAuthLoading(false)
-
-            // If customer account -> redirect to customer site directly
-            if (result.user && result.user.role === 'CUSTOMER') {
-              if (typeof window !== 'undefined') {
-                setAuthRole('CUSTOMER')
-                if (result.token) setAuthToken(result.token)
-                setAuthUser(result.user)
-                toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
-                const targetParam = result.authCode || result.token
-                window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
-                return
-              }
-            }
-
-            // If existing registered studio user in Prisma with complete atelier and phone -> sign in directly
-            if (!result.isNewUser && result.user && result.user.status === 'ACTIVE' && result.user.studioName && result.user.phone) {
-              if (typeof window !== 'undefined') {
-                setAuthRole('STUDIO')
-                if (result.token) setAuthToken(result.token)
-                setAuthUser(result.user)
-                window.location.href = '/'
-                return
-              }
-              return
-            }
-
-            // Not in Prisma yet -> advance directly to registration form with prefilled Google details!
-            const pending = {
-              tempSignupId: result.tempSignupId,
-              email: profile.email,
-              name: profile.name || 'Master Tailor',
-              avatar: profile.picture,
-            }
-            setPendingGoogle(pending)
-            if (typeof window !== 'undefined') {
-              sessionStorage.setItem('tg_pending_google', JSON.stringify(pending))
-              try { localStorage.setItem('tg_pending_google', JSON.stringify(pending)) } catch { }
-              if (result.token) setAuthToken(result.token)
-              if (result.user) setAuthUser(result.user)
-              setAuthRole('STUDIO')
-            }
-
-            // Set email and tailor name from Google
-            if (profile.email) setEmailVal(profile.email)
-            if (profile.name && profile.name !== 'Google User') {
-              setTailorName(profile.name)
-            } else {
-              setTailorName('')
-            }
-
-            // Clear stale form cache — start fresh registration
-            ssRemove('tg_onboard_form')
-            ssRemove('tg_phone_verified')
-            ssRemove('tg_verified_phone')
-            setLocationCity('')
-            setReferralCode('')
-            setShopName('')
-            setShopArea('')
-            setPostcode('')
-            setStreetAddress('')
-            setPhone('')
-            setIsPhoneVerified(false)
-            setStep3VerifiedPhone('')
-
-            setCurrentStep('location')
-          } catch (err: any) {
-            setAuthLoading(false)
-            setError(err.message || 'Google sign-in failed.')
-          }
-        },
-      })
-      tokenClient.requestAccessToken()
-    } catch (err: any) {
-      setAuthLoading(false)
-      setError(err.message || 'Google sign-in initialization failed.')
-    }
-  }
-
-  // Handle Mobile Sign In: Send Twilio OTP
-  const handleSendMobileOtp = async (e?: React.FormEvent, force: boolean = false) => {
-    if (e) e.preventDefault()
-    if (isSendingMobileOtpRef.current) return
-    const raw = sPhoneLogin.trim()
-    const cleanedDigits = raw.replace(/\D/g, '')
-    if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code. '
-      setError(msg)
-      toast.warning(msg, { position: 'top-center' })
-      return
-    }
-    isSendingMobileOtpRef.current = true
-    setAuthLoading(true)
-    setError('')
-    setNotice('')
-    try {
-      const res = await sendOtp(raw, force)
-      setAuthLoading(false)
-      setSOtpSent(true)
-      setResendCountdown(30)
-      if (res.phone) setSPhoneLogin(res.phone)
-      setNotice(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`)
-      if (res.cooldown) {
-        toast.info(res.message, { position: 'top-center' })
-      } else {
-        toast.success(res.message || `Verification code sent via SMS to ${res.phone || sPhoneLogin.trim()}`, { position: 'top-center' })
-      }
-    } catch (err: any) {
-      setAuthLoading(false)
-      const msg = err.message || 'Failed to send verification code.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
-    } finally {
-      isSendingMobileOtpRef.current = false
-    }
-  }
-
-  // Handle Mobile: Verify Twilio OTP (Log in if in Prisma, or open registration form if not)
-  const handleVerifyMobileOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const cleanOtp = sOtp.trim()
-    if (!cleanOtp || cleanOtp.length < 4) {
-      const msg = 'Please enter the 4-digit verification code.'
-      setError(msg)
-      toast.warning(msg, { position: 'top-center' })
-      return
-    }
-    setAuthLoading(true)
-    setError('')
-    setNotice('')
-    try {
-      const res = await verifyOtp({
-        phone: sPhoneLogin.trim(),
-        otp: cleanOtp,
-        role: 'STUDIO',
-      })
-      setAuthLoading(false)
-
-      if (res?.isNewUser) {
-        // Verified with Twilio SMS OTP — new studio user or incomplete registration
-        // Store verified phone in session so auth guard doesn't reset to 'auth' step
-        const verifiedPhone = res.phone || sPhoneLogin.trim()
-        ssSet('tg_pending_mobile', verifiedPhone)
-        ssSet('tg_verified_phone', verifiedPhone)
-        ssSet('tg_phone_verified', 'true')
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('tg_pending_mobile', verifiedPhone)
-            localStorage.setItem('tg_verified_phone', verifiedPhone)
-            localStorage.setItem('tg_phone_verified', 'true')
-          } catch { }
-        }
-        setPhone(verifiedPhone)
-        setIsPhoneVerified(true)
-        setStep3VerifiedPhone(verifiedPhone)
-        setSOtpSent(false)
-        setSOtp('')
-        // If backend returned a partial user, store it for prefill
-        if (res.user) {
-          setAuthUser(res.user)
-          setAuthRole('STUDIO')
-        }
-        toast.info('Mobile verified! Complete your atelier registration to enter Workbench.', {
-          position: 'top-center',
-        })
-        setCurrentStep('location')
-        return
-      }
-
-      if (res?.user) {
-        if (res.user.role === 'CUSTOMER') {
-          if (typeof window !== 'undefined') {
-            setAuthRole('CUSTOMER')
-            if (res.token) setAuthToken(res.token)
-            setAuthUser(res.user)
-            toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
-            const targetParam = res.authCode || res.token
-            window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
-            return
-          }
-        }
-        if (typeof window !== 'undefined') {
-          setAuthRole('STUDIO')
-          if (res.token) setAuthToken(res.token)
-          setAuthUser(res.user)
-        }
-        toast.success(`Authenticated as ${res.user.name || 'Studio Partner'}!`, {
-          position: 'top-center',
-        })
-        if (onComplete) {
-          onComplete(res.user)
-        } else {
-          window.location.href = '/'
-        }
-      }
-    } catch (err: any) {
-      setAuthLoading(false)
-      const msg = err.message || 'Invalid verification code.'
-      setError(msg)
-      toast.error(msg, { position: 'top-center' })
-    }
-  }
 
   // Step 3: Send Twilio OTP for Direct Mobile Phone
   const handleStep3SendOtp = async (force: boolean = false) => {
@@ -785,6 +431,8 @@ export function PartnerOnboarding({
         phone: phone.trim(),
         otp: cleanOtp,
         role: 'STUDIO',
+        userId: user?.id && !String(user.id).startsWith('temp_g_') ? user.id : undefined,
+        email: emailVal.trim() || user?.email || pendingGoogle?.email,
       })
       setStep3OtpLoading(false)
       setIsPhoneVerified(true)
@@ -802,57 +450,6 @@ export function PartnerOnboarding({
       setError(msg)
       toast.error(msg, { position: 'top-center' })
       return false
-    }
-  }
-
-  // Handle Email: Check Prisma & Trigger SMS OTP for registered phone, or open form if not registered
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const cleanEmail = sLoginEmail.trim()
-    if (!cleanEmail) {
-      setError('Please enter your email address.')
-      return
-    }
-    setAuthLoading(true)
-    setError('')
-    try {
-      const check = await checkEmailExists(cleanEmail, 'STUDIO')
-      if (check.exists && check.user) {
-        const res = await loginUser({ identifier: cleanEmail, role: 'STUDIO' })
-        setAuthLoading(false)
-        if (res?.user) {
-          if (res.user.role === 'CUSTOMER') {
-            if (typeof window !== 'undefined') {
-              setAuthRole('CUSTOMER')
-              if (res.token) setAuthToken(res.token)
-              setAuthUser(res.user)
-              toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
-              const targetParam = res.authCode || res.token
-              window.location.href = targetParam ? getCustomerSiteUrl('/auth/callback', targetParam) : CUSTOMER_SITE_URL
-              return
-            }
-          }
-          if (typeof window !== 'undefined') {
-            setAuthRole('STUDIO')
-            if (res.token) setAuthToken(res.token)
-            setAuthUser(res.user)
-            window.location.href = '/'
-          }
-        }
-      }
-
-      // Not in Prisma yet -> open registration form with email prefilled
-      setAuthLoading(false)
-      setEmailVal(cleanEmail)
-      setCurrentStep('location')
-    } catch (err: any) {
-      setAuthLoading(false)
-      if (err.message?.includes('not found') || err.message?.includes('Invalid') || err.message?.includes('Unauthorized')) {
-        setEmailVal(cleanEmail)
-        setCurrentStep('location')
-        return
-      }
-      setError(err.message || 'Login failed. Please check your credentials.')
     }
   }
 
@@ -951,8 +548,8 @@ export function PartnerOnboarding({
     }
   }
 
-  const stepsList: Step[] = ['auth', 'location', 'shop-info', 'phone-verify']
-  const currentStepNum = stepsList.indexOf(currentStep)
+  const stepsList: Step[] = ['location', 'shop-info', 'phone-verify']
+  const currentStepNum = stepsList.indexOf(currentStep) + 1
 
   const handleSelectMapLocation = (loc: SelectedLocationData) => {
     if (loc.area) setShopArea(loc.area)
@@ -967,9 +564,7 @@ export function PartnerOnboarding({
     })
   }
 
-  const isOtpFlipped =
-    (currentStep === 'phone-verify' && step3OtpSent && !isPhoneVerified) ||
-    (currentStep === 'auth' && signInMode === 'mobile' && sOtpSent)
+  const isOtpFlipped = currentStep === 'phone-verify' && step3OtpSent && !isPhoneVerified
 
   return (
     <div className={hideHeader ? 'w-full flex flex-col items-center justify-center text-[#0F1115] font-sans' : 'min-h-screen bg-[#FAF8F5] text-[#0F1115] flex flex-col font-sans'}>
@@ -977,12 +572,12 @@ export function PartnerOnboarding({
       {!hideHeader && (
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E8E1D5] px-4 sm:px-8 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {currentStepNum > 0 && (
+            {currentStepNum > 1 && (
               <button
                 onClick={() => {
                   setError('')
                   setNotice('')
-                  setCurrentStep(stepsList[currentStepNum - 1])
+                  setCurrentStep(stepsList[currentStepNum - 2])
                 }}
                 className="p-1.5 rounded-full hover:bg-gray-100 transition-colors text-gray-700 cursor-pointer"
                 title="Go Back"
@@ -999,11 +594,9 @@ export function PartnerOnboarding({
           </div>
 
           <div className="flex items-center gap-3">
-            {currentStep !== 'auth' && (
-              <span className="text-xs font-semibold text-gray-500">
-                Step {currentStepNum} of 3
-              </span>
-            )}
+            <span className="text-xs font-semibold text-gray-500">
+              Step {currentStepNum} of 3
+            </span>
 
             {/* Profile Dropdown */}
             <div className="relative">
@@ -1088,237 +681,46 @@ export function PartnerOnboarding({
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               }}
-              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 ${currentStep !== 'auth' ? 'flex flex-col justify-between min-h-[640px]' : 'space-y-6'} animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
+              className={`bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden p-6 sm:p-8 flex flex-col justify-between min-h-[640px] animate-in fade-in duration-200 ${isOtpFlipped ? 'pointer-events-none select-none' : ''
                 }`}
             >
               {/* Card Header */}
-              {currentStep === 'auth' ? (
-                <div className="flex flex-col items-center justify-center text-center pb-4 border-b border-gray-100">
-                  <a
-                    href={CUSTOMER_SITE_URL}
-                    className="cursor-pointer hover:opacity-85 transition-transform hover:scale-105 inline-block"
-                    title="Return to Darzi Home"
+              <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError('')
+                      setNotice('')
+                      if (currentStep === 'phone-verify') setCurrentStep('shop-info')
+                      else if (currentStep === 'shop-info') setCurrentStep('location')
+                      else if (currentStep === 'location') {
+                        if (onSignOut) onSignOut()
+                        else if (typeof window !== 'undefined') window.location.replace(CUSTOMER_SITE_URL)
+                      }
+                    }}
+                    className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"
+                    title="Back"
                   >
-                    <img
-                      src="/bg_logo.png"
-                      alt="Darzi Atelier"
-                      className="h-11 sm:h-12 w-auto object-contain"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
-                  </a>
-                  <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5]">
-                    <span className="size-1.5 rounded-full bg-[#9E593B]" />
-                    <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B]">
-                      Studio Workbench Node
+                    <ArrowLeft size={16} />
+                  </button>
+                  <div>
+                    <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
+                      Studio Onboarding
+                    </span>
+                    <span className="text-xs font-bold text-[#0F1115] block">
+                      Workbench Node
                     </span>
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-                  <div className="flex items-center gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setError('')
-                        setNotice('')
-                        if (currentStep === 'phone-verify') setCurrentStep('shop-info')
-                        else if (currentStep === 'shop-info') setCurrentStep('location')
-                        else if (currentStep === 'location') {
-                          setSignInMode('options')
-                          setCurrentStep('auth')
-                        }
-                      }}
-                      className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"
-                      title="Back"
-                    >
-                      <ArrowLeft size={16} />
-                    </button>
-                    <div>
-                      <span className="text-[10px] font-extrabold tracking-wider uppercase text-[#9E593B] block leading-tight">
-                        Studio Portal
-                      </span>
-                      <span className="text-xs font-bold text-[#0F1115] block">
-                        Workbench Node
-                      </span>
-                    </div>
-                  </div>
 
-                  <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                    Step {currentStepNum} of 3
-                  </span>
-                </div>
-              )}
+                <span className="text-[11px] font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                  Step {currentStepNum} of 3
+                </span>
+              </div>
 
-              {/* ── 1. UNIFIED AUTH CARD (Single Card: Google, Mobile, Email, Sandbox) ── */}
-              {currentStep === 'auth' && (
-                <div className="space-y-5">
-                  {/* Submode: Email Login */}
-                  {signInMode === 'email' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSignInMode('options')}
-                          className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs"
-                        >
-                          <ArrowLeft size={14} />
-                        </button>
-                        <div>
-                          <p className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B]">Partner Email</p>
-                          <h2 className="font-serif text-2xl font-bold text-[#0F1115]">Access Atelier</h2>
-                        </div>
-                      </div>
-
-                      <form onSubmit={handleEmailLogin} className="space-y-3.5 pt-1">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Partner Email Address *
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            autoFocus
-                            value={sLoginEmail}
-                            onChange={(e) => setSLoginEmail(e.target.value)}
-                            placeholder="marco@ateliersoho.com"
-                            className="w-full rounded-xl bg-gray-100 border-none px-4 py-3 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={authLoading}
-                          className="w-full rounded-xl bg-[#0F1115] hover:bg-black py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer disabled:opacity-50"
-                        >
-                          {authLoading ? 'Verifying…' : 'Continue'}
-                        </button>
-                      </form>
-                    </div>
-                  )}
-
-                  {/* Submode: Mobile SMS OTP with Twilio */}
-                  {signInMode === 'mobile' && (
-                    <div className="w-full space-y-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSignInMode('options')
-                            setError('')
-                            setNotice('')
-                            setSOtpSent(false)
-                            setSOtp('')
-                          }}
-                          className="size-7 rounded-lg bg-gray-100 hover:bg-gray-200 grid place-items-center text-gray-700 cursor-pointer text-xs transition-colors"
-                        >
-                          <ArrowLeft size={14} />
-                        </button>
-                        <div>
-                          <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">SMS Verification</p>
-                          <h2 className="font-serif text-2xl font-bold text-[#0F1115]">
-                            Partner Mobile Number
-                          </h2>
-                        </div>
-                      </div>
-                      <form onSubmit={handleSendMobileOtp} className="space-y-3.5 pt-1">
-                        <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Mobile Phone Number *
-                          </label>
-                          <input
-                            type="tel"
-                            inputMode="tel"
-                            required
-                            autoFocus={!sOtpSent}
-                            value={sPhoneLogin}
-                            onChange={(e) => setSPhoneLogin(e.target.value.replace(/[^\d+\-\s()]/g, ''))}
-                            placeholder="+91 98765 43210 or +44 7700 900000"
-                            className="w-full rounded-xl bg-gray-50 border border-[#DDD6CB] px-4 py-3 text-sm font-medium text-[#0F1115] placeholder:text-[#9CA3AF] focus:bg-white focus:border-[#9E593B] focus:ring-1 focus:ring-[#9E593B] outline-none transition-all"
-                          />
-                          <p className="text-[11px] text-[#7A7E85] mt-1.5">
-                            We will send a 4-digit verification code via SMS to this mobile number.
-                          </p>
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={authLoading}
-                          className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-all cursor-pointer active:scale-[0.99] disabled:opacity-50 shadow-sm"
-                        >
-                          {authLoading ? 'Sending SMS code…' : 'Send Verification Code'}
-                        </button>
-                      </form>
-                    </div>
-                  )}
-
-                  {/* Submode: Options Menu (Single unified card) */}
-                  {signInMode === 'options' && (
-                    <>
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B] block mb-1">
-                          Partner Portal
-                        </span>
-                        <h2 className="text-2xl sm:text-3xl font-black text-[#0F1115] tracking-tight">
-                          Studio Workbench Access
-                        </h2>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Access live alteration intake, 48h timers, and atelier operations.
-                        </p>
-                      </div>
-
-                      <div className="space-y-3 pt-2">
-                        {/* 1. Google Button */}
-                        <button
-                          type="button"
-                          disabled={authLoading}
-                          onClick={triggerGoogleAuth}
-                          className="w-full flex items-center justify-center gap-3 rounded-2xl border-2 border-[#0F1115] bg-white hover:bg-gray-50 py-3.5 px-4 text-sm font-bold text-[#0F1115] shadow-xs active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
-                        >
-                          <svg className="size-5 shrink-0" viewBox="0 0 24 24">
-                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                          </svg>
-                          <span>{authLoading ? 'Connecting Google…' : 'Continue with Google'}</span>
-                        </button>
-
-                        {/* 2. Mobile Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setError('')
-                            setNotice('')
-                            setSignInMode('mobile')
-                          }}
-                          className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
-                        >
-                          <Phone size={16} className="text-[#9E593B]" />
-                          <span>Continue with Mobile Number</span>
-                        </button>
-
-                        {/* 3. Email Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setError('')
-                            setNotice('')
-                            setSignInMode('email')
-                          }}
-                          className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3.5 px-4 text-sm font-semibold text-[#0F1115] transition-all cursor-pointer"
-                        >
-                          <Mail size={16} className="text-[#9E593B]" />
-                          <span>Continue with Email</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── 2. ONBOARDING FORM (Opens when user is not yet registered in Prisma) ── */}
-              {currentStep !== 'auth' && (
-                <div className="flex-1 flex flex-col justify-between pt-1">
+              {/* ── ONBOARDING FORM (Strictly Step 1, Step 2, Step 3) ── */}
+              <div className="flex-1 flex flex-col justify-between pt-1">
                   {/* Step 1: "Earn with Darzi" */}
                   {currentStep === 'location' && (
                     <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
@@ -1785,7 +1187,6 @@ export function PartnerOnboarding({
                     </div>
                   )}
                 </div>
-              )}
             </div>
 
             {/* BACK FACE: ENTIRE CARD FLIPPED TO STANDALONE OTP CARD */}
@@ -1813,22 +1214,6 @@ export function PartnerOnboarding({
                   onClose={() => {
                     setStep3OtpSent(false)
                     setStep3Otp('')
-                  }}
-                />
-              )}
-              {currentStep === 'auth' && signInMode === 'mobile' && (
-                <OtpVerificationCard
-                  variant="plain"
-                  value={sOtp}
-                  onChange={setSOtp}
-                  onVerify={() => handleVerifyMobileOtp({ preventDefault: () => { } } as any)}
-                  onResend={() => handleSendMobileOtp(undefined, true)}
-                  resendCountdown={resendCountdown}
-                  loading={authLoading}
-                  phoneNumber={sPhoneLogin}
-                  onClose={() => {
-                    setSOtpSent(false)
-                    setSOtp('')
                   }}
                 />
               )}

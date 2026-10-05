@@ -49,6 +49,7 @@ export function SignUpModal({
   }
 
   const [mode, setMode] = useState<SignUpMode>(initialMode)
+  const [selectedRole, setSelectedRole] = useState<'CUSTOMER' | 'STUDIO'>(targetRole)
   const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -83,6 +84,7 @@ export function SignUpModal({
 
   useEffect(() => {
     const missing = Boolean(mandatoryPhoneRequired || (currentUser && !currentUser.phone))
+    setSelectedRole(targetRole)
     if (missing) {
       setMode('link-phone')
       setPendingUser(currentUser || null)
@@ -106,19 +108,19 @@ export function SignUpModal({
     const effectiveRole = user.role || role || 'CUSTOMER'
     const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
 
-    if (effectiveRole === 'STUDIO') {
+    if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
       if (effectiveToken) {
         setAuthToken(effectiveToken)
       }
-      setAuthRole('STUDIO')
+      setAuthRole(effectiveRole)
       setAuthUser(user)
-      toast.success(`Welcome back, ${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
+      toast.success(`Welcome ${effectiveRole === 'TEMP_STUDIO' ? '' : 'back, '}${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
       onClose()
 
       const targetParam = authCode || effectiveToken
       if (targetParam) {
         window.location.href = getStudioUrl('/auth/callback', targetParam)
-      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE') {
+      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE' || effectiveRole === 'TEMP_STUDIO') {
         window.location.href = getStudioUrl('/?step=1')
       } else {
         window.location.href = getStudioUrl('/')
@@ -144,7 +146,7 @@ export function SignUpModal({
     }
   }, [])
 
-  const triggerGoogle = (roleToUse: 'CUSTOMER' | 'STUDIO' = targetRole) => {
+  const triggerGoogle = (roleToUse: 'CUSTOMER' | 'STUDIO' = selectedRole) => {
     setLoading(true)
     setNotice('')
 
@@ -257,13 +259,13 @@ export function SignUpModal({
       const result = await verifyOtp({
         phone: cleanPhone,
         otp: cleanOtp,
-        role: targetRole,
+        role: selectedRole,
         name: cName.trim() || undefined,
         postcode: cPostcode.trim() || undefined,
       })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode)
+        finalizeAuth(result.user, result.user.role || selectedRole, result.token, result.authCode)
       }
     } catch (err: any) {
       setLoading(false)
@@ -290,11 +292,11 @@ export function SignUpModal({
         email: cleanEmail,
         phone: cleanPhone || undefined,
         postcode: cPostcode.trim() || undefined,
-        role: targetRole,
+        role: selectedRole,
       })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode)
+        finalizeAuth(result.user, result.user.role || selectedRole, result.token, result.authCode)
       }
     } catch (err: any) {
       setLoading(false)
@@ -364,7 +366,7 @@ export function SignUpModal({
 
   const goBack = () => {
     if (mode === 'customer-mobile' || mode === 'customer-email') {
-      setMode('customer-options')
+      setMode(selectedRole === 'STUDIO' ? 'studio-options' : 'customer-options')
     } else if (mode === 'customer-options' || mode === 'studio-options') {
       setMode('role-select')
     } else if (mode === 'link-phone') {
@@ -441,6 +443,7 @@ export function SignUpModal({
                   type="button"
                   onClick={() => {
                     setNotice('')
+                    setSelectedRole('CUSTOMER')
                     setMode('customer-options')
                   }}
                   className="group relative flex flex-col items-center gap-3 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#9E593B] hover:bg-white p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 text-left cursor-pointer"
@@ -472,6 +475,7 @@ export function SignUpModal({
                   type="button"
                   onClick={() => {
                     setNotice('')
+                    setSelectedRole('STUDIO')
                     setMode('studio-options')
                   }}
                   className="group relative flex flex-col items-center gap-3 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#0F1115] hover:bg-white p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 text-left cursor-pointer"
@@ -720,30 +724,45 @@ export function SignUpModal({
           {mode === 'studio-options' && (
             <div className="space-y-4">
               <div>
-                <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Join Studio Network
+                <h2 className="font-serif text-[26px] font-bold text-[#18191B] tracking-tight leading-tight">
+                  Welcome to Darzi Studio
                 </h2>
-                <p className="text-xs text-[#7A7E85] mt-1">
-                  List your atelier to receive alteration orders and managed logistics.
+                <p className="text-[13px] text-[#7A7E85] mt-1.5 leading-relaxed">
+                  Access live orders, workbench controls, and atelier payouts.
                 </p>
               </div>
 
-              <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Register with Google" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
+              <div className="space-y-3 pt-1">
+                <GoogleButton label="Continue with Google" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
 
                 <button
                   type="button"
                   onClick={() => {
-                    window.location.href = '/partner/onboarding'
+                    setNotice('')
+                    setSelectedRole('STUDIO')
+                    setMode('customer-mobile')
                   }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-semibold text-white transition-colors cursor-pointer active:scale-[0.99]"
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3 px-4 text-[13.5px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
                 >
-                  <Store size={14} />
-                  <span>Direct Atelier Onboarding</span>
+                  <Phone size={15} className="text-[#9E593B]" />
+                  <span>Continue with Mobile</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotice('')
+                    setSelectedRole('STUDIO')
+                    setMode('customer-email')
+                  }}
+                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3 px-4 text-[13.5px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
+                >
+                  <Mail size={15} className="text-[#9E593B]" />
+                  <span>Continue with Email</span>
                 </button>
               </div>
 
-              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
+              <p className="text-center text-[11px] text-[#9CA3AF] pt-2">
                 By continuing you agree to our Terms &amp; Privacy Policy.
               </p>
             </div>
@@ -930,9 +949,9 @@ function GoogleButton({
       type="button"
       disabled={loading}
       onClick={onClick}
-      className={`w-full flex items-center justify-center gap-3 rounded-xl py-2.5 px-4 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
+      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3 px-4 text-[13.5px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
         bordered
-          ? 'bg-white hover:bg-[#FAF8F5] border border-[#DDD6CB] text-[#18191B] shadow-2xs'
+          ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B] shadow-2xs'
           : 'bg-[#0F1115] hover:bg-[#1e2229] text-white shadow-xs'
       }`}
     >
