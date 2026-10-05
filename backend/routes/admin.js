@@ -1,3 +1,4 @@
+// @ts-nocheck
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { prisma } = require('../lib/prisma');
@@ -41,7 +42,7 @@ function formatAdminOrder(order) {
     pinnedAdjustment: order.pinnedAdjustment,
     sewingNotes: order.sewingNotes,
     slaHours: order.slaHours,
-    partnerPayout: order.partnerPayout,
+    partnerPayout: order.partnerPayout ?? order.price,
     retailSold: Boolean(order.retailSold),
     retailValue: order.retailValue || 0,
     retailCategory: order.retailCategory || null,
@@ -88,9 +89,9 @@ router.post('/login', async (req, res) => {
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: identifier },
+          { email: { equals: identifier, mode: 'insensitive' } },
           { id: identifier },
-          { contact: identifier },
+          { contact: { equals: identifier, mode: 'insensitive' } },
         ],
       },
     });
@@ -212,17 +213,34 @@ router.get('/overview', async (req, res) => {
       prisma.user.count({ where: { role: 'CUSTOMER', status: 'ACTIVE' } }),
     ]);
 
-    // Financial GMV calculation
-    const allOrdersPrice = await prisma.order.aggregate({
-      _sum: {
-        price: true,
-        partnerPayout: true,
-      },
-    });
+    // Financial GMV & Studio Earnings calculation
+    // Orders qualify for Studio Earnings only from 'Work in Progress' onwards (cancellation locked)
+    const EARNINGS_ELIGIBLE_STATUSES = ['Work in Progress', 'Ready', 'Collected', 'Closed'];
 
-    const totalGMV = allOrdersPrice._sum.price || 0;
-    const totalPayouts = allOrdersPrice._sum.partnerPayout || 0;
-    const platformMargin = totalGMV > 0 ? totalGMV - totalPayouts : 0;
+    const [earnedOrdersAggregate, pendingIntakeAggregate] = await Promise.all([
+      prisma.order.aggregate({
+        where: {
+          status: { in: EARNINGS_ELIGIBLE_STATUSES },
+        },
+        _sum: {
+          price: true,
+          partnerPayout: true,
+        },
+      }),
+      prisma.order.aggregate({
+        where: {
+          status: { in: ['Allocated', 'Accepted', 'Customer Arrived', 'Fitting Completed'] },
+        },
+        _sum: {
+          price: true,
+        },
+      }),
+    ]);
+
+    const totalPayouts = earnedOrdersAggregate._sum.price || 0;
+    const totalGMV = totalPayouts;
+    const pendingIntakeAmount = pendingIntakeAggregate._sum.price || 0;
+    const platformMargin = 0;
 
     // Status breakdown
     const statusCounts = {
@@ -278,8 +296,10 @@ router.get('/overview', async (req, res) => {
         totalOrders,
         activeOrders: activeOrdersCount,
         totalGMV: Math.round(totalGMV * 100) / 100,
+        totalEarnings: Math.round(totalPayouts * 100) / 100,
         totalPayouts: Math.round(totalPayouts * 100) / 100,
-        platformMargin: Math.round(platformMargin * 100) / 100,
+        pendingIntakeAmount: Math.round(pendingIntakeAmount * 100) / 100,
+        platformMargin: 0,
         totalCapacity,
         totalActiveLoad,
         fleetUtilization,
@@ -317,6 +337,8 @@ router.get('/customers', async (req, res) => {
         { name: { contains: q, mode: 'insensitive' } },
         { email: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
+        { contact: { contains: q, mode: 'insensitive' } },
+        { address: { contains: q, mode: 'insensitive' } },
         { postcode: { contains: q, mode: 'insensitive' } },
       ];
     }
@@ -336,6 +358,9 @@ router.get('/customers', async (req, res) => {
             retailValue: true,
             retailCategory: true,
             storeName: true,
+            customerPhone: true,
+            customerEmail: true,
+            postcode: true,
             date: true,
             createdAt: true,
           },
@@ -344,7 +369,9 @@ router.get('/customers', async (req, res) => {
     });
 
     const formatted = customers.map((c) => {
-      const totalSpend = c.orders.reduce((sum, o) => sum + (o.price || 0), 0);
+      const totalSpend = c.orders
+        .filter((o) => o.status !== 'Cancelled')
+        .reduce((sum, o) => sum + (o.price || 0), 0);
       const activeOrders = c.orders.filter(
         (o) => !['Collected', 'Closed', 'Cancelled'].includes(o.status)
       ).length;
@@ -358,15 +385,19 @@ router.get('/customers', async (req, res) => {
         }
       }
 
+      const resolvedPhone = c.phone || (c.contact && !c.contact.includes('@') ? c.contact : null) || c.orders.find((o) => o.customerPhone)?.customerPhone || null;
+      const resolvedEmail = c.email || (c.contact && c.contact.includes('@') ? c.contact : null) || c.orders.find((o) => o.customerEmail)?.customerEmail || null;
+      const resolvedPostcode = c.postcode || c.orders.find((o) => o.postcode)?.postcode || null;
+
       return {
         id: c.id,
         name: c.name,
-        email: c.email,
-        phone: c.phone,
+        email: resolvedEmail,
+        phone: resolvedPhone,
         contact: c.contact,
         avatar: c.avatar,
         address: c.address,
-        postcode: c.postcode,
+        postcode: resolvedPostcode,
         method: c.method,
         role: c.role,
         status: c.status,
@@ -532,33 +563,74 @@ router.get('/studios', async (req, res) => {
         { postcode: { contains: q, mode: 'insensitive' } },
         { leadTailor: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
       ];
     }
 
-    const stores = await prisma.partnerStore.findMany({
-      where,
-      orderBy: { name: 'asc' },
-      include: {
-        orders: {
-          select: {
-            id: true,
-            status: true,
-            price: true,
-            partnerPayout: true,
-            createdAt: true,
+    const [stores, studioUsers] = await Promise.all([
+      prisma.partnerStore.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        include: {
+          orders: {
+            select: {
+              id: true,
+              status: true,
+              price: true,
+              partnerPayout: true,
+              createdAt: true,
+            },
           },
         },
-      },
-    });
+      }),
+      prisma.user.findMany({
+        where: { role: 'STUDIO' },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          contact: true,
+          studioId: true,
+          studioName: true,
+        },
+      }),
+    ]);
 
     const formatted = stores.map((s) => {
+      // Find matching user for studio to resolve actual phone and email if missing or defaulted
+      const matchedUser = studioUsers.find(
+        (u) => (u.studioId && u.studioId === s.id) ||
+          (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
+          (u.name && s.leadTailor && u.name.toLowerCase() === s.leadTailor.toLowerCase())
+      );
+
+      let actualPhone = s.phone;
+      if (!actualPhone || actualPhone.includes('7946 0912')) {
+        actualPhone = matchedUser?.phone || matchedUser?.contact || (s.phone && !s.phone.includes('7946 0912') ? s.phone : null);
+      }
+      const actualEmail = s.email || matchedUser?.email || (matchedUser?.contact && matchedUser.contact.includes('@') ? matchedUser.contact : null) || null;
+
+      // If store in DB has the dummy number or missing email, heal it in the background
+      if ((s.phone && s.phone.includes('7946 0912') && actualPhone && !actualPhone.includes('7946 0912')) || (!s.email && actualEmail)) {
+        prisma.partnerStore.update({
+          where: { id: s.id },
+          data: {
+            phone: actualPhone,
+            email: actualEmail,
+          },
+        }).catch(() => { });
+      }
+
       const activeOrders = s.orders.filter(
         (o) => !['Collected', 'Closed', 'Cancelled'].includes(o.status)
       );
       const completedOrders = s.orders.filter((o) =>
         ['Collected', 'Closed'].includes(o.status)
       );
-      const totalPayoutEarned = s.orders.reduce((sum, o) => sum + (o.partnerPayout || 0), 0);
+      const totalPayoutEarned = s.orders
+        .filter((o) => ['Work in Progress', 'Ready', 'Collected', 'Closed'].includes(o.status))
+        .reduce((sum, o) => sum + (o.partnerPayout || o.price || 0), 0);
       const capacity = s.dailyCapacity || 25;
       const utilization = Math.min(100, Math.round((activeOrders.length / capacity) * 100));
 
@@ -568,7 +640,8 @@ router.get('/studios', async (req, res) => {
         area: s.area,
         address: s.address,
         postcode: s.postcode,
-        phone: s.phone,
+        phone: actualPhone,
+        email: actualEmail,
         leadTailor: s.leadTailor,
         dailyCapacity: capacity,
         machines: s.machines,
@@ -633,10 +706,10 @@ router.post('/studios', async (req, res) => {
         id: uniqueId,
         name: name.trim(),
         email: email ? email.trim().toLowerCase() : null,
+        phone: phone ? phone.trim() : null,
         area: area ? area.trim() : (postcode.split(' ')[0] || 'Central'),
         address: address.trim(),
         postcode: postcode.trim().toUpperCase(),
-        phone: phone ? phone.trim() : null,
         leadTailor: leadTailor ? leadTailor.trim() : 'Master Tailor',
         dailyCapacity: dailyCapacity ? parseInt(dailyCapacity, 10) : 25,
         machines: machines ? parseInt(machines, 10) : 6,
@@ -705,6 +778,28 @@ router.put('/studios/:id', async (req, res) => {
       where: { id },
       data,
     });
+
+    // Also sync updated phone / email to linked studio user
+    try {
+      const studioUser = await prisma.user.findFirst({
+        where: {
+          role: 'STUDIO',
+          OR: [{ studioId: id }, { studioName: updated.name }],
+        },
+      });
+      if (studioUser) {
+        const userUpdate = {};
+        if (data.phone) userUpdate.phone = data.phone;
+        if (data.email) userUpdate.email = data.email;
+        if (data.leadTailor) userUpdate.name = data.leadTailor;
+        if (data.name) userUpdate.studioName = data.name;
+        if (Object.keys(userUpdate).length > 0) {
+          await prisma.user.update({ where: { id: studioUser.id }, data: userUpdate });
+        }
+      }
+    } catch (e) {
+      console.warn('Sync studio user error on store update:', e.message);
+    }
 
     return res.json({ success: true, studio: updated });
   } catch (err) {
@@ -894,6 +989,8 @@ router.get('/search', async (req, res) => {
             { area: { contains: query, mode: 'insensitive' } },
             { postcode: { contains: query, mode: 'insensitive' } },
             { leadTailor: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
           ],
         },
         take: 10,

@@ -373,7 +373,7 @@ export function AboutView({ go }: AboutViewProps) {
                 Local Impact &amp; Economics
               </h3>
               <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-4">
-                Discover how our direct payout model keeps local artisan shops vibrant, fueling neighborhood retail footfall.
+                Discover how our direct customer payment model keeps local artisan shops vibrant, fueling neighborhood retail footfall.
               </p>
               <button
                 onClick={() => go(isCustomer ? 'how-it-works' : 'for-partners')}

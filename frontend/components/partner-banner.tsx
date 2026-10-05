@@ -32,8 +32,8 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
                 <div className="size-8 rounded-lg bg-[#9E593B]/20 text-[#E7C9BA] grid place-items-center mb-2.5">
                   <Banknote size={16} />
                 </div>
-                <h4 className="text-xs font-bold text-white">Guaranteed Payouts</h4>
-                <p className="text-[11px] text-white/60 mt-1">75%-80% partner payout per alteration settled weekly to your account.</p>
+                <h4 className="text-xs font-bold text-white">Direct Customer Payments</h4>
+                <p className="text-[11px] text-white/60 mt-1">Customers pay your studio directly upon fitting or pickup. Zero commission withholding.</p>
               </div>
 
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
@@ -85,7 +85,7 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <span className="text-xs text-white/70">Average Monthly Partner Payout</span>
+                  <span className="text-xs text-white/70">Average Monthly In-Store Revenue</span>
                   <span className="font-serif text-lg font-bold text-white">$3,400+</span>
                 </div>
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">

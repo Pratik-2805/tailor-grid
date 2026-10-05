@@ -4,6 +4,7 @@ import { useState } from 'react'
 import {
   ArrowRight,
   CheckCircle2,
+  Loader2,
   Mail,
   MapPin,
   Phone,
@@ -14,12 +15,15 @@ import {
 import { type Screen } from './data'
 import { useApp } from './app-provider'
 import { getAuthRole } from '@/lib/cookies'
+import { subscribeNewsletter } from '@/lib/api'
 
 export function Footer({ go }: { go: (s: Screen) => void }) {
   const { user } = useApp()
   const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const [email, setEmail] = useState('')
   const [subscribed, setSubscribed] = useState(false)
+  const [subscribing, setSubscribing] = useState(false)
+  const [subscribeError, setSubscribeError] = useState<string | null>(null)
   const [activeModal, setActiveModal] = useState<'privacy' | 'terms' | 'guarantee' | 'contact' | null>(null)
 
   const nav = (s: Screen) => {
@@ -27,13 +31,28 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email.trim()) {
-      setSubscribed(true)
-      setTimeout(() => {
-        setEmail('')
-      }, 3500)
+    if (!email.trim() || subscribing) return
+
+    setSubscribing(true)
+    setSubscribeError(null)
+
+    try {
+      const result = await subscribeNewsletter(email.trim(), 'footer')
+      if (result.success) {
+        setSubscribed(true)
+        setTimeout(() => {
+          setEmail('')
+          setSubscribed(false)
+        }, 5000)
+      } else {
+        setSubscribeError(result.error || 'Failed to subscribe')
+      }
+    } catch {
+      setSubscribeError('Unable to connect to server. Please try again.')
+    } finally {
+      setSubscribing(false)
     }
   }
 
@@ -65,23 +84,37 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                     <span>Thank you for subscribing! You&apos;ll receive our latest offers and updates.</span>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubscribe} className="flex items-center gap-2 max-w-[320px]">
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      required
-                      className="flex-1 rounded-xl border border-[#2D333D] bg-[#1A1E24] px-3 py-2 text-xs text-white placeholder:text-[#6B7280] focus:border-[#9E593B] focus:outline-none transition-colors"
-                    />
-                    <button
-                      type="submit"
-                      className="rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-[#0F1115] hover:bg-[#FAF8F5] transition-all active:scale-95 flex items-center justify-center shrink-0"
-                      aria-label="Subscribe"
-                    >
-                      <ArrowRight size={14} />
-                    </button>
-                  </form>
+                  <div className="space-y-1.5">
+                    <form onSubmit={handleSubscribe} className="flex items-center gap-2 max-w-[320px]">
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => {
+                          setEmail(e.target.value)
+                          if (subscribeError) setSubscribeError(null)
+                        }}
+                        placeholder="Enter your email"
+                        required
+                        disabled={subscribing}
+                        className="flex-1 rounded-xl border border-[#2D333D] bg-[#1A1E24] px-3 py-2 text-xs text-white placeholder:text-[#6B7280] focus:border-[#9E593B] focus:outline-none transition-colors disabled:opacity-60"
+                      />
+                      <button
+                        type="submit"
+                        disabled={subscribing}
+                        className="rounded-xl bg-white px-3.5 py-2 text-xs font-bold text-[#0F1115] hover:bg-[#FAF8F5] transition-all active:scale-95 flex items-center justify-center shrink-0 disabled:opacity-60"
+                        aria-label="Subscribe"
+                      >
+                        {subscribing ? (
+                          <Loader2 size={14} className="animate-spin text-[#0F1115]" />
+                        ) : (
+                          <ArrowRight size={14} />
+                        )}
+                      </button>
+                    </form>
+                    {subscribeError && (
+                      <p className="text-[11px] text-red-400 pl-1">{subscribeError}</p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

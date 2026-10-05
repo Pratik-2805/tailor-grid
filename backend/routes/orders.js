@@ -59,15 +59,78 @@ router.post('/dispatch/start', async (req, res) => {
       measurementsStr = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
     }
 
-    // Connect user if exists
+    // Connect user if exists or match by email/phone
     let linkedUserId = null;
     if (userId) {
       const userExists = await prisma.user.findUnique({ where: { id: userId } });
       if (userExists) linkedUserId = userExists.id;
     }
     if (!linkedUserId && customerEmail) {
-      const userByEmail = await prisma.user.findUnique({ where: { email: customerEmail.trim().toLowerCase() } });
+      const userByEmail = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: customerEmail.trim().toLowerCase() },
+            { contact: customerEmail.trim().toLowerCase() },
+          ],
+        },
+      });
       if (userByEmail) linkedUserId = userByEmail.id;
+    }
+    if (!linkedUserId && customerPhone) {
+      const userByPhone = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: customerPhone.trim() },
+            { contact: customerPhone.trim() },
+          ],
+        },
+      });
+      if (userByPhone) linkedUserId = userByPhone.id;
+    }
+
+    // Auto-create customer user if not found so they appear in Admin Customer Master
+    if (!linkedUserId && (customerEmail || customerPhone)) {
+      try {
+        const cleanPhone = customerPhone ? customerPhone.trim() : null;
+        const cleanEmail = customerEmail ? customerEmail.trim().toLowerCase() : null;
+        const newCustomer = await prisma.user.create({
+          data: {
+            name: customerName || 'Valued Customer',
+            email: cleanEmail,
+            phone: cleanPhone,
+            contact: cleanEmail || cleanPhone || '',
+            postcode: postcode ? postcode.trim().toUpperCase() : null,
+            role: 'CUSTOMER',
+            status: 'ACTIVE',
+          },
+        });
+        linkedUserId = newCustomer.id;
+      } catch (userErr) {
+        // If unique constraint conflict, find existing
+        const found = await prisma.user.findFirst({
+          where: {
+            OR: [
+              ...(customerEmail ? [{ email: customerEmail.trim().toLowerCase() }] : []),
+              ...(customerPhone ? [{ phone: customerPhone.trim() }] : []),
+            ],
+          },
+        });
+        if (found) linkedUserId = found.id;
+      }
+    } else if (linkedUserId) {
+      // Sync missing phone or email to existing user
+      try {
+        const u = await prisma.user.findUnique({ where: { id: linkedUserId } });
+        if (u) {
+          const syncData = {};
+          if (!u.phone && customerPhone) syncData.phone = customerPhone.trim();
+          if (!u.email && customerEmail) syncData.email = customerEmail.trim().toLowerCase();
+          if ((!u.name || u.name === 'Member') && customerName) syncData.name = customerName.trim();
+          if (Object.keys(syncData).length > 0) {
+            await prisma.user.update({ where: { id: linkedUserId }, data: syncData });
+          }
+        }
+      } catch (syncErr) {}
     }
 
     // Pure server-side cache session — DO NOT insert into PostgreSQL until accepted by a tailor!
@@ -479,15 +542,75 @@ router.post('/', async (req, res) => {
       measurementsStr = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
     }
 
-    // Connect user if exists
+    // Connect user if exists or match by email/phone
     let linkedUserId = null;
     if (userId) {
       const userExists = await prisma.user.findUnique({ where: { id: userId } });
       if (userExists) linkedUserId = userExists.id;
     }
     if (!linkedUserId && customerEmail) {
-      const userByEmail = await prisma.user.findUnique({ where: { email: customerEmail.trim().toLowerCase() } });
+      const userByEmail = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: customerEmail.trim().toLowerCase() },
+            { contact: customerEmail.trim().toLowerCase() },
+          ],
+        },
+      });
       if (userByEmail) linkedUserId = userByEmail.id;
+    }
+    if (!linkedUserId && customerPhone) {
+      const userByPhone = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: customerPhone.trim() },
+            { contact: customerPhone.trim() },
+          ],
+        },
+      });
+      if (userByPhone) linkedUserId = userByPhone.id;
+    }
+
+    if (!linkedUserId && (customerEmail || customerPhone)) {
+      try {
+        const cleanPhone = customerPhone ? customerPhone.trim() : null;
+        const cleanEmail = customerEmail ? customerEmail.trim().toLowerCase() : null;
+        const newCustomer = await prisma.user.create({
+          data: {
+            name: customerName || 'Valued Customer',
+            email: cleanEmail,
+            phone: cleanPhone,
+            contact: cleanEmail || cleanPhone || '',
+            postcode: postcode ? postcode.trim().toUpperCase() : null,
+            role: 'CUSTOMER',
+            status: 'ACTIVE',
+          },
+        });
+        linkedUserId = newCustomer.id;
+      } catch (userErr) {
+        const found = await prisma.user.findFirst({
+          where: {
+            OR: [
+              ...(customerEmail ? [{ email: customerEmail.trim().toLowerCase() }] : []),
+              ...(customerPhone ? [{ phone: customerPhone.trim() }] : []),
+            ],
+          },
+        });
+        if (found) linkedUserId = found.id;
+      }
+    } else if (linkedUserId) {
+      try {
+        const u = await prisma.user.findUnique({ where: { id: linkedUserId } });
+        if (u) {
+          const syncData = {};
+          if (!u.phone && customerPhone) syncData.phone = customerPhone.trim();
+          if (!u.email && customerEmail) syncData.email = customerEmail.trim().toLowerCase();
+          if ((!u.name || u.name === 'Member') && customerName) syncData.name = customerName.trim();
+          if (Object.keys(syncData).length > 0) {
+            await prisma.user.update({ where: { id: linkedUserId }, data: syncData });
+          }
+        }
+      } catch (syncErr) {}
     }
 
     // Ensure store exists if storeId provided
