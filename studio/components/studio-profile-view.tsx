@@ -76,18 +76,21 @@ const ATELIER_PRESETS = [
 // Helper to split raw stored address into manual Shop No. and map-detected street address
 function parseAddressParts(rawAddress: string, userId?: string) {
   let stored = typeof window !== 'undefined' && userId ? localStorage.getItem(`darzi_studio_shop_no_${userId}`) : null
-  let sNo = stored || ''
-  let street = rawAddress || ''
+  let sNo = (stored || '').trim()
+  let street = (rawAddress || '').trim()
 
   if (sNo && street) {
     if (street.toLowerCase().startsWith(sNo.toLowerCase())) {
-      street = street.slice(sNo.length).replace(/^[,\s-]+/, '')
+      street = street.slice(sNo.length).replace(/^[,\s-]+/, '').trim()
     }
   } else if (!sNo && street) {
-    const match = street.match(/^(Shop\s*[^,]+|Unit\s*[^,]+|Suite\s*[^,]+|Flat\s*[^,]+|Gala\s*[^,]+|G-\d+[^,]*|#\s*[^,]+),\s*(.+)$/i)
+    const match = street.match(/^([^,]+),\s*(.+)$/)
     if (match) {
       sNo = match[1].trim()
       street = match[2].trim()
+    } else {
+      sNo = street
+      street = ''
     }
   }
 
@@ -121,10 +124,11 @@ export function StudioProfileView({
   const [otpError, setOtpError] = useState('')
 
   // Address is driven via map pin; ONLY Shop No. / Workshop Unit is manually written
-  const [shopNo, setShopNo] = useState('')
-  const [mapStreetAddress, setMapStreetAddress] = useState('')
-  const [area, setArea] = useState(user?.area || '')
-  const [postcode, setPostcode] = useState(user?.postcode || '')
+  const initialAddress = parseAddressParts(user?.address || '', user?.id)
+  const [shopNo, setShopNo] = useState(initialAddress.shopNo)
+  const [mapStreetAddress, setMapStreetAddress] = useState(initialAddress.mapStreet)
+  const [area, setArea] = useState(user?.area ?? '')
+  const [postcode, setPostcode] = useState(user?.postcode ?? '')
   const [lat, setLat] = useState<number | null>(user?.lat ?? null)
   const [lng, setLng] = useState<number | null>(user?.lng ?? null)
   const [avatar, setAvatar] = useState(user?.avatar || '')
@@ -212,7 +216,7 @@ export function StudioProfileView({
         setPhone(user.phone)
         setVerifiedPhone(user.phone)
       }
-      
+
       const { shopNo: initShopNo, mapStreet: initMapStreet } = parseAddressParts(user.address || '', user.id)
       setShopNo(initShopNo || '')
       setMapStreetAddress(initMapStreet || '')
@@ -676,11 +680,10 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('profile')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
-            activeSubTab === 'profile'
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'profile'
               ? 'border-[#9E593B] text-[#9E593B]'
               : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-          }`}
+            }`}
         >
           <Store size={14} />
           <span>Atelier Profile</span>
@@ -689,11 +692,10 @@ export function StudioProfileView({
         <button
           type="button"
           onClick={() => setActiveSubTab('craft')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${
-            activeSubTab === 'craft'
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'craft'
               ? 'border-[#9E593B] text-[#9E593B]'
               : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
-          }`}
+            }`}
         >
           <Sliders size={14} />
           <span>Craft & Specialisms</span>
@@ -1106,13 +1108,11 @@ export function StudioProfileView({
                         setPhone(e.target.value.replace(/[^\d+ ]/g, ''))
                         setError('')
                       }}
-                      className={`w-full pl-9 ${
-                        isPhoneChanged && !isNewPhoneVerified ? 'pr-24' : 'pr-3.5'
-                      } py-2.5 text-xs text-[#1E2229] bg-white border rounded-xl focus:outline-none transition-colors ${
-                        isPhoneChanged && !isNewPhoneVerified
+                      className={`w-full pl-9 ${isPhoneChanged && !isNewPhoneVerified ? 'pr-24' : 'pr-3.5'
+                        } py-2.5 text-xs text-[#1E2229] bg-white border rounded-xl focus:outline-none transition-colors ${isPhoneChanged && !isNewPhoneVerified
                           ? 'border-amber-300 focus:border-amber-500 bg-amber-50/20'
                           : 'border-[#E8E1D5] focus:border-[#9E593B]'
-                      }`}
+                        }`}
                     />
                     {isPhoneChanged && !isNewPhoneVerified && (
                       <button
@@ -1230,11 +1230,10 @@ export function StudioProfileView({
                       key={spec}
                       type="button"
                       onClick={() => toggleSpecialty(spec)}
-                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${
-                        selected
+                      className={`p-3 rounded-xl border text-xs font-medium text-left transition-all cursor-pointer flex items-center justify-between ${selected
                           ? 'bg-[#FAF3EC] border-[#9E593B] text-[#9E593B] font-bold shadow-2xs'
                           : 'bg-white border-[#E8E1D5] text-[#1E2229] hover:bg-[#FAF8F5]'
-                      }`}
+                        }`}
                     >
                       <span className="truncate">{spec}</span>
                       {selected && <Check size={13} className="shrink-0" />}
