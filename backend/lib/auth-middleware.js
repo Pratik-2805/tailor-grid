@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'tailorgrid_jwt_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
 
 /**
  * Universal Authentication & Role Extraction Middleware
@@ -20,6 +20,7 @@ function authenticateUser(req, res, next) {
         .map((c) => c.trim())
         .find(
           (c) =>
+            c.startsWith('tg_token=') ||
             c.startsWith('token=') ||
             c.startsWith('tg_auth_token=') ||
             c.startsWith('tg_super_admin_token=') ||

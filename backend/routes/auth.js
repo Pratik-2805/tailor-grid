@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { prisma } = require('../lib/prisma');
 const { validateAndFormatPhone, sendVerificationSms, saveOtp, verifyOtp } = require('../lib/sms');
@@ -95,8 +96,18 @@ async function isUserExpiredTempStudio(user) {
   return false;
 }
 
-// Helper to generate auth token
-function generateToken(user) {
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'Darzi_jwt_refresh_secret_key_2026';
+const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+const REFRESH_TOKEN_EXPIRY = '15d'; // 15 days
+
+// Encrypted HMAC hash of refresh token for secure database storage
+function hashRefreshToken(token) {
+  if (!token) return null;
+  return crypto.createHmac('sha256', JWT_REFRESH_SECRET).update(token).digest('hex');
+}
+
+// Helper to generate access token (15 minutes)
+function generateAccessToken(user) {
   return jwt.sign(
     {
       id: user.id,
@@ -106,10 +117,78 @@ function generateToken(user) {
       role: user.role || 'CUSTOMER',
       status: user.status || 'ACTIVE',
       studioId: user.studioId || null,
+      tokenType: 'access',
     },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
+}
+
+// Helper to generate refresh token (15 days)
+function generateRefreshToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      role: user.role || 'CUSTOMER',
+      tokenType: 'refresh',
+    },
+    JWT_REFRESH_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+}
+
+// Dual Token generator returning Access Token (15m) & Refresh Token (15d) with encrypted DB persistence
+async function generateTokens(user) {
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+  const hashedRt = hashRefreshToken(refreshToken);
+
+  if (user?.id && !String(user.id).startsWith('temp_g_')) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: hashedRt },
+      });
+    } catch (err) {
+      console.warn('[AUTH] Notice saving hashed refresh token in database:', err.message);
+    }
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+    token: accessToken, // backwards-compatible alias
+  };
+}
+
+// Backwards-compatible generateToken helper
+function generateToken(user) {
+  return generateAccessToken(user);
+}
+
+// Helper to set both access and refresh cookies
+function setAuthCookies(res, tokens) {
+  const isProd = process.env.NODE_ENV === 'production';
+  // 15 minutes
+  const atMaxAge = 15 * 60;
+  // 15 days
+  const rtMaxAge = 15 * 24 * 60 * 60;
+
+  res.cookie('tg_token', tokens.accessToken, {
+    path: '/',
+    maxAge: atMaxAge * 1000,
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProd,
+  });
+
+  res.cookie('tg_refresh_token', tokens.refreshToken, {
+    path: '/',
+    maxAge: rtMaxAge * 1000,
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProd,
+  });
 }
 
 // Unified user resolution & creation helper directly in PostgreSQL
@@ -635,12 +714,15 @@ router.post('/verify-otp', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Mobile number verified and authenticated successfully',
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -716,12 +798,17 @@ router.post('/link-phone', async (req, res) => {
 
         removePendingGoogleSignup(targetUserId);
 
-        const token = generateToken(createdUser);
+        const tokens = await generateTokens(createdUser);
+        const authCode = createAuthCode(createdUser, tokens.accessToken);
+        setAuthCookies(res, tokens);
         return res.json({
           success: true,
           message: 'Mobile number linked and account created successfully',
           user: createdUser,
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          token: tokens.accessToken,
+          authCode,
           hasPhone: true,
         });
       }
@@ -752,13 +839,16 @@ router.post('/link-phone', async (req, res) => {
       });
     }
 
-    const token = generateToken(user);
-    const authCode = createAuthCode(user, token);
+    const tokens = await generateTokens(user);
+    const authCode = createAuthCode(user, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Mobile number linked successfully',
       user,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       hasPhone: true,
     });
@@ -995,12 +1085,15 @@ router.post('/google', async (req, res) => {
         );
         const isNewUser = (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') ? !isRegisteredStudio : false;
 
-        const token = generateToken(returnUser);
-        const authCode = createAuthCode(returnUser, token);
+        const tokens = await generateTokens(returnUser);
+        const authCode = createAuthCode(returnUser, tokens.accessToken);
+        setAuthCookies(res, tokens);
         return res.json({
           success: true,
           message: 'Authenticated with Google successfully',
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          token: tokens.accessToken,
           authCode,
           user: returnUser,
           role: returnUser.role,
@@ -1030,14 +1123,17 @@ router.post('/google', async (req, res) => {
         status: 'INACTIVE',
       });
 
-      const token = generateToken(createdTempUser);
-      const authCode = createAuthCode(createdTempUser, token);
+      const tokens = await generateTokens(createdTempUser);
+      const authCode = createAuthCode(createdTempUser, tokens.accessToken);
+      setAuthCookies(res, tokens);
 
       return res.json({
         success: true,
         isNewUser: true,
         message: 'Google identity verified successfully. Please complete studio onboarding.',
-        token,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        token: tokens.accessToken,
         authCode,
         user: createdTempUser,
         role: 'TEMP_STUDIO',
@@ -1233,11 +1329,14 @@ router.post('/signup', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -1323,11 +1422,14 @@ router.post('/login', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -1635,12 +1737,15 @@ router.post('/update-profile', async (req, res) => {
       enrichedUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(user);
+    const tokens = await generateTokens(user);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Profile updated successfully',
       user: enrichedUser,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       hasPhone: Boolean(user.phone),
     });
   } catch (err) {
@@ -1780,9 +1885,115 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// POST /api/auth/logout - Comprehensive logout endpoint clearing cookies and terminating server-side session
-router.post('/logout', (req, res) => {
+// POST /api/auth/refresh - Refresh Access Token (15m) using valid Refresh Token (15d) and DB validation
+router.post('/refresh', async (req, res) => {
   try {
+    let refreshToken = req.body?.refreshToken;
+
+    // Check cookie if not in body
+    if (!refreshToken && req.headers.cookie) {
+      const match = req.headers.cookie
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('tg_refresh_token=') || c.startsWith('refreshToken='));
+      if (match) refreshToken = match.split('=')[1];
+    }
+
+    if (!refreshToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      refreshToken = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token is required.' });
+    }
+
+    let decoded = null;
+    try {
+      decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    } catch (err) {
+      try {
+        decoded = jwt.verify(refreshToken, JWT_SECRET);
+      } catch (fallbackErr) {
+        return res.status(401).json({ error: 'Invalid or expired refresh token. Please sign in again.' });
+      }
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: 'Invalid refresh token payload.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User account not found or has been deleted.' });
+    }
+
+    // Encrypted token validation: verify hashed token matches PostgreSQL record
+    const incomingHashed = hashRefreshToken(refreshToken);
+    if (!user.refreshToken || user.refreshToken !== incomingHashed) {
+      return res.status(401).json({ error: 'Refresh token has been revoked, rotated, or invalidated. Please sign in again.' });
+    }
+
+    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Your account has been suspended.' });
+    }
+
+    if (await isUserExpiredTempStudio(user)) {
+      return res.status(401).json({ error: 'Temporary studio account expired.' });
+    }
+
+    let returnUser = user;
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+      returnUser = await enrichStudioUser(user);
+    }
+
+    // Issue new pair and rotate database stored hash
+    const tokens = await generateTokens(returnUser);
+    setAuthCookies(res, tokens);
+
+    return res.json({
+      success: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
+      user: returnUser,
+    });
+  } catch (err) {
+    console.error('Refresh Token Route Error:', err);
+    return res.status(500).json({ error: 'Failed to refresh token.' });
+  }
+});
+
+// POST /api/auth/logout - Comprehensive logout endpoint clearing database token, cookies and session
+router.post('/logout', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (_) {}
+    }
+
+    let refreshToken = req.body?.refreshToken;
+    if (!userId && refreshToken) {
+      try {
+        const decodedRt = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+        userId = decodedRt.id;
+      } catch (_) {}
+    }
+
+    // Invalidate refresh token in database on logout
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { refreshToken: null },
+      }).catch(() => {});
+    }
+
     const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
 
     // Express clearCookie helper across common configurations
@@ -1793,7 +2004,7 @@ router.post('/logout', (req, res) => {
       { path: '/' }
     ];
 
-    const cookieNames = ['tg_token', 'tg_user_role', 'tg_user', 'token', 'session', 'auth_token'];
+    const cookieNames = ['tg_token', 'tg_refresh_token', 'tg_user_role', 'tg_user', 'token', 'refreshToken', 'session', 'auth_token'];
 
     cookieNames.forEach(name => {
       cookieOptionsList.forEach(opts => {
@@ -1804,9 +2015,11 @@ router.post('/logout', (req, res) => {
     // Explicit Set-Cookie headers to guarantee browser clears all auth cookies
     res.setHeader('Set-Cookie', [
       `tg_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `tg_refresh_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `tg_user_role=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `tg_user=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `refreshToken=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `session=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `auth_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
     ]);
@@ -1874,11 +2087,14 @@ router.post('/oauth/exchange', async (req, res) => {
       returnUser = await enrichStudioUser(returnUser);
     }
 
-    const token = generateToken(returnUser);
+    const tokens = await generateTokens(returnUser);
+    setAuthCookies(res, tokens);
 
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       user: returnUser,
       role: returnUser.role || item.role,
     });

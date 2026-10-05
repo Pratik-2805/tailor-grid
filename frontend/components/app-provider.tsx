@@ -180,7 +180,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUser(u)
         } else {
           setUser(null)
+          clearAllAuth()
         }
+      })
+      .catch(() => {
+        setUser(null)
+        clearAllAuth()
       })
       .finally(() => {
         setIsAuthLoading(false)

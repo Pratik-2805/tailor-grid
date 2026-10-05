@@ -3,6 +3,9 @@ import {
   getAuthToken,
   setAuthToken,
   removeAuthToken,
+  getRefreshToken,
+  setRefreshToken,
+  removeRefreshToken,
   getAuthUser,
   setAuthUser,
   removeAuthUser,
@@ -32,9 +35,69 @@ export function getCustomerSiteUrl(path: string = '', tokenOrCode?: string | nul
   return url
 }
 
+let isRefreshing = false
+let refreshPromise: Promise<string | null> | null = null
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) {
+    clearAllAuth()
+    return null
+  }
+
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise
+  }
+
+  isRefreshing = true
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!res.ok) {
+        clearAllAuth()
+        return null
+      }
+
+      const data = await res.json()
+      const newAt = data.accessToken || data.token
+      if (newAt) {
+        setAuthToken(newAt)
+        if (data.refreshToken) setRefreshToken(data.refreshToken)
+        if (data.user) {
+          const currentRole = getAuthRole()
+          const effectiveRole = (data.user.role === 'STUDIO' || currentRole === 'STUDIO')
+            ? 'STUDIO'
+            : (data.user.role === 'ADMIN' ? 'ADMIN' : (data.user.role === 'TEMP_STUDIO' || currentRole === 'TEMP_STUDIO' ? 'TEMP_STUDIO' : (data.user.role || 'TEMP_STUDIO')))
+          setAuthUser({ ...data.user, role: effectiveRole })
+          setAuthRole(effectiveRole)
+        }
+        return newAt
+      }
+
+      clearAllAuth()
+      return null
+    } catch {
+      clearAllAuth()
+      return null
+    } finally {
+      isRefreshing = false
+      refreshPromise = null
+    }
+  })()
+
+  return refreshPromise
+}
+
 export async function exchangeAuthCode(code: string): Promise<{
   success: boolean
   token: string
+  accessToken?: string
+  refreshToken?: string
   user: User
   role: string
 }> {
@@ -49,9 +112,11 @@ export async function exchangeAuthCode(code: string): Promise<{
       throw new Error(err.error || 'Failed to exchange authorization code')
     }
     const data = await res.json()
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       const effectiveRole = (data.role === 'STUDIO' || data.user?.role === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
       const enrichedUser = data.user ? { ...data.user, role: effectiveRole } : null
       if (enrichedUser) {
@@ -113,6 +178,8 @@ export async function verifyOtp(params: {
   postcode?: string
 }): Promise<{
   token?: string
+  accessToken?: string
+  refreshToken?: string
   authCode?: string
   user?: User
   hasPhone?: boolean
@@ -137,9 +204,11 @@ export async function verifyOtp(params: {
     }
 
     const data = await res.json()
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       if (data.user) {
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'STUDIO')
@@ -155,7 +224,7 @@ export async function linkPhone(params: {
   phone: string
   otp?: string
   userId?: string
-}): Promise<{ success: boolean; user: User; token: string; authCode?: string; hasPhone: boolean }> {
+}): Promise<{ success: boolean; user: User; token: string; accessToken?: string; refreshToken?: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
     const res = await fetch(`${API_BASE}/auth/link-phone`, {
@@ -173,9 +242,11 @@ export async function linkPhone(params: {
     }
 
     const data = await res.json()
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
     }
     if (data.user) {
       setAuthUser(data.user)
@@ -199,7 +270,7 @@ export async function loginWithGoogle(params: {
   isSignup?: boolean
   flow?: 'login' | 'signup'
   isLogin?: boolean
-}): Promise<{ token?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
+}): Promise<{ token?: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {
       method: 'POST',
@@ -213,9 +284,11 @@ export async function loginWithGoogle(params: {
     }
 
     const data = await res.json()
-    if (data.token) {
+    const at = data.accessToken || data.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(data.token)
+      setAuthToken(at)
+      if (data.refreshToken) setRefreshToken(data.refreshToken)
       if (data.user) {
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'STUDIO')
@@ -253,7 +326,7 @@ export async function signUpUser(data: {
   specialties?: string[]
   lat?: number
   lng?: number
-}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
     const res = await fetch(`${API_BASE}/auth/signup`, {
@@ -271,9 +344,11 @@ export async function signUpUser(data: {
     }
 
     const result = await res.json()
-    if (result.token) {
+    const at = result.accessToken || result.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(result.token)
+      setAuthToken(at)
+      if (result.refreshToken) setRefreshToken(result.refreshToken)
       if (result.user) {
         setAuthUser(result.user)
         setAuthRole(result.user.role || 'STUDIO')
@@ -290,7 +365,7 @@ export async function loginUser(data: {
   phone?: string
   identifier?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
-}): Promise<{ token: string; authCode?: string; user: User; needsPhone?: boolean }> {
+}): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
@@ -304,9 +379,11 @@ export async function loginUser(data: {
     }
 
     const result = await res.json()
-    if (result.token) {
+    const at = result.accessToken || result.token
+    if (at) {
       clearUnnecessaryDataOnLogin()
-      setAuthToken(result.token)
+      setAuthToken(at)
+      if (result.refreshToken) setRefreshToken(result.refreshToken)
       if (result.user) {
         setAuthUser(result.user)
         setAuthRole(result.user.role || 'STUDIO')
@@ -318,9 +395,9 @@ export async function loginUser(data: {
   }
 }
 
-export async function updateUserProfile(updates: Partial<User> & { otp?: string }): Promise<{ success: boolean; user: User; token?: string }> {
-  const token = getAuthToken()
-  const res = await fetch(`${API_BASE}/auth/update-profile`, {
+export async function updateUserProfile(updates: Partial<User> & { otp?: string }): Promise<{ success: boolean; user: User; token?: string; accessToken?: string; refreshToken?: string }> {
+  let token = getAuthToken()
+  let res = await fetch(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -329,14 +406,32 @@ export async function updateUserProfile(updates: Partial<User> & { otp?: string 
     body: JSON.stringify(updates),
   })
 
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      res = await fetch(`${API_BASE}/auth/update-profile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${newToken}`,
+        },
+        body: JSON.stringify(updates),
+      })
+    }
+  }
+
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
     throw new Error(errData.error || `Server error (${res.status})`)
   }
 
   const data = await res.json()
-  if (data.token) {
-    setAuthToken(data.token)
+  const at = data.accessToken || data.token
+  if (at) {
+    setAuthToken(at)
+  }
+  if (data.refreshToken) {
+    setRefreshToken(data.refreshToken)
   }
   if (data.user) {
     setAuthUser(data.user)
@@ -346,16 +441,29 @@ export async function updateUserProfile(updates: Partial<User> & { otp?: string 
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = getAuthToken()
+  let token = getAuthToken()
   if (!token) {
-    clearAllAuth()
-    return null
+    token = await refreshAccessToken()
+    if (!token) {
+      clearAllAuth()
+      return null
+    }
   }
 
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, {
+    let res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken()
+      if (newToken) {
+        res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${newToken}` },
+        })
+      }
+    }
+
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
@@ -370,48 +478,11 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    // If user is completing registration via Google or mobile, retain pending onboarding session
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google' || payload.role === 'TEMP_STUDIO' || payload.role === 'STUDIO') && payload.email) {
-        const effectiveRole = payload.role || 'TEMP_STUDIO'
-        const pendingUser: User = getAuthUser<User>() || {
-          id: payload.id || `temp_g_${payload.email}`,
-          contact: payload.email,
-          email: payload.email,
-          name: payload.name || 'Studio Partner',
-          role: effectiveRole,
-          method: payload.method || 'google',
-          status: 'INACTIVE',
-        }
-        setAuthUser(pendingUser)
-        setAuthRole(effectiveRole)
-        return pendingUser
-      }
-    } catch {}
-
-    // Fallback: check cached user in storage before giving up
-    const cachedUser = getAuthUser<User>()
-    if (cachedUser && (cachedUser.role === 'STUDIO' || cachedUser.role === 'TEMP_STUDIO')) {
-      setAuthRole(cachedUser.role)
-      return cachedUser
-    }
-
+    // User was deleted from database, expired, or token was invalidated -> Immediately wipe all auth
     clearAllAuth()
     return null
   } catch (err) {
-    // Network error (backend unreachable): preserve local session
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
-      if (payload && (payload.type === 'pending_google_signup' || payload.method === 'google' || payload.role === 'TEMP_STUDIO' || payload.role === 'STUDIO') && payload.email) {
-        const cachedUser = getAuthUser<User>()
-        if (cachedUser) return cachedUser
-      }
-    } catch {}
-    const cachedUser = getAuthUser<User>()
-    if (cachedUser && (cachedUser.role === 'STUDIO' || cachedUser.role === 'TEMP_STUDIO')) {
-      return cachedUser
-    }
+    // Network failure
     clearAllAuth()
     return null
   }
