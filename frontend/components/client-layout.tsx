@@ -7,7 +7,8 @@ import { useApp } from './app-provider'
 import { Header } from './header'
 import { StudioSubNav } from './studio-sub-nav'
 import { Footer } from './footer'
-import { AuthModal } from './auth-modal'
+import { LoginModal } from './login-modal'
+import { SignUpModal } from './signup-modal'
 import { SewingLoader } from './sewing-loader'
 import { getAuthRole } from '@/lib/cookies'
 import type { Screen } from './data'
@@ -98,9 +99,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         currentScreen={currentScreen}
         go={navigate}
         user={user}
-        onOpenAuth={() => {
-          // Always open the role-selection modal — never direct redirect
-          openAuth('CUSTOMER')
+        onOpenAuth={(type = 'signup') => {
+          openAuth('CUSTOMER', type)
         }}
         onSignOut={handleSignOut}
       />
@@ -111,9 +111,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           currentScreen={currentScreen}
           go={navigate}
           user={user}
-          onOpenAuth={() => {
-            // Always open role-selection modal
-            openAuth('CUSTOMER')
+          onOpenAuth={(role = 'STUDIO', type = 'signup') => {
+            openAuth(role, type)
           }}
         />
       )}
@@ -126,15 +125,27 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* Universal Footer */}
       {!hideFooter && <Footer go={navigate} />}
 
-      {/* Global Auth Modal */}
-      <AuthModal
-        isOpen={isAuthOpen}
+      {/* Dedicated Login Modal */}
+      <LoginModal
+        isOpen={isAuthOpen && authType === 'signin'}
         targetRole={authRole}
-        authType={authType}
         currentUser={user}
         mandatoryPhoneRequired={false}
         onClose={closeAuth}
         onSuccess={handleAuthSuccess}
+        onSwitchToSignUp={() => openAuth(authRole, 'signup')}
+        onSignOut={handleSignOut}
+      />
+
+      {/* Dedicated Sign Up Modal */}
+      <SignUpModal
+        isOpen={isAuthOpen && authType === 'signup'}
+        targetRole={authRole}
+        currentUser={user}
+        mandatoryPhoneRequired={false}
+        onClose={closeAuth}
+        onSuccess={handleAuthSuccess}
+        onSwitchToLogin={() => openAuth(authRole, 'signin')}
         onSignOut={handleSignOut}
       />
 

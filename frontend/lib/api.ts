@@ -120,6 +120,7 @@ export async function verifyOtp(params: {
   email?: string
   userId?: string
   role?: 'CUSTOMER' | 'STUDIO'
+  postcode?: string
 }): Promise<{
   token?: string
   authCode?: string
@@ -203,8 +204,14 @@ export async function loginWithGoogle(params: {
   idToken?: string
   accessToken?: string
   profile?: Partial<User>
+  email?: string
+  name?: string
+  googleId?: string
+  avatar?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
   isSignup?: boolean
+  flow?: 'login' | 'signup'
+  isLogin?: boolean
 }): Promise<{ token?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
     const res = await fetch(`${API_BASE}/auth/google`, {

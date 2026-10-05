@@ -48,8 +48,10 @@ export function AuthModal({
 
   const initialMode = (): AuthMode => {
     if (isMissingPhone) return 'link-phone-step'
-    if (targetRole === 'STUDIO') return 'studio-options'
-    return 'role-select'
+    if (targetRole === 'STUDIO') {
+      return authType === 'signup' ? 'studio-signup-options' : 'studio-options'
+    }
+    return authType === 'signin' ? 'customer-options' : 'role-select'
   }
 
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -97,11 +99,10 @@ export function AuthModal({
       setMode('link-phone-step')
       setPendingUser(currentUser || null)
     } else if (targetRole === 'STUDIO') {
-      setMode('studio-options')
+      setMode(authType === 'signup' ? 'studio-signup-options' : 'studio-options')
       setPendingUser(null)
     } else {
-      const modeToSet = initialMode()
-      setMode(modeToSet)
+      setMode(authType === 'signin' ? 'customer-options' : 'role-select')
       setPendingUser(null)
     }
     setRegisterStep(1)
@@ -512,14 +513,17 @@ export function AuthModal({
   const goBack = () => {
     if (mode === 'studio-login') {
       setMode('studio-options')
+    } else if (mode === 'customer-mobile' || mode === 'customer-email') {
+      setMode('customer-options')
+      setRegisterStep(1)
     } else if (mode === 'link-phone-step') {
-      setMode('role-select')
+      setMode(authType === 'signin' ? 'customer-options' : 'role-select')
       setPendingUser(null)
     } else if (mode === 'customer-options' || mode === 'studio-partner-google' || mode === 'studio-options' || mode === 'studio-signup-options') {
       setMode('role-select')
       setRegisterStep(1)
     } else {
-      setMode('customer-options')
+      setMode(authType === 'signin' ? 'customer-options' : 'role-select')
       setRegisterStep(1)
     }
     setNotice('')
@@ -527,7 +531,11 @@ export function AuthModal({
 
   if (!isOpen) return null
 
-  const isSubPage = mode !== 'role-select'
+  const isSubPage =
+    mode !== 'role-select' &&
+    !(authType === 'signin' && mode === 'customer-options') &&
+    !(targetRole === 'STUDIO' && authType === 'signin' && mode === 'studio-options') &&
+    !(targetRole === 'STUDIO' && authType === 'signup' && mode === 'studio-signup-options')
 
   const activeUser = pendingUser || currentUser
   const userInitial = (activeUser?.name || 'U')[0].toUpperCase()
@@ -541,13 +549,13 @@ export function AuthModal({
         }
       }}
     >
-      <div className={`relative w-full ${mode === 'role-select' ? 'max-w-[430px]' : 'max-w-[390px]'} rounded-3xl bg-white shadow-2xl border border-[#E8E1D5] overflow-hidden transition-all duration-200`}>
+      <div className="relative w-full max-w-[420px] rounded-3xl bg-white shadow-2xl border border-[#E8E1D5] overflow-hidden transition-all duration-200">
 
         {/* Top Controls: Back button & Top-Right Close Button */}
         {isSubPage && (
           <button
             onClick={goBack}
-            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors"
+            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
             aria-label="Back"
           >
             <ArrowLeft size={14} />
@@ -572,13 +580,6 @@ export function AuthModal({
         </div>
 
         <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* Subtle Notice Banner */}
-          {notice && (
-            <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] px-3.5 py-2.5 text-xs text-[#9E593B] font-medium flex items-center justify-between animate-in fade-in">
-              <span>{notice}</span>
-            </div>
-          )}
-
           {/* ================================================================ */}
           {/* ROLE SELECTION – Customer vs Studio Partner                      */}
           {/* ================================================================ */}
@@ -673,7 +674,7 @@ export function AuthModal({
                     }}
                     className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
                   >
-                    Sign In →
+                    Log In →
                   </button>
                 </div>
               </div>
@@ -881,10 +882,10 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Welcome to Darzi
+                  Login to Darzi
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  Sign in or create an account for bespoke fitting passes.
+                  Access your bespoke fitting passes, saved sizes, and orders.
                 </p>
               </div>
 
@@ -914,6 +915,24 @@ export function AuthModal({
                   <Mail size={14} className="text-[#9E593B]" />
                   <span>Login with Email</span>
                 </button>
+              </div>
+
+              {/* OR Divider & Don't have an account option */}
+              <div className="pt-2 space-y-2.5">
+                <Divider />
+                <div className="text-center">
+                  <span className="text-xs text-[#7A7E85]">Don't have an account? </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotice('')
+                      setMode('role-select')
+                    }}
+                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                  >
+                    Sign Up →
+                  </button>
+                </div>
               </div>
 
               <p className="text-center text-[10px] text-[#9CA3AF] pt-1">

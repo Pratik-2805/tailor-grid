@@ -10,7 +10,7 @@ interface HeaderProps {
   currentScreen: Screen
   go: (s: Screen) => void
   user?: User | null
-  onOpenAuth?: () => void
+  onOpenAuth?: (authType?: 'signin' | 'signup') => void
   onSignOut?: () => void
 }
 
@@ -246,13 +246,23 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
               )}
             </div>
           ) : (
-            <button
-              onClick={onOpenAuth}
-              className="flex items-center gap-2 rounded-full border border-[#0F1115] px-4 py-2 text-[13px] font-semibold text-[#0F1115] hover:bg-[#0F1115] hover:text-white transition-all whitespace-nowrap shrink-0"
-            >
-              <UserIcon size={14} className="shrink-0" />
-              <span>Sign In / Up</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.('signin')}
+                className="flex items-center gap-1.5 rounded-full border border-[#E8E1D5] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#18191B] hover:bg-[#F3EFEA] hover:border-[#0F1115] transition-all whitespace-nowrap shrink-0 shadow-2xs cursor-pointer"
+              >
+                <UserIcon size={13} className="shrink-0 text-[#9E593B]" />
+                <span>Log In</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenAuth?.('signup')}
+                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#9E593B] transition-all whitespace-nowrap shrink-0 shadow-xs active:scale-[0.98] cursor-pointer"
+              >
+                <span>Sign Up</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -327,7 +337,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
                   onClick={() => {
                     if (item.screen === 'orders' && !user && onOpenAuth) {
                       setOpen(false)
-                      onOpenAuth()
+                      onOpenAuth('signin')
                     } else {
                       nav(item.screen)
                     }
@@ -339,18 +349,29 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
                 </button>
               ))}
 
-              {user && (
+              <div className="pt-3 mt-2 border-t border-[#E8E1D5]/70 flex flex-col gap-2">
                 <button
+                  type="button"
                   onClick={() => {
                     setOpen(false)
-                    nav('profile')
+                    onOpenAuth?.('signin')
                   }}
-                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#9E593B] border-t border-[#E8E1D5]/60"
+                  className="w-full flex items-center justify-center gap-2 border border-[#E8E1D5] bg-white rounded-xl py-2.5 text-center text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all cursor-pointer shadow-2xs"
                 >
-                  <span>My Profile</span>
-                  <span className="text-[#9CA3AF]">→</span>
+                  <UserIcon size={14} className="text-[#9E593B]" />
+                  <span>Log In</span>
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onOpenAuth?.('signup')
+                  }}
+                  className="w-full flex items-center justify-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] rounded-xl py-2.5 text-center text-xs font-semibold text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                >
+                  <span>Sign Up</span>
+                </button>
+              </div>
             </>
           )}
         </div>

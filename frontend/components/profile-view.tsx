@@ -18,7 +18,7 @@ interface ProfileViewProps {
   go: (s: Screen | string) => void
   user: UserType | null
   onUpdateUser: (u: UserType) => void
-  onOpenAuth: () => void
+  onOpenAuth: (authType?: 'signin' | 'signup') => void
   onSignOut: () => void
 }
 
@@ -320,12 +320,21 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
 
           <div className="space-y-2 pt-2">
             <button
-              onClick={onOpenAuth}
-              className="w-full rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white py-3 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+              type="button"
+              onClick={() => onOpenAuth('signin')}
+              className="w-full rounded-full border border-[#E8E1D5] bg-white hover:bg-[#F3EFEA] hover:border-[#0F1115] text-[#18191B] py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
             >
-              Sign In
+              Log In
             </button>
             <button
+              type="button"
+              onClick={() => onOpenAuth('signup')}
+              className="w-full rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white py-3 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-[0.99]"
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
               onClick={() => go('home')}
               className="w-full text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] py-2 transition-colors cursor-pointer"
             >
