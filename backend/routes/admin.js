@@ -143,6 +143,43 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/**
+ * Security Middleware: Enforce Super Admin Authentication & RBAC
+ */
+function requireAdminAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    let token = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.headers.cookie) {
+      const match = req.headers.cookie
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('admin_token=') || c.startsWith('token='));
+      if (match) token = match.split('=')[1];
+    }
+
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: Admin authentication token required' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden: Super Admin privileges required' });
+    }
+
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired Super Admin token' });
+  }
+}
+
+// Enforce authentication on all administrative endpoints below
+router.use(requireAdminAuth);
+
 // GET /api/admin/me
 router.get('/me', async (req, res) => {
   try {
@@ -711,16 +748,16 @@ router.post('/studios', async (req, res) => {
         address: address.trim(),
         postcode: postcode.trim().toUpperCase(),
         leadTailor: leadTailor ? leadTailor.trim() : 'Master Tailor',
-        dailyCapacity: dailyCapacity ? parseInt(dailyCapacity, 10) : 25,
-        machines: machines ? parseInt(machines, 10) : 6,
-        workers: workers ? parseInt(workers, 10) : 4,
+        dailyCapacity: !isNaN(parseInt(dailyCapacity, 10)) ? parseInt(dailyCapacity, 10) : 25,
+        machines: !isNaN(parseInt(machines, 10)) ? parseInt(machines, 10) : 6,
+        workers: !isNaN(parseInt(workers, 10)) ? parseInt(workers, 10) : 4,
         specialties: Array.isArray(specialties)
           ? specialties
           : specialties ? specialties.split(',').map((s) => s.trim()) : ['Suits', 'Dresses', 'Trousers'],
         openingHours: openingHours || '09:00 - 19:00',
-        rating: rating ? parseFloat(rating) : 4.9,
-        lat: lat ? parseFloat(lat) : 51.5074,
-        lng: lng ? parseFloat(lng) : -0.1278,
+        rating: !isNaN(parseFloat(rating)) ? parseFloat(rating) : 4.9,
+        lat: !isNaN(parseFloat(lat)) ? parseFloat(lat) : 51.5074,
+        lng: !isNaN(parseFloat(lng)) ? parseFloat(lng) : -0.1278,
       },
     });
 
@@ -918,6 +955,11 @@ router.put('/orders/:id', async (req, res) => {
         data.storeName = null;
         data.storePhone = null;
       }
+    }
+
+    const existingOrder = await prisma.order.findUnique({ where: { id } });
+    if (!existingOrder) {
+      return res.status(404).json({ error: 'Order not found' });
     }
 
     const updated = await prisma.order.update({
