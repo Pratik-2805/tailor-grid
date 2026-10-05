@@ -171,8 +171,6 @@ async function findOrLinkUser({
             area: resolvedArea,
             address: resolvedAddress,
             postcode: resolvedPostcode,
-            distance: '0.4 mi away',
-            distanceMiles: 0.4,
             rating: 5.0,
             reviewCount: 1,
             openingHours: 'Mon–Sat: 09:00 – 19:00',

@@ -46,24 +46,24 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
 
   const FAQS = [
     {
-      q: 'How do partner payouts and settlements work?',
-      a: 'All partner alteration payouts are automatically calculated and deposited directly into your bank account every week via direct bank transfer with zero invoicing or chasing.',
+      q: 'How do partner payments work?',
+      a: 'Customers pay you directly at your studio. When a customer brings in their garments for their booking, you collect payment directly at your counter via card, cash, or UPI. You keep 100% of your earnings immediately with zero platform settlement delays or payout deductions.',
     },
     {
       q: 'Do I have to do any marketing or payment processing?',
-      a: 'No. Darzi handles 100% of customer acquisition, SEO, digital booking, and secure upfront online payment processing. Customers arrive at your studio with a pre-paid Fitting Pass.',
+      a: 'No marketing required. Darzi handles customer acquisition, SEO, and appointment bookings, sending qualified local alteration clients straight to your studio door. You simply provide the fitting and tailoring service, and collect payment directly from the customer.',
     },
     {
-      q: 'How does the 5-minute walk-in fitting process work?',
-      a: 'When a customer arrives, you scan their 4-digit OTP or QR pass on the Studio Portal tablet app. Their digital tailoring instructions and garment specifications load instantly. You pin the garment in 5 minutes and hand them a confirmation receipt.',
+      q: 'How does the in-studio walk-in fitting process work?',
+      a: 'When the customer arrives, look up their booking by name, phone, or reference on your Studio Portal. You review their requested alterations, inspect or pin the garment, confirm the timeline and pricing directly with the customer, and update their order status.',
     },
     {
       q: 'What happens if a customer needs an adjustment after pick-up?',
-      a: 'Darzi protects partner studios with our 100% Free Re-fit Guarantee. In the rare event of a minor adjustment, Darzi subsidizes the additional artisan labor so your shop is always fairly compensated.',
+      a: 'If a customer needs a minor fit adjustment, they return directly to your studio for a complimentary re-fitting check. This direct tailor-to-customer connection builds trust and transforms first-time alteration visitors into loyal, repeat store clients.',
     },
     {
-      q: 'Can I track in-store retail merchandise purchases?',
-      a: 'Yes. Our Studio Portal features a 1-click retail cross-sell logger. Studies across our network show 38% of alteration customers purchase in-store retail products (fabrics, ties, shirts, accessories) during their fitting.',
+      q: 'Can I sell in-store retail merchandise and additional services?',
+      a: 'Yes. Every Darzi booking drives physical footfall into your store. Any retail items you sell—such as fabrics, bespoke suiting, accessories, or dry cleaning—are 100% yours, paid directly by the customer to your shop.',
     },
   ]
 
@@ -118,9 +118,9 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               </div>
 
               <div className="mt-8 pt-6 border-t border-white/15 flex items-center gap-6 text-xs text-white/60">
-                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-[#10B981]" /> 100% Pre-paid</span>
-                <span className="flex items-center gap-1.5"><CreditCard size={14} className="text-[#F59E0B]" /> Weekly Settlements</span>
-                <span className="flex items-center gap-1.5"><ShoppingBag size={14} className="text-[#10B981]" /> 38% Retail Upsell</span>
+                <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-[#10B981]" /> Direct Customer Payment</span>
+                <span className="flex items-center gap-1.5"><CreditCard size={14} className="text-[#F59E0B]" /> Zero Commission Delays</span>
+                <span className="flex items-center gap-1.5"><ShoppingBag size={14} className="text-[#10B981]" /> Keep 100% In-Store Retail</span>
               </div>
             </div>
 
@@ -183,10 +183,10 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 <CreditCard size={20} />
               </div>
               <h3 className="text-lg font-bold text-[#0F1115] mb-2">
-                Get paid fast
+                Direct customer payments
               </h3>
               <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                Guaranteed high partner margin on every alteration ticket, paid via automatic direct deposit into your bank account every week.
+                Customers pay you directly at your shop via cash, card terminal, or UPI. No waiting for platform payouts, deductions, or third-party payout delays.
               </p>
             </div>
 
@@ -351,10 +351,10 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 <ShieldCheck size={20} className="text-[#10B981]" />
               </div>
               <h3 className="text-base font-bold text-[#0F1115] mb-2">
-                Protection on every order
+                Direct in-store transactions
               </h3>
               <p className="text-xs text-[#5A5D64] leading-relaxed">
-                Every alteration ticket is 100% pre-paid via Darzi. If a customer cancels late or fails to pick up, your full payout is guaranteed and settled automatically.
+                Customers book their fitting time online and pay you directly at your shop. You maintain full control over your pricing, receipts, and customer relationships.
               </p>
             </div>
 
@@ -378,7 +378,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 Community Guidelines
               </h3>
               <p className="text-xs text-[#5A5D64] leading-relaxed">
-                Our standards help create safe connections and positive fittings with every customer. Our 100% Free Re-fit Guarantee is backed and subsidized by the platform.
+                Our standards create trustworthy fittings with verified local customers. Direct master tailor communication ensures perfect fit precision and repeat studio footfall.
               </p>
             </div>
           </div>

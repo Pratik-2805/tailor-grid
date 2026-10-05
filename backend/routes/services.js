@@ -189,8 +189,6 @@ router.post('/stores', async (req, res) => {
       dailyCapacity,
       specialties,
       openingHours,
-      phone,
-      email,
       lat,
       lng,
     } = req.body;
@@ -211,8 +209,6 @@ router.post('/stores', async (req, res) => {
         area: area || 'Neighborhood Atelier',
         address: address || '18 Kensington Church St',
         postcode: postcode || 'W8 4EP',
-        phone: phone ? phone.trim() : null,
-        email: email ? email.trim().toLowerCase() : null,
         rating: 5.0,
         reviewCount: 1,
         openingHours: openingHours || 'Mon–Sat: 09:00 – 19:00',
