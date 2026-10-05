@@ -83,14 +83,14 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     }
   }, [])
 
-  // If auth check completes and user is not an active studio, redirect to login
+  // If auth check completes and user is not an active studio, redirect to customer portal
   useEffect(() => {
     if (!loadingUser) {
       if (!user || user.role !== 'STUDIO' || user.status !== 'ACTIVE' || !user.studioName || !user.phone) {
-        router.replace('/?auth=signin')
+        window.location.replace(customerSiteUrl)
       }
     }
-  }, [loadingUser, user, router])
+  }, [loadingUser, user, customerSiteUrl])
 
   const handleUpdateUser = (updated: User) => {
     setUser(updated)

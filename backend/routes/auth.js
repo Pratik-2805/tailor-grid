@@ -75,6 +75,7 @@ async function findOrLinkUser({
   machines,
   lat,
   lng,
+  specialties,
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
   const normPhone = phone ? phone.trim() : null;
@@ -132,6 +133,8 @@ async function findOrLinkUser({
         existingStore = await prisma.partnerStore.findFirst({
           where: {
             OR: [
+              ...(normEmail ? [{ email: normEmail }] : []),
+              ...(normPhone ? [{ phone: normPhone }] : []),
               { name: actualStoreName },
               { leadTailor: name || '' },
             ],
@@ -150,16 +153,26 @@ async function findOrLinkUser({
       const parsedLat = typeof lat === 'number' && !isNaN(lat) ? lat : (lat ? parseFloat(lat) : 40.7259);
       const parsedLng = typeof lng === 'number' && !isNaN(lng) ? lng : (lng ? parseFloat(lng) : -74.0003);
 
+      const resolvedSpecialties = (specialties && Array.isArray(specialties) && specialties.length > 0)
+        ? specialties
+        : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'];
+
+      const resolvedAddress = address ? address.trim() : (storeArea ? storeArea.trim() : 'Neighborhood Atelier');
+      const resolvedPostcode = postcode ? postcode.trim().toUpperCase() : '';
+      const resolvedArea = storeArea || (resolvedPostcode ? `Area ${resolvedPostcode}` : 'Neighborhood Atelier');
+
       if (!existingStore) {
         resolvedStore = await prisma.partnerStore.create({
           data: {
             id: actualStudioId,
             name: actualStoreName,
-            area: storeArea || (postcode ? `Area ${postcode}` : 'Neighborhood Atelier'),
-            address: address || '18 Kensington Church St',
-            postcode: postcode || 'W8 4EP',
-            phone: normPhone || user?.phone || user?.contact || null,
-            email: normEmail || user?.email || null,
+            email: normEmail || null,
+            phone: normPhone || null,
+            area: resolvedArea,
+            address: resolvedAddress,
+            postcode: resolvedPostcode,
+            distance: '0.4 mi away',
+            distanceMiles: 0.4,
             rating: 5.0,
             reviewCount: 1,
             openingHours: 'Mon–Sat: 09:00 – 19:00',
@@ -167,7 +180,7 @@ async function findOrLinkUser({
             machines: machines ? parseInt(machines) || 6 : 6,
             workers: 4,
             leadTailor: name || 'Master Tailor',
-            specialties: ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+            specialties: resolvedSpecialties,
             retailSold: true,
             lat: parsedLat,
             lng: parsedLng,
@@ -178,13 +191,14 @@ async function findOrLinkUser({
           where: { id: existingStore.id },
           data: {
             name: actualStoreName,
+            ...(normEmail ? { email: normEmail } : {}),
+            ...(normPhone ? { phone: normPhone } : {}),
             leadTailor: name || existingStore.leadTailor,
-            address: address || existingStore.address,
-            postcode: postcode || existingStore.postcode,
-            ...(normPhone ? { phone: normPhone } : (user?.phone ? { phone: user.phone } : {})),
-            ...(normEmail ? { email: normEmail } : (user?.email ? { email: user.email } : {})),
-            ...(storeArea ? { area: storeArea } : {}),
+            ...(address ? { address: address.trim() } : {}),
+            ...(postcode ? { postcode: postcode.trim().toUpperCase() } : {}),
+            ...(storeArea ? { area: storeArea.trim() } : {}),
             ...(machines ? { machines: parseInt(machines) || existingStore.machines } : {}),
+            ...(specialties && Array.isArray(specialties) && specialties.length > 0 ? { specialties } : {}),
             ...(typeof lat === 'number' && !isNaN(lat) ? { lat: parsedLat } : {}),
             ...(typeof lng === 'number' && !isNaN(lng) ? { lng: parsedLng } : {}),
           },
@@ -241,8 +255,8 @@ async function findOrLinkUser({
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
               normEmail || normPhone || 'user'
             )}`,
-      address: address || resolvedStore?.address || user.address || '18 Kensington Church St',
-      postcode: postcode || resolvedStore?.postcode || user.postcode || 'W8 4EP',
+      address: address || resolvedStore?.address || user.address || null,
+      postcode: postcode || resolvedStore?.postcode || user.postcode || null,
       contact: normEmail || normPhone || user.email || user.phone || user.contact,
       role: role || user.role || 'CUSTOMER',
       studioId: (role === 'CUSTOMER' ? null : (actualStudioId || user.studioId || null)),
@@ -838,7 +852,7 @@ router.post('/google', async (req, res) => {
         await prisma.user.update({
           where: { id: existingUser.id },
           data: { method: 'google' },
-        }).catch(() => {});
+        }).catch(() => { });
         existingUser.method = 'google';
       }
 
@@ -944,6 +958,7 @@ router.post('/signup', async (req, res) => {
       storeName,
       storeArea,
       machines,
+      specialties,
       lat,
       lng,
     } = req.body;
@@ -1038,6 +1053,7 @@ router.post('/signup', async (req, res) => {
       studioName: storeName,
       storeArea,
       machines,
+      specialties,
       lat,
       lng,
     });
@@ -1171,6 +1187,10 @@ async function enrichStudioUser(user) {
     if (store) {
       return {
         ...user,
+        email: user.email || store.email || null,
+        phone: user.phone || store.phone || null,
+        storeEmail: store.email || null,
+        storePhone: store.phone || null,
         area: store.area || null,
         lat: store.lat ?? null,
         lng: store.lng ?? null,
@@ -1324,6 +1344,8 @@ router.post('/update-profile', async (req, res) => {
         if (store) {
           const storeUpdateData = {
             ...(studioName !== undefined ? { name: studioName } : {}),
+            ...((cleanEmail || updateData.email) ? { email: cleanEmail || updateData.email } : (user.email ? { email: user.email } : {})),
+            ...((cleanPhone || updateData.phone) ? { phone: cleanPhone || updateData.phone } : (user.phone ? { phone: user.phone } : {})),
             ...(leadTailor || name ? { leadTailor: leadTailor || name } : {}),
             ...(phone !== undefined ? { phone: phone.trim() } : {}),
             ...(email !== undefined ? { email: email.trim().toLowerCase() } : {}),
@@ -1486,7 +1508,7 @@ router.get('/me', async (req, res) => {
 router.post('/logout', (req, res) => {
   try {
     const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
-    
+
     // Express clearCookie helper across common configurations
     const cookieOptionsList = [
       { path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' },
@@ -1499,7 +1521,7 @@ router.post('/logout', (req, res) => {
 
     cookieNames.forEach(name => {
       cookieOptionsList.forEach(opts => {
-        try { res.clearCookie(name, opts); } catch (_) {}
+        try { res.clearCookie(name, opts); } catch (_) { }
       });
     });
 

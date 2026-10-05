@@ -600,8 +600,8 @@ router.get('/studios', async (req, res) => {
       // Find matching user for studio to resolve actual phone and email if missing or defaulted
       const matchedUser = studioUsers.find(
         (u) => (u.studioId && u.studioId === s.id) ||
-               (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
-               (u.name && s.leadTailor && u.name.toLowerCase() === s.leadTailor.toLowerCase())
+          (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
+          (u.name && s.leadTailor && u.name.toLowerCase() === s.leadTailor.toLowerCase())
       );
 
       let actualPhone = s.phone;
@@ -618,7 +618,7 @@ router.get('/studios', async (req, res) => {
             phone: actualPhone,
             email: actualEmail,
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       const activeOrders = s.orders.filter(
@@ -704,11 +704,11 @@ router.post('/studios', async (req, res) => {
       data: {
         id: uniqueId,
         name: name.trim(),
+        email: email ? email.trim().toLowerCase() : null,
+        phone: phone ? phone.trim() : null,
         area: area ? area.trim() : (postcode.split(' ')[0] || 'Central'),
         address: address.trim(),
         postcode: postcode.trim().toUpperCase(),
-        phone: phone ? phone.trim() : null,
-        email: email ? email.trim().toLowerCase() : null,
         leadTailor: leadTailor ? leadTailor.trim() : 'Master Tailor',
         dailyCapacity: dailyCapacity ? parseInt(dailyCapacity, 10) : 25,
         machines: machines ? parseInt(machines, 10) : 6,
@@ -754,11 +754,11 @@ router.put('/studios/:id', async (req, res) => {
 
     const data = {};
     if (name !== undefined) data.name = name.trim();
+    if (email !== undefined) data.email = email ? email.trim().toLowerCase() : null;
     if (area !== undefined) data.area = area.trim();
     if (address !== undefined) data.address = address.trim();
     if (postcode !== undefined) data.postcode = postcode.trim().toUpperCase();
-    if (phone !== undefined) data.phone = phone ? phone.trim() : null;
-    if (email !== undefined) data.email = email ? email.trim().toLowerCase() : null;
+    if (phone !== undefined) data.phone = phone.trim();
     if (leadTailor !== undefined) data.leadTailor = leadTailor.trim();
     if (dailyCapacity !== undefined) data.dailyCapacity = parseInt(dailyCapacity, 10);
     if (machines !== undefined) data.machines = parseInt(machines, 10);

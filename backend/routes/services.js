@@ -39,9 +39,9 @@ function calculateDistanceInMiles(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return Number((R * c).toFixed(2));
 }
@@ -178,6 +178,8 @@ router.post('/stores', async (req, res) => {
   try {
     const {
       name,
+      email,
+      phone,
       area,
       address,
       postcode,
@@ -204,6 +206,8 @@ router.post('/stores', async (req, res) => {
       data: {
         id: storeId,
         name,
+        email: email ? email.trim().toLowerCase() : null,
+        phone: phone ? phone.trim() : null,
         area: area || 'Neighborhood Atelier',
         address: address || '18 Kensington Church St',
         postcode: postcode || 'W8 4EP',

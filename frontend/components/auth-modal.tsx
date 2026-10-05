@@ -48,7 +48,7 @@ export function AuthModal({
 
   const initialMode = (): AuthMode => {
     if (isMissingPhone) return 'link-phone-step'
-    // Always start with role selection screen
+    if (targetRole === 'STUDIO') return 'studio-options'
     return 'role-select'
   }
 
@@ -96,6 +96,9 @@ export function AuthModal({
     if (missing) {
       setMode('link-phone-step')
       setPendingUser(currentUser || null)
+    } else if (targetRole === 'STUDIO') {
+      setMode('studio-options')
+      setPendingUser(null)
     } else {
       const modeToSet = initialMode()
       setMode(modeToSet)
@@ -1069,12 +1072,7 @@ export function AuthModal({
                 <GoogleButton label="Continue with Google" loading={loading} onClick={() => triggerGoogleStudio()} bordered />
                 <button
                   type="button"
-                  onClick={() => {
-                    onClose()
-                    if (typeof window !== 'undefined') {
-                      window.location.href = getStudioUrl('/?auth=signin&mode=mobile')
-                    }
-                  }}
+                  onClick={() => setMode('studio-login')}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors"
                 >
                   <Phone size={14} className="text-[#9E593B]" />
@@ -1110,16 +1108,12 @@ export function AuthModal({
               <div className="space-y-2.5 pt-1">
                 <GoogleButton label="Sign up with Google (Studio)" loading={loading} onClick={() => triggerGoogleStudio()} bordered />
                 <button
-                  onClick={() => {
-                    onClose()
-                    if (typeof window !== 'undefined') {
-                      window.location.href = getStudioUrl('/onboarding')
-                    }
-                  }}
+                  type="button"
+                  onClick={() => setMode('studio-login')}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-colors"
                 >
                   <Store size={14} />
-                  <span>Register Atelier Shop</span>
+                  <span>Register with Email / Mobile</span>
                 </button>
               </div>
 

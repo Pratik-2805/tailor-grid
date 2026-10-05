@@ -69,6 +69,8 @@ async function locateTailorsWithinRange({ lat, lng, radiusMiles = 5.0, query = '
             results.push({
               id: store.id,
               name: store.name || 'Darzi Partner Atelier',
+              email: store.email || null,
+              phone: store.phone || null,
               area: store.area || query || 'Neighborhood Studio',
               address: store.address || 'Partner Workshop',
               postcode: store.postcode || '',
