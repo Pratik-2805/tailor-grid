@@ -52,10 +52,11 @@ import {
   FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, type PendingDispatchRequest } from '@/lib/api'
-import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, type PendingDispatchRequest } from '@/lib/api'
+import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
+import { StudioAvatar } from './studio-avatar'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile'
 
@@ -74,6 +75,9 @@ interface BroadcastRequest {
   price?: number
   slaHours: number
   imageUrl: string
+  intakePhotoUrl?: string
+  images?: string[]
+  garmentId?: string
   otp: string
   isRealCustomerOrder?: boolean
   realOrder?: FittingBooking
@@ -128,35 +132,58 @@ function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: st
   return getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
 }
 
-function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): string[] {
+function getAllGarmentPhotos(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; images?: string[]; garmentName?: string; garmentId?: string; serviceName?: string } | null): string[] {
   if (!order) return ['/images/service_trousers.jpg']
-  const raw = order.intakePhotoUrl || (order as any)?.imageUrl || (order as any)?.images
-  let photos: string[] = []
 
-  if (Array.isArray(raw)) {
-    photos = raw.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
-  } else if (typeof raw === 'string') {
-    if (raw.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(raw)
-        if (Array.isArray(parsed)) {
-          photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/')))
+  const sources: any[] = []
+  if ((order as any)?.images && Array.isArray((order as any).images)) {
+    sources.push(...(order as any).images)
+  }
+  if (order.intakePhotoUrl) {
+    sources.push(order.intakePhotoUrl)
+  }
+  if ((order as any)?.imageUrl) {
+    sources.push((order as any).imageUrl)
+  }
+
+  const photos: string[] = []
+
+  for (const src of sources) {
+    if (!src) continue
+    if (typeof src === 'string') {
+      const trimmed = src.trim()
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (Array.isArray(parsed)) {
+            for (const item of parsed) {
+              if (typeof item === 'string' && (item.startsWith('http') || item.startsWith('data:') || item.startsWith('/'))) {
+                photos.push(item)
+              }
+            }
+          }
+        } catch { }
+      } else if (trimmed.includes('||')) {
+        const split = trimmed.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/'))
+        photos.push(...split)
+      } else if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+        photos.push(trimmed)
+      }
+    } else if (Array.isArray(src)) {
+      for (const item of src) {
+        if (typeof item === 'string' && (item.startsWith('http') || item.startsWith('data:') || item.startsWith('/'))) {
+          photos.push(item)
         }
-      } catch { }
-    }
-    if (photos.length === 0 && raw.includes('||')) {
-      photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/'))
-    }
-    if (photos.length === 0 && (raw.startsWith('http') || raw.startsWith('data:') || raw.startsWith('/'))) {
-      photos = [raw]
+      }
     }
   }
 
-  if (photos.length === 0) {
+  const unique = Array.from(new Set(photos))
+  if (unique.length === 0) {
     return [getDefaultGarmentImage(order?.garmentId || order?.garmentName, order?.serviceName)]
   }
 
-  return photos
+  return unique
 }
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; dot: string }> = {
@@ -543,6 +570,21 @@ export function PartnerFlow({
 
   const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
 
+  const handleSignOutClick = async () => {
+    if (onSignOut) {
+      onSignOut()
+    } else {
+      try {
+        await logoutUser()
+      } catch {
+        clearAllAuth()
+      }
+      if (typeof window !== 'undefined') {
+        window.location.href = '/'
+      }
+    }
+  }
+
   const router = useRouter()
   const pathname = usePathname()
 
@@ -625,30 +667,35 @@ export function PartnerFlow({
   }
 
   const handleAddStudioPhoto = async (orderId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-    const file = files[0]
-    const reader = new FileReader()
-    reader.onload = async (evt) => {
-      const newPhoto = evt.target?.result as string
-      if (!newPhoto) return
-      const targetOrder = orders.find((o) => o.id === orderId)
-      if (!targetOrder) return
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
+    const targetOrder = orders.find((o) => o.id === orderId)
+    if (!targetOrder) return
 
-      const existingPhotos = getAllGarmentPhotos(targetOrder).filter((p) => p.startsWith('http') || p.startsWith('data:'))
-      const updatedPhotos = [...existingPhotos, newPhoto]
-      const photoPayload = JSON.stringify(updatedPhotos)
+    const readPromises = Array.from(fileList).map(
+      (file) =>
+        new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = (evt) => resolve((evt.target?.result as string) || '')
+          reader.readAsDataURL(file)
+        })
+    )
 
-      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, intakePhotoUrl: photoPayload } : o)))
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, intakePhotoUrl: photoPayload } : prev))
-      }
+    const newPhotos = (await Promise.all(readPromises)).filter(Boolean)
+    if (newPhotos.length === 0) return
 
-      await updateOrder(orderId, { intakePhotoUrl: photoPayload }).catch(() => { })
-      setBroadcastToast('✓ Garment reference photo added to order!')
-      setTimeout(() => setBroadcastToast(null), 4000)
+    const existingPhotos = getAllGarmentPhotos(targetOrder).filter((p) => p.startsWith('http') || p.startsWith('data:'))
+    const updatedPhotos = [...existingPhotos, ...newPhotos]
+    const photoPayload = JSON.stringify(updatedPhotos)
+
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, intakePhotoUrl: photoPayload } : o)))
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, intakePhotoUrl: photoPayload } : prev))
     }
-    reader.readAsDataURL(file)
+
+    await updateOrder(orderId, { intakePhotoUrl: photoPayload }).catch(() => { })
+    setBroadcastToast(`✓ Added ${newPhotos.length} reference photo${newPhotos.length > 1 ? 's' : ''} to order!`)
+    setTimeout(() => setBroadcastToast(null), 4000)
     e.target.value = ''
   }
 
@@ -2102,13 +2149,9 @@ export function PartnerFlow({
                 setActiveTab('profile')
               }}
               title={tailorName}
-              className="size-9 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0 hover:ring-2 hover:ring-[#9E593B]/50 transition-all cursor-pointer"
+              className="hover:scale-105 transition-transform cursor-pointer"
             >
-              {user?.avatar ? (
-                <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
-              ) : (
-                tailorName.charAt(0)
-              )}
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="md" showStatusDot={true} />
             </button>
           ) : (
             <button
@@ -2119,13 +2162,7 @@ export function PartnerFlow({
               }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors text-left"
             >
-              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold grid place-items-center shrink-0">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={tailorName} className="size-full object-cover rounded-full" />
-                ) : (
-                  tailorName.charAt(0)
-                )}
-              </div>
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="sm" showStatusDot={true} />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
@@ -2135,10 +2172,7 @@ export function PartnerFlow({
 
           <button
             type="button"
-            onClick={() => {
-              if (onSignOut) onSignOut()
-              else go('partner')
-            }}
+            onClick={handleSignOutClick}
             title="Sign Out"
             className={`flex items-center gap-2.5 text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all cursor-pointer
               ${sidebarCollapsed ? 'size-9 justify-center' : 'w-full px-3.5 py-2'}`}
@@ -2387,25 +2421,85 @@ export function PartnerFlow({
             </div>
 
 
-            {/* Master Tailor Profile Pill */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('profile')}
-              title="Edit Studio Profile & Configuration"
-              className="flex items-center gap-2.5 pl-3 border-l border-slate-200 hover:opacity-85 transition-opacity cursor-pointer group text-left"
-            >
-              <div className="size-8 rounded-full bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white text-xs font-bold flex items-center justify-center shadow-2xs ring-2 ring-[#9E593B]/20 group-hover:scale-105 transition-transform overflow-hidden">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={tailorName} className="size-full object-cover" />
-                ) : (
-                  tailorName.charAt(0)
-                )}
+            {/* Master Tailor Profile Pill & Hover Sign Out */}
+            <div className="relative group/profile flex items-center gap-2 pl-3 border-l border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profile')}
+                title="Edit Studio Profile & Configuration"
+                className="flex items-center gap-2.5 hover:opacity-85 transition-opacity cursor-pointer group text-left"
+              >
+                <StudioAvatar
+                  avatar={user?.avatar}
+                  name={tailorName}
+                  size="sm"
+                  showStatusDot={true}
+                  className="group-hover:scale-105 transition-transform"
+                />
+                <div className="hidden lg:block text-left">
+                  <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
+                  <div className="text-[10px] text-[#9E593B] font-semibold flex items-center gap-1">
+                    <span>Master Tailor</span>
+                    <span className="opacity-70">✎</span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Dedicated Hover Sign Out Button */}
+              <button
+                type="button"
+                onClick={handleSignOutClick}
+                title="Sign Out"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 active:scale-95 transition-all cursor-pointer shrink-0 opacity-70 group-hover/profile:opacity-100"
+                aria-label="Sign Out"
+              >
+                <LogOut size={14} />
+              </button>
+
+              {/* Hover Flyout Dropdown Menu */}
+              <div className="absolute right-0 top-full pt-2 w-60 opacity-0 pointer-events-none group-hover/profile:opacity-100 group-hover/profile:pointer-events-auto transition-all duration-200 z-50">
+                <div className="bg-white rounded-2xl shadow-xl border border-slate-200/90 p-3 space-y-2 text-left">
+                  {/* Profile Header */}
+                  <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100">
+                    <StudioAvatar
+                      avatar={user?.avatar}
+                      name={tailorName}
+                      size="md"
+                      showStatusDot={true}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
+                      <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Active Studio</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Actions */}
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('profile')}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-[#9E593B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                    >
+                      <Edit3 size={13} className="text-[#9E593B]" />
+                      <span>Edit Studio Profile</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSignOutClick}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    >
+                      <LogOut size={13} className="text-red-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="hidden lg:block text-left">
-                <div className="text-xs font-bold text-slate-900 leading-tight truncate max-w-[130px] group-hover:text-[#9E593B] transition-colors">{tailorName}</div>
-                <div className="text-[10px] text-[#9E593B] font-semibold">Master Tailor ✎</div>
-              </div>
-            </button>
+            </div>
           </div>
         </header>
 
@@ -2468,17 +2562,38 @@ export function PartnerFlow({
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
                     {/* Left: Garment Info */}
                     <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="relative size-14 rounded-xl bg-black/40 backdrop-blur-md overflow-hidden shrink-0 border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]">
-                        <img
-                          src={getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
-                          alt={currentBroadcast.garmentName || 'Garment'}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null
-                            e.currentTarget.src = getDefaultGarmentImage(currentBroadcast.garmentName)
-                          }}
-                        />
-                      </div>
+                      {(() => {
+                        const broadcastPhotos = getAllGarmentPhotos(currentBroadcast.realOrder || {
+                          intakePhotoUrl: currentBroadcast.imageUrl || currentBroadcast.intakePhotoUrl,
+                          imageUrl: currentBroadcast.imageUrl,
+                          images: currentBroadcast.images,
+                          garmentName: currentBroadcast.garmentName,
+                          garmentId: currentBroadcast.garmentId,
+                          serviceName: currentBroadcast.serviceName,
+                        })
+                        return (
+                          <div
+                            onClick={() => broadcastPhotos.length > 0 && handleOpenFullView(broadcastPhotos, 0)}
+                            className="relative size-14 rounded-xl bg-black/40 backdrop-blur-md overflow-hidden shrink-0 border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)] group cursor-pointer hover:border-white/40 transition-all"
+                            title={broadcastPhotos.length > 1 ? `Click to view all ${broadcastPhotos.length} client photos` : "Click to view photo"}
+                          >
+                            <img
+                              src={broadcastPhotos[0] || getGarmentPhoto({ intakePhotoUrl: currentBroadcast.imageUrl, garmentName: currentBroadcast.garmentName })}
+                              alt={currentBroadcast.garmentName || 'Garment'}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null
+                                e.currentTarget.src = getDefaultGarmentImage(currentBroadcast.garmentName)
+                              }}
+                            />
+                            {broadcastPhotos.length > 1 && (
+                              <span className="absolute bottom-0 right-0 bg-[#9E593B] text-white text-[9px] font-bold px-1 rounded-tl">
+                                +{broadcastPhotos.length - 1}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
 
                       <div className="space-y-0.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2498,6 +2613,27 @@ export function PartnerFlow({
                               {currentBroadcast.garmentBrand}
                             </span>
                           )}
+
+                          {(() => {
+                            const bPhotos = getAllGarmentPhotos(currentBroadcast.realOrder || {
+                              intakePhotoUrl: currentBroadcast.imageUrl || currentBroadcast.intakePhotoUrl,
+                              imageUrl: currentBroadcast.imageUrl,
+                              images: currentBroadcast.images,
+                              garmentName: currentBroadcast.garmentName,
+                            })
+                            if (bPhotos.length <= 1) return null
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFullView(bPhotos, 0)}
+                                className="text-[10px] text-amber-200 bg-amber-500/20 backdrop-blur-md border border-amber-400/30 px-1.5 py-0.5 rounded-md hover:bg-amber-500/30 transition-colors inline-flex items-center gap-1 cursor-pointer font-medium"
+                                title="Inspect client reference photos"
+                              >
+                                <Camera size={10} />
+                                <span>{bPhotos.length} Photos</span>
+                              </button>
+                            )
+                          })()}
                         </div>
 
                         <h3 className="text-sm font-semibold text-white truncate">{currentBroadcast.garmentName}</h3>
@@ -2717,17 +2853,34 @@ export function PartnerFlow({
                         {/* Garment Summary Card */}
                         <div className="p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4">
                           <div className="flex items-start gap-4">
-                            <div className="size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
-                              <img
-                                src={getGarmentPhoto(activeIntake)}
-                                alt={activeIntake.garmentName || 'Garment'}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null
-                                  e.currentTarget.src = getDefaultGarmentImage(activeIntake.garmentId || activeIntake.garmentName, activeIntake.serviceName)
-                                }}
-                              />
-                            </div>
+                            {(() => {
+                              const intakePhotos = getAllGarmentPhotos(activeIntake)
+                              return (
+                                <div
+                                  onClick={() => handleOpenFullView(intakePhotos, 0)}
+                                  className="relative size-20 rounded-2xl overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs cursor-pointer group hover:border-[#9E593B] transition-all"
+                                  title={intakePhotos.length > 1 ? `Click to view all ${intakePhotos.length} photos` : 'Click to inspect photo'}
+                                >
+                                  <img
+                                    src={intakePhotos[0] || getGarmentPhoto(activeIntake)}
+                                    alt={activeIntake.garmentName || 'Garment'}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null
+                                      e.currentTarget.src = getDefaultGarmentImage(activeIntake.garmentId || activeIntake.garmentName, activeIntake.serviceName)
+                                    }}
+                                  />
+                                  {intakePhotos.length > 1 && (
+                                    <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-tl-md">
+                                      +{intakePhotos.length - 1}
+                                    </span>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Eye size={16} />
+                                  </div>
+                                </div>
+                              )
+                            })()}
                             <div className="min-w-0 flex-1">
                               <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#9E593B] block mb-1">
                                 Order #{activeIntake.id.slice(0, 8)}
@@ -2797,8 +2950,56 @@ export function PartnerFlow({
                         </div>
                       </div>
 
-                      {/* Right: Measurements, Tailor Bench & Confirmation */}
+                      {/* Right: Reference Photos, Tailor Bench & Confirmation */}
                       <div className="lg:col-span-7 space-y-5">
+                        {/* Client Reference Photos (Right Side) */}
+                        {(() => {
+                          const intakePhotos = getAllGarmentPhotos(activeIntake)
+                          if (intakePhotos.length === 0) return null
+                          return (
+                            <div className="p-5 rounded-2xl bg-white border border-slate-200/80 space-y-3 shadow-2xs">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5">
+                                  <Camera size={14} className="text-[#9E593B]" />
+                                  <span>Client Reference Photos ({intakePhotos.length})</span>
+                                </h4>
+                                <span className="text-[11px] text-slate-400 font-medium">Click any photo to enlarge</span>
+                              </div>
+
+                              <div className={`grid gap-3 ${
+                                intakePhotos.length === 1 ? 'grid-cols-2' :
+                                intakePhotos.length === 2 ? 'grid-cols-2' :
+                                intakePhotos.length === 3 ? 'grid-cols-3' :
+                                'grid-cols-2 sm:grid-cols-4'
+                              }`}>
+                                {intakePhotos.map((photoUrl, idx) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => handleOpenFullView(intakePhotos, idx)}
+                                    className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group cursor-pointer shadow-2xs hover:border-[#9E593B] hover:shadow-sm transition-all"
+                                    title={`Inspect Photo #${idx + 1}`}
+                                  >
+                                    <img
+                                      src={photoUrl}
+                                      alt={`Garment Photo ${idx + 1}`}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                      onError={(e) => {
+                                        e.currentTarget.onerror = null
+                                        e.currentTarget.src = getDefaultGarmentImage(activeIntake.garmentId || activeIntake.garmentName, activeIntake.serviceName)
+                                      }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                      <Eye size={16} />
+                                    </div>
+                                    <span className="absolute bottom-1.5 right-1.5 bg-black/75 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                      #{idx + 1}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )
+                        })()}
 
 
                         {/* Station Allocation */}
@@ -3124,21 +3325,51 @@ export function PartnerFlow({
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-start gap-2.5 min-w-0">
-                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                                        <img
-                                          src={getGarmentPhoto(ord)}
-                                          alt={ord.garmentName || 'Garment'}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.currentTarget.onerror = null
-                                            e.currentTarget.src = getDefaultGarmentImage(ord.garmentId || ord.garmentName, ord.serviceName)
-                                          }}
-                                        />
-                                      </div>
+                                      {(() => {
+                                        const cardPhotos = getAllGarmentPhotos(ord)
+                                        return (
+                                          <div
+                                            onClick={() => handleOpenFullView(cardPhotos, 0)}
+                                            className="relative size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 cursor-pointer group/thumb hover:border-[#9E593B] shadow-2xs transition-all"
+                                            title={cardPhotos.length > 1 ? `Click to view all ${cardPhotos.length} photos` : 'Click to inspect photo'}
+                                          >
+                                            <img
+                                              src={cardPhotos[0] || getGarmentPhoto(ord)}
+                                              alt={ord.garmentName || 'Garment'}
+                                              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                                              onError={(e) => {
+                                                e.currentTarget.onerror = null
+                                                e.currentTarget.src = getDefaultGarmentImage(ord.garmentId || ord.garmentName, ord.serviceName)
+                                              }}
+                                            />
+                                            {cardPhotos.length > 1 && (
+                                              <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                +{cardPhotos.length - 1}
+                                              </span>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                              <Eye size={12} />
+                                            </div>
+                                          </div>
+                                        )
+                                      })()}
                                       <div className="min-w-0">
-                                        <h4 className="font-bold text-xs text-slate-900 truncate">
-                                          {ord.customerName}
-                                        </h4>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <h4 className="font-bold text-xs text-slate-900 truncate">
+                                            {ord.customerName}
+                                          </h4>
+                                          {getAllGarmentPhotos(ord).length > 1 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenFullView(getAllGarmentPhotos(ord), 0)}
+                                              className="text-[9px] font-bold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/30 px-1 py-0.2 rounded hover:bg-[#9E593B] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                              title={`View all ${getAllGarmentPhotos(ord).length} reference photos`}
+                                            >
+                                              <Camera size={9} />
+                                              <span>{getAllGarmentPhotos(ord).length}</span>
+                                            </button>
+                                          )}
+                                        </div>
                                         <p className="text-[11px] text-slate-500 truncate">
                                           {ord.garmentName} &bull; {ord.serviceName}
                                         </p>
@@ -3240,23 +3471,51 @@ export function PartnerFlow({
                                   >
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="flex items-start gap-2.5 min-w-0">
-                                        <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                                          <img
-                                            src={getGarmentPhoto(order)}
-                                            alt={order.garmentName || 'Garment'}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                              e.currentTarget.onerror = null
-                                              e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
-                                            }}
-                                          />
-                                        </div>
+                                        {(() => {
+                                          const cardPhotos = getAllGarmentPhotos(order)
+                                          return (
+                                            <div
+                                              onClick={() => handleOpenFullView(cardPhotos, 0)}
+                                              className="relative size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 cursor-pointer group/thumb hover:border-[#9E593B] shadow-2xs transition-all"
+                                              title={cardPhotos.length > 1 ? `Click to view all ${cardPhotos.length} photos` : 'Click to inspect photo'}
+                                            >
+                                              <img
+                                                src={cardPhotos[0] || getGarmentPhoto(order)}
+                                                alt={order.garmentName || 'Garment'}
+                                                className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                                                onError={(e) => {
+                                                  e.currentTarget.onerror = null
+                                                  e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                                }}
+                                              />
+                                              {cardPhotos.length > 1 && (
+                                              <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                  +{cardPhotos.length - 1}
+                                                </span>
+                                              )}
+                                              <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                                <Eye size={12} />
+                                              </div>
+                                            </div>
+                                          )
+                                        })()}
                                         <div className="min-w-0">
-                                          <div className="flex items-center gap-1.5 mb-0.5">
+                                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                                             {order.hangTagNo && (
                                               <span className="text-[10px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded">
                                                 {order.hangTagNo}
                                               </span>
+                                            )}
+                                            {getAllGarmentPhotos(order).length > 1 && (
+                                              <button
+                                                type="button"
+                                                onClick={() => handleOpenFullView(getAllGarmentPhotos(order), 0)}
+                                                className="text-[9px] font-bold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/30 px-1 py-0.2 rounded hover:bg-[#9E593B] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                                title={`View all ${getAllGarmentPhotos(order).length} reference photos`}
+                                              >
+                                                <Camera size={9} />
+                                                <span>{getAllGarmentPhotos(order).length}</span>
+                                              </button>
                                             )}
                                           </div>
                                           <h4 className="font-bold text-xs text-slate-900 truncate">{order.garmentName}</h4>
@@ -3355,21 +3614,51 @@ export function PartnerFlow({
                                 >
                                   <div className="flex items-start justify-between gap-2">
                                     <div className="flex items-start gap-2.5 min-w-0">
-                                      <div className="size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
-                                        <img
-                                          src={getGarmentPhoto(order)}
-                                          alt={order.garmentName || 'Garment'}
-                                          className="w-full h-full object-cover"
-                                          onError={(e) => {
-                                            e.currentTarget.onerror = null
-                                            e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
-                                          }}
-                                        />
-                                      </div>
+                                      {(() => {
+                                        const cardPhotos = getAllGarmentPhotos(order)
+                                        return (
+                                          <div
+                                            onClick={() => handleOpenFullView(cardPhotos, 0)}
+                                            className="relative size-11 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 cursor-pointer group/thumb hover:border-[#9E593B] shadow-2xs transition-all"
+                                            title={cardPhotos.length > 1 ? `Click to view all ${cardPhotos.length} photos` : 'Click to inspect photo'}
+                                          >
+                                            <img
+                                              src={cardPhotos[0] || getGarmentPhoto(order)}
+                                              alt={order.garmentName || 'Garment'}
+                                              className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                                              onError={(e) => {
+                                                e.currentTarget.onerror = null
+                                                e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                              }}
+                                            />
+                                            {cardPhotos.length > 1 && (
+                                              <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                +{cardPhotos.length - 1}
+                                              </span>
+                                            )}
+                                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                              <Eye size={12} />
+                                            </div>
+                                          </div>
+                                        )
+                                      })()}
                                       <div className="min-w-0">
-                                        <h4 className="font-bold text-xs text-slate-900 truncate">
-                                          {order.customerName}
-                                        </h4>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <h4 className="font-bold text-xs text-slate-900 truncate">
+                                            {order.customerName}
+                                          </h4>
+                                          {getAllGarmentPhotos(order).length > 1 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenFullView(getAllGarmentPhotos(order), 0)}
+                                              className="text-[9px] font-bold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/30 px-1 py-0.2 rounded hover:bg-[#9E593B] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                              title={`View all ${getAllGarmentPhotos(order).length} reference photos`}
+                                            >
+                                              <Camera size={9} />
+                                              <span>{getAllGarmentPhotos(order).length}</span>
+                                            </button>
+                                          )}
+                                        </div>
                                         <p className="text-[11px] text-slate-500 truncate">
                                           {order.garmentName} &bull; {order.serviceName}
                                         </p>
@@ -3482,17 +3771,37 @@ export function PartnerFlow({
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex items-start gap-3 min-w-0">
-                                <div className="size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                                  <img
-                                    src={getGarmentPhoto(order)}
-                                    alt={order.garmentName || 'Garment'}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      e.currentTarget.onerror = null
-                                      e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
-                                    }}
-                                  />
-                                </div>
+                                {(() => {
+                                  const rowPhotos = getAllGarmentPhotos(order)
+                                  return (
+                                    <div
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenFullView(rowPhotos, 0)
+                                      }}
+                                      className="relative size-12 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0 cursor-pointer group/thumb hover:border-[#9E593B] shadow-2xs transition-all"
+                                      title={rowPhotos.length > 1 ? `Click to view all ${rowPhotos.length} photos` : 'Click to inspect photo'}
+                                    >
+                                      <img
+                                        src={rowPhotos[0] || getGarmentPhoto(order)}
+                                        alt={order.garmentName || 'Garment'}
+                                        className="w-full h-full object-cover group-hover/thumb:scale-105 transition-transform"
+                                        onError={(e) => {
+                                          e.currentTarget.onerror = null
+                                          e.currentTarget.src = getDefaultGarmentImage(order.garmentId || order.garmentName, order.serviceName)
+                                        }}
+                                      />
+                                      {rowPhotos.length > 1 && (
+                                        <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                          +{rowPhotos.length - 1}
+                                        </span>
+                                      )}
+                                      <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                        <Eye size={14} />
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${st.bg} ${st.text}`}>
@@ -3502,6 +3811,20 @@ export function PartnerFlow({
                                       <span className="font-mono text-[10px] bg-[#FFF7F2] border border-[#9E593B]/20 text-[#9E593B] px-1.5 py-0.5 rounded font-semibold">
                                         {order.hangTagNo}
                                       </span>
+                                    )}
+                                    {getAllGarmentPhotos(order).length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleOpenFullView(getAllGarmentPhotos(order), 0)
+                                        }}
+                                        className="text-[10px] font-bold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/30 px-1.5 py-0.5 rounded hover:bg-[#9E593B] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-1"
+                                        title={`View all ${getAllGarmentPhotos(order).length} reference photos`}
+                                      >
+                                        <Camera size={10} />
+                                        <span>{getAllGarmentPhotos(order).length} Photos</span>
+                                      </button>
                                     )}
                                     {order.retailSold !== undefined && order.retailSold !== null && (
                                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${order.retailSold
@@ -3575,19 +3898,49 @@ export function PartnerFlow({
                       <div className="lg:col-span-5 bg-white border border-[#E8E1D5] rounded-2xl p-5 sm:p-6 shadow-2xs sticky top-4 space-y-4 animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E8E1D5]">
                           <div className="flex items-start gap-3 min-w-0">
-                            <div className="size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0">
-                              <img
-                                src={getGarmentPhoto(activeSelectedOrder)}
-                                alt={activeSelectedOrder.garmentName || 'Garment'}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.onerror = null
-                                  e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
-                                }}
-                              />
-                            </div>
+                            {(() => {
+                              const drawerPhotos = getAllGarmentPhotos(activeSelectedOrder)
+                              return (
+                                <div
+                                  onClick={() => handleOpenFullView(drawerPhotos, 0)}
+                                  className="relative size-14 rounded-xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] shrink-0 cursor-pointer group shadow-2xs hover:border-[#9E593B] transition-all"
+                                  title={drawerPhotos.length > 1 ? `Click to view all ${drawerPhotos.length} photos in full view` : 'Click to inspect photo'}
+                                >
+                                  <img
+                                    src={drawerPhotos[0] || getGarmentPhoto(activeSelectedOrder)}
+                                    alt={activeSelectedOrder.garmentName || 'Garment'}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null
+                                      e.currentTarget.src = getDefaultGarmentImage(activeSelectedOrder.garmentId || activeSelectedOrder.garmentName, activeSelectedOrder.serviceName)
+                                    }}
+                                  />
+                                  {drawerPhotos.length > 1 && (
+                                    <span className="absolute bottom-0 right-0 bg-[#0F1115]/90 text-white text-[8px] font-black px-1.5 py-0.5 rounded-tl-md">
+                                      +{drawerPhotos.length - 1}
+                                    </span>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Eye size={16} />
+                                  </div>
+                                </div>
+                              )
+                            })()}
                             <div className="min-w-0">
-                              <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="font-bold text-sm text-[#1E2229] truncate">{activeSelectedOrder.garmentName}</h3>
+                                {getAllGarmentPhotos(activeSelectedOrder).length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenFullView(getAllGarmentPhotos(activeSelectedOrder), 0)}
+                                    className="text-[9px] font-bold text-[#9E593B] bg-[#FFF7F2] border border-[#9E593B]/30 px-1.5 py-0.2 rounded hover:bg-[#9E593B] hover:text-white transition-colors cursor-pointer inline-flex items-center gap-0.5"
+                                    title="Inspect all reference photos"
+                                  >
+                                    <Camera size={9} />
+                                    <span>{getAllGarmentPhotos(activeSelectedOrder).length} Photos</span>
+                                  </button>
+                                )}
+                              </div>
                               <p className="text-xs text-[#6B7280]">{activeSelectedOrder.serviceName}</p>
                             </div>
                           </div>
@@ -3677,8 +4030,11 @@ export function PartnerFlow({
                                 <label className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer bg-white border border-[#E8E1D5] px-2.5 py-1 rounded-lg shadow-2xs transition-all active:scale-95">
                                   <Plus size={11} /> Add Photo
                                   <input
+                                    key="order-garment-add-photo-input"
+                                    id="order-garment-add-photo-input"
                                     type="file"
                                     accept="image/*"
+                                    multiple
                                     className="hidden"
                                     onChange={(e) => handleAddStudioPhoto(activeSelectedOrder.id, e)}
                                   />
@@ -3954,25 +4310,50 @@ export function PartnerFlow({
                             const isSettled = o.status === 'Closed' || o.status === 'Collected'
                             const isReadyForPickup = o.status === 'Ready'
                             const isInProduction = ['Work in Progress', 'Fitting Completed'].includes(o.status)
-                            const garmentImg = getGarmentPhoto(o)
+                            const ledgerPhotos = getAllGarmentPhotos(o)
+                            const garmentImg = ledgerPhotos[0] || getGarmentPhoto(o)
 
                             return (
                               <tr key={o.id} className="hover:bg-[#FAF8F5]/60 transition-colors">
                                 {/* 1. Order & Customer */}
                                 <td className="py-3 px-4">
                                   <div className="flex items-center gap-3">
-                                    <img
-                                      src={garmentImg}
-                                      alt={o.garmentName || 'Garment'}
-                                      onError={(e) => {
-                                        e.currentTarget.onerror = null
-                                        e.currentTarget.src = getDefaultGarmentImage(o.garmentId || o.garmentName)
-                                      }}
-                                      className="size-9 rounded-lg object-cover border border-[#E8E1D5] shrink-0"
-                                    />
+                                    <div
+                                      onClick={() => handleOpenFullView(ledgerPhotos, 0)}
+                                      className="relative size-9 rounded-lg overflow-hidden border border-[#E8E1D5] shrink-0 group cursor-pointer shadow-2xs hover:border-[#9E593B] transition-all"
+                                      title={ledgerPhotos.length > 1 ? `Click to view all ${ledgerPhotos.length} photos` : "Click to enlarge photo"}
+                                    >
+                                      <img
+                                        src={garmentImg}
+                                        alt={o.garmentName || 'Garment'}
+                                        onError={(e) => {
+                                          e.currentTarget.onerror = null
+                                          e.currentTarget.src = getDefaultGarmentImage(o.garmentId || o.garmentName)
+                                        }}
+                                        className="size-full object-cover group-hover:scale-105 transition-transform"
+                                      />
+                                      {ledgerPhotos.length > 1 && (
+                                        <span className="absolute bottom-0 right-0 bg-[#9E593B] text-white text-[8px] font-bold px-1 rounded-tl">
+                                          +{ledgerPhotos.length - 1}
+                                        </span>
+                                      )}
+                                    </div>
                                     <div>
-                                      <div className="font-mono font-bold text-xs text-[#1E2229]">
-                                        #{o.id}
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-mono font-bold text-xs text-[#1E2229]">
+                                          #{o.id}
+                                        </span>
+                                        {ledgerPhotos.length > 1 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleOpenFullView(ledgerPhotos, 0)}
+                                            className="text-[9px] font-bold text-[#9E593B] hover:text-[#7A3F28] hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                                            title="Inspect all reference photos"
+                                          >
+                                            <Camera size={9} />
+                                            <span>{ledgerPhotos.length}</span>
+                                          </button>
+                                        )}
                                       </div>
                                       <div className="font-semibold text-xs text-[#1E2229] mt-0.5">
                                         {o.customerName || 'Customer'}
@@ -3983,8 +4364,8 @@ export function PartnerFlow({
                                         </div>
                                       )}
                                       {o.retailSold && (
-                                        <span className="inline-block mt-0.5 text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-200 px-1.5 rounded">
-                                          Retail +${o.retailValue || 15}
+                                        <span className="inline-block mt-0.5 text-[9px] font-bold bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded">
+                                          Retail Purchased
                                         </span>
                                       )}
                                     </div>
@@ -4064,7 +4445,7 @@ export function PartnerFlow({
                                       type="button"
                                       onClick={() => {
                                         setSelectedOrder(o)
-                                        setActiveTab('cockpit')
+                                        setActiveTab('pipeline')
                                       }}
                                       className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] hover:bg-[#F3EFEA] text-[#1E2229] border border-[#E8E1D5] font-semibold text-xs cursor-pointer transition-colors"
                                     >
