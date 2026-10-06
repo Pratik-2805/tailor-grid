@@ -164,14 +164,24 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               <ul className="space-y-2 text-xs text-[#9CA3AF]">
                 {!isCustomer && (
                   <li>
-                    <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left">
+                    <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left cursor-pointer">
                       Tailor Partner Portal
                     </button>
                   </li>
                 )}
                 <li>
-                  <button onClick={() => setActiveModal('contact')} className="hover:text-white transition-colors text-left">
-                    Contact & Support
+                  <button onClick={() => nav('contact')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    Contact Concierge
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => nav('support')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    Support &amp; FAQ
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => nav('privacy')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    Customer Privacy Policy
                   </button>
                 </li>
               </ul>
@@ -182,17 +192,29 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
 
         {/* Bottom */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span>© {new Date().getFullYear()} Darzi Technologies Ltd.</span>
+            <span>·</span>
+            <button onClick={() => nav('privacy')} className="hover:text-white transition-colors cursor-pointer">
+              Privacy Policy
+            </button>
+            <span>·</span>
+            <button onClick={() => nav('support')} className="hover:text-white transition-colors cursor-pointer">
+              Support
+            </button>
+            <span>·</span>
+            <button onClick={() => nav('contact')} className="hover:text-white transition-colors cursor-pointer">
+              Contact
+            </button>
             <span>·</span>
             <span className="flex items-center gap-1 text-[#10B981]"><ShieldCheck size={13} /> 100% Fit Guarantee</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><MapPin size={12} /> London</span>
+            <span className="flex items-center gap-1"><MapPin size={12} /> Mumbai</span>
             <span>·</span>
-            <span>Manchester</span>
+            <span>Pune</span>
             <span>·</span>
-            <span>Birmingham</span>
+            <span>London</span>
           </div>
 
         </div>

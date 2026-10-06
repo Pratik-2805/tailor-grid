@@ -9,6 +9,7 @@ import {
   Clock,
   CreditCard,
   Gauge,
+  Headphones,
   Image as ImageIcon,
   Link as LinkIcon,
   Lock,
@@ -17,6 +18,7 @@ import {
   Pencil,
   Phone,
   Scissors,
+  ShieldCheck,
   Sliders,
   Sparkles,
   Store,
@@ -26,6 +28,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react'
+import Link from 'next/link'
 import type { User as UserType } from './data'
 import { updateUserProfile, sendOtp } from '@/lib/api'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
@@ -1147,6 +1150,56 @@ export function StudioProfileView({
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* ── Partner Operations & Legal Policies ── */}
+            <div className="p-5 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[#9E593B]">
+                Atelier Operations Desk &amp; Legal Policies
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <Link
+                  href="/contact"
+                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-[#9E593B] bg-[#FAF8F5] hover:bg-white transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="size-6 rounded-md bg-[#FAF3EC] text-[#9E593B] grid place-items-center group-hover:scale-110 transition-transform">
+                      <Headphones size={13} />
+                    </span>
+                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <div className="text-xs font-bold text-[#1E2229]">Partner Desk</div>
+                  <div className="text-[10px] text-[#6B7280]">Urgent dispatch &amp; disputes</div>
+                </Link>
+
+                <Link
+                  href="/support"
+                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-emerald-600 bg-[#FAF8F5] hover:bg-white transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="size-6 rounded-md bg-emerald-50 text-emerald-700 grid place-items-center group-hover:scale-110 transition-transform">
+                      <ShieldCheck size={13} />
+                    </span>
+                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <div className="text-xs font-bold text-[#1E2229]">SLA Guidelines</div>
+                  <div className="text-[10px] text-[#6B7280]">PIN intake &amp; 48h rules</div>
+                </Link>
+
+                <Link
+                  href="/privacy"
+                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-blue-600 bg-[#FAF8F5] hover:bg-white transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="size-6 rounded-md bg-blue-50 text-blue-700 grid place-items-center group-hover:scale-110 transition-transform">
+                      <Lock size={13} />
+                    </span>
+                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <div className="text-xs font-bold text-[#1E2229]">Partner Privacy</div>
+                  <div className="text-[10px] text-[#6B7280]">Workshop &amp; payout policy</div>
+                </Link>
               </div>
             </div>
 

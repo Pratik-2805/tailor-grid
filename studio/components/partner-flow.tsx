@@ -2180,6 +2180,22 @@ export function PartnerFlow({
             <LogOut size={14} />
             {!sidebarCollapsed && <span>Sign Out</span>}
           </button>
+
+          {!sidebarCollapsed && (
+            <div className="pt-2 px-1 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-800/60 font-medium">
+              <Link href="/contact" className="hover:text-slate-300 transition-colors">
+                Contact Desk
+              </Link>
+              <span>·</span>
+              <Link href="/support" className="hover:text-slate-300 transition-colors">
+                SLA Support
+              </Link>
+              <span>·</span>
+              <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+                Partner Privacy
+              </Link>
+            </div>
+          )}
         </div>
       </aside>
 
