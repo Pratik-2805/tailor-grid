@@ -16,11 +16,12 @@ import {
   clearUnnecessaryDataOnLogin,
 } from './cookies'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 export const CUSTOMER_SITE_URL =
   process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
-  (process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_CUSTOMER_SITE_PORT}` : 'http://localhost:3000')
+  process.env.CUSTOMER_SITE_URL ||
+  ''
 
 export function getCustomerSiteUrl(path: string = '', tokenOrCode?: string | null): string {
   const base = CUSTOMER_SITE_URL.replace(/\/$/, '')

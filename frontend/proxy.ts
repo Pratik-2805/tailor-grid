@@ -1,6 +1,29 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+function decodeJwtPayload<T = any>(token: string | null | undefined): T | null {
+  if (!token || typeof token !== 'string') return null
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    if (typeof atob === 'function') {
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload) as T
+    } else if (typeof Buffer !== 'undefined') {
+      return JSON.parse(Buffer.from(base64, 'base64').toString('utf8')) as T
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export function proxy(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl
@@ -8,29 +31,15 @@ export function proxy(request: NextRequest) {
     const token = request.cookies.get('tg_token')?.value
     const refreshToken = request.cookies.get('tg_refresh_token')?.value
     const hasAnyToken = Boolean(token || refreshToken)
-    let role = request.cookies.get('tg_user_role')?.value
 
-    if (!role && request.cookies.get('tg_user')?.value) {
-      try {
-        const raw = request.cookies.get('tg_user')!.value
-        const userObj = JSON.parse(decodeURIComponent(raw))
-        role = userObj?.role
-      } catch {
-        try {
-          const raw = request.cookies.get('tg_user')!.value
-          const userObj = JSON.parse(raw)
-          role = userObj?.role
-        } catch {}
-      }
-    }
+    // Decode role directly from JWT Access Token or Refresh Token
+    const tokenPayload = decodeJwtPayload(token) || decodeJwtPayload(refreshToken)
+    const role = tokenPayload?.role
 
-    const studioUrl =
-      process.env.NEXT_PUBLIC_STUDIO_URL ||
-      process.env.STUDIO_URL ||
-      (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
+    const studioUrl = process.env.NEXT_PUBLIC_STUDIO_URL || process.env.STUDIO_URL || ''
 
-    // When a STUDIO partner is logged in, restrict them exclusively to Studio Workbench (port 3001)
-    if (hasAnyToken && role === 'STUDIO') {
+    // When a STUDIO partner is logged in, restrict them exclusively to Studio Workbench
+    if (hasAnyToken && role === 'STUDIO' && studioUrl) {
       return NextResponse.redirect(new URL(studioUrl))
     }
 

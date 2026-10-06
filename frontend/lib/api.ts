@@ -10,7 +10,7 @@ import {
   clearUnnecessaryDataOnLogin,
 } from './cookies'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 export function syncAuthCookies(token?: string | null, role?: string | null) {
   if (token) setAuthToken(token)
@@ -94,7 +94,8 @@ export async function logoutUser(): Promise<void> {
 
 export const STUDIO_BASE_URL =
   process.env.NEXT_PUBLIC_STUDIO_URL ||
-  (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
+  process.env.STUDIO_URL ||
+  ''
 
 export function getStudioUrl(path: string = '', tokenOrCode?: string | null): string {
   const base = STUDIO_BASE_URL.replace(/\/$/, '')

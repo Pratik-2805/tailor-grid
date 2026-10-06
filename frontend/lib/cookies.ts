@@ -156,21 +156,55 @@ export function removeRefreshToken(): void {
   }
 }
 
-export function getAuthRole(): string | null {
-  let role = getCookie('tg_user_role')
-  if (!role && typeof window !== 'undefined') {
-    const legacy = localStorage.getItem('tg_user_role')
-    if (legacy) {
-      setAuthRole(legacy)
-      localStorage.removeItem('tg_user_role')
-      return legacy
+/**
+ * Standard JWT Decoder (SSR, Edge, and Browser safe)
+ */
+export function decodeJwtPayload<T = any>(token: string | null | undefined): T | null {
+  if (!token || typeof token !== 'string') return null
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const base64Url = parts[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    if (typeof atob === 'function') {
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload) as T
+    } else if (typeof Buffer !== 'undefined') {
+      return JSON.parse(Buffer.from(base64, 'base64').toString('utf8')) as T
     }
+    return null
+  } catch {
+    return null
   }
-  return role
 }
 
-export function setAuthRole(role: string): void {
-  setCookie('tg_user_role', role, 30, '/')
+export function getAuthRole(): string | null {
+  // 1. Primary Source of Truth: Decode directly from Access Token
+  const token = getAuthToken()
+  if (token) {
+    const payload = decodeJwtPayload(token)
+    if (payload?.role) return payload.role
+  }
+
+  // 2. Secondary Source of Truth: Decode directly from Refresh Token
+  const refreshToken = getRefreshToken()
+  if (refreshToken) {
+    const payload = decodeJwtPayload(refreshToken)
+    if (payload?.role) return payload.role
+  }
+
+  return null
+}
+
+export function setAuthRole(role?: string): void {
+  // User role is embedded directly in Access & Refresh JWT tokens.
+  // We explicitly clean up any legacy tg_user_role cookie.
+  deleteCookie('tg_user_role', '/')
   if (typeof window !== 'undefined') {
     localStorage.removeItem('tg_user_role')
   }
@@ -192,6 +226,24 @@ export function getAuthUser<T = any>(): T | null {
       } catch { }
     }
   }
+
+  // Fallback: decode identity claims directly from Access Token
+  const token = getAuthToken()
+  if (token) {
+    const payload = decodeJwtPayload(token)
+    if (payload && payload.id) {
+      return {
+        id: payload.id,
+        name: payload.name || 'Member',
+        email: payload.email || undefined,
+        phone: payload.phone || undefined,
+        role: payload.role || 'CUSTOMER',
+        status: payload.status || 'ACTIVE',
+        studioId: payload.studioId || undefined,
+      } as unknown as T
+    }
+  }
+
   return null
 }
 

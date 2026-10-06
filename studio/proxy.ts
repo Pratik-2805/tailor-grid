@@ -1,6 +1,29 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-const CUSTOMER_SITE_URL = process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL || 'http://localhost:3000'
+const CUSTOMER_SITE_URL = process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL || process.env.CUSTOMER_SITE_URL || ''
+
+function decodeJwtPayload<T = any>(token: string | null | undefined): T | null {
+  if (!token || typeof token !== 'string') return null
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    if (typeof atob === 'function') {
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload) as T
+    } else if (typeof Buffer !== 'undefined') {
+      return JSON.parse(Buffer.from(base64, 'base64').toString('utf8')) as T
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 export function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl
@@ -32,33 +55,18 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(callbackUrl)
   }
 
-  // 5. Check authentication & role from cookies or JWT token
+  // 5. Check authentication & role from JWT token (Access Token or Refresh Token)
   const token = request.cookies.get('tg_token')?.value || request.cookies.get('token')?.value
   const refreshToken = request.cookies.get('tg_refresh_token')?.value || request.cookies.get('refreshToken')?.value
   const hasAnyToken = Boolean(token || refreshToken)
-  let role = request.cookies.get('tg_user_role')?.value
 
   if (!hasAnyToken) {
     return NextResponse.redirect(new URL(CUSTOMER_SITE_URL))
   }
 
-  // If role cookie is not set or uncertain, decode role from JWT
-  if (!role || role === 'undefined' || role === 'null') {
-    const rawToken = token || refreshToken
-    if (rawToken) {
-      try {
-        const parts = rawToken.split('.')
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'))
-          role = payload.role || (payload.type === 'pending_google_signup' ? 'TEMP_STUDIO' : 'TEMP_STUDIO')
-        }
-      } catch {
-        role = 'STUDIO'
-      }
-    } else {
-      role = 'STUDIO'
-    }
-  }
+  // Extract role directly from token payload as primary source of truth
+  const tokenPayload = decodeJwtPayload(token) || decodeJwtPayload(refreshToken)
+  let role = tokenPayload?.role || request.cookies.get('tg_user_role')?.value || (tokenPayload?.type === 'pending_google_signup' ? 'TEMP_STUDIO' : 'STUDIO')
 
   // Unauthenticated or Customer users cannot access Studio at all
   if (role === 'CUSTOMER') {
