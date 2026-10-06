@@ -6,6 +6,8 @@ export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl
 
     const token = request.cookies.get('tg_token')?.value
+    const refreshToken = request.cookies.get('tg_refresh_token')?.value
+    const hasAnyToken = Boolean(token || refreshToken)
     let role = request.cookies.get('tg_user_role')?.value
 
     if (!role && request.cookies.get('tg_user')?.value) {
@@ -28,7 +30,7 @@ export function proxy(request: NextRequest) {
       (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
 
     // When a STUDIO partner is logged in, restrict them exclusively to Studio Workbench (port 3001)
-    if (token && role === 'STUDIO') {
+    if (hasAnyToken && role === 'STUDIO') {
       return NextResponse.redirect(new URL(studioUrl))
     }
 
@@ -42,14 +44,14 @@ export function proxy(request: NextRequest) {
       pathname === '/profile' ||
       pathname.startsWith('/profile/')
 
-    // Redirect unauthenticated guests attempting to visit protected customer routes
-    if (isCustomerProtected && !token) {
+    // Redirect unauthenticated guests attempting to visit protected customer routes (only if no token and no refresh token)
+    if (isCustomerProtected && !hasAnyToken) {
       return NextResponse.redirect(new URL('/?auth=required', request.nextUrl.origin))
     }
 
     // When an authenticated CUSTOMER visits root '/', redirect seamlessly to '/book'
     if (pathname === '/') {
-      if (token && role === 'CUSTOMER') {
+      if (hasAnyToken && role === 'CUSTOMER') {
         return NextResponse.redirect(new URL('/book', request.nextUrl.origin))
       }
     }

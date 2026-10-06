@@ -4,20 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
   ChevronRight,
-  Clock,
   Lock,
   LogIn,
   MapPin,
   Package,
-  Phone,
   QrCode,
-  Ruler,
-  Scissors,
   ShieldCheck,
-  Sparkles,
   User as UserIcon,
   XCircle,
 } from 'lucide-react'
@@ -33,7 +26,6 @@ interface OrdersViewProps {
 
 export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'orders' | 'fit-profile'>('orders')
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
   const [cancellingOrder, setCancellingOrder] = useState<any | null>(null)
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false)
@@ -120,108 +112,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       window.removeEventListener('tg_order_status_change', handleCustomChange)
     }
   }, [])
-
-  // Dynamically compute real measurements for the Digital Fit Passport from real orders and profile
-  const passportItems = useMemo(() => {
-    const items: { k: string; v: string; sourceGarment?: string }[] = []
-    const seenKeys = new Set<string>()
-
-    // 1. Extract from backend orders
-    backendOrders.forEach((bo) => {
-      // Check pinnedAdjustment
-      if (bo.pinnedAdjustment) {
-        try {
-          const parsed = typeof bo.pinnedAdjustment === 'string' ? JSON.parse(bo.pinnedAdjustment) : bo.pinnedAdjustment
-          if (parsed && typeof parsed === 'object') {
-            Object.entries(parsed).forEach(([k, val]) => {
-              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
-                const formattedKey = k
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/_/g, ' ')
-                  .replace(/^\w/, (c) => c.toUpperCase())
-                const dedupeKey = formattedKey.toLowerCase()
-                if (!seenKeys.has(dedupeKey)) {
-                  seenKeys.add(dedupeKey)
-                  items.push({
-                    k: formattedKey,
-                    v: val,
-                    sourceGarment: bo.garmentBrand || bo.garmentName,
-                  })
-                }
-              }
-            })
-          }
-        } catch {}
-      }
-
-      // Check measurements
-      if (bo.measurements) {
-        try {
-          const parsed = typeof bo.measurements === 'string' ? JSON.parse(bo.measurements) : bo.measurements
-          if (parsed && typeof parsed === 'object') {
-            Object.entries(parsed).forEach(([k, val]) => {
-              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
-                const formattedKey = k
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/_/g, ' ')
-                  .replace(/^\w/, (c) => c.toUpperCase())
-                const dedupeKey = formattedKey.toLowerCase()
-                if (!seenKeys.has(dedupeKey)) {
-                  seenKeys.add(dedupeKey)
-                  items.push({
-                    k: formattedKey,
-                    v: val,
-                    sourceGarment: bo.garmentBrand || bo.garmentName,
-                  })
-                }
-              }
-            })
-          }
-        } catch {}
-      }
-
-      // Check fitNotes
-      if (bo.fitNotes && bo.fitNotes.trim() && !seenKeys.has(`fit-${bo.id}`)) {
-        seenKeys.add(`fit-${bo.id}`)
-        items.push({
-          k: `${bo.garmentName || 'Garment'} Fit Spec`,
-          v: bo.fitNotes,
-          sourceGarment: bo.garmentBrand || bo.garmentName,
-        })
-      }
-    })
-
-    // 2. Also check user's saved profile measurements
-    if (typeof window !== 'undefined' && user) {
-      try {
-        const profileKey = `tg_measurements_${user.id || user.email}`
-        const raw = localStorage.getItem(profileKey)
-        if (raw) {
-          const parsed = JSON.parse(raw)
-          if (parsed && typeof parsed === 'object') {
-            Object.entries(parsed).forEach(([k, val]) => {
-              if (val && typeof val === 'string' && val.trim() && val !== 'To be Measured by Tailor') {
-                const formattedKey = k
-                  .replace(/([A-Z])/g, ' $1')
-                  .replace(/_/g, ' ')
-                  .replace(/^\w/, (c) => c.toUpperCase())
-                const dedupeKey = formattedKey.toLowerCase()
-                if (!seenKeys.has(dedupeKey)) {
-                  seenKeys.add(dedupeKey)
-                  items.push({
-                    k: formattedKey,
-                    v: val,
-                  })
-                }
-              }
-            })
-          }
-        }
-      } catch {}
-    }
-
-    return items
-  }, [backendOrders, user])
 
   const handleConfirmCancel = async () => {
     if (!cancellingOrder) return

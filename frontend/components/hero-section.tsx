@@ -22,7 +22,8 @@ import {
 import { CityModal } from './city-modal'
 import { useCityLocation, formatLocationDisplay } from './use-city-location'
 import { type Screen, type User, type GarmentCategory } from './data'
-import { fetchServices } from '@/lib/api'
+import { fetchServices, getCurrentUser } from '@/lib/api'
+import { getRefreshToken } from '@/lib/cookies'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -294,7 +295,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
 
   // Pickup / Schedule time selection state
   const [pickupOption, setPickupOption] = useState<'now' | 'schedule'>('now')
-  const [showTimePicker, setShowTimePicker] = useState(false)
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false)
   const [scheduleDateObj, setScheduleDateObj] = useState<Date>(new Date())
   const [selectedTime, setSelectedTime] = useState('03:30 PM')
@@ -331,7 +331,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
     const handleClickOutside = (event: MouseEvent) => {
       if (formRef.current && !formRef.current.contains(event.target as Node)) {
         setShowCityPicker(false)
-        setShowTimePicker(false)
         setShowGarmentPicker(false)
         setShowAlterationPicker(false)
       }
@@ -387,10 +386,19 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
 
   const selectedServiceObj = currentCategory?.popularServices?.find((s) => s.name === selectedAlteration) || currentCategory?.popularServices?.[0]
 
-  const handleBookNow = () => {
-    if (!user || !user.phone) {
-      onOpenAuth?.()
-      return
+  const handleBookNow = async () => {
+    if (!user) {
+      const refToken = getRefreshToken()
+      if (refToken) {
+        const validated = await getCurrentUser()
+        if (!validated) {
+          onOpenAuth?.()
+          return
+        }
+      } else {
+        onOpenAuth?.()
+        return
+      }
     }
     if (!selectedServiceObj || !currentCategory) {
       toast.info('Please select a service before proceeding.', { position: 'top-center' })
@@ -409,16 +417,23 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
     go('book')
   }
 
-  const handleConfirmSchedule = () => {
-    if (!user || !user.phone) {
+  const handleConfirmSchedule = async () => {
+    if (!user) {
       setIsScheduleModalOpen(false)
-      setShowTimePicker(false)
-      onOpenAuth?.()
-      return
+      const refToken = getRefreshToken()
+      if (refToken) {
+        const validated = await getCurrentUser()
+        if (!validated) {
+          onOpenAuth?.()
+          return
+        }
+      } else {
+        onOpenAuth?.()
+        return
+      }
     }
     setPickupOption('schedule')
     setIsScheduleModalOpen(false)
-    setShowTimePicker(false)
     onRequestMeasurement?.({
       city: selectedCity,
       garmentId: selectedGarmentId,
@@ -431,12 +446,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
     onQuickSearch?.(selectedCity.includes('Los Angeles') ? '90210' : '10012', selectedGarmentId)
     go('book')
   }
-
-  const formattedDateDisplay = scheduleDateObj.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
 
   return (
     <section className="relative bg-white py-6 sm:py-8 lg:py-10">
@@ -456,7 +465,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                 type="button"
                 onClick={() => {
                   setShowCityPicker(true)
-                  setShowTimePicker(false)
                   setShowGarmentPicker(false)
                   setShowAlterationPicker(false)
                 }}
@@ -487,7 +495,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                       setShowGarmentPicker(!showGarmentPicker)
                       setShowAlterationPicker(false)
                       setShowCityPicker(false)
-                      setShowTimePicker(false)
                     }}
                     className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showGarmentPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
                       }`}
@@ -553,7 +560,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                       setShowAlterationPicker(!showAlterationPicker)
                       setShowGarmentPicker(false)
                       setShowCityPicker(false)
-                      setShowTimePicker(false)
                     }}
                     className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showAlterationPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
                       }`}

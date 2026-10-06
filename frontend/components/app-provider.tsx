@@ -6,6 +6,7 @@ import { toast } from 'react-toastify'
 import { getCurrentUser, logoutUser } from '@/lib/api'
 import {
   getAuthToken,
+  getRefreshToken,
   getAuthRole,
   getAuthUser,
   setAuthUser,
@@ -170,7 +171,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         window.history.replaceState({}, '', window.location.pathname)
       } else if (authParam === 'required' || authParam === 'signin') {
-        openAuth('CUSTOMER', 'signin')
+        const hasToken = Boolean(getAuthToken() || getRefreshToken())
+        if (!hasToken) {
+          openAuth('CUSTOMER', 'signin')
+        }
+        window.history.replaceState({}, '', window.location.pathname)
       }
     }
 
@@ -247,10 +252,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     router.push('/')
   }
 
-  const navigate = (screenOrPath: Screen | string) => {
+  const navigate = async (screenOrPath: Screen | string) => {
     if (screenOrPath === 'book' || screenOrPath === '/book') {
-      if (!user || !user.phone) {
-        openAuth('CUSTOMER', 'signup')
+      if (!user) {
+        const refToken = getRefreshToken()
+        if (refToken) {
+          const validated = await getCurrentUser()
+          if (validated) {
+            router.push('/book')
+            return
+          }
+        }
+        openAuth('CUSTOMER', 'signin')
         return
       }
       router.push('/book')
@@ -258,8 +271,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'order' || screenOrPath.startsWith('/order')) {
-      if (!user || !user.phone) {
-        openAuth('CUSTOMER', user ? 'signup' : 'signin')
+      if (!user) {
+        const refToken = getRefreshToken()
+        if (refToken) {
+          const validated = await getCurrentUser()
+          if (validated) {
+            if (screenOrPath.startsWith('/order/')) {
+              router.push(screenOrPath)
+              return
+            }
+            const orderId = createdOrderId || 'ORD-2654'
+            router.push(`/order/${orderId}`)
+            return
+          }
+        }
+        openAuth('CUSTOMER', 'signin')
         return
       }
       if (screenOrPath.startsWith('/order/')) {
@@ -272,8 +298,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'orders' || screenOrPath === '/orders') {
-      if (!user || !user.phone) {
-        openAuth('CUSTOMER', user ? 'signup' : 'signin')
+      if (!user) {
+        const refToken = getRefreshToken()
+        if (refToken) {
+          const validated = await getCurrentUser()
+          if (validated) {
+            router.push('/orders')
+            return
+          }
+        }
+        openAuth('CUSTOMER', 'signin')
         return
       }
       router.push('/orders')
@@ -282,6 +316,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (screenOrPath === 'profile' || screenOrPath === '/profile') {
       if (!user) {
+        const refToken = getRefreshToken()
+        if (refToken) {
+          const validated = await getCurrentUser()
+          if (validated) {
+            router.push('/profile')
+            return
+          }
+        }
         openAuth('CUSTOMER', 'signin')
         return
       }

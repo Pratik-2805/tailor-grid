@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowLeft, Check, Lock, Shield, ShieldCheck, UserCheck } from 'lucide-react'
+import { ArrowLeft, Lock, ShieldCheck, UserCheck } from 'lucide-react'
 import type { Screen } from './data'
 
 export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {

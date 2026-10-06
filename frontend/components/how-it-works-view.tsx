@@ -3,22 +3,13 @@
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
   Clock,
-  Compass,
-  HelpCircle,
-  MapPin,
   QrCode,
-  Ruler,
   Scissors,
   ShieldCheck,
   Sparkles,
-  Store,
-  UserCheck,
-  ChevronRight,
 } from 'lucide-react'
 import { useApp } from './app-provider'
-import { getAuthRole } from '@/lib/cookies'
 import { FaqAccordion } from './faq-accordion'
 import { type Screen } from './data'
 import {
@@ -42,7 +33,7 @@ interface HowItWorksViewProps {
   onSelectService?: (garmentId: string, serviceId: string) => void
 }
 
-export function HowItWorksView({ go, onQuickSearch, onSelectService }: HowItWorksViewProps) {
+export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
   const { user } = useApp()
   const isCustomer = Boolean(user && user.role === 'CUSTOMER')
 

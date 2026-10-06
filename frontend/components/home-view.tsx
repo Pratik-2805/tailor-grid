@@ -34,7 +34,6 @@ export function HomeView({
   onOpenAuth,
   onQuickSearch,
   onSelectService,
-  onSelectStore,
   onRequestMeasurement,
 }: HomeViewProps) {
   return (

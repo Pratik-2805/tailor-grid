@@ -2,20 +2,12 @@ import { type User, type FittingBooking, type StoreOption, type GarmentCategory 
 import {
   getAuthToken,
   setAuthToken,
-  removeAuthToken,
   getRefreshToken,
   setRefreshToken,
-  removeRefreshToken,
-  getAuthUser,
   setAuthUser,
-  removeAuthUser,
-  getAuthRole,
   setAuthRole,
-  removeAuthRole,
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
-  setCookie,
-  deleteCookie,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'

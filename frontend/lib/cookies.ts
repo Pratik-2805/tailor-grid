@@ -284,22 +284,6 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
   return defaultValue
 }
 
-// Helper to safely prune old tg_order_ cache items when storage gets full
-function pruneStaleOrderStorage(): void {
-  if (typeof window === 'undefined') return
-  try {
-    const keys = Object.keys(localStorage)
-    const orderKeys = keys.filter((k) => k.startsWith('tg_order_'))
-    // Keep at most 3 newest order keys, remove the rest
-    if (orderKeys.length > 3) {
-      const keysToRemove = orderKeys.slice(0, orderKeys.length - 3)
-      for (const k of keysToRemove) {
-        localStorage.removeItem(k)
-      }
-    }
-  } catch { }
-}
-
 // Strip huge base64 data URLs from cached JSON strings to prevent quota exhaustion
 function sanitizePayloadForLocalStorage(value: string): string {
   if (!value || typeof value !== 'string') return value
@@ -335,7 +319,7 @@ function sanitizePayloadForLocalStorage(value: string): string {
   }
 }
 
-export function setStorageCookie(key: string, value: string, _days?: number): void {
+export function setStorageCookie(key: string, value: string): void {
   if (typeof window === 'undefined') return
 
   // Automatically keep payload lean if storing order cache
@@ -344,7 +328,7 @@ export function setStorageCookie(key: string, value: string, _days?: number): vo
     : value
 
   try {
-    localStorage.setItem(key, value)
+    localStorage.setItem(key, cleanValue)
     deleteCookie(key, '/')
   } catch (err: any) {
     // If quota exceeded, clean old temporary/cached orders and retry
@@ -358,7 +342,7 @@ export function setStorageCookie(key: string, value: string, _days?: number): vo
           }
         }
         keysToPrune.forEach((k) => localStorage.removeItem(k))
-        localStorage.setItem(key, value)
+        localStorage.setItem(key, cleanValue)
         deleteCookie(key, '/')
         return
       } catch (retryErr) {

@@ -8,7 +8,6 @@ export interface SewingLoaderProps {
   onComplete?: () => void
   persistent?: boolean
   title?: string
-  subtitle?: string
   showRadiusProgression?: boolean
   onCancel?: () => void
   orderId?: string
@@ -20,10 +19,8 @@ export function SewingLoader({
   onComplete,
   persistent = false,
   title,
-  subtitle,
   showRadiusProgression = false,
   onCancel,
-  orderId,
 }: SewingLoaderProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const animRef = useRef<any>(null)
@@ -104,20 +101,6 @@ export function SewingLoader({
   }, [active, durationSeconds, onComplete, persistent])
 
   if (!active) return null
-
-  // Progressive search radius logic
-  let radiusText = 'Searching closest ateliers within 1 mile'
-  let radiusBadge = '1 Mile Radius'
-  if (elapsedSeconds >= 60) {
-    radiusText = 'Broadcasting to all ateliers within 8 miles'
-    radiusBadge = '8 Miles Radius'
-  } else if (elapsedSeconds >= 35) {
-    radiusText = 'Expanding search radius to 4 miles'
-    radiusBadge = '4 Miles Radius'
-  } else if (elapsedSeconds >= 15) {
-    radiusText = 'Expanding search radius to 2 miles'
-    radiusBadge = '2 Miles Radius'
-  }
 
   return (
     <div className="fixed inset-0 z-[99999] bg-[#FAF8F5] flex flex-col items-center justify-between p-6 text-center select-none animate-in fade-in duration-200 overflow-hidden">

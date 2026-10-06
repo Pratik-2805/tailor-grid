@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, LogOut, Mail, Phone, Store, X } from 'lucide-react'
+import { ArrowLeft, LogOut, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
@@ -72,7 +72,6 @@ export function SignUpModal({
   // Customer Signup fields
   const [cName, setCName] = useState('')
   const [cEmail, setCEmail] = useState('')
-  const [cPostcode, setCPostcode] = useState('')
   const [cPhone, setCPhone] = useState('')
   const [cOtpSent, setCOtpSent] = useState(false)
   const [cOtp, setCOtp] = useState('')
@@ -261,7 +260,6 @@ export function SignUpModal({
         otp: cleanOtp,
         role: selectedRole,
         name: cName.trim() || undefined,
-        postcode: cPostcode.trim() || undefined,
       })
       setLoading(false)
       if (result?.user) {
@@ -291,7 +289,6 @@ export function SignUpModal({
         name: cleanName,
         email: cleanEmail,
         phone: cleanPhone || undefined,
-        postcode: cPostcode.trim() || undefined,
         role: selectedRole,
       })
       setLoading(false)

@@ -34,22 +34,29 @@ export function proxy(request: NextRequest) {
 
   // 5. Check authentication & role from cookies or JWT token
   const token = request.cookies.get('tg_token')?.value || request.cookies.get('token')?.value
+  const refreshToken = request.cookies.get('tg_refresh_token')?.value || request.cookies.get('refreshToken')?.value
+  const hasAnyToken = Boolean(token || refreshToken)
   let role = request.cookies.get('tg_user_role')?.value
 
-  if (!token) {
+  if (!hasAnyToken) {
     return NextResponse.redirect(new URL(CUSTOMER_SITE_URL))
   }
 
   // If role cookie is not set or uncertain, decode role from JWT
   if (!role || role === 'undefined' || role === 'null') {
-    try {
-      const parts = token.split('.')
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'))
-        role = payload.role || (payload.type === 'pending_google_signup' ? 'TEMP_STUDIO' : 'TEMP_STUDIO')
+    const rawToken = token || refreshToken
+    if (rawToken) {
+      try {
+        const parts = rawToken.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'))
+          role = payload.role || (payload.type === 'pending_google_signup' ? 'TEMP_STUDIO' : 'TEMP_STUDIO')
+        }
+      } catch {
+        role = 'STUDIO'
       }
-    } catch {
-      role = 'TEMP_STUDIO'
+    } else {
+      role = 'STUDIO'
     }
   }
 
