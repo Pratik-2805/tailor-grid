@@ -9,7 +9,6 @@ import {
   Navigation,
   Phone,
   Ruler,
-  Scissors,
   Share2,
   Shirt,
   Sparkles,
@@ -18,7 +17,6 @@ import {
   RotateCcw,
   XCircle,
   Edit3,
-  Plus,
   Loader2,
   FileText,
   Store,
@@ -29,7 +27,7 @@ import {
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
 import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
-import { getClosestStoreForLocation, getGarmentPhoto, getAllGarmentPhotos, type User, type StoreOption } from './data'
+import { getAllGarmentPhotos, type User, type StoreOption } from './data'
 import CleanGoogleMap, { openCarNavigation, calculateDistanceInMiles } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
 import { SewingLoader } from './sewing-loader'
@@ -76,17 +74,6 @@ interface OrderDetailsViewProps {
   onGoOrders?: () => void
 }
 
-function calculateHaversineDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 3958.8 // Earth radius in miles
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2)
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return R * c
-}
 
 function formatMeasurementKey(key: string): string {
   const map: Record<string, string> = {
@@ -121,97 +108,6 @@ function formatMeasurementKey(key: string): string {
     .replace(/[_-]/g, ' ')
     .replace(/^\w/, (c) => c.toUpperCase())
     .trim()
-}
-
-function parseOrderMeasurements(order?: any): Record<string, string> {
-  if (!order) return {}
-  const result: Record<string, string> = {}
-
-  if (order.measurements) {
-    if (typeof order.measurements === 'object' && !Array.isArray(order.measurements)) {
-      Object.entries(order.measurements).forEach(([k, v]) => {
-        if (v !== undefined && v !== null && String(v).trim()) {
-          result[k] = String(v).trim()
-        }
-      })
-    } else if (typeof order.measurements === 'string') {
-      try {
-        const parsed = JSON.parse(order.measurements)
-        if (parsed && typeof parsed === 'object') {
-          Object.entries(parsed).forEach(([k, v]) => {
-            if (v !== undefined && v !== null && String(v).trim()) {
-              result[k] = String(v).trim()
-            }
-          })
-        }
-      } catch { }
-    }
-  }
-
-  if (Object.keys(result).length === 0 && order.pinnedAdjustment) {
-    const raw = String(order.pinnedAdjustment).trim()
-    if (raw.startsWith('{') && raw.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed === 'object') {
-          Object.entries(parsed).forEach(([k, v]) => {
-            if (v !== undefined && v !== null && String(v).trim()) {
-              result[k] = String(v).trim()
-            }
-          })
-        }
-      } catch { }
-    } else if (raw.includes('·') || raw.includes(':')) {
-      const parts = raw.split('·').map((s: string) => s.trim()).filter(Boolean)
-      parts.forEach((p: string) => {
-        const colonIdx = p.indexOf(':')
-        if (colonIdx !== -1) {
-          const k = p.slice(0, colonIdx).trim()
-          const v = p.slice(colonIdx + 1).trim()
-          if (k && v) result[k] = v
-        }
-      })
-    }
-  }
-
-  return result
-}
-
-function loadProfileMeasurements(user: any): Record<string, string> | null {
-  if (user?.measurements) {
-    if (typeof user.measurements === 'object' && !Array.isArray(user.measurements)) {
-      return user.measurements
-    }
-    if (typeof user.measurements === 'string') {
-      try {
-        const parsed = JSON.parse(user.measurements)
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return parsed
-        }
-      } catch { }
-    }
-  }
-
-  if (typeof window === 'undefined') return null
-  const candidateKeys = [
-    user?.id ? `tg_measurements_${user.id}` : null,
-    user?.email ? `tg_measurements_${user.email}` : null,
-    user ? `tg_measurements_${user.id || user.email || 'guest'}` : null,
-    'tg_measurements_guest',
-  ].filter(Boolean) as string[]
-
-  for (const k of candidateKeys) {
-    const saved = getStorageCookie(k) || (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
-          return parsed
-        }
-      } catch { }
-    }
-  }
-  return null
 }
 
 function SewStitchDoodlePlayer() {
@@ -452,10 +348,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isGeneratingPin, setIsGeneratingPin] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
-  const [distanceBadge, setDistanceBadge] = useState<string>('0.3 mi • ~5 mins walk')
-  const [isEditingMeas, setIsEditingMeas] = useState(false)
-  const [editMeasFields, setEditMeasFields] = useState<{ key: string; label: string; value: string }[]>([])
-  const [isSavingMeas, setIsSavingMeas] = useState(false)
   const [inProcessDots, setInProcessDots] = useState('')
   const [isCancelling, setIsCancelling] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
@@ -469,7 +361,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const currentStatus = (order?.status || 'Allocated').toUpperCase()
   const isCancelled = currentStatus === 'CANCELLED'
   const isAllocated = currentStatus === 'ALLOCATED' || currentStatus === 'SEARCHING' || currentStatus === 'PENDING'
-  const isAccepted = currentStatus === 'ACCEPTED'
   const isInProgress = currentStatus === 'WORK IN PROGRESS' || currentStatus === 'IN_PROGRESS' || currentStatus === 'TAILORING' || currentStatus === 'FITTING COMPLETED' || currentStatus === 'CUSTOMER ARRIVED'
   const isReady = currentStatus === 'READY' || currentStatus === 'READY_FOR_PICKUP'
   const isCompleted = currentStatus === 'CLOSED' || currentStatus === 'COLLECTED' || currentStatus === 'COMPLETED'
@@ -667,26 +558,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     lng: order?.store?.lng ? Number(order.store.lng) : (order?.store?.coords?.lng || 72.8397),
   }
 
-  // Calculate real accurate distance and walking/driving ETA to the assigned studio
-  useEffect(() => {
-    let distanceMiles = 0.4
-    if (userCoords && destinationCoords) {
-      const computed = calculateHaversineDistanceMiles(
-        userCoords.lat,
-        userCoords.lng,
-        destinationCoords.lat,
-        destinationCoords.lng
-      )
-      if (!isNaN(computed) && computed > 0) {
-        distanceMiles = computed
-      }
-    }
-
-    // Calculate walking time at average speed of ~3.1 mph (19.3 mins per mile)
-    const walkMins = Math.max(1, Math.round(distanceMiles * 19.3))
-    const walkLabel = walkMins === 1 ? '1 min walk' : `${walkMins} mins walk`
-    setDistanceBadge(`${distanceMiles.toFixed(1)} mi • ~${walkLabel}`)
-  }, [userCoords, destinationCoords.lat, destinationCoords.lng])
 
   const formattedOtp = order?.otp ? String(order.otp).trim() : '----'
 
@@ -704,7 +575,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const storePhoneDisplay = order?.storePhone || order?.store?.phone || '+44 20 7946 0912'
   const storeHoursDisplay = order?.store?.openingHours || 'Mon–Sat: 09:00 – 19:00'
   const storeTailorDisplay = order?.store?.leadTailor || 'Master Tailor'
-  const cleanStudioBadgeName = storeNameDisplay
   const garmentDisplay = order?.garmentName || order?.garmentId || 'Garment Alteration'
   const serviceDisplay = order?.serviceName || 'Custom Fit & Alteration'
 
@@ -779,37 +649,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       setIsPinGenerated(true)
       toast.success('4-Digit PIN revealed successfully!', { position: 'top-center', autoClose: 2000 })
     }, 450)
-  }
-
-  const handleSaveCustomerMeasurements = async () => {
-    if (!order?.id) return
-    setIsSavingMeas(true)
-    const measurementsMap: Record<string, string> = {}
-    editMeasFields.forEach((f) => {
-      if (f.value && f.value.trim()) {
-        measurementsMap[f.key] = f.value.trim()
-      }
-    })
-
-    const combinedSpecs = Object.entries(measurementsMap)
-      .map(([k, v]) => `${formatMeasurementKey(k)}: ${v}`)
-      .join(' · ')
-
-    const updates = {
-      pinnedAdjustment: combinedSpecs || 'Standard customer fit',
-      measurements: measurementsMap,
-    }
-
-    try {
-      await updateOrder(order.id, updates)
-      setOrder((prev: any) => ({ ...prev, ...updates }))
-      setIsEditingMeas(false)
-      toast.success('Measurements updated successfully!', { position: 'top-center', autoClose: 2000 })
-    } catch {
-      toast.error('Failed to update measurements.', { position: 'top-center' })
-    } finally {
-      setIsSavingMeas(false)
-    }
   }
 
   const handleShareMap = () => {
@@ -963,31 +802,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       setShowCancelModal(false)
     }
   }
-
-
-
-  // Dynamic Header Text
-  let headerTitle = 'Order Accepted'
-  let headerSubtitle = `${storeNameDisplay ? `Accepted by ${storeNameDisplay}` : 'Studio accepted'} • Order #${order?.id || slugId}`
-
-  if (isCancelled) {
-    headerTitle = 'Order Cancelled'
-    headerSubtitle = `This alteration request was cancelled • Order #${order?.id || slugId}`
-  } else if (isAllocated) {
-    headerTitle = 'Request Broadcast'
-    headerSubtitle = `Broadcasting request to nearby studios • Order #${order?.id || slugId}`
-  } else if (isInProgress) {
-    headerTitle = 'Tailoring in Progress'
-    headerSubtitle = `${storeNameDisplay} is crafting your garment • Order #${order?.id || slugId}`
-  } else if (isReady) {
-    headerTitle = 'Ready for Pickup'
-    headerSubtitle = `Alteration completed! Ready for collection at ${storeNameDisplay} • Order #${order?.id || slugId}`
-  } else if (isCompleted) {
-    headerTitle = 'Order Completed'
-    headerSubtitle = `Garment collected from ${storeNameDisplay} • Order #${order?.id || slugId}`
-  }
-
-  const isPickupOtpActive = Boolean(order?.otp && order.otp.trim() !== '')
 
   // ALL HOOKS HAVE COMPLETED. CONDITIONAL RETURNS ARE NOW 100% SAFE.
   if (authChecked && !currentUser) {

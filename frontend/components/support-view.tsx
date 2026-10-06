@@ -4,16 +4,11 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   ChevronDown,
-  ChevronRight,
   Clock,
   HelpCircle,
   KeyRound,
-  MessageCircle,
-  RefreshCw,
-  Scissors,
   Search,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react'
 import type { Screen } from './data'
 

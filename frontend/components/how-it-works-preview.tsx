@@ -4,7 +4,6 @@ import Image from 'next/image'
 import { ArrowRight, CheckCircle2, MapPin, Scissors, ShieldCheck, Sparkles, Store } from 'lucide-react'
 import { type Screen } from './data'
 import { useApp } from './app-provider'
-import { getAuthRole } from '@/lib/cookies'
 
 export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
   const { user } = useApp()

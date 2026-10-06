@@ -1,24 +1,16 @@
-import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES, GARMENT_CATEGORIES } from '../components/data'
+import { type User, type FittingBooking, type StoreOption, type GarmentCategory } from '../components/data'
 import {
   getAuthToken,
   setAuthToken,
-  removeAuthToken,
   getRefreshToken,
   setRefreshToken,
-  removeRefreshToken,
-  getAuthUser,
   setAuthUser,
-  removeAuthUser,
-  getAuthRole,
   setAuthRole,
-  removeAuthRole,
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
-  setCookie,
-  deleteCookie,
 } from './cookies'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
 export function syncAuthCookies(token?: string | null, role?: string | null) {
   if (token) setAuthToken(token)
@@ -102,7 +94,8 @@ export async function logoutUser(): Promise<void> {
 
 export const STUDIO_BASE_URL =
   process.env.NEXT_PUBLIC_STUDIO_URL ||
-  (process.env.NEXT_PUBLIC_STUDIO_PORT ? `http://localhost:${process.env.NEXT_PUBLIC_STUDIO_PORT}` : 'http://localhost:3001')
+  process.env.STUDIO_URL ||
+  ''
 
 export function getStudioUrl(path: string = '', tokenOrCode?: string | null): string {
   const base = STUDIO_BASE_URL.replace(/\/$/, '')
@@ -632,32 +625,13 @@ export async function fetchStores(search?: string): Promise<StoreOption[]> {
     const res = await fetch(url)
     if (!res.ok) throw new Error('Failed to fetch stores')
     const data = await res.json()
-    if (Array.isArray(data.stores) && data.stores.length > 0) {
-      const fetched: StoreOption[] = data.stores
-      const seen = new Set<string>()
-      const combined: StoreOption[] = []
-
-      for (const s of fetched) {
-        const key = (s.name || s.id).toLowerCase().trim()
-        if (!seen.has(key)) {
-          seen.add(key)
-          combined.push(s)
-        }
-      }
-
-      for (const defStore of PARTNER_STORES) {
-        const key = (defStore.name || defStore.id).toLowerCase().trim()
-        if (!seen.has(key)) {
-          seen.add(key)
-          combined.push(defStore)
-        }
-      }
-      return combined
+    if (Array.isArray(data.stores)) {
+      return data.stores
     }
-    return PARTNER_STORES
+    return []
   } catch (err) {
-    console.warn('Failed to fetch stores, falling back to local list:', err)
-    return PARTNER_STORES
+    console.warn('Failed to fetch stores from backend database:', err)
+    return []
   }
 }
 
@@ -666,14 +640,14 @@ export async function fetchServices(): Promise<GarmentCategory[]> {
     const res = await fetch(`${API_BASE}/services`)
     if (res.ok) {
       const data = await res.json()
-      if (Array.isArray(data.services) && data.services.length > 0) {
+      if (Array.isArray(data.services)) {
         return data.services
       }
     }
-  } catch (_) {
-    // Network or temporary server reload fallback
+  } catch (err) {
+    console.warn('Failed to fetch services from backend database:', err)
   }
-  return GARMENT_CATEGORIES
+  return []
 }
 
 export interface DispatchSessionStatus {

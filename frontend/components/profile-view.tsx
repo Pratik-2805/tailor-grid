@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Edit2,
   Headphones,
-  HelpCircle,
   Lock,
   ShieldCheck,
   User as UserIcon,
@@ -35,7 +34,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
 
   // Edit Mode toggle for Personal Details & Bespoke Fit Vault
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
-  const [isEditingVault, setIsEditingVault] = useState(false)
 
   // Profile Form States
   const [name, setName] = useState(user?.name || '')
@@ -146,7 +144,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                 if (parsed.inseam) setInseam(parsed.inseam)
                 if (parsed.chest) setChest(parsed.chest)
                 if (parsed.sleeve) setSleeve(parsed.sleeve)
-                loaded = true
                 break
               }
             } catch { }
@@ -266,7 +263,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
       setIsSaving(false)
       setSaveSuccess(true)
       setIsEditingPersonal(false)
-      setIsEditingVault(false)
       if (res?.user) {
         onUpdateUser(res.user)
       } else {
@@ -290,22 +286,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
     }
     setIsEditingPersonal(false)
     setSaveError('')
-  }
-
-  const handleCancelVaultEdit = () => {
-    if (user && typeof window !== 'undefined') {
-      const savedMeasure = getStorageCookie(`tg_measurements_${user.id || user.email || 'guest'}`)
-      if (savedMeasure) {
-        try {
-          const parsed = JSON.parse(savedMeasure)
-          if (parsed.waist) setWaist(parsed.waist)
-          if (parsed.inseam) setInseam(parsed.inseam)
-          if (parsed.chest) setChest(parsed.chest)
-          if (parsed.sleeve) setSleeve(parsed.sleeve)
-        } catch { }
-      }
-    }
-    setIsEditingVault(false)
   }
 
   // Guest State

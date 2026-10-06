@@ -13,7 +13,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isAuthLoading && !user) {
       openAuth('CUSTOMER', 'signin')
-      router.replace('/?auth=required')
+      router.replace('/')
     }
   }, [isAuthLoading, user, openAuth, router])
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, LogOut, Mail, Phone, Store, X } from 'lucide-react'
+import { ArrowLeft, LogOut, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, verifyOtp, checkPhoneExists } from '@/lib/api'

@@ -276,8 +276,6 @@ export function PartnerOnboarding({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false)
-  const [alreadyRegisteredUser, setAlreadyRegisteredUser] = useState<User | null>(null)
   const [showHelpDropdown, setShowHelpDropdown] = useState(false)
   const hasPendingMobile = Boolean(
     ssGet('tg_pending_mobile') ||
@@ -364,17 +362,7 @@ export function PartnerOnboarding({
     if (name && !tailorName && name !== 'Google User' && name !== 'Studio Partner') {
       setTailorName(name)
     }
-    if (user?.email) {
-      checkEmailExists(user.email, 'STUDIO').then((res) => {
-        if (res.exists) {
-          setAlreadyRegistered(true)
-          if (res.user) {
-            setAlreadyRegisteredUser(res.user)
-          }
-        }
-      })
-    }
-  }, [user?.email, user?.name, pendingGoogle?.email, pendingGoogle?.name])
+  }, [user?.email, user?.name, pendingGoogle?.email, pendingGoogle?.name, emailVal, tailorName])
 
   // Step 3: Send Twilio OTP for Direct Mobile Phone
   const handleStep3SendOtp = async (force: boolean = false) => {
@@ -640,30 +628,6 @@ export function PartnerOnboarding({
       {/* Main Container */}
       <main className={`w-full flex flex-col items-center justify-center ${hideHeader ? 'p-0' : 'flex-1 px-4 py-8 sm:py-12 my-auto'}`}>
         <div style={{ perspective: '1400px' }} className="w-full max-w-[540px]">
-          {alreadyRegistered && (
-            <div className="mb-6 rounded-2xl bg-[#FFF7F2] border border-[#E8D0C5] p-5 shadow-none text-left">
-              <div className="flex items-start gap-3">
-                <div className="size-8 rounded-full bg-[#9E593B]/10 text-[#9E593B] flex items-center justify-center shrink-0 font-bold text-sm">
-                  ✓
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-[#0F1115] text-sm">
-                    Studio Account Active
-                  </h3>
-                  <p className="text-xs text-[#5A5D64] mt-0.5 leading-relaxed">
-                    An atelier account for <strong className="text-[#0F1115]">{alreadyRegisteredUser?.email || user?.email}</strong> is registered. You can enter your Studio Workbench directly.
-                  </p>
-                  <a
-                    href="/"
-                    className="inline-block mt-3 px-4 py-1.5 rounded-full bg-[#0F1115] text-white text-xs font-bold hover:bg-[#9E593B] transition-colors"
-                  >
-                    Open Studio Workbench →
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* ================================================================ */}
           {/* 3D FLIP CONTAINER: FLIPS THE ENTIRE WORKBENCH / OTP CARD        */}
           {/* ================================================================ */}
