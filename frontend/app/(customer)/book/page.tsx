@@ -21,7 +21,7 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
-import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay } from '@/components/use-city-location'
+import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay, resolveAccurateCityFromComponents } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
@@ -121,7 +121,7 @@ export interface CustomerAddressDetails {
   landmark?: string
 }
 
-function parseGoogleAddressComponents(results: any[]): CustomerAddressDetails {
+function parseGoogleAddressComponents(results: any[], lat?: number, lng?: number): CustomerAddressDetails {
   if (!results || !Array.isArray(results) || results.length === 0) {
     return { houseNo: '', apartment: '', locality: '', city: '' }
   }
@@ -136,9 +136,6 @@ function parseGoogleAddressComponents(results: any[]): CustomerAddressDetails {
   const sublocality2 = comps.find((c: any) => c.types.includes('sublocality_level_2'))?.long_name || ''
   const sublocality1 = comps.find((c: any) => c.types.includes('sublocality_level_1') || c.types.includes('sublocality'))?.long_name || ''
   const neighborhood = comps.find((c: any) => c.types.includes('neighborhood'))?.long_name || ''
-  const locality = comps.find((c: any) => c.types.includes('locality'))?.long_name || ''
-  const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))?.long_name || ''
-  const admin1 = comps.find((c: any) => c.types.includes('administrative_area_level_1'))?.short_name || ''
   const poi = comps.find((c: any) => c.types.includes('point_of_interest') || c.types.includes('establishment'))?.long_name || ''
 
   // House / Flat No.
@@ -156,15 +153,19 @@ function parseGoogleAddressComponents(results: any[]): CustomerAddressDetails {
   const localityParts = [route, sublocality2, sublocality1 || neighborhood].filter(Boolean)
   const localityStr = localityParts.length > 0 ? Array.from(new Set(localityParts)).join(', ') : (neighborhood || sublocality1 || '')
 
-  // City / State
-  const cityPart = locality || admin2 || ''
-  const cityStr = cityPart && admin1 ? `${cityPart}, ${admin1}` : (cityPart || admin1 || '')
+  // Accurate City / Locality Resolution dynamically
+  const resolved = resolveAccurateCityFromComponents(
+    comps,
+    lat ?? (first?.geometry?.location?.lat ? (typeof first.geometry.location.lat === 'function' ? first.geometry.location.lat() : first.geometry.location.lat) : undefined),
+    lng ?? (first?.geometry?.location?.lng ? (typeof first.geometry.location.lng === 'function' ? first.geometry.location.lng() : first.geometry.location.lng) : undefined),
+    first?.formatted_address
+  )
 
   return {
     houseNo,
     apartment,
     locality: localityStr,
-    city: cityStr,
+    city: resolved.fullFormatted,
   }
 }
 
@@ -190,7 +191,7 @@ export default function BookPage() {
     stopBookingTransition,
   } = useApp()
 
-  const [selectedCity, setSelectedCity] = useCityLocation('Vasai, IN-MH')
+  const [selectedCity, setSelectedCity] = useCityLocation()
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
   
   // Initialize states from current session cookie/storage if present
@@ -220,7 +221,7 @@ export default function BookPage() {
       houseNo: '',
       apartment: '',
       locality: '',
-      city: 'Vasai, IN-MH',
+      city: '',
       landmark: '',
     }
   })
@@ -324,12 +325,12 @@ export default function BookPage() {
 
   // Live device GPS location detection on mount: Always fetch fresh location on refresh
   const liveGpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
-  const liveCityRef = useRef<string>('Vasai, IN-MH')
+  const liveCityRef = useRef<string>('')
   const liveAddressDetailsRef = useRef<CustomerAddressDetails>({
     houseNo: '',
     apartment: '',
     locality: '',
-    city: 'Vasai, IN-MH',
+    city: '',
     landmark: '',
   })
 
@@ -377,7 +378,7 @@ export default function BookPage() {
             const geocoder = new google.maps.Geocoder()
             geocoder.geocode({ location: liveCoords }, (results, status) => {
               if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                const parsed = parseGoogleAddressComponents(results)
+                const parsed = parseGoogleAddressComponents(results, liveCoords.lat, liveCoords.lng)
                 const newDetails: CustomerAddressDetails = {
                   houseNo: parsed.houseNo || '',
                   apartment: parsed.apartment || '',
@@ -388,15 +389,9 @@ export default function BookPage() {
                 liveAddressDetailsRef.current = newDetails
 
                 const comps = results[0]?.address_components || []
-                const locality = comps.find((c: any) => c.types.includes('locality'))
-                const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
-                const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
-                const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
-                const country = comps.find((c: any) => c.types.includes('country'))
-
-                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
-                const stateCode = state?.short_name || country?.short_name || ''
-                const formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
+                const formattedAddress = results[0]?.formatted_address || ''
+                const accurate = resolveAccurateCityFromComponents(comps, liveCoords.lat, liveCoords.lng, formattedAddress)
+                const formatted = accurate.fullFormatted
                 liveCityRef.current = formatted
 
                 setCachedReverseGeocode(liveCoords.lat, liveCoords.lng, {
@@ -1451,7 +1446,7 @@ export default function BookPage() {
                       const geocoder = new google.maps.Geocoder()
                       geocoder.geocode({ location: newCoords }, (results, status) => {
                         if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                          const parsed = parseGoogleAddressComponents(results)
+                          const parsed = parseGoogleAddressComponents(results, newCoords.lat, newCoords.lng)
                           const newDetails = {
                             houseNo: parsed.houseNo || '',
                             apartment: parsed.apartment || '',
@@ -1468,13 +1463,9 @@ export default function BookPage() {
                           }))
 
                           const comps = results[0]?.address_components || []
-                          const locality = comps.find((c: any) => c.types.includes('locality'))
-                          const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
-                          const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
-                          const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
-                          const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || parsed.city || selectedCity
-                          const stateCode = state?.short_name || ''
-                          const formatted = stateCode && !cityName.includes(stateCode) ? `${cityName}, ${stateCode}` : cityName
+                          const formattedAddress = results[0]?.formatted_address || ''
+                          const accurate = resolveAccurateCityFromComponents(comps, newCoords.lat, newCoords.lng, formattedAddress)
+                          const formatted = accurate.fullFormatted
 
                           setCachedReverseGeocode(newCoords.lat, newCoords.lng, {
                             houseNo: newDetails.houseNo,
@@ -1540,7 +1531,7 @@ export default function BookPage() {
               const geocoder = new google.maps.Geocoder()
               geocoder.geocode({ location: targetCoords }, (results, status) => {
                 if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                  const parsed = parseGoogleAddressComponents(results)
+                  const parsed = parseGoogleAddressComponents(results, targetCoords.lat, targetCoords.lng)
                   setAddressDetails({
                     houseNo: parsed.houseNo || '',
                     apartment: parsed.apartment || '',

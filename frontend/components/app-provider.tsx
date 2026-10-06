@@ -140,7 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notes?: string
     fittingMode?: string
   }>({
-    city: 'Mumbai, IN',
+    city: '',
     garmentId: 'trousers',
     serviceId: 'trouser-hem-plain',
     pickupOption: 'now',

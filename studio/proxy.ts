@@ -83,6 +83,9 @@ export function proxy(request: NextRequest) {
   }
 
   // STUDIO (and ADMIN) full partner role
+
+
+
   if (role === 'STUDIO' || role === 'ADMIN') {
     if (pathname === '/' && !searchParams.has('step')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
