@@ -10,11 +10,12 @@ interface HeaderProps {
   currentScreen: Screen
   go: (s: Screen) => void
   user?: User | null
+  isAuthLoading?: boolean
   onOpenAuth?: (authType?: 'signin' | 'signup') => void
   onSignOut?: () => void
 }
 
-export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: HeaderProps) {
+export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
@@ -97,6 +98,13 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
                 About Us
               </button>
             </>
+          ) : isAuthLoading ? (
+            <div className="flex items-center gap-5 lg:gap-7 xl:gap-8 opacity-0 pointer-events-none select-none">
+              <span className="whitespace-nowrap">Book Alterations</span>
+              <span className="whitespace-nowrap">My Orders</span>
+              <span className="whitespace-nowrap">How it Works</span>
+              <span className="whitespace-nowrap">About Us</span>
+            </div>
           ) : (
             <>
               <button
@@ -245,6 +253,8 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
                 </div>
               )}
             </div>
+          ) : isAuthLoading ? (
+            <div className="h-[34px] w-[96px] rounded-full bg-[#E8E1D5]/40 animate-pulse" />
           ) : (
             <div className="flex items-center gap-2">
               <button
@@ -268,7 +278,7 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
 
         {/* Mobile Hamburger Toggle */}
         <div className="flex md:hidden items-center gap-2">
-          {user && (
+          {user ? (
             <button
               onClick={() => nav('profile')}
               className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden"
@@ -276,7 +286,9 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
             >
               <UserAvatar src={user.avatar} name={user.name} />
             </button>
-          )}
+          ) : isAuthLoading ? (
+            <div className="size-8 rounded-full bg-[#E8E1D5]/40 animate-pulse" />
+          ) : null}
           <button
             onClick={() => setOpen(!open)}
             className="size-9 rounded-full bg-white border border-[#E8E1D5] grid place-items-center text-[#18191B]"
@@ -325,6 +337,10 @@ export function Header({ currentScreen, go, user, onOpenAuth, onSignOut }: Heade
                 </button>
               ))}
             </>
+          ) : isAuthLoading ? (
+            <div className="py-6 flex justify-center items-center">
+              <div className="size-5 rounded-full border-2 border-[#9E593B] border-t-transparent animate-spin" />
+            </div>
           ) : (
             <>
               {[

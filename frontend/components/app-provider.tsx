@@ -83,7 +83,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const [user, setUser] = useState<User | null>(null)
-  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authRole, setAuthRole] = useState<'CUSTOMER' | 'STUDIO'>('CUSTOMER')
   const [authType, setAuthType] = useState<'signin' | 'signup'>('signup')
@@ -94,19 +94,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const stopBookingTransition = () => setIsBookingTransitioning(false)
 
   const [prefilledPostcode, setPrefilledPostcode] = useState('')
-  const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return getStorageCookie('tg_prefilled_garment', 'trousers')
-    }
-    return 'trousers'
-  })
-  const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = getStorageCookie('tg_prefilled_service')
-      return stored || undefined
-    }
-    return undefined
-  })
+  const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>('trousers')
+  const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(undefined)
   const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
   const [confirmedMeasurements, setConfirmedMeasurements] = useState<Record<string, string> | undefined>()
   const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
@@ -152,10 +141,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Sync current user session on mount directly from DB / cookies
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const g = getStorageCookie('tg_prefilled_garment', 'trousers')
+      if (g && g !== 'trousers') setPrefilledGarmentIdState(g)
+      const s = getStorageCookie('tg_prefilled_service')
+      if (s) setPrefilledServiceIdState(s)
+
       const stored = getAuthUser<User>()
       if (stored && stored.status !== 'INACTIVE') {
         setUser(stored)
-      } else {
+      } else if (!getAuthToken() && !getRefreshToken()) {
         setUser(null)
       }
 
@@ -185,12 +179,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUser(u)
         } else {
           setUser(null)
-          clearAllAuth()
+          if (getAuthToken() || getRefreshToken()) {
+            clearAllAuth()
+          }
         }
       })
       .catch(() => {
-        setUser(null)
-        clearAllAuth()
+        const cached = getAuthUser<User>()
+        if (cached && cached.status !== 'INACTIVE') {
+          setUser(cached)
+        } else {
+          setUser(null)
+        }
       })
       .finally(() => {
         setIsAuthLoading(false)

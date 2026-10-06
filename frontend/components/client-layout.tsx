@@ -102,6 +102,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         currentScreen={currentScreen}
         go={navigate}
         user={user}
+        isAuthLoading={isAuthLoading}
         onOpenAuth={(type = 'signup') => {
           openAuth('CUSTOMER', type)
         }}

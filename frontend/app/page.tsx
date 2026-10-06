@@ -23,26 +23,28 @@ export default function HomePage() {
     setMeasurementDraft,
   } = useApp()
 
-  const [hasCustomerSession, setHasCustomerSession] = useState<boolean>(() => {
+  const [hasCustomerSession, setHasCustomerSession] = useState<boolean>(false)
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const storedUser = getAuthUser<User>()
       if (storedUser) {
         if (storedUser.role === 'STUDIO') {
           window.location.href = STUDIO_BASE_URL
-          return false
+          return
         }
-        return storedUser.role === 'CUSTOMER'
+        setHasCustomerSession(storedUser.role === 'CUSTOMER')
+      } else {
+        const token = getAuthToken() || getRefreshToken()
+        const role = getAuthRole()
+        if (token && role === 'STUDIO') {
+          window.location.href = STUDIO_BASE_URL
+          return
+        }
+        setHasCustomerSession(Boolean(token && (role === 'CUSTOMER' || !role)))
       }
-      const token = getAuthToken() || getRefreshToken()
-      const role = getAuthRole()
-      if (token && role === 'STUDIO') {
-        window.location.href = STUDIO_BASE_URL
-        return false
-      }
-      return Boolean(token && (role === 'CUSTOMER' || !role))
     }
-    return false
-  })
+  }, [])
 
   useEffect(() => {
     if (!isAuthLoading) {
