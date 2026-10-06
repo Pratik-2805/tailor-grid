@@ -66,6 +66,7 @@ import {
 type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
 
 export default function SuperAdminPage() {
+  const [mounted, setMounted] = useState(false)
   // Authentication states - initialize authChecking consistently to prevent SSR hydration mismatch
   const [adminUser, setAdminUser] = useState<any | null>(null)
   const [authChecking, setAuthChecking] = useState<boolean>(true)
@@ -144,6 +145,7 @@ export default function SuperAdminPage() {
 
   // Check persistent session on mount
   useEffect(() => {
+    setMounted(true)
     let isMounted = true
     const token = getAdminToken()
     if (!token) {
@@ -501,7 +503,7 @@ export default function SuperAdminPage() {
   }
 
   // ── 1. LOADING SESSION GATE ──
-  if (authChecking && !adminUser) {
+  if (!mounted || (authChecking && !adminUser)) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center text-[#1E2229] p-6 font-sans">
         <div className="size-12 rounded-2xl bg-[#9E593B] text-white grid place-items-center mb-4 shadow-sm animate-pulse">

@@ -50,25 +50,21 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
           inMemoryUser = u
           setUser(u)
         } else {
-          const cached = getAuthUser<User>()
-          if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN' || cached.role === 'TEMP_STUDIO')) {
-            inMemoryUser = cached
-            setUser(cached)
-          } else {
-            inMemoryUser = null
-            setUser(null)
+          inMemoryUser = null
+          setUser(null)
+          clearAllAuth()
+          if (typeof window !== 'undefined') {
+            window.location.replace(customerSiteUrl)
           }
         }
       })
       .catch(() => {
         if (!isMounted) return
-        const cached = getAuthUser<User>()
-        if (cached && (cached.role === 'STUDIO' || cached.role === 'ADMIN' || cached.role === 'TEMP_STUDIO')) {
-          inMemoryUser = cached
-          setUser(cached)
-        } else {
-          inMemoryUser = null
-          setUser(null)
+        inMemoryUser = null
+        setUser(null)
+        clearAllAuth()
+        if (typeof window !== 'undefined') {
+          window.location.replace(customerSiteUrl)
         }
       })
       .finally(() => {

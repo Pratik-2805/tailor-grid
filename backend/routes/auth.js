@@ -1,5 +1,6 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { prisma } = require('../lib/prisma');
 const { validateAndFormatPhone, sendVerificationSms, saveOtp, verifyOtp } = require('../lib/sms');
@@ -95,8 +96,18 @@ async function isUserExpiredTempStudio(user) {
   return false;
 }
 
-// Helper to generate auth token
-function generateToken(user) {
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'Darzi_jwt_refresh_secret_key_2026';
+const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
+const REFRESH_TOKEN_EXPIRY = '15d'; // 15 days
+
+// Encrypted HMAC hash of refresh token for secure database storage
+function hashRefreshToken(token) {
+  if (!token) return null;
+  return crypto.createHmac('sha256', JWT_REFRESH_SECRET).update(token).digest('hex');
+}
+
+// Helper to generate access token (15 minutes)
+function generateAccessToken(user) {
   return jwt.sign(
     {
       id: user.id,
@@ -106,10 +117,78 @@ function generateToken(user) {
       role: user.role || 'CUSTOMER',
       status: user.status || 'ACTIVE',
       studioId: user.studioId || null,
+      tokenType: 'access',
     },
     JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
+}
+
+// Helper to generate refresh token (15 days)
+function generateRefreshToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      role: user.role || 'CUSTOMER',
+      tokenType: 'refresh',
+    },
+    JWT_REFRESH_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+}
+
+// Dual Token generator returning Access Token (15m) & Refresh Token (15d) with encrypted DB persistence
+async function generateTokens(user) {
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+  const hashedRt = hashRefreshToken(refreshToken);
+
+  if (user?.id && !String(user.id).startsWith('temp_g_')) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { refreshToken: hashedRt },
+      });
+    } catch (err) {
+      console.warn('[AUTH] Notice saving hashed refresh token in database:', err.message);
+    }
+  }
+
+  return {
+    accessToken,
+    refreshToken,
+    token: accessToken, // backwards-compatible alias
+  };
+}
+
+// Backwards-compatible generateToken helper
+function generateToken(user) {
+  return generateAccessToken(user);
+}
+
+// Helper to set both access and refresh cookies
+function setAuthCookies(res, tokens) {
+  const isProd = process.env.NODE_ENV === 'production';
+  // 15 minutes
+  const atMaxAge = 15 * 60;
+  // 15 days
+  const rtMaxAge = 15 * 24 * 60 * 60;
+
+  res.cookie('tg_token', tokens.accessToken, {
+    path: '/',
+    maxAge: atMaxAge * 1000,
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProd,
+  });
+
+  res.cookie('tg_refresh_token', tokens.refreshToken, {
+    path: '/',
+    maxAge: rtMaxAge * 1000,
+    httpOnly: false,
+    sameSite: 'lax',
+    secure: isProd,
+  });
 }
 
 // Unified user resolution & creation helper directly in PostgreSQL
@@ -635,12 +714,15 @@ router.post('/verify-otp', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Mobile number verified and authenticated successfully',
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -716,12 +798,17 @@ router.post('/link-phone', async (req, res) => {
 
         removePendingGoogleSignup(targetUserId);
 
-        const token = generateToken(createdUser);
+        const tokens = await generateTokens(createdUser);
+        const authCode = createAuthCode(createdUser, tokens.accessToken);
+        setAuthCookies(res, tokens);
         return res.json({
           success: true,
           message: 'Mobile number linked and account created successfully',
           user: createdUser,
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          token: tokens.accessToken,
+          authCode,
           hasPhone: true,
         });
       }
@@ -752,13 +839,16 @@ router.post('/link-phone', async (req, res) => {
       });
     }
 
-    const token = generateToken(user);
-    const authCode = createAuthCode(user, token);
+    const tokens = await generateTokens(user);
+    const authCode = createAuthCode(user, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Mobile number linked successfully',
       user,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       hasPhone: true,
     });
@@ -995,12 +1085,15 @@ router.post('/google', async (req, res) => {
         );
         const isNewUser = (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') ? !isRegisteredStudio : false;
 
-        const token = generateToken(returnUser);
-        const authCode = createAuthCode(returnUser, token);
+        const tokens = await generateTokens(returnUser);
+        const authCode = createAuthCode(returnUser, tokens.accessToken);
+        setAuthCookies(res, tokens);
         return res.json({
           success: true,
           message: 'Authenticated with Google successfully',
-          token,
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          token: tokens.accessToken,
           authCode,
           user: returnUser,
           role: returnUser.role,
@@ -1030,14 +1123,17 @@ router.post('/google', async (req, res) => {
         status: 'INACTIVE',
       });
 
-      const token = generateToken(createdTempUser);
-      const authCode = createAuthCode(createdTempUser, token);
+      const tokens = await generateTokens(createdTempUser);
+      const authCode = createAuthCode(createdTempUser, tokens.accessToken);
+      setAuthCookies(res, tokens);
 
       return res.json({
         success: true,
         isNewUser: true,
         message: 'Google identity verified successfully. Please complete studio onboarding.',
-        token,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        token: tokens.accessToken,
         authCode,
         user: createdTempUser,
         role: 'TEMP_STUDIO',
@@ -1233,11 +1329,14 @@ router.post('/signup', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -1323,11 +1422,14 @@ router.post('/login', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(returnUser);
-    const authCode = createAuthCode(returnUser, token);
+    const tokens = await generateTokens(returnUser);
+    const authCode = createAuthCode(returnUser, tokens.accessToken);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       authCode,
       user: returnUser,
       role: returnUser.role,
@@ -1341,7 +1443,7 @@ router.post('/login', async (req, res) => {
 });
 
 async function enrichStudioUser(user) {
-  if (!user || user.role !== 'STUDIO') return user;
+  if (!user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) return user;
   try {
     let store = null;
     if (user.studioId) {
@@ -1369,11 +1471,13 @@ async function enrichStudioUser(user) {
         ...user,
         email: user.email || store.email || null,
         phone: user.phone || store.phone || null,
+        address: user.address || store.address || null,
+        postcode: user.postcode || store.postcode || null,
         storeEmail: store.email || null,
         storePhone: store.phone || null,
-        area: store.area || null,
-        lat: store.lat ?? null,
-        lng: store.lng ?? null,
+        area: user.area || store.area || null,
+        lat: user.lat ?? store.lat ?? null,
+        lng: user.lng ?? store.lng ?? null,
         openingHours: store.openingHours || 'Mon–Sat: 09:00 – 19:00',
         dailyCapacity: store.dailyCapacity ?? 25,
         machines: store.machines ?? 4,
@@ -1439,12 +1543,15 @@ router.post('/update-profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    let cleanEmail = null;
+    let cleanPhone = null;
+
     const updateData = {};
-    if (name) updateData.name = name;
-    if (studioName !== undefined) updateData.studioName = studioName;
+    if (name !== undefined) updateData.name = typeof name === 'string' ? name.trim() : name;
+    if (studioName !== undefined) updateData.studioName = typeof studioName === 'string' ? studioName.trim() : studioName;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (email) {
-      const cleanEmail = email.toLowerCase().trim();
+      cleanEmail = email.toLowerCase().trim();
       const emailConflict = await prisma.user.findFirst({
         where: { email: cleanEmail, NOT: { id: targetId } },
       });
@@ -1458,7 +1565,7 @@ router.post('/update-profile', async (req, res) => {
       if (!phoneValidation.isValid) {
         return res.status(400).json({ error: phoneValidation.error });
       }
-      const cleanPhone = phoneValidation.formatted;
+      cleanPhone = phoneValidation.formatted;
 
       // If phone number is being changed from an existing registered phone, require OTP verification!
       const currentDigits = (currentUser.phone || '').replace(/\D/g, '');
@@ -1493,8 +1600,8 @@ router.post('/update-profile', async (req, res) => {
       }
       updateData.phone = cleanPhone;
     }
-    if (address) updateData.address = address;
-    if (postcode) updateData.postcode = postcode;
+    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
+    if (postcode !== undefined) updateData.postcode = typeof postcode === 'string' ? postcode.trim().toUpperCase() : postcode;
     if (measurements !== undefined) {
       updateData.measurements = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
     }
@@ -1505,7 +1612,7 @@ router.post('/update-profile', async (req, res) => {
     });
 
     // If user is a Studio partner, sync details to partnerStore
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       try {
         let store = null;
         if (user.studioId) {
@@ -1516,37 +1623,104 @@ router.post('/update-profile', async (req, res) => {
             where: {
               OR: [
                 ...(user.studioName ? [{ name: user.studioName }] : []),
+                ...(studioName ? [{ name: String(studioName).trim() }] : []),
+                ...(user.email ? [{ email: user.email }] : []),
+                ...(user.phone ? [{ phone: user.phone }] : []),
                 { leadTailor: user.name },
               ],
             },
           });
         }
-        if (store) {
-          const storeUpdateData = {
-            ...(studioName !== undefined ? { name: studioName } : {}),
-            ...((cleanEmail || updateData.email) ? { email: cleanEmail || updateData.email } : (user.email ? { email: user.email } : {})),
-            ...((cleanPhone || updateData.phone) ? { phone: cleanPhone || updateData.phone } : (user.phone ? { phone: user.phone } : {})),
-            ...(leadTailor || name ? { leadTailor: leadTailor || name } : {}),
-            ...(phone !== undefined ? { phone: phone.trim() } : {}),
-            ...(email !== undefined ? { email: email.trim().toLowerCase() } : {}),
-            ...(address !== undefined ? { address } : {}),
-            ...(postcode !== undefined ? { postcode } : {}),
-            ...(area !== undefined ? { area } : {}),
-            ...(lat !== undefined && lat !== null && !isNaN(parseFloat(lat)) ? { lat: parseFloat(lat) } : {}),
-            ...(lng !== undefined && lng !== null && !isNaN(parseFloat(lng)) ? { lng: parseFloat(lng) } : {}),
-            ...(openingHours !== undefined ? { openingHours } : {}),
-            ...(dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10)) ? { dailyCapacity: parseInt(dailyCapacity, 10) } : {}),
-            ...(machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10)) ? { machines: parseInt(machines, 10) } : {}),
-            ...(workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10)) ? { workers: parseInt(workers, 10) } : {}),
-            ...(specialties !== undefined && Array.isArray(specialties) ? { specialties } : {}),
-          };
 
-          await prisma.partnerStore.update({
-            where: { id: store.id },
-            data: storeUpdateData,
+        // If no partner store exists yet for this studio partner, create one
+        if (!store) {
+          const generatedId = `store-${Math.random().toString(36).substring(2, 6)}-${Math.floor(100 + Math.random() * 900)}`;
+          const storeName = (studioName || user.studioName || user.name || 'Darzi Partner Studio').trim();
+          const storeArea = (area || user.postcode || 'Mumbai').trim();
+          const storeAddress = (address !== undefined ? String(address).trim() : (user.address || 'Partner Workshop Address')).trim();
+          const storePostcode = (postcode !== undefined ? String(postcode).trim().toUpperCase() : (user.postcode || '400001')).trim();
+          const storeLat = (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) ? parseFloat(lat) : 19.0760;
+          const storeLng = (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) ? parseFloat(lng) : 72.8777;
+
+          store = await prisma.partnerStore.create({
+            data: {
+              id: user.studioId || generatedId,
+              name: storeName,
+              email: cleanEmail || updateData.email || user.email || null,
+              phone: cleanPhone || updateData.phone || user.phone || null,
+              area: storeArea,
+              address: storeAddress,
+              postcode: storePostcode,
+              rating: 5.0,
+              reviewCount: 1,
+              openingHours: (openingHours && typeof openingHours === 'string') ? openingHours.trim() : 'Mon–Sat: 09:00 – 19:00',
+              dailyCapacity: (dailyCapacity !== undefined && !isNaN(parseInt(dailyCapacity, 10))) ? parseInt(dailyCapacity, 10) : 25,
+              machines: (machines !== undefined && !isNaN(parseInt(machines, 10))) ? parseInt(machines, 10) : 4,
+              workers: (workers !== undefined && !isNaN(parseInt(workers, 10))) ? parseInt(workers, 10) : 4,
+              leadTailor: (leadTailor || name || user.name || 'Master Tailor').trim(),
+              specialties: Array.isArray(specialties) && specialties.length > 0 ? specialties : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+              retailSold: true,
+              lat: storeLat,
+              lng: storeLng,
+            },
           });
 
-          if (!user.studioId) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { studioId: store.id },
+          });
+        } else {
+          // Store already exists, update all changed fields safely
+          const storeUpdateData = {};
+          if (studioName !== undefined) storeUpdateData.name = String(studioName).trim();
+          if (cleanEmail || updateData.email || email) {
+            storeUpdateData.email = cleanEmail || updateData.email || String(email).trim().toLowerCase();
+          }
+          if (cleanPhone || updateData.phone || phone) {
+            storeUpdateData.phone = cleanPhone || updateData.phone || String(phone).trim();
+          }
+          if (leadTailor !== undefined || name !== undefined) {
+            storeUpdateData.leadTailor = (leadTailor || name || user.name || '').trim();
+          }
+          if (address !== undefined) {
+            storeUpdateData.address = String(address).trim();
+          }
+          if (postcode !== undefined) {
+            storeUpdateData.postcode = String(postcode).trim().toUpperCase();
+          }
+          if (area !== undefined) {
+            storeUpdateData.area = String(area).trim();
+          }
+          if (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) {
+            storeUpdateData.lat = parseFloat(lat);
+          }
+          if (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) {
+            storeUpdateData.lng = parseFloat(lng);
+          }
+          if (openingHours !== undefined) {
+            storeUpdateData.openingHours = String(openingHours).trim();
+          }
+          if (dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10))) {
+            storeUpdateData.dailyCapacity = parseInt(dailyCapacity, 10);
+          }
+          if (machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10))) {
+            storeUpdateData.machines = parseInt(machines, 10);
+          }
+          if (workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10))) {
+            storeUpdateData.workers = parseInt(workers, 10);
+          }
+          if (specialties !== undefined && Array.isArray(specialties)) {
+            storeUpdateData.specialties = specialties;
+          }
+
+          if (Object.keys(storeUpdateData).length > 0) {
+            await prisma.partnerStore.update({
+              where: { id: store.id },
+              data: storeUpdateData,
+            });
+          }
+
+          if (!user.studioId || user.studioId !== store.id) {
             user = await prisma.user.update({
               where: { id: user.id },
               data: { studioId: store.id },
@@ -1554,21 +1728,24 @@ router.post('/update-profile', async (req, res) => {
           }
         }
       } catch (storeSyncErr) {
-        console.warn('Sync partner store error:', storeSyncErr.message);
+        console.error('Sync partner store error:', storeSyncErr);
       }
     }
 
     let enrichedUser = user;
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       enrichedUser = await enrichStudioUser(user);
     }
 
-    const token = generateToken(user);
+    const tokens = await generateTokens(user);
+    setAuthCookies(res, tokens);
     return res.json({
       success: true,
       message: 'Profile updated successfully',
       user: enrichedUser,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       hasPhone: Boolean(user.phone),
     });
   } catch (err) {
@@ -1647,20 +1824,30 @@ router.get('/me', async (req, res) => {
           });
         }
         if (store) {
-          const needsSync =
-            (store.address && user.address !== store.address) ||
-            (store.postcode && user.postcode !== store.postcode) ||
-            (store.name && user.studioName !== store.name) ||
-            (!user.studioId);
-          if (needsSync) {
+          const userUpdates = {};
+          if (!user.studioId) userUpdates.studioId = store.id;
+          if (!user.address && store.address) userUpdates.address = store.address;
+          if (!user.postcode && store.postcode) userUpdates.postcode = store.postcode;
+          if (!user.studioName && store.name) userUpdates.studioName = store.name;
+
+          if (Object.keys(userUpdates).length > 0) {
             user = await prisma.user.update({
               where: { id: user.id },
-              data: {
-                address: store.address || user.address,
-                postcode: store.postcode || user.postcode,
-                studioName: store.name || user.studioName,
-                studioId: user.studioId || store.id,
-              },
+              data: userUpdates,
+            });
+          }
+
+          // Ensure store also matches user's latest address, postcode, studioName, and leadTailor
+          const storeUpdates = {};
+          if (user.address && store.address !== user.address) storeUpdates.address = user.address;
+          if (user.postcode && store.postcode !== user.postcode) storeUpdates.postcode = user.postcode;
+          if (user.studioName && store.name !== user.studioName) storeUpdates.name = user.studioName;
+          if (user.name && store.leadTailor !== user.name) storeUpdates.leadTailor = user.name;
+
+          if (Object.keys(storeUpdates).length > 0) {
+            await prisma.partnerStore.update({
+              where: { id: store.id },
+              data: storeUpdates,
             });
           }
         }
@@ -1698,9 +1885,115 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// POST /api/auth/logout - Comprehensive logout endpoint clearing cookies and terminating server-side session
-router.post('/logout', (req, res) => {
+// POST /api/auth/refresh - Refresh Access Token (15m) using valid Refresh Token (15d) and DB validation
+router.post('/refresh', async (req, res) => {
   try {
+    let refreshToken = req.body?.refreshToken;
+
+    // Check cookie if not in body
+    if (!refreshToken && req.headers.cookie) {
+      const match = req.headers.cookie
+        .split(';')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('tg_refresh_token=') || c.startsWith('refreshToken='));
+      if (match) refreshToken = match.split('=')[1];
+    }
+
+    if (!refreshToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      refreshToken = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Refresh token is required.' });
+    }
+
+    let decoded = null;
+    try {
+      decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+    } catch (err) {
+      try {
+        decoded = jwt.verify(refreshToken, JWT_SECRET);
+      } catch (fallbackErr) {
+        return res.status(401).json({ error: 'Invalid or expired refresh token. Please sign in again.' });
+      }
+    }
+
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: 'Invalid refresh token payload.' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User account not found or has been deleted.' });
+    }
+
+    // Encrypted token validation: verify hashed token matches PostgreSQL record
+    const incomingHashed = hashRefreshToken(refreshToken);
+    if (!user.refreshToken || user.refreshToken !== incomingHashed) {
+      return res.status(401).json({ error: 'Refresh token has been revoked, rotated, or invalidated. Please sign in again.' });
+    }
+
+    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Your account has been suspended.' });
+    }
+
+    if (await isUserExpiredTempStudio(user)) {
+      return res.status(401).json({ error: 'Temporary studio account expired.' });
+    }
+
+    let returnUser = user;
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+      returnUser = await enrichStudioUser(user);
+    }
+
+    // Issue new pair and rotate database stored hash
+    const tokens = await generateTokens(returnUser);
+    setAuthCookies(res, tokens);
+
+    return res.json({
+      success: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
+      user: returnUser,
+    });
+  } catch (err) {
+    console.error('Refresh Token Route Error:', err);
+    return res.status(500).json({ error: 'Failed to refresh token.' });
+  }
+});
+
+// POST /api/auth/logout - Comprehensive logout endpoint clearing database token, cookies and session
+router.post('/logout', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (_) {}
+    }
+
+    let refreshToken = req.body?.refreshToken;
+    if (!userId && refreshToken) {
+      try {
+        const decodedRt = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+        userId = decodedRt.id;
+      } catch (_) {}
+    }
+
+    // Invalidate refresh token in database on logout
+    if (userId) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { refreshToken: null },
+      }).catch(() => {});
+    }
+
     const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
 
     // Express clearCookie helper across common configurations
@@ -1711,7 +2004,7 @@ router.post('/logout', (req, res) => {
       { path: '/' }
     ];
 
-    const cookieNames = ['tg_token', 'tg_user_role', 'tg_user', 'token', 'session', 'auth_token'];
+    const cookieNames = ['tg_token', 'tg_refresh_token', 'tg_user_role', 'tg_user', 'token', 'refreshToken', 'session', 'auth_token'];
 
     cookieNames.forEach(name => {
       cookieOptionsList.forEach(opts => {
@@ -1722,9 +2015,11 @@ router.post('/logout', (req, res) => {
     // Explicit Set-Cookie headers to guarantee browser clears all auth cookies
     res.setHeader('Set-Cookie', [
       `tg_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `tg_refresh_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `tg_user_role=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `tg_user=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
+      `refreshToken=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `session=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
       `auth_token=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax`,
     ]);
@@ -1792,11 +2087,14 @@ router.post('/oauth/exchange', async (req, res) => {
       returnUser = await enrichStudioUser(returnUser);
     }
 
-    const token = generateToken(returnUser);
+    const tokens = await generateTokens(returnUser);
+    setAuthCookies(res, tokens);
 
     return res.json({
       success: true,
-      token,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      token: tokens.accessToken,
       user: returnUser,
       role: returnUser.role || item.role,
     });

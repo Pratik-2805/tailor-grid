@@ -111,7 +111,8 @@ export function getAuthToken(): string | null {
 }
 
 export function setAuthToken(token: string): void {
-  setCookie('tg_token', token, 30, '/')
+  // 15 minutes (15 / 1440 days)
+  setCookie('tg_token', token, 15 / 1440, '/')
   if (typeof window !== 'undefined') {
     localStorage.removeItem('tg_token')
   }
@@ -124,6 +125,34 @@ export function removeAuthToken(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('tg_token')
     localStorage.removeItem('token')
+  }
+}
+
+export function getRefreshToken(): string | null {
+  let token = getCookie('tg_refresh_token')
+  if (!token && typeof window !== 'undefined') {
+    const legacy = localStorage.getItem('tg_refresh_token') || localStorage.getItem('refreshToken')
+    if (legacy) {
+      setRefreshToken(legacy)
+      localStorage.removeItem('tg_refresh_token')
+      localStorage.removeItem('refreshToken')
+      return legacy
+    }
+  }
+  return token
+}
+
+export function setRefreshToken(token: string): void {
+  // 15 days
+  setCookie('tg_refresh_token', token, 15, '/')
+}
+
+export function removeRefreshToken(): void {
+  deleteCookie('tg_refresh_token', '/')
+  deleteCookie('refreshToken', '/')
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('tg_refresh_token')
+    localStorage.removeItem('refreshToken')
   }
 }
 
@@ -229,6 +258,7 @@ export function clearUnnecessaryDataOnLogin(): void {
 export function clearAllAuth(): void {
   clearUnnecessaryDataOnLogin()
   removeAuthToken()
+  removeRefreshToken()
   removeAuthUser()
   removeAuthRole()
   clearAllCookies()
