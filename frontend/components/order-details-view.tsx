@@ -1170,9 +1170,14 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 {/* Cloth Type */}
                 <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
-                  <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
-                    Garment / Cloth Type
-                  </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400">
+                      Garment / Cloth Type
+                    </span>
+                    <span className="text-[10px] font-bold bg-[#0F1115] text-white px-2 py-0.5 rounded-md">
+                      Qty: {order?.quantity || 1}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#0F1115]">
                     <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0">
                       <GarmentCategoryIcon categoryId={order?.garmentId} className="size-3.5 text-white" />

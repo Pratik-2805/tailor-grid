@@ -19,6 +19,8 @@ import {
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
+  Plus,
+  Minus,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay, resolveAccurateCityFromComponents } from '@/components/use-city-location'
@@ -315,6 +317,12 @@ export default function BookPage() {
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
 
+  // Garment Quantity state
+  const [garmentQuantity, setGarmentQuantity] = useState<number>(() => {
+    const s = getSessionBookingData()
+    return typeof s?.quantity === 'number' && s.quantity > 0 ? s.quantity : 1
+  })
+
   // Image Upload state
   const [uploadedImages, setUploadedImages] = useState<string[]>(() => {
     const s = getSessionBookingData()
@@ -603,6 +611,15 @@ export default function BookPage() {
     )
   }, [currentCategory, selectedServiceId])
 
+  // Unit and Total Price calculation based on Garment Quantity
+  const unitPrice = useMemo(() => {
+    return currentService?.customerPrice || currentCategory?.startingPrice || 25
+  }, [currentService, currentCategory])
+
+  const calculatedTotalPrice = useMemo(() => {
+    return unitPrice * garmentQuantity
+  }, [unitPrice, garmentQuantity])
+
   // Map coordinates dynamically based on live GPS or selected city
   const mapCoordinates = useMemo(() => {
     if (userGpsCoords) return userGpsCoords
@@ -757,6 +774,7 @@ export default function BookPage() {
       storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
       garmentId: selectedGarmentId,
       garmentName: currentCategory?.name || 'Garment',
+      quantity: garmentQuantity,
       serviceId: selectedServiceId,
       serviceName: currentService?.name || 'Alteration Service',
       brand: 'Levi\'s / Bespoke',
@@ -765,7 +783,7 @@ export default function BookPage() {
       city: selectedCity,
       date: formattedDateDisplay,
       timeSlot: activeSchedTime,
-      price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
+      price: calculatedTotalPrice,
       status: 'Allocated',
     }
 
@@ -773,6 +791,7 @@ export default function BookPage() {
     if (typeof window !== 'undefined') {
       const storagePayload = {
         ...orderData,
+        quantity: garmentQuantity,
         images: (uploadedImages || []).filter((img: string) => !img.startsWith('data:')),
       }
       setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storagePayload))
@@ -801,12 +820,13 @@ export default function BookPage() {
           customerLng: coords.lng,
           garmentId: selectedGarmentId,
           garmentName: currentCategory?.name || 'Garment',
+          quantity: garmentQuantity,
           serviceId: selectedServiceId,
           serviceName: currentService?.name || 'Alteration Service',
           storeId: closestStore?.id || undefined,
           storeName: closestStore?.name || 'Awaiting Studio Acceptance',
           storePhone: closestStore?.phone || undefined,
-          price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
+          price: calculatedTotalPrice,
           date: formattedDateDisplay,
           timeSlot: activeSchedTime,
           imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
@@ -855,9 +875,10 @@ export default function BookPage() {
         customerLng: coords.lng,
         garmentId: selectedGarmentId,
         garmentName: currentCategory?.name || 'Garment',
+        quantity: garmentQuantity,
         serviceId: selectedServiceId,
         serviceName: currentService?.name || 'Alteration Service',
-        price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
+        price: calculatedTotalPrice,
         date: formattedDateDisplay,
         timeSlot: activeSchedTime,
         imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
@@ -1182,7 +1203,43 @@ export default function BookPage() {
                   )}
                 </div>
 
-              {/* 3. Garment Photo / Reference Fit (Optional - Max 4) */}
+                {/* 3. Minimal Garment Quantity Strip */}
+                <div className="flex items-center justify-between px-1.5 py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                      Garment Quantity
+                    </span>
+                    <span className="text-xs font-bold text-neutral-800">
+                      ({garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'})
+                    </span>
+                  </div>
+
+                  <div className="inline-flex items-center gap-1.5 bg-[#F3F3F3] rounded-full p-1 border border-neutral-200/60 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setGarmentQuantity((q) => Math.max(1, q - 1))}
+                      disabled={garmentQuantity <= 1}
+                      className="size-6 rounded-full bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center text-black transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      title="Decrease quantity"
+                    >
+                      <Minus size={11} strokeWidth={2.5} />
+                    </button>
+                    <span className="w-5 text-center text-xs font-extrabold font-mono text-black select-none">
+                      {garmentQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setGarmentQuantity((q) => Math.min(10, q + 1))}
+                      disabled={garmentQuantity >= 10}
+                      className="size-6 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      title="Increase quantity"
+                    >
+                      <Plus size={11} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+
+              {/* 4. Garment Photo / Reference Fit (Optional - Max 4) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
