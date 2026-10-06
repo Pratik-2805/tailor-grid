@@ -8,6 +8,9 @@ export type Screen =
   | 'partner'
   | 'order'
   | 'profile'
+  | 'contact'
+  | 'support'
+  | 'privacy'
 
 export type GarmentCategory = {
   id: string

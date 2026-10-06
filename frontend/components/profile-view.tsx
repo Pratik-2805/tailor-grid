@@ -7,6 +7,10 @@ import {
   Check,
   ChevronRight,
   Edit2,
+  Headphones,
+  HelpCircle,
+  Lock,
+  ShieldCheck,
   User as UserIcon,
 } from 'lucide-react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
@@ -533,6 +537,58 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             </div>
           </div>
         )}
+
+        {/* Section 4: Concierge, Support & Legal Policies */}
+        <div className="pt-6 border-t border-[#E8E1D5] space-y-3">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Client Concierge &amp; Legal</h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => go('contact')}
+              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#9E593B] text-left transition-all group cursor-pointer shadow-2xs"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="size-7 rounded-lg bg-[#FAF8F5] text-[#9E593B] grid place-items-center group-hover:scale-110 transition-transform">
+                  <Headphones size={14} />
+                </span>
+                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-xs font-bold text-[#18191B]">Contact Concierge</p>
+              <p className="text-[10px] text-[#7A7E85]">Fitting advice &amp; studio inquiries</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => go('support')}
+              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#10B981] text-left transition-all group cursor-pointer shadow-2xs"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="size-7 rounded-lg bg-[#ECFDF5] text-[#10B981] grid place-items-center group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={14} />
+                </span>
+                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-xs font-bold text-[#18191B]">100% Fit Guarantee</p>
+              <p className="text-[10px] text-[#7A7E85]">Help center &amp; drop-off FAQs</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => go('privacy')}
+              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#3B82F6] text-left transition-all group cursor-pointer shadow-2xs"
+            >
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="size-7 rounded-lg bg-[#EFF6FF] text-[#3B82F6] grid place-items-center group-hover:scale-110 transition-transform">
+                  <Lock size={14} />
+                </span>
+                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+              </div>
+              <p className="text-xs font-bold text-[#18191B]">Privacy Policy</p>
+              <p className="text-[10px] text-[#7A7E85]">Measurement vault &amp; data rights</p>
+            </button>
+          </div>
+        </div>
 
       </div>
     </div>
