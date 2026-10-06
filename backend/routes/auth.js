@@ -1543,12 +1543,15 @@ router.post('/update-profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
+    let cleanEmail = null;
+    let cleanPhone = null;
+
     const updateData = {};
-    if (name) updateData.name = name;
-    if (studioName !== undefined) updateData.studioName = studioName;
+    if (name !== undefined) updateData.name = typeof name === 'string' ? name.trim() : name;
+    if (studioName !== undefined) updateData.studioName = typeof studioName === 'string' ? studioName.trim() : studioName;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (email) {
-      const cleanEmail = email.toLowerCase().trim();
+      cleanEmail = email.toLowerCase().trim();
       const emailConflict = await prisma.user.findFirst({
         where: { email: cleanEmail, NOT: { id: targetId } },
       });
@@ -1562,7 +1565,7 @@ router.post('/update-profile', async (req, res) => {
       if (!phoneValidation.isValid) {
         return res.status(400).json({ error: phoneValidation.error });
       }
-      const cleanPhone = phoneValidation.formatted;
+      cleanPhone = phoneValidation.formatted;
 
       // If phone number is being changed from an existing registered phone, require OTP verification!
       const currentDigits = (currentUser.phone || '').replace(/\D/g, '');
@@ -1597,8 +1600,8 @@ router.post('/update-profile', async (req, res) => {
       }
       updateData.phone = cleanPhone;
     }
-    if (address) updateData.address = address;
-    if (postcode) updateData.postcode = postcode;
+    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
+    if (postcode !== undefined) updateData.postcode = typeof postcode === 'string' ? postcode.trim().toUpperCase() : postcode;
     if (measurements !== undefined) {
       updateData.measurements = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
     }
@@ -1609,7 +1612,7 @@ router.post('/update-profile', async (req, res) => {
     });
 
     // If user is a Studio partner, sync details to partnerStore
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       try {
         let store = null;
         if (user.studioId) {
@@ -1620,37 +1623,104 @@ router.post('/update-profile', async (req, res) => {
             where: {
               OR: [
                 ...(user.studioName ? [{ name: user.studioName }] : []),
+                ...(studioName ? [{ name: String(studioName).trim() }] : []),
+                ...(user.email ? [{ email: user.email }] : []),
+                ...(user.phone ? [{ phone: user.phone }] : []),
                 { leadTailor: user.name },
               ],
             },
           });
         }
-        if (store) {
-          const storeUpdateData = {
-            ...(studioName !== undefined ? { name: studioName } : {}),
-            ...((cleanEmail || updateData.email) ? { email: cleanEmail || updateData.email } : (user.email ? { email: user.email } : {})),
-            ...((cleanPhone || updateData.phone) ? { phone: cleanPhone || updateData.phone } : (user.phone ? { phone: user.phone } : {})),
-            ...(leadTailor || name ? { leadTailor: leadTailor || name } : {}),
-            ...(phone !== undefined ? { phone: phone.trim() } : {}),
-            ...(email !== undefined ? { email: email.trim().toLowerCase() } : {}),
-            ...(address !== undefined ? { address } : {}),
-            ...(postcode !== undefined ? { postcode } : {}),
-            ...(area !== undefined ? { area } : {}),
-            ...(lat !== undefined && lat !== null && !isNaN(parseFloat(lat)) ? { lat: parseFloat(lat) } : {}),
-            ...(lng !== undefined && lng !== null && !isNaN(parseFloat(lng)) ? { lng: parseFloat(lng) } : {}),
-            ...(openingHours !== undefined ? { openingHours } : {}),
-            ...(dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10)) ? { dailyCapacity: parseInt(dailyCapacity, 10) } : {}),
-            ...(machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10)) ? { machines: parseInt(machines, 10) } : {}),
-            ...(workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10)) ? { workers: parseInt(workers, 10) } : {}),
-            ...(specialties !== undefined && Array.isArray(specialties) ? { specialties } : {}),
-          };
 
-          await prisma.partnerStore.update({
-            where: { id: store.id },
-            data: storeUpdateData,
+        // If no partner store exists yet for this studio partner, create one
+        if (!store) {
+          const generatedId = `store-${Math.random().toString(36).substring(2, 6)}-${Math.floor(100 + Math.random() * 900)}`;
+          const storeName = (studioName || user.studioName || user.name || 'Darzi Partner Studio').trim();
+          const storeArea = (area || user.postcode || 'Mumbai').trim();
+          const storeAddress = (address !== undefined ? String(address).trim() : (user.address || 'Partner Workshop Address')).trim();
+          const storePostcode = (postcode !== undefined ? String(postcode).trim().toUpperCase() : (user.postcode || '400001')).trim();
+          const storeLat = (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) ? parseFloat(lat) : 19.0760;
+          const storeLng = (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) ? parseFloat(lng) : 72.8777;
+
+          store = await prisma.partnerStore.create({
+            data: {
+              id: user.studioId || generatedId,
+              name: storeName,
+              email: cleanEmail || updateData.email || user.email || null,
+              phone: cleanPhone || updateData.phone || user.phone || null,
+              area: storeArea,
+              address: storeAddress,
+              postcode: storePostcode,
+              rating: 5.0,
+              reviewCount: 1,
+              openingHours: (openingHours && typeof openingHours === 'string') ? openingHours.trim() : 'Mon–Sat: 09:00 – 19:00',
+              dailyCapacity: (dailyCapacity !== undefined && !isNaN(parseInt(dailyCapacity, 10))) ? parseInt(dailyCapacity, 10) : 25,
+              machines: (machines !== undefined && !isNaN(parseInt(machines, 10))) ? parseInt(machines, 10) : 4,
+              workers: (workers !== undefined && !isNaN(parseInt(workers, 10))) ? parseInt(workers, 10) : 4,
+              leadTailor: (leadTailor || name || user.name || 'Master Tailor').trim(),
+              specialties: Array.isArray(specialties) && specialties.length > 0 ? specialties : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+              retailSold: true,
+              lat: storeLat,
+              lng: storeLng,
+            },
           });
 
-          if (!user.studioId) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { studioId: store.id },
+          });
+        } else {
+          // Store already exists, update all changed fields safely
+          const storeUpdateData = {};
+          if (studioName !== undefined) storeUpdateData.name = String(studioName).trim();
+          if (cleanEmail || updateData.email || email) {
+            storeUpdateData.email = cleanEmail || updateData.email || String(email).trim().toLowerCase();
+          }
+          if (cleanPhone || updateData.phone || phone) {
+            storeUpdateData.phone = cleanPhone || updateData.phone || String(phone).trim();
+          }
+          if (leadTailor !== undefined || name !== undefined) {
+            storeUpdateData.leadTailor = (leadTailor || name || user.name || '').trim();
+          }
+          if (address !== undefined) {
+            storeUpdateData.address = String(address).trim();
+          }
+          if (postcode !== undefined) {
+            storeUpdateData.postcode = String(postcode).trim().toUpperCase();
+          }
+          if (area !== undefined) {
+            storeUpdateData.area = String(area).trim();
+          }
+          if (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) {
+            storeUpdateData.lat = parseFloat(lat);
+          }
+          if (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) {
+            storeUpdateData.lng = parseFloat(lng);
+          }
+          if (openingHours !== undefined) {
+            storeUpdateData.openingHours = String(openingHours).trim();
+          }
+          if (dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10))) {
+            storeUpdateData.dailyCapacity = parseInt(dailyCapacity, 10);
+          }
+          if (machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10))) {
+            storeUpdateData.machines = parseInt(machines, 10);
+          }
+          if (workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10))) {
+            storeUpdateData.workers = parseInt(workers, 10);
+          }
+          if (specialties !== undefined && Array.isArray(specialties)) {
+            storeUpdateData.specialties = specialties;
+          }
+
+          if (Object.keys(storeUpdateData).length > 0) {
+            await prisma.partnerStore.update({
+              where: { id: store.id },
+              data: storeUpdateData,
+            });
+          }
+
+          if (!user.studioId || user.studioId !== store.id) {
             user = await prisma.user.update({
               where: { id: user.id },
               data: { studioId: store.id },
@@ -1658,12 +1728,12 @@ router.post('/update-profile', async (req, res) => {
           }
         }
       } catch (storeSyncErr) {
-        console.warn('Sync partner store error:', storeSyncErr.message);
+        console.error('Sync partner store error:', storeSyncErr);
       }
     }
 
     let enrichedUser = user;
-    if (user.role === 'STUDIO') {
+    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
       enrichedUser = await enrichStudioUser(user);
     }
 
@@ -1754,20 +1824,30 @@ router.get('/me', async (req, res) => {
           });
         }
         if (store) {
-          const needsSync =
-            (store.address && user.address !== store.address) ||
-            (store.postcode && user.postcode !== store.postcode) ||
-            (store.name && user.studioName !== store.name) ||
-            (!user.studioId);
-          if (needsSync) {
+          const userUpdates = {};
+          if (!user.studioId) userUpdates.studioId = store.id;
+          if (!user.address && store.address) userUpdates.address = store.address;
+          if (!user.postcode && store.postcode) userUpdates.postcode = store.postcode;
+          if (!user.studioName && store.name) userUpdates.studioName = store.name;
+
+          if (Object.keys(userUpdates).length > 0) {
             user = await prisma.user.update({
               where: { id: user.id },
-              data: {
-                address: store.address || user.address,
-                postcode: store.postcode || user.postcode,
-                studioName: store.name || user.studioName,
-                studioId: user.studioId || store.id,
-              },
+              data: userUpdates,
+            });
+          }
+
+          // Ensure store also matches user's latest address, postcode, studioName, and leadTailor
+          const storeUpdates = {};
+          if (user.address && store.address !== user.address) storeUpdates.address = user.address;
+          if (user.postcode && store.postcode !== user.postcode) storeUpdates.postcode = user.postcode;
+          if (user.studioName && store.name !== user.studioName) storeUpdates.name = user.studioName;
+          if (user.name && store.leadTailor !== user.name) storeUpdates.leadTailor = user.name;
+
+          if (Object.keys(storeUpdates).length > 0) {
+            await prisma.partnerStore.update({
+              where: { id: store.id },
+              data: storeUpdates,
             });
           }
         }
