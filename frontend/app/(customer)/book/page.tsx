@@ -151,9 +151,9 @@ function parseGoogleAddressComponents(results: any[], lat?: number, lng?: number
 
   // Locality / Street / Area
   const localityParts = [route, sublocality2, sublocality1 || neighborhood].filter(Boolean)
-  const localityStr = localityParts.length > 0 ? Array.from(new Set(localityParts)).join(', ') : (neighborhood || sublocality1 || '')
+  const localityStr = localityParts.length > 0 ? Array.from(new Set(localityParts)).join(', ') : (sublocality2 || neighborhood || sublocality1 || '')
 
-  // Accurate City / Locality Resolution dynamically
+  // Accurate City / Region Resolution dynamically (e.g. "Mumbai, MH")
   const resolved = resolveAccurateCityFromComponents(
     comps,
     lat ?? (first?.geometry?.location?.lat ? (typeof first.geometry.location.lat === 'function' ? first.geometry.location.lat() : first.geometry.location.lat) : undefined),
@@ -165,7 +165,7 @@ function parseGoogleAddressComponents(results: any[], lat?: number, lng?: number
     houseNo,
     apartment,
     locality: localityStr,
-    city: resolved.fullFormatted,
+    city: resolved.cityStateFormatted,
   }
 }
 

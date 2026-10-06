@@ -79,10 +79,24 @@ export function resolveAccurateCityFromComponents(
   lat?: number,
   lng?: number,
   formattedAddress?: string
-): { cityName: string; stateCode: string; fullFormatted: string; specificArea: string } {
+): {
+  cityName: string
+  stateCode: string
+  cityStateFormatted: string
+  fullFormatted: string
+  specificArea: string
+  displayLocality: string
+} {
   if (!Array.isArray(comps) || comps.length === 0) {
     const fallback = getStoredCity() || DEFAULT_CITY_ENV
-    return { cityName: fallback, stateCode: '', fullFormatted: fallback, specificArea: fallback }
+    return {
+      cityName: fallback,
+      stateCode: '',
+      cityStateFormatted: fallback,
+      fullFormatted: fallback,
+      specificArea: fallback,
+      displayLocality: fallback,
+    }
   }
 
   const getComp = (type: string) => comps.find((c: any) => c.types && c.types.includes(type))?.long_name || ''
@@ -97,21 +111,30 @@ export function resolveAccurateCityFromComponents(
   const admin2 = getComp('administrative_area_level_2')
   const stateCode = getShort('administrative_area_level_1') || getShort('country') || ''
 
-  // Most specific sublocality/area (e.g. "Naigaon West")
-  const specificArea = sublocality2 || sublocality1 || neighborhood || locality || ''
+  // 1. Genuine City / Municipality / Corporation (e.g. "Mumbai", "Vasai-Virar", "Thane", "New York", "London")
+  const actualCity = locality || admin2 || admin3 || sublocality1 || ''
 
-  // Local town/locality (e.g. "Naigaon West" or "Naigaon") prioritized over broad metropolitan locality ("Mumbai")
-  const resolvedCity = sublocality2 || sublocality1 || neighborhood || locality || admin3 || admin2 || specificArea || ''
+  // 2. Specific neighborhood/area within the city (e.g. "Null Bazar", "Naigaon West", "Bandra West")
+  const specificArea = sublocality2 || sublocality1 || neighborhood || ''
 
-  const fullFormatted = stateCode && resolvedCity && !resolvedCity.includes(stateCode)
-    ? `${resolvedCity}, ${stateCode}`
-    : resolvedCity
+  // 3. City + State formatted for city/region fields (e.g. "Mumbai, MH")
+  const cityStateFormatted = stateCode && actualCity && !actualCity.includes(stateCode)
+    ? `${actualCity}, ${stateCode}`
+    : actualCity
+
+  // 4. Locality for display / header
+  const displayLocality = specificArea || actualCity
+
+  // 5. Full formatted string
+  const fullFormatted = cityStateFormatted
 
   return {
-    cityName: resolvedCity,
+    cityName: actualCity,
     stateCode,
+    cityStateFormatted,
     fullFormatted,
     specificArea,
+    displayLocality,
   }
 }
 
