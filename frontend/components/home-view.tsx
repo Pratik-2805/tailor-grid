@@ -1,7 +1,5 @@
 'use client'
 
-import { CatalogSection } from './catalog-section'
-
 import { HeroSection } from './hero-section'
 import { HowItWorksPreview } from './how-it-works-preview'
 import { PartnerBanner } from './partner-banner'
@@ -15,7 +13,6 @@ interface HomeViewProps {
   user?: User | null
   onOpenAuth?: () => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
-  onSelectService?: (garmentId: string, serviceId: string) => void
   onSelectStore?: (store: StoreOption) => void
   onRequestMeasurement?: (params: {
     city: string
@@ -33,7 +30,6 @@ export function HomeView({
   user,
   onOpenAuth,
   onQuickSearch,
-  onSelectService,
   onSelectStore,
   onRequestMeasurement,
 }: HomeViewProps) {
@@ -61,11 +57,6 @@ export function HomeView({
 
       {/* 4. Simple 4-Step Journey */}
       <HowItWorksPreview go={go} />
-
-      {/* 5. Complete Garment Catalog & Upfront Pricing Matrix */}
-      <CatalogSection go={go} onSelectService={onSelectService} />
-
-
 
       {/* 8. Partner Banner for Master Tailors (Rapido Captain / Uber Driver style) */}
       {!(user && (user.role === 'CUSTOMER' || user.role !== 'STUDIO')) && (
