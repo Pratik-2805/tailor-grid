@@ -30,11 +30,7 @@ export function HomeView({
   user,
   onOpenAuth,
   onQuickSearch,
-<<<<<<< HEAD
   onSelectStore,
-=======
-  onSelectService,
->>>>>>> 76a270aa62b04e7ad4c0aee7f9f19347de98a6b9
   onRequestMeasurement,
 }: HomeViewProps) {
   return (
