@@ -21,6 +21,10 @@ import {
   Plus,
   Loader2,
   FileText,
+  Store,
+  Clock,
+  X,
+  Copy,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
@@ -248,6 +252,159 @@ function SewStitchDoodlePlayer() {
   return <div ref={containerRef} className="w-full h-full overflow-hidden pointer-events-none" />
 }
 
+function StudioDetailsModal({
+  isOpen,
+  onClose,
+  storeName,
+  storeAddress,
+  storePhone,
+  leadTailor,
+  openingHours,
+  onOpenMap,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  storeName: string
+  storeAddress: string
+  storePhone: string
+  leadTailor?: string
+  openingHours?: string
+  onOpenMap?: () => void
+}) {
+  if (!isOpen) return null
+
+  const handleCopyPhone = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(storePhone)
+      toast.success('Phone number copied to clipboard!', { position: 'top-center', autoClose: 2000 })
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full max-w-[460px] rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-5 font-sans relative animate-in zoom-in-95 duration-200 text-left">
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+          title="Close modal"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Header with Studio Icon */}
+        <div className="flex items-start gap-3.5 pr-8">
+          <div className="size-12 rounded-2xl bg-[#F6EFEA] text-[#9E593B] flex items-center justify-center shrink-0 border border-[#E8DACE]">
+            <Store size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#9E593B]">Partner Studio Details</span>
+            <h3 className="text-lg sm:text-xl font-extrabold text-[#0F1115] leading-snug break-words">
+              {storeName}
+            </h3>
+            {leadTailor && (
+              <p className="text-xs text-gray-500 font-medium flex items-center gap-1.5 mt-0.5">
+                <span>Lead Artisan:</span>
+                <strong className="text-gray-800">{leadTailor}</strong>
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Information Cards */}
+        <div className="space-y-3">
+          {/* Address Card */}
+          <div className="rounded-2xl bg-[#F9F9F9] border border-gray-200/80 p-3.5 flex items-start gap-3">
+            <div className="size-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-[#9E593B] shrink-0 mt-0.5 shadow-2xs">
+              <MapPin size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Workshop Address</span>
+              <p className="text-xs sm:text-sm font-semibold text-[#0F1115] leading-relaxed break-words mt-0.5">
+                {storeAddress || 'Address will be confirmed upon atelier assignment.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Contact Card */}
+          <div className="rounded-2xl bg-[#F9F9F9] border border-gray-200/80 p-3.5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="size-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-emerald-600 shrink-0 shadow-2xs">
+                <Phone size={16} />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Direct Contact</span>
+                <p className="text-xs sm:text-sm font-bold text-[#0F1115] font-mono truncate mt-0.5">
+                  {storePhone || 'Not available'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              {storePhone && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCopyPhone}
+                    className="p-2 rounded-xl bg-white border border-gray-200 text-gray-600 hover:text-black hover:bg-gray-50 transition-colors shadow-2xs cursor-pointer"
+                    title="Copy Phone Number"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <a
+                    href={`tel:${storePhone.replace(/\s+/g, '')}`}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  >
+                    <Phone size={13} />
+                    <span>Call</span>
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Working Hours Card */}
+          {openingHours && (
+            <div className="rounded-2xl bg-[#F9F9F9] border border-gray-200/80 p-3.5 flex items-center gap-3">
+              <div className="size-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-700 shrink-0 shadow-2xs">
+                <Clock size={16} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Operating Hours</span>
+                <p className="text-xs font-medium text-gray-800 mt-0.5">
+                  {openingHours}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons Footer */}
+        <div className="pt-2 flex items-center gap-2.5">
+          {onOpenMap && (
+            <button
+              type="button"
+              onClick={onOpenMap}
+              className="flex-1 py-3 px-4 rounded-full bg-[#0F1115] hover:bg-black text-white text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+            >
+              <Navigation size={14} className="fill-white" />
+              <span>Open in Map</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 py-3 px-5 rounded-full border border-gray-300 text-xs font-bold text-[#0F1115] hover:bg-gray-100 transition-colors cursor-pointer text-center"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: OrderDetailsViewProps) {
   const { stopBookingTransition } = useApp()
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -256,6 +413,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
     return null
   })
+  const [showStudioInfoModal, setShowStudioInfoModal] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [order, setOrder] = useState<any>(() => {
@@ -976,8 +1134,42 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 {storeNameDisplay} is crafting your {garmentDisplay.toLowerCase()}
               </p>
             </div>
+
+            {/* View Tailor & Studio Details Button */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowStudioInfoModal(true)}
+                className="inline-flex items-center gap-2 rounded-full bg-white hover:bg-gray-50 border border-gray-200/90 px-5 py-2.5 text-xs sm:text-sm font-bold text-[#0F1115] transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer group"
+              >
+                <Store size={16} className="text-[#9E593B] group-hover:scale-110 transition-transform" />
+                <span>View Tailor & Studio Details</span>
+              </button>
+
+              {storePhoneDisplay && (
+                <a
+                  href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-black px-5 py-2.5 text-xs sm:text-sm font-bold text-white transition-all shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
+                >
+                  <Phone size={15} />
+                  <span>Call Studio</span>
+                </a>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Tailor & Studio Details Modal */}
+        <StudioDetailsModal
+          isOpen={showStudioInfoModal}
+          onClose={() => setShowStudioInfoModal(false)}
+          storeName={storeNameDisplay}
+          storeAddress={storeAddressDisplay}
+          storePhone={storePhoneDisplay}
+          leadTailor={storeTailorDisplay}
+          openingHours={storeHoursDisplay}
+          onOpenMap={handleOpenAppMap}
+        />
       </div>
     )
   }
@@ -1470,6 +1662,18 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           </div>
         </div>
       )}
+
+      {/* Tailor & Studio Details Modal */}
+      <StudioDetailsModal
+        isOpen={showStudioInfoModal}
+        onClose={() => setShowStudioInfoModal(false)}
+        storeName={storeNameDisplay}
+        storeAddress={storeAddressDisplay}
+        storePhone={storePhoneDisplay}
+        leadTailor={storeTailorDisplay}
+        openingHours={storeHoursDisplay}
+        onOpenMap={handleOpenAppMap}
+      />
 
       {/* Fixed Bottom Trust Strip */}
       <TrustBar />

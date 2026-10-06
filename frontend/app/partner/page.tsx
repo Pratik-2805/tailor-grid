@@ -4,33 +4,32 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { getStudioUrl } from '@/lib/api'
-import { getAuthRole, getAuthUser, getAuthToken } from '@/lib/cookies'
+import { getStudioUrl, getCurrentUser } from '@/lib/api'
+import { getAuthRole, getAuthToken, getRefreshToken } from '@/lib/cookies'
 import { CustomLoader } from '@/components/custom-loader'
 
 export default function PartnerPage() {
   const router = useRouter()
-  const [isChecking, setIsChecking] = useState(true)
   const hasTriggeredRef = useRef(false)
 
   useEffect(() => {
     if (hasTriggeredRef.current) return
     hasTriggeredRef.current = true
 
-    const role = getAuthRole()
-    const token = getAuthToken()
-    const cachedUser = getAuthUser<any>()
-    const isCustomer = role === 'CUSTOMER' || cachedUser?.role === 'CUSTOMER'
-
-      setTimeout(() => {
-        if (isCustomer) {
+    getCurrentUser()
+      .then((user) => {
+        if (user?.role === 'STUDIO' || user?.role === 'TEMP_STUDIO') {
+          const at = getAuthToken()
+          window.location.href = getStudioUrl('/', at)
+        } else if (user?.role === 'CUSTOMER') {
           router.replace('/book')
-        } else if (role === 'STUDIO') {
-          window.location.href = getStudioUrl('/', token)
         } else {
           router.replace('/for-partners')
         }
-      }, 600)
+      })
+      .catch(() => {
+        router.replace('/for-partners')
+      })
   }, [router])
 
   return (

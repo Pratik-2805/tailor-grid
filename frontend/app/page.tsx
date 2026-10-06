@@ -6,7 +6,7 @@ import { HomeView } from '@/components/home-view'
 import { useApp } from '@/components/app-provider'
 import { CustomLoader } from '@/components/custom-loader'
 import type { StoreOption, User } from '@/components/data'
-import { getAuthToken, getAuthUser, getAuthRole, setStorageCookie } from '@/lib/cookies'
+import { getAuthToken, getRefreshToken, getAuthUser, getAuthRole, setStorageCookie } from '@/lib/cookies'
 import { STUDIO_BASE_URL } from '@/lib/api'
 
 export default function HomePage() {
@@ -33,13 +33,13 @@ export default function HomePage() {
         }
         return storedUser.role === 'CUSTOMER'
       }
-      const token = getAuthToken()
+      const token = getAuthToken() || getRefreshToken()
       const role = getAuthRole()
       if (token && role === 'STUDIO') {
         window.location.href = STUDIO_BASE_URL
         return false
       }
-      return Boolean(token && role === 'CUSTOMER')
+      return Boolean(token && (role === 'CUSTOMER' || !role))
     }
     return false
   })

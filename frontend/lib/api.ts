@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES } from '../components/data'
+import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES, GARMENT_CATEGORIES } from '../components/data'
 import {
   getAuthToken,
   setAuthToken,
@@ -664,15 +664,16 @@ export async function fetchStores(search?: string): Promise<StoreOption[]> {
 export async function fetchServices(): Promise<GarmentCategory[]> {
   try {
     const res = await fetch(`${API_BASE}/services`)
-    if (!res.ok) throw new Error('Failed to fetch services')
-    const data = await res.json()
-    if (Array.isArray(data.services) && data.services.length > 0) {
-      return data.services
+    if (res.ok) {
+      const data = await res.json()
+      if (Array.isArray(data.services) && data.services.length > 0) {
+        return data.services
+      }
     }
-  } catch (err) {
-    console.warn('Failed to fetch services from Prisma API:', err)
+  } catch (_) {
+    // Network or temporary server reload fallback
   }
-  return []
+  return GARMENT_CATEGORIES
 }
 
 export interface DispatchSessionStatus {
