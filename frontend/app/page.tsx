@@ -94,11 +94,6 @@ export default function HomePage() {
     setPrefilledGarmentId(garmentId)
   }
 
-  const handleSelectService = (garmentId: string, serviceId: string) => {
-    setPrefilledGarmentId(garmentId)
-    setPrefilledServiceId(serviceId)
-  }
-
   const handleSelectStore = (store: StoreOption) => {
     setPrefilledStore(store)
   }
@@ -133,7 +128,6 @@ export default function HomePage() {
       user={user}
       onOpenAuth={() => openAuth('CUSTOMER', 'signin')}
       onQuickSearch={handleQuickSearch}
-      onSelectService={handleSelectService}
       onSelectStore={handleSelectStore}
       onRequestMeasurement={handleRequestMeasurement}
     />
