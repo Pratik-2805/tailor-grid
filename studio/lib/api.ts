@@ -570,6 +570,7 @@ export interface PendingDispatchRequest {
   payout: number
   customerName: string
   garmentName: string
+  quantity?: number
   serviceName: string
   timeSlot: string
   date: string

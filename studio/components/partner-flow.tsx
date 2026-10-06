@@ -66,6 +66,7 @@ interface BroadcastRequest {
   customerArea: string
   distanceMiles: number
   garmentName: string
+  quantity?: number
   serviceName: string
   fittingType: 'PRE_PINNED' | 'NEED_STUDIO_FITTING'
   garmentBrand?: string
@@ -1099,7 +1100,16 @@ export function PartnerFlow({
 
   const cleanDistanceLabel = (dist?: string | number) => {
     if (!dist) return '0.8 mi away'
-    return String(dist).replace(/(\d+\.\d{1,})\s*mi/i, (_, n) => `${parseFloat(n).toFixed(1)} mi`)
+    const num = parseFloat(String(dist))
+    if (!isNaN(num)) {
+      if (num < 0.05) return '0.1 mi away'
+      return `${num.toFixed(1)} mi away`
+    }
+    return String(dist).replace(/(\d+(\.\d+)?([eE][-+]?\d+)?)\s*mi/i, (_, n) => {
+      const val = parseFloat(n)
+      if (isNaN(val) || val < 0.05) return '0.1 mi'
+      return `${val.toFixed(1)} mi`
+    })
   }
 
   // Map incoming dispatch requests (Single Dispatch Engine in Server Cache)
@@ -1111,6 +1121,7 @@ export function PartnerFlow({
       customerArea: pd.distance ? `${cleanDistanceLabel(pd.distance)} · Stage ${pd.stage || 1}` : 'Local Area · 0.8 mi away',
       distanceMiles: pd.distanceMiles || 0.8,
       garmentName: pd.garmentName || pd.order?.garmentName || 'Garment Alteration',
+      quantity: pd.quantity || pd.order?.quantity || 1,
       serviceName: pd.serviceName || pd.order?.serviceName || 'Custom Fit & Alteration',
       fittingType: 'NEED_STUDIO_FITTING',
       garmentBrand: pd.order?.garmentBrand || '',
@@ -1121,6 +1132,7 @@ export function PartnerFlow({
       imageUrl: pd.order?.imageUrl || pd.order?.intakePhotoUrl || '',
       otp: pd.order?.otp || '0000',
       isDispatchSession: true,
+      realOrder: pd.order,
       secondsRemaining: pd.secondsRemaining,
       stage: pd.stage,
     }))
@@ -1132,6 +1144,7 @@ export function PartnerFlow({
     customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
     distanceMiles: 0.8,
     garmentName: o.garmentName || 'Garment Alteration',
+    quantity: o.quantity || 1,
     serviceName: o.serviceName || 'Custom Fit & Alteration',
     fittingType: 'NEED_STUDIO_FITTING' as const,
     garmentBrand: o.garmentBrand || '',
@@ -2630,6 +2643,10 @@ export function PartnerFlow({
                             </span>
                           )}
 
+                          <span className="text-[10px] text-amber-200 bg-amber-500/20 backdrop-blur-md border border-amber-400/30 px-2 py-0.5 rounded-md font-bold tracking-wide">
+                            {(currentBroadcast.quantity && currentBroadcast.quantity > 1) ? `${currentBroadcast.quantity} Garments` : `${currentBroadcast.quantity || 1} Garment`}
+                          </span>
+
                           {(() => {
                             const bPhotos = getAllGarmentPhotos(currentBroadcast.realOrder || {
                               intakePhotoUrl: currentBroadcast.imageUrl || currentBroadcast.intakePhotoUrl,
@@ -2676,30 +2693,23 @@ export function PartnerFlow({
                       </div>
                     </div>
 
-                    {/* Right: Payout + Actions */}
-                    <div className="flex items-center gap-3.5 w-full sm:w-auto justify-between sm:justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
-                      <div className="text-left sm:text-right pr-1">
-                        <span className="text-[9px] uppercase tracking-wider text-stone-400 font-medium block leading-none mb-0.5">Order Price</span>
-                        <div className="text-xl font-bold text-emerald-400 leading-tight">${currentBroadcast.price || currentBroadcast.partnerPayout}</div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSkipBroadcast(currentBroadcast)}
-                          className="px-3.5 py-1.5 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] backdrop-blur-md text-xs font-medium text-stone-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
-                        >
-                          Skip
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleAcceptBroadcast(currentBroadcast)}
-                          className="px-4 py-1.5 rounded-full bg-gradient-to-r from-[#9E593B] to-[#B36846] hover:from-[#8A4C32] hover:to-[#9E593B] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_4px_16px_rgba(158,89,59,0.45),inset_0_1px_0_rgba(255,255,255,0.25)] border border-white/20 active:scale-95"
-                        >
-                          <Zap size={13} className="fill-white" />
-                          <span>Accept (${currentBroadcast.price || currentBroadcast.partnerPayout})</span>
-                        </button>
-                      </div>
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => handleSkipBroadcast(currentBroadcast)}
+                        className="px-4 py-2 rounded-full border border-white/20 bg-white/[0.06] hover:bg-white/[0.14] backdrop-blur-md text-xs font-medium text-stone-300 hover:text-white transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptBroadcast(currentBroadcast)}
+                        className="px-5 py-2 rounded-full bg-gradient-to-r from-[#9E593B] to-[#B36846] hover:from-[#8A4C32] hover:to-[#9E593B] text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-[0_4px_16px_rgba(158,89,59,0.45),inset_0_1px_0_rgba(255,255,255,0.25)] border border-white/20 active:scale-95"
+                      >
+                        <Zap size={13} className="fill-white" />
+                        <span>Accept Request</span>
+                      </button>
                     </div>
                   </div>
 
@@ -2907,9 +2917,12 @@ export function PartnerFlow({
                               <p className="text-xs text-slate-500 mt-0.5">
                                 {activeIntake.customerName} &bull; {activeIntake.serviceName}
                               </p>
-                              <div className="mt-3 flex items-center gap-2">
+                              <div className="mt-3 flex items-center gap-2 flex-wrap">
                                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                                   ${activeIntake.price || 35} Standard Rate · Pay at Pickup
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                                  Qty: {activeIntake.quantity || 1} {activeIntake.quantity === 1 ? 'Garment' : 'Garments'}
                                 </span>
                               </div>
                             </div>
@@ -3404,8 +3417,12 @@ export function PartnerFlow({
                                   </div>
 
                                   <div className="flex items-center justify-between pt-1 gap-2">
-                                    <span className="text-[11px] font-bold text-emerald-700">
-                                      ${ord.price || 35} Standard Rate · Due at Pickup
+                                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5 flex-wrap">
+                                      <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-extrabold text-[10px]">
+                                        Qty: {ord.quantity || 1} {ord.quantity === 1 ? 'Garment' : 'Garments'}
+                                      </span>
+                                      <span className="text-slate-400">·</span>
+                                      <span className="text-slate-500 font-medium">Due at Pickup</span>
                                     </span>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       <button
@@ -3542,8 +3559,8 @@ export function PartnerFlow({
                                       </div>
 
                                       <div className="text-right shrink-0">
-                                        <span className="font-extrabold text-xs text-emerald-700 block">
-                                          ${order.partnerPayout || order.price || 20}
+                                        <span className="font-extrabold text-[10px] bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md block mb-1 text-center">
+                                          Qty: {order.quantity || 1} {order.quantity === 1 ? 'pc' : 'pcs'}
                                         </span>
                                         <span
                                           className={`text-[10px] font-semibold flex items-center justify-end gap-1 ${sla.urgent ? 'text-red-600 font-bold' : 'text-slate-500'
@@ -3686,8 +3703,12 @@ export function PartnerFlow({
                                   </div>
 
                                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                                    <span className="font-bold text-emerald-700">
-                                      ${order.price || 35} · Due at Pickup
+                                    <span className="font-bold text-slate-700 flex items-center gap-1.5 flex-wrap">
+                                      <span className="bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-extrabold text-[10px]">
+                                        Qty: {order.quantity || 1} {order.quantity === 1 ? 'Garment' : 'Garments'}
+                                      </span>
+                                      <span className="text-slate-400">·</span>
+                                      <span className="text-slate-500 font-medium">Due at Pickup</span>
                                     </span>
                                     <span className="text-[10px] text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100">
                                       Pickup Alert Sent

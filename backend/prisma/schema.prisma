@@ -123,6 +123,7 @@ model Order {
   postcode              String
   garmentId             String
   garmentName           String
+  quantity              Int           @default(1)
   serviceId             String
   serviceName           String
   storeId               String?

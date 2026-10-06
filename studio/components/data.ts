@@ -68,6 +68,7 @@ export type FittingBooking = {
   postcode: string
   garmentId: string
   garmentName?: string
+  quantity?: number
   serviceId: string
   serviceName?: string
   storeId: string
