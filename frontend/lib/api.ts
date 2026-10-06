@@ -4,6 +4,7 @@ import {
   setAuthToken,
   getRefreshToken,
   setRefreshToken,
+  getAuthUser,
   setAuthUser,
   setAuthRole,
   clearAllAuth,
@@ -27,7 +28,6 @@ let refreshPromise: Promise<string | null> | null = null
 export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken()
   if (!refreshToken) {
-    clearAllAuth()
     return null
   }
 
@@ -44,8 +44,14 @@ export async function refreshAccessToken(): Promise<string | null> {
         body: JSON.stringify({ refreshToken }),
       })
 
-      if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        // Explicitly rejected by auth server (token expired / revoked)
         clearAllAuth()
+        return null
+      }
+
+      if (!res.ok) {
+        // Server temporary 5xx or rate limit - do NOT clear credentials
         return null
       }
 
@@ -61,10 +67,9 @@ export async function refreshAccessToken(): Promise<string | null> {
         return newAt
       }
 
-      clearAllAuth()
       return null
-    } catch {
-      clearAllAuth()
+    } catch (err) {
+      console.warn('[AUTH] Notice refreshing access token:', err)
       return null
     } finally {
       isRefreshing = false
@@ -73,6 +78,42 @@ export async function refreshAccessToken(): Promise<string | null> {
   })()
 
   return refreshPromise
+}
+
+export async function getValidAccessToken(): Promise<string | null> {
+  let token = getAuthToken()
+  if (token) return token
+
+  // Access token expired in cookie, attempt refresh with 15-day refresh token
+  const refreshToken = getRefreshToken()
+  if (refreshToken) {
+    token = await refreshAccessToken()
+    if (token) return token
+  }
+
+  return null
+}
+
+export async function fetchWithAutoRefresh(url: string, options: RequestInit = {}): Promise<Response> {
+  let token = await getValidAccessToken()
+  const headers = new Headers(options.headers || {})
+
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  let res = await fetch(url, { ...options, headers })
+
+  // If 401 Unauthorized, attempt token refresh once and retry request
+  if (res.status === 401 && getRefreshToken()) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      headers.set('Authorization', `Bearer ${newToken}`)
+      res = await fetch(url, { ...options, headers })
+    }
+  }
+
+  return res
 }
 
 export async function logoutUser(): Promise<void> {
@@ -404,29 +445,11 @@ export async function loginUser(data: {
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string; accessToken?: string; refreshToken?: string }> {
-  let token = getAuthToken()
-  let res = await fetch(`${API_BASE}/auth/update-profile`, {
+  const res = await fetchWithAutoRefresh(`${API_BASE}/auth/update-profile`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   })
-
-  if (res.status === 401) {
-    const newToken = await refreshAccessToken()
-    if (newToken) {
-      res = await fetch(`${API_BASE}/auth/update-profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${newToken}`,
-        },
-        body: JSON.stringify(updates),
-      })
-    }
-  }
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}))
@@ -449,28 +472,13 @@ export async function updateUserProfile(updates: Partial<User>): Promise<{ succe
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  let token = getAuthToken()
+  const token = await getValidAccessToken()
   if (!token) {
-    token = await refreshAccessToken()
-    if (!token) {
-      clearAllAuth()
-      return null
-    }
+    return null
   }
 
   try {
-    let res = await fetch(`${API_BASE}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-
-    if (res.status === 401) {
-      const newToken = await refreshAccessToken()
-      if (newToken) {
-        res = await fetch(`${API_BASE}/auth/me`, {
-          headers: { Authorization: `Bearer ${newToken}` },
-        })
-      }
-    }
+    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/me`)
 
     if (res.ok) {
       const data = await res.json()
@@ -486,27 +494,26 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    // User not found in DB or token invalid -> clear stale session
-    clearAllAuth()
-    return null
+    if (res.status === 401 || res.status === 403) {
+      clearAllAuth()
+      return null
+    }
+
+    // On non-401 errors (e.g. server temporary 500 or offline), fallback to cached user
+    return getAuthUser<User>()
   } catch (err) {
-    clearAllAuth()
-    return null
+    return getAuthUser<User>()
   }
 }
 
 export async function fetchOrders(query?: string, userId?: string): Promise<FittingBooking[]> {
   try {
-    const token = getAuthToken()
     const params = new URLSearchParams()
     if (query) params.append('contact', query)
     if (userId) params.append('userId', userId)
     const url = params.toString() ? `${API_BASE}/orders?${params.toString()}` : `${API_BASE}/orders`
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const res = await fetchWithAutoRefresh(url, {
+      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return []
     const data = await res.json()
@@ -518,13 +525,9 @@ export async function fetchOrders(query?: string, userId?: string): Promise<Fitt
 
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
-    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const res = await fetchWithAutoRefresh(url, {
+      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return []
     const data = await res.json()
@@ -536,12 +539,8 @@ export async function fetchStudioOrders(storeId?: string | null): Promise<Fittin
 
 export async function fetchOrderById(id: string): Promise<FittingBooking | null> {
   try {
-    const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -553,13 +552,9 @@ export async function fetchOrderById(id: string): Promise<FittingBooking | null>
 
 export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
-    const token = getAuthToken()
     const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    const res = await fetchWithAutoRefresh(url, {
+      headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -571,13 +566,9 @@ export async function fetchStudioStats(storeId?: string | null): Promise<any> {
 
 export async function updateOrder(id: string, updates: Partial<FittingBooking>): Promise<FittingBooking | null> {
   try {
-    const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/orders/${id}`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     })
     if (!res.ok) return null
@@ -590,7 +581,7 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
 
 export async function deleteOrder(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     })
     return res.ok
