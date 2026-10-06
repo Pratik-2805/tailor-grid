@@ -36,7 +36,8 @@ const SESSION_BOOKING_KEY = 'tg_book_session'
 function getSessionBookingData(): any | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = sessionStorage.getItem(SESSION_BOOKING_KEY) || getCookie(SESSION_BOOKING_KEY)
+    deleteCookie(SESSION_BOOKING_KEY, '/')
+    const raw = sessionStorage.getItem(SESSION_BOOKING_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
   return null
@@ -47,9 +48,7 @@ function setSessionBookingData(data: any): void {
   try {
     const json = JSON.stringify(data)
     sessionStorage.setItem(SESSION_BOOKING_KEY, json)
-    if (typeof document !== 'undefined') {
-      document.cookie = `${encodeURIComponent(SESSION_BOOKING_KEY)}=${encodeURIComponent(json)}; path=/; SameSite=Lax`
-    }
+    deleteCookie(SESSION_BOOKING_KEY, '/')
   } catch {}
 }
 
@@ -338,7 +337,7 @@ export default function BookPage() {
     if (typeof window === 'undefined' || !navigator.geolocation) return
 
     const sessionData = getSessionBookingData()
-    const hasPriorSession = sessionData && (sessionData.coords || sessionData.city || sessionData.garmentId)
+    const hasManualLocationOverride = sessionData && sessionData.isLocationSaved === true
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -346,8 +345,8 @@ export default function BookPage() {
         const liveCoords = { lat: latitude, lng: longitude }
         liveGpsCoordsRef.current = liveCoords
 
-        // Only override state with live GPS if user does not already have an active session
-        if (!hasPriorSession) {
+        // Only override state with live GPS if user has not explicitly saved a custom pinned address in this session
+        if (!hasManualLocationOverride) {
           setUserGpsCoords(liveCoords)
           setIsLiveLocation(true)
         }
@@ -364,7 +363,7 @@ export default function BookPage() {
           }
           liveAddressDetailsRef.current = cachedDetails
           liveCityRef.current = cached.city
-          if (!hasPriorSession) {
+          if (!hasManualLocationOverride) {
             setAddressDetails((prev) => ({ ...prev, ...cachedDetails }))
             setSelectedCity(cached.city)
             setStoredCity(cached.city, liveCoords)
@@ -402,7 +401,7 @@ export default function BookPage() {
                   formattedAddress: formatted,
                 })
 
-                if (!hasPriorSession) {
+                if (!hasManualLocationOverride) {
                   setAddressDetails((prev) => ({
                     ...prev,
                     ...newDetails,

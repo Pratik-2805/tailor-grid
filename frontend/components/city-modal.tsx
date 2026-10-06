@@ -358,10 +358,47 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
   if (!isOpen) return null
 
-  const handleSelect = (c: CityItem) => {
-    const cityCoords = getCityCoordinates(c.fullName)
-    setStoredCity(c.fullName, cityCoords)
-    onSelectCity(c.fullName, cityCoords, false)
+  const handleSelect = async (c: CityItem) => {
+    let resolvedCoords: { lat: number; lng: number } | null = null
+
+    // Geocode the selected city dynamically to get its actual coordinates
+    const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
+    if (geocoder) {
+      try {
+        const query = `${c.name}, ${c.state || c.code || ''}, ${c.countryCode?.toUpperCase() || ''}`.trim()
+        const geoRes = await new Promise<any[]>((resolve) => {
+          geocoder.geocode({ address: query }, (results: any, status: any) => {
+            if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
+              resolve(results)
+            } else {
+              resolve([])
+            }
+          })
+        })
+        if (geoRes && geoRes.length > 0 && geoRes[0]?.geometry?.location) {
+          const loc = geoRes[0].geometry.location
+          resolvedCoords = {
+            lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+            lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng,
+          }
+        }
+      } catch (err) {
+        console.warn('Error geocoding city:', err)
+      }
+    }
+
+    if (!resolvedCoords) {
+      resolvedCoords = getCityCoordinates(c.fullName)
+    }
+
+    if (resolvedCoords && (resolvedCoords.lat !== 0 || resolvedCoords.lng !== 0)) {
+      setStoredCity(c.fullName, resolvedCoords)
+      onSelectCity(c.fullName, resolvedCoords, false)
+    } else {
+      setStoredCity(c.fullName)
+      onSelectCity(c.fullName, undefined, false)
+    }
+
     setSearch('')
     setPlaceResults([])
     onClose()
@@ -380,21 +417,27 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
     // Resolve exact Google Maps Lat/Lng via Google Geocoder if not cached
     const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
-    if (!coords && place.placeId && geocoder) {
+    if (!coords && (place.placeId || place.fullName) && geocoder) {
       try {
-        const geoRes = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
-          geocoder.geocode({ placeId: place.placeId }, (results: any, status: any) => {
+        const geoRes = await new Promise<any[]>((resolve) => {
+          const query = place.placeId ? { placeId: place.placeId } : { address: place.fullName }
+          geocoder.geocode(query, (results: any, status: any) => {
             if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
               resolve(results)
             } else {
-              resolve(null)
+              resolve([])
             }
           })
         })
-        if (geoRes && geoRes[0]?.geometry?.location) {
+        if (geoRes && geoRes.length > 0 && geoRes[0]?.geometry?.location) {
           const loc = geoRes[0].geometry.location
-          coords = { lat: loc.lat(), lng: loc.lng() }
-          setCachedPlaceDetails(place.placeId, { lat: loc.lat(), lng: loc.lng(), formattedAddress: place.fullName })
+          coords = {
+            lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+            lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng,
+          }
+          if (place.placeId) {
+            setCachedPlaceDetails(place.placeId, { lat: coords.lat, lng: coords.lng, formattedAddress: place.fullName })
+          }
         }
       } catch (err) {
         console.warn('Error resolving Google Place coordinates:', err)
@@ -403,9 +446,14 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
     resetPlacesSessionToken()
 
-    const resolvedCoords = coords || getCityCoordinates(place.fullName)
-    setStoredCity(place.fullName, resolvedCoords)
-    onSelectCity(place.fullName, resolvedCoords, false)
+    if (coords && (coords.lat !== 0 || coords.lng !== 0)) {
+      setStoredCity(place.fullName, coords)
+      onSelectCity(place.fullName, coords, false)
+    } else {
+      setStoredCity(place.fullName)
+      onSelectCity(place.fullName, undefined, false)
+    }
+
     setSearch('')
     setPlaceResults([])
     onClose()

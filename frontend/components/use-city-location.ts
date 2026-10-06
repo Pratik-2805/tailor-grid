@@ -12,11 +12,9 @@ const DEFAULT_LNG_ENV = process.env.NEXT_PUBLIC_DEFAULT_LNG ? parseFloat(process
 export function getStoredCity(): string {
   if (typeof window === 'undefined') return DEFAULT_CITY_ENV
   try {
-    return (
-      sessionStorage.getItem(SESSION_CITY_KEY) ||
-      localStorage.getItem(SESSION_CITY_KEY) ||
-      DEFAULT_CITY_ENV
-    )
+    // Purge legacy persistent city so it doesn't linger across sessions
+    localStorage.removeItem(SESSION_CITY_KEY)
+    return sessionStorage.getItem(SESSION_CITY_KEY) || DEFAULT_CITY_ENV
   } catch {
     return DEFAULT_CITY_ENV
   }
@@ -29,9 +27,9 @@ export function getSessionCoordinates(): { lat: number; lng: number } | null {
       : null
   }
   try {
-    const raw =
-      sessionStorage.getItem(SESSION_COORDS_KEY) ||
-      localStorage.getItem(SESSION_COORDS_KEY)
+    // Purge legacy persistent coords so it doesn't linger across sessions
+    localStorage.removeItem(SESSION_COORDS_KEY)
+    const raw = sessionStorage.getItem(SESSION_COORDS_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
 
@@ -63,10 +61,10 @@ export function setStoredCity(city: string, coords?: { lat: number; lng: number 
   if (typeof window === 'undefined') return
   try {
     sessionStorage.setItem(SESSION_CITY_KEY, city)
-    localStorage.setItem(SESSION_CITY_KEY, city)
+    localStorage.removeItem(SESSION_CITY_KEY)
     if (coords) {
       sessionStorage.setItem(SESSION_COORDS_KEY, JSON.stringify(coords))
-      localStorage.setItem(SESSION_COORDS_KEY, JSON.stringify(coords))
+      localStorage.removeItem(SESSION_COORDS_KEY)
     }
     window.dispatchEvent(new CustomEvent('tg_city_changed', { detail: city }))
   } catch (err) {
@@ -142,9 +140,8 @@ export function useCityLocation(defaultCity?: string) {
   const [city, setCityState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const inSession =
-          sessionStorage.getItem(SESSION_CITY_KEY) ||
-          localStorage.getItem(SESSION_CITY_KEY)
+        localStorage.removeItem(SESSION_CITY_KEY)
+        const inSession = sessionStorage.getItem(SESSION_CITY_KEY)
         if (inSession) return inSession
       } catch {}
     }
@@ -155,7 +152,7 @@ export function useCityLocation(defaultCity?: string) {
   useEffect(() => {
     const sessionCity =
       typeof window !== 'undefined'
-        ? sessionStorage.getItem(SESSION_CITY_KEY) || localStorage.getItem(SESSION_CITY_KEY)
+        ? sessionStorage.getItem(SESSION_CITY_KEY)
         : null
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
