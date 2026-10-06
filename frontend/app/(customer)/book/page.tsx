@@ -25,10 +25,10 @@ import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDispl
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { CustomLoader } from '@/components/custom-loader'
 import { SewingLoader } from '@/components/sewing-loader'
-import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile } from '@/lib/api'
+import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile, fetchServices } from '@/lib/api'
 import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
-import { GARMENT_CATEGORIES, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
+import { type GarmentCategory, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 import { getCachedReverseGeocode, setCachedReverseGeocode } from '@/lib/geocode-cache'
 
 const SESSION_BOOKING_KEY = 'tg_book_session'
@@ -581,15 +581,31 @@ export default function BookPage() {
     }
   }, [prefilledGarmentId, prefilledServiceId, prefilledStore, measurementDraft])
 
+  // Fetch live garment categories & services from backend database
+  const [categories, setCategories] = useState<GarmentCategory[]>([])
+
+  useEffect(() => {
+    fetchServices().then((svcs) => {
+      if (svcs && svcs.length > 0) {
+        setCategories(svcs)
+        if (!prefilledGarmentId && !measurementDraft?.garmentId) {
+          setSelectedGarmentId((prev: string) => (svcs.some((c) => c.id === prev) ? prev : svcs[0].id))
+        }
+      }
+    })
+  }, [prefilledGarmentId, measurementDraft?.garmentId])
+
   // Derive active category & service
   const currentCategory = useMemo(() => {
-    return GARMENT_CATEGORIES.find((c) => c.id === selectedGarmentId) || GARMENT_CATEGORIES[0]
-  }, [selectedGarmentId])
+    return categories.find((c) => c.id === selectedGarmentId) || categories[0] || null
+  }, [categories, selectedGarmentId])
 
   const currentService = useMemo(() => {
+    if (!currentCategory || !currentCategory.popularServices) return null
     return (
       currentCategory.popularServices.find((s) => s.id === selectedServiceId) ||
-      currentCategory.popularServices[0]
+      currentCategory.popularServices[0] ||
+      null
     )
   }, [currentCategory, selectedServiceId])
 
@@ -619,8 +635,8 @@ export default function BookPage() {
   // Sync default service when category changes
   const handleSelectCategory = (catId: string) => {
     setSelectedGarmentId(catId)
-    const cat = GARMENT_CATEGORIES.find((c) => c.id === catId)
-    if (cat && cat.popularServices.length > 0) {
+    const cat = categories.find((c) => c.id === catId)
+    if (cat && cat.popularServices && cat.popularServices.length > 0) {
       setSelectedServiceId(cat.popularServices[0].id)
     }
     setIsCategoryDropdownOpen(false)
@@ -746,16 +762,16 @@ export default function BookPage() {
       storePhone: closestStore?.phone || null,
       storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
       garmentId: selectedGarmentId,
-      garmentName: currentCategory.name,
+      garmentName: currentCategory?.name || 'Garment',
       serviceId: selectedServiceId,
-      serviceName: currentService.name,
+      serviceName: currentService?.name || 'Alteration Service',
       brand: 'Levi\'s / Bespoke',
       notes: bookingNotes.trim() || 'Requested from Atelier Booking Portal',
       images: uploadedImages,
       city: selectedCity,
       date: formattedDateDisplay,
       timeSlot: activeSchedTime,
-      price: currentService.customerPrice || currentCategory.startingPrice || 25,
+      price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
       status: 'Allocated',
     }
 
@@ -790,13 +806,13 @@ export default function BookPage() {
           customerLat: coords.lat,
           customerLng: coords.lng,
           garmentId: selectedGarmentId,
-          garmentName: currentCategory.name,
+          garmentName: currentCategory?.name || 'Garment',
           serviceId: selectedServiceId,
-          serviceName: currentService.name,
+          serviceName: currentService?.name || 'Alteration Service',
           storeId: closestStore?.id || undefined,
           storeName: closestStore?.name || 'Awaiting Studio Acceptance',
           storePhone: closestStore?.phone || undefined,
-          price: currentService.customerPrice || currentCategory.startingPrice || 25,
+          price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
           date: formattedDateDisplay,
           timeSlot: activeSchedTime,
           imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
@@ -844,10 +860,10 @@ export default function BookPage() {
         customerLat: coords.lat,
         customerLng: coords.lng,
         garmentId: selectedGarmentId,
-        garmentName: currentCategory.name,
+        garmentName: currentCategory?.name || 'Garment',
         serviceId: selectedServiceId,
-        serviceName: currentService.name,
-        price: currentService.customerPrice || currentCategory.startingPrice || 25,
+        serviceName: currentService?.name || 'Alteration Service',
+        price: currentService?.customerPrice || currentCategory?.startingPrice || 25,
         date: formattedDateDisplay,
         timeSlot: activeSchedTime,
         imageUrl: uploadedImages.length > 1 ? JSON.stringify(uploadedImages) : (uploadedImages[0] || null),
@@ -1063,14 +1079,14 @@ export default function BookPage() {
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <GarmentCategoryIcon categoryId={currentCategory.id} className="size-4 text-white" />
+                        <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-4 text-white" />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
                           CATEGORY OF CLOTHES
                         </p>
                         <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                          {currentCategory.name} (from ${currentCategory.startingPrice})
+                          {currentCategory ? `${currentCategory.name} (from $${currentCategory.startingPrice})` : 'Loading categories...'}
                         </p>
                       </div>
                     </div>
@@ -1084,7 +1100,7 @@ export default function BookPage() {
                   {/* Dropdown Menu */}
                   {isCategoryDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                      {GARMENT_CATEGORIES.map((cat) => {
+                      {categories.map((cat) => {
                         const isSelected = cat.id === selectedGarmentId
                         return (
                           <button
@@ -1130,7 +1146,7 @@ export default function BookPage() {
                           WHAT NEEDS TO BE DONE?
                         </p>
                         <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                          {currentService.name} (${currentService.customerPrice})
+                          {currentService ? `${currentService.name} ($${currentService.customerPrice})` : 'Select alteration'}
                         </p>
                       </div>
                     </div>
@@ -1142,9 +1158,9 @@ export default function BookPage() {
                   </button>
 
                   {/* Dropdown Menu */}
-                  {isServiceDropdownOpen && (
+                  {isServiceDropdownOpen && currentCategory && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                      {currentCategory.popularServices.map((srv) => {
+                      {currentCategory.popularServices?.map((srv) => {
                         const isSelected = srv.id === selectedServiceId
                         return (
                           <button

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { GARMENT_CATEGORIES, type GarmentCategory, type Screen } from './data'
+import { type GarmentCategory, type Screen } from './data'
 import { fetchServices } from '@/lib/api'
 
 interface CatalogSectionProps {
@@ -11,8 +11,8 @@ interface CatalogSectionProps {
 }
 
 export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
-  const [categories, setCategories] = useState<GarmentCategory[]>(GARMENT_CATEGORIES)
-  const [activeCategoryId, setActiveCategoryId] = useState(GARMENT_CATEGORIES[0]?.id || 'trousers')
+  const [categories, setCategories] = useState<GarmentCategory[]>([])
+  const [activeCategoryId, setActiveCategoryId] = useState('')
 
   useEffect(() => {
     fetchServices().then((svcs) => {
@@ -24,6 +24,7 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
   }, [])
 
   const cat = categories.find((c) => c.id === activeCategoryId) || categories[0]
+  if (!cat) return null
 
   return (
     <section id="services-catalog" className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">

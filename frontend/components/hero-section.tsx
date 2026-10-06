@@ -21,7 +21,8 @@ import {
 } from 'lucide-react'
 import { CityModal } from './city-modal'
 import { useCityLocation, formatLocationDisplay } from './use-city-location'
-import { GARMENT_CATEGORIES, type Screen, type User } from './data'
+import { type Screen, type User, type GarmentCategory } from './data'
+import { fetchServices } from '@/lib/api'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -299,12 +300,26 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   const [selectedTime, setSelectedTime] = useState('03:30 PM')
 
   // Tailoring selection state
+  const [categories, setCategories] = useState<GarmentCategory[]>([])
   const [selectedGarmentId, setSelectedGarmentId] = useState('trousers')
   const [showGarmentPicker, setShowGarmentPicker] = useState(false)
-
-  const currentCategory = GARMENT_CATEGORIES.find((c) => c.id === selectedGarmentId) || GARMENT_CATEGORIES[0]
-  const [selectedAlteration, setSelectedAlteration] = useState(currentCategory.popularServices[0]?.name || '')
+  const [selectedAlteration, setSelectedAlteration] = useState('')
   const [showAlterationPicker, setShowAlterationPicker] = useState(false)
+
+  useEffect(() => {
+    fetchServices().then((svcs) => {
+      if (svcs && svcs.length > 0) {
+        setCategories(svcs)
+        const initialGarmentId = svcs[0].id
+        setSelectedGarmentId(initialGarmentId)
+        if (svcs[0].popularServices && svcs[0].popularServices.length > 0) {
+          setSelectedAlteration(svcs[0].popularServices[0].name)
+        }
+      }
+    })
+  }, [])
+
+  const currentCategory = categories.find((c) => c.id === selectedGarmentId) || categories[0]
 
   // Image Upload state
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
@@ -328,7 +343,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
   const handleGarmentChange = (garmentId: string) => {
     setSelectedGarmentId(garmentId)
     setShowGarmentPicker(false)
-    const category = GARMENT_CATEGORIES.find((c) => c.id === garmentId)
+    const category = categories.find((c) => c.id === garmentId)
     if (category && category.popularServices.length > 0) {
       setSelectedAlteration(category.popularServices[0].name)
     }
@@ -370,11 +385,15 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
     setUploadedImages((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const selectedServiceObj = currentCategory.popularServices.find((s) => s.name === selectedAlteration) || currentCategory.popularServices[0]
+  const selectedServiceObj = currentCategory?.popularServices?.find((s) => s.name === selectedAlteration) || currentCategory?.popularServices?.[0]
 
   const handleBookNow = () => {
     if (!user || !user.phone) {
       onOpenAuth?.()
+      return
+    }
+    if (!selectedServiceObj || !currentCategory) {
+      toast.info('Please select a service before proceeding.', { position: 'top-center' })
       return
     }
     onRequestMeasurement?.({
@@ -481,7 +500,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                         Category of clothes
                       </span>
                       <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {currentCategory.name} <span className="font-semibold text-black">(from ${currentCategory.startingPrice})</span>
+                        {currentCategory ? (
+                          <>
+                            {currentCategory.name} <span className="font-semibold text-black">(from ${currentCategory.startingPrice})</span>
+                          </>
+                        ) : (
+                          'Loading services...'
+                        )}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showGarmentPicker ? 'rotate-180' : ''}`} />
@@ -492,7 +517,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                       <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
                         Select Garment Category
                       </div>
-                      {GARMENT_CATEGORIES.map((cat) => {
+                      {categories.map((cat) => {
                         const isSelected = selectedGarmentId === cat.id
                         return (
                           <button
@@ -541,18 +566,18 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                         What needs to be done?
                       </span>
                       <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {selectedAlteration} {selectedServiceObj ? `($${selectedServiceObj.customerPrice})` : ''}
+                        {selectedAlteration || (selectedServiceObj ? selectedServiceObj.name : 'Select alteration')} {selectedServiceObj ? `($${selectedServiceObj.customerPrice})` : ''}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showAlterationPicker ? 'rotate-180' : ''}`} />
                   </div>
 
-                  {showAlterationPicker && (
+                  {showAlterationPicker && currentCategory && (
                     <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-2xl bg-white border border-gray-200 shadow-2xl p-2 space-y-1 max-h-80 overflow-y-auto animate-in fade-in duration-150">
                       <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
                         {currentCategory.name} Services
                       </div>
-                      {currentCategory.popularServices.map((svc) => {
+                      {currentCategory.popularServices?.map((svc) => {
                         const isSelected = selectedAlteration === svc.name
                         return (
                           <button

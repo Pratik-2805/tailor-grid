@@ -1,4 +1,4 @@
-import { type User, type FittingBooking, type StoreOption, type GarmentCategory, PARTNER_STORES, GARMENT_CATEGORIES } from '../components/data'
+import { type User, type FittingBooking, type StoreOption, type GarmentCategory } from '../components/data'
 import {
   getAuthToken,
   setAuthToken,
@@ -632,32 +632,13 @@ export async function fetchStores(search?: string): Promise<StoreOption[]> {
     const res = await fetch(url)
     if (!res.ok) throw new Error('Failed to fetch stores')
     const data = await res.json()
-    if (Array.isArray(data.stores) && data.stores.length > 0) {
-      const fetched: StoreOption[] = data.stores
-      const seen = new Set<string>()
-      const combined: StoreOption[] = []
-
-      for (const s of fetched) {
-        const key = (s.name || s.id).toLowerCase().trim()
-        if (!seen.has(key)) {
-          seen.add(key)
-          combined.push(s)
-        }
-      }
-
-      for (const defStore of PARTNER_STORES) {
-        const key = (defStore.name || defStore.id).toLowerCase().trim()
-        if (!seen.has(key)) {
-          seen.add(key)
-          combined.push(defStore)
-        }
-      }
-      return combined
+    if (Array.isArray(data.stores)) {
+      return data.stores
     }
-    return PARTNER_STORES
+    return []
   } catch (err) {
-    console.warn('Failed to fetch stores, falling back to local list:', err)
-    return PARTNER_STORES
+    console.warn('Failed to fetch stores from backend database:', err)
+    return []
   }
 }
 
@@ -666,14 +647,14 @@ export async function fetchServices(): Promise<GarmentCategory[]> {
     const res = await fetch(`${API_BASE}/services`)
     if (res.ok) {
       const data = await res.json()
-      if (Array.isArray(data.services) && data.services.length > 0) {
+      if (Array.isArray(data.services)) {
         return data.services
       }
     }
-  } catch (_) {
-    // Network or temporary server reload fallback
+  } catch (err) {
+    console.warn('Failed to fetch services from backend database:', err)
   }
-  return GARMENT_CATEGORIES
+  return []
 }
 
 export interface DispatchSessionStatus {
