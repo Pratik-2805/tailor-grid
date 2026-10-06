@@ -5,34 +5,51 @@ import { useState, useEffect, useCallback } from 'react'
 const SESSION_CITY_KEY = 'tg_session_city'
 const SESSION_COORDS_KEY = 'tg_session_coords'
 
+const DEFAULT_CITY_ENV = process.env.NEXT_PUBLIC_DEFAULT_CITY || ''
+const DEFAULT_LAT_ENV = process.env.NEXT_PUBLIC_DEFAULT_LAT ? parseFloat(process.env.NEXT_PUBLIC_DEFAULT_LAT) : null
+const DEFAULT_LNG_ENV = process.env.NEXT_PUBLIC_DEFAULT_LNG ? parseFloat(process.env.NEXT_PUBLIC_DEFAULT_LNG) : null
+
 export function getStoredCity(): string {
-  if (typeof window === 'undefined') return 'Vasai, IN-MH'
+  if (typeof window === 'undefined') return DEFAULT_CITY_ENV
   try {
-    return sessionStorage.getItem(SESSION_CITY_KEY) || 'Vasai, IN-MH'
+    // Purge legacy persistent city so it doesn't linger across sessions
+    localStorage.removeItem(SESSION_CITY_KEY)
+    return sessionStorage.getItem(SESSION_CITY_KEY) || DEFAULT_CITY_ENV
   } catch {
-    return 'Vasai, IN-MH'
+    return DEFAULT_CITY_ENV
   }
 }
 
 export function getSessionCoordinates(): { lat: number; lng: number } | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') {
+    return DEFAULT_LAT_ENV !== null && DEFAULT_LNG_ENV !== null
+      ? { lat: DEFAULT_LAT_ENV, lng: DEFAULT_LNG_ENV }
+      : null
+  }
   try {
+    // Purge legacy persistent coords so it doesn't linger across sessions
+    localStorage.removeItem(SESSION_COORDS_KEY)
     const raw = sessionStorage.getItem(SESSION_COORDS_KEY)
     if (raw) return JSON.parse(raw)
   } catch {}
+
+  if (DEFAULT_LAT_ENV !== null && DEFAULT_LNG_ENV !== null) {
+    return { lat: DEFAULT_LAT_ENV, lng: DEFAULT_LNG_ENV }
+  }
   return null
 }
 
 export function formatLocationDisplay(locationStr?: string): string {
-  if (!locationStr) return 'Vasai'
+  if (!locationStr) return ''
 
   const parts = locationStr.split(',').map((p) => p.trim()).filter(Boolean)
-  if (parts.length <= 1) return locationStr
+  if (parts.length === 0) return ''
+  if (parts.length === 1) return parts[0]
 
   const first = parts[0]
   const second = parts[1]
 
-  // If first part is a flat/unit/house number (e.g. "Flat 204", "B-12", "House No. 5", "#4B"), combine with 2nd part (apartment/building name)
+  // If first part is a flat/unit/house number (e.g. "Flat 204", "B-12", "House No. 5", "#4B"), combine with 2nd part
   if (/^(flat|apt|apartment|house|room|bldg|building|plot|no|#|\d+[\w-]*)\b/i.test(first) && parts.length >= 2) {
     return `${first}, ${second}`
   }
@@ -44,28 +61,99 @@ export function setStoredCity(city: string, coords?: { lat: number; lng: number 
   if (typeof window === 'undefined') return
   try {
     sessionStorage.setItem(SESSION_CITY_KEY, city)
-    const effectiveCoords = coords || getCityCoordinates(city)
-    sessionStorage.setItem(SESSION_COORDS_KEY, JSON.stringify(effectiveCoords))
+    localStorage.removeItem(SESSION_CITY_KEY)
+    if (coords) {
+      sessionStorage.setItem(SESSION_COORDS_KEY, JSON.stringify(coords))
+      localStorage.removeItem(SESSION_COORDS_KEY)
+    }
     window.dispatchEvent(new CustomEvent('tg_city_changed', { detail: city }))
   } catch (err) {
     console.warn('Error saving session city:', err)
   }
 }
 
-export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
+export function resolveAccurateCityFromComponents(
+  comps: any[],
+  lat?: number,
+  lng?: number,
+  formattedAddress?: string
+): {
+  cityName: string
+  stateCode: string
+  cityStateFormatted: string
+  fullFormatted: string
+  specificArea: string
+  displayLocality: string
+} {
+  if (!Array.isArray(comps) || comps.length === 0) {
+    const fallback = getStoredCity() || DEFAULT_CITY_ENV
+    return {
+      cityName: fallback,
+      stateCode: '',
+      cityStateFormatted: fallback,
+      fullFormatted: fallback,
+      specificArea: fallback,
+      displayLocality: fallback,
+    }
+  }
+
+  const getComp = (type: string) => comps.find((c: any) => c.types && c.types.includes(type))?.long_name || ''
+  const getShort = (type: string) => comps.find((c: any) => c.types && c.types.includes(type))?.short_name || ''
+
+  const neighborhood = getComp('neighborhood')
+  const sublocality3 = getComp('sublocality_level_3')
+  const sublocality2 = getComp('sublocality_level_2')
+  const sublocality1 = getComp('sublocality_level_1') || getComp('sublocality')
+  const locality = getComp('locality')
+  const admin3 = getComp('administrative_area_level_3')
+  const admin2 = getComp('administrative_area_level_2')
+  const stateCode = getShort('administrative_area_level_1') || getShort('country') || ''
+
+  // 1. Genuine City / Municipality / Corporation (e.g. "Mumbai", "Vasai-Virar", "Thane", "New York", "London")
+  const actualCity = locality || admin2 || admin3 || sublocality1 || ''
+
+  // 2. Specific neighborhood/area within the city (e.g. "Null Bazar", "Naigaon West", "Bandra West")
+  const specificArea = sublocality2 || sublocality1 || neighborhood || ''
+
+  // 3. City + State formatted for city/region fields (e.g. "Mumbai, MH")
+  const cityStateFormatted = stateCode && actualCity && !actualCity.includes(stateCode)
+    ? `${actualCity}, ${stateCode}`
+    : actualCity
+
+  // 4. Locality for display / header
+  const displayLocality = specificArea || actualCity
+
+  // 5. Full formatted string
+  const fullFormatted = cityStateFormatted
+
+  return {
+    cityName: actualCity,
+    stateCode,
+    cityStateFormatted,
+    fullFormatted,
+    specificArea,
+    displayLocality,
+  }
+}
+
+export function useCityLocation(defaultCity?: string) {
   const [city, setCityState] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       try {
+        localStorage.removeItem(SESSION_CITY_KEY)
         const inSession = sessionStorage.getItem(SESSION_CITY_KEY)
         if (inSession) return inSession
       } catch {}
     }
-    return defaultCity
+    return defaultCity || getStoredCity() || DEFAULT_CITY_ENV
   })
 
-  // On page mount, if no session city was manually picked, detect live GPS
+  // On page mount, detect live GPS dynamically
   useEffect(() => {
-    const sessionCity = typeof window !== 'undefined' ? sessionStorage.getItem(SESSION_CITY_KEY) : null
+    const sessionCity =
+      typeof window !== 'undefined'
+        ? sessionStorage.getItem(SESSION_CITY_KEY)
+        : null
 
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -73,46 +161,28 @@ export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
           const { latitude, longitude } = position.coords
           const liveCoords = { lat: latitude, lng: longitude }
 
-          // If Google Maps is ready, use Google Geocoder
+          // If Google Maps Geocoder is available, reverse-geocode dynamically
           if ((window as any).google?.maps?.Geocoder) {
             try {
               const geocoder = new (window as any).google.maps.Geocoder()
-              geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results: any, status: any) => {
-                let formatted = 'Vasai, IN-MH'
+              geocoder.geocode({ location: liveCoords }, (results: any, status: any) => {
                 if (status === 'OK' && Array.isArray(results) && results.length > 0) {
                   const comps = results[0]?.address_components || []
-                  const locality = comps.find((c: any) => c.types.includes('locality'))
-                  const sublocality = comps.find((c: any) => c.types.includes('sublocality') || c.types.includes('sublocality_level_1'))
-                  const admin2 = comps.find((c: any) => c.types.includes('administrative_area_level_2'))
-                  const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
-                  const country = comps.find((c: any) => c.types.includes('country'))
-
-                  const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
-                  const stateCode = state?.short_name || country?.short_name || ''
-                  formatted = stateCode ? `${cityName}, ${stateCode}` : cityName
-                }
-                if (!sessionCity) {
-                  setStoredCity(formatted, liveCoords)
-                  setCityState(formatted)
+                  const formattedAddress = results[0]?.formatted_address || ''
+                  const accurate = resolveAccurateCityFromComponents(comps, latitude, longitude, formattedAddress)
+                  
+                  if (!sessionCity) {
+                    setStoredCity(accurate.fullFormatted, liveCoords)
+                    setCityState(accurate.fullFormatted)
+                  }
                 }
               })
               return
             } catch {}
           }
 
-          // Fallback coordinate proximity matching
           if (!sessionCity) {
-            let closestCity = 'Vasai, IN-MH'
-            let minDist = Infinity
-            for (const [cName, cCoords] of Object.entries(CITY_COORDINATES)) {
-              const d = Math.hypot(cCoords.lat - latitude, cCoords.lng - longitude)
-              if (d < minDist) {
-                minDist = d
-                closestCity = cName
-              }
-            }
-            setStoredCity(closestCity, liveCoords)
-            setCityState(closestCity)
+            setStoredCity(city || DEFAULT_CITY_ENV, liveCoords)
           }
         },
         (err) => {
@@ -135,7 +205,7 @@ export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
     return () => {
       window.removeEventListener('tg_city_changed', handleSync)
     }
-  }, [])
+  }, [city])
 
   const updateCity = useCallback((newCity: string, coords?: { lat: number; lng: number }) => {
     setCityState(newCity)
@@ -145,78 +215,13 @@ export function useCityLocation(defaultCity: string = 'Vasai, IN-MH') {
   return [city, updateCity] as const
 }
 
-export const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
-  'Vasai, IN-MH': { lat: 19.3919, lng: 72.8397 },
-  'Mumbai, IN': { lat: 19.0760, lng: 72.8777 },
-  'Delhi NCR, IN': { lat: 28.6139, lng: 77.2090 },
-  'Bengaluru, IN': { lat: 12.9716, lng: 77.5946 },
-  'London, UK': { lat: 51.5074, lng: -0.1278 },
-  'New York City, NY': { lat: 40.7128, lng: -74.0060 },
-  'New York, NY': { lat: 40.7128, lng: -74.0060 },
-  'Los Angeles, CA': { lat: 34.0522, lng: -118.2437 },
-  'Chicago, IL': { lat: 41.8781, lng: -87.6298 },
-  'Houston, TX': { lat: 29.7604, lng: -95.3698 },
-  'Miami, FL': { lat: 25.7617, lng: -80.1918 },
-  'San Francisco, CA': { lat: 37.7749, lng: -122.4194 },
-  'Dallas-Fort Worth, TX': { lat: 32.7767, lng: -96.7970 },
-  'Seattle, WA': { lat: 47.6062, lng: -122.3321 },
-  'Washington D.C.': { lat: 38.9072, lng: -77.0369 },
-  'Boston, MA': { lat: 42.3601, lng: -71.0589 },
-  'Austin, TX': { lat: 30.2672, lng: -97.7431 },
-  'Las Vegas, NV': { lat: 36.1699, lng: -115.1398 },
-  'Atlanta, GA': { lat: 33.7490, lng: -84.3880 },
-  'Denver, CO': { lat: 39.7392, lng: -104.9903 },
-  'Phoenix, AZ': { lat: 33.4484, lng: -112.0740 },
-  'Philadelphia, PA': { lat: 39.9526, lng: -75.1652 },
-}
-
 export function getCityCoordinates(cityStr?: string): { lat: number; lng: number } {
-  if (!cityStr) return CITY_COORDINATES['Vasai, IN-MH']
-  if (CITY_COORDINATES[cityStr]) return CITY_COORDINATES[cityStr]
+  const sessionCoords = getSessionCoordinates()
+  if (sessionCoords) return sessionCoords
 
-  const lower = cityStr.toLowerCase()
-  if (lower.includes('vasai') || lower.includes('manickpur') || lower.includes('virar') || lower.includes('palghar')) {
-    return CITY_COORDINATES['Vasai, IN-MH']
-  }
-  if (lower.includes('mumbai') || lower.includes('in-mh') || lower.includes('bombay') || lower.includes('bandra') || lower.includes('andheri')) {
-    return CITY_COORDINATES['Mumbai, IN']
-  }
-  if (lower.includes('delhi') || lower.includes('ncr') || lower.includes('gurgaon') || lower.includes('noida')) {
-    return CITY_COORDINATES['Delhi NCR, IN']
-  }
-  if (lower.includes('bengaluru') || lower.includes('bangalore')) {
-    return CITY_COORDINATES['Bengaluru, IN']
-  }
-  if (lower.includes('london') || lower.includes('uk') || lower.includes('kensington') || lower.includes('chelsea')) {
-    return CITY_COORDINATES['London, UK']
-  }
-  if (lower.includes('new york') || lower.includes('ny') || lower.includes('soho') || lower.includes('manhattan') || lower.includes('brooklyn')) {
-    return CITY_COORDINATES['New York, NY']
-  }
-  if (lower.includes('los angeles') || lower.includes('beverly') || lower.includes('la') || lower.includes('hollywood')) {
-    return CITY_COORDINATES['Los Angeles, CA']
-  }
-  if (lower.includes('chicago')) {
-    return CITY_COORDINATES['Chicago, IL']
-  }
-  if (lower.includes('san francisco') || lower.includes('sf')) {
-    return CITY_COORDINATES['San Francisco, CA']
-  }
-  if (lower.includes('miami')) {
-    return CITY_COORDINATES['Miami, FL']
-  }
-  if (lower.includes('houston')) {
-    return CITY_COORDINATES['Houston, TX']
-  }
-  if (lower.includes('seattle')) {
-    return CITY_COORDINATES['Seattle, WA']
-  }
-  if (lower.includes('austin')) {
-    return CITY_COORDINATES['Austin, TX']
-  }
-  if (lower.includes('boston')) {
-    return CITY_COORDINATES['Boston, MA']
+  if (DEFAULT_LAT_ENV !== null && DEFAULT_LNG_ENV !== null) {
+    return { lat: DEFAULT_LAT_ENV, lng: DEFAULT_LNG_ENV }
   }
 
-  return { lat: 19.3919, lng: 72.8397 }
+  return { lat: 0, lng: 0 }
 }

@@ -290,7 +290,7 @@ const CITIES = [
 ]
 
 export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
-  const [selectedCity, setSelectedCity] = useCityLocation('New York City, NY')
+  const [selectedCity, setSelectedCity] = useCityLocation()
   const [showCityPicker, setShowCityPicker] = useState(false)
 
   // Pickup / Schedule time selection state
