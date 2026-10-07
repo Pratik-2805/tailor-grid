@@ -6,7 +6,7 @@ import { ArrowLeft, LogOut, Mail, Phone, Store, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
-import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthUser, setAuthRole, setAuthToken, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 
 type AuthMode =
   | 'role-select'
@@ -115,26 +115,31 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, targetRole, authType, currentUser, mandatoryPhoneRequired])
 
-  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string) => {
-    const effectiveRole = user.role || role || 'CUSTOMER'
-    const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string, refreshToken?: string) => {
+    const effectiveRt = refreshToken || getRefreshToken()
+    if (effectiveRt) {
+      setRefreshToken(effectiveRt)
+    }
+    const effectiveToken = token || getAuthToken()
+    if (effectiveToken) {
+      setAuthToken(effectiveToken)
+    }
 
-    if (effectiveRole === 'STUDIO') {
-      if (effectiveToken) {
-        setAuthToken(effectiveToken)
-      }
-      setAuthRole('STUDIO')
-      setAuthUser(user)
+    const effectiveRole = user.role || role || (effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null) || 'CUSTOMER'
+
+    if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
+      setAuthRole(effectiveRole)
+      setAuthUser({ ...user, role: effectiveRole })
       toast.success(`Welcome back, ${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
       onClose()
 
-      const targetParam = authCode || effectiveToken
+      const targetParam = effectiveRt || authCode || effectiveToken
       if (targetParam) {
         window.location.href = getStudioUrl('/auth/callback', targetParam)
-      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE') {
+      } else if (!user.studioName || !user.phone || user.status === 'INACTIVE' || effectiveRole === 'TEMP_STUDIO') {
         window.location.href = getStudioUrl('/?step=1')
       } else {
-        window.location.href = getStudioUrl('/')
+        window.location.href = getStudioUrl('/dashboard')
       }
       return
     }
@@ -213,7 +218,7 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              finalizeAuth(result.user, result.user.role || 'STUDIO', result.token, result.authCode)
+              finalizeAuth(result.user, result.user.role || 'STUDIO', result.token, result.authCode, result.refreshToken)
             }
           } catch (err: any) {
             setLoading(false)
@@ -290,7 +295,7 @@ export function AuthModal({
             })
             setLoading(false)
             if (result?.user) {
-              finalizeAuth(result.user, result.user.role || role, result.token, result.authCode)
+              finalizeAuth(result.user, result.user.role || role, result.token, result.authCode, result.refreshToken)
             }
           } catch (err: any) {
             setLoading(false)
@@ -374,7 +379,7 @@ export function AuthModal({
       })
       setLoading(false)
       if (res?.user) {
-        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode, res.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
@@ -407,7 +412,7 @@ export function AuthModal({
       })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || 'CUSTOMER', result.token, result.authCode)
+        finalizeAuth(result.user, result.user.role || 'CUSTOMER', result.token, result.authCode, result.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
@@ -464,7 +469,7 @@ export function AuthModal({
       setLoading(false)
       if (res?.user) {
         toast.success('Mobile number linked successfully!', { position: 'top-center' })
-        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode, res.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
@@ -502,7 +507,7 @@ export function AuthModal({
     try {
       const result = await loginUser({ identifier: cleanId })
       setLoading(false)
-      if (result?.user) finalizeAuth(result.user, result.user.role, result.token, result.authCode)
+      if (result?.user) finalizeAuth(result.user, result.user.role, result.token, result.authCode, result.refreshToken)
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Login failed.'

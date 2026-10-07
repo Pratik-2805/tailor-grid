@@ -14,6 +14,7 @@ import {
   removeAuthRole,
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
+  decodeJwtPayload,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -23,15 +24,25 @@ export const CUSTOMER_SITE_URL =
   process.env.CUSTOMER_SITE_URL ||
   ''
 
-export function getCustomerSiteUrl(path: string = '', tokenOrCode?: string | null): string {
+export function getCustomerSiteUrl(path: string = '', tokenOrCodeOrRt?: string | null): string {
   const base = CUSTOMER_SITE_URL.replace(/\/$/, '')
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
   const url = `${base}${cleanPath}`
   
-  if (tokenOrCode) {
+  if (tokenOrCodeOrRt) {
     const separator = url.includes('?') ? '&' : '?'
-    const paramName = tokenOrCode.startsWith('ac_') ? 'code' : 'token'
-    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCode)}`
+    let paramName = 'refreshToken'
+    if (tokenOrCodeOrRt.startsWith('ac_')) {
+      paramName = 'code'
+    } else {
+      const decoded = decodeJwtPayload(tokenOrCodeOrRt)
+      if (decoded?.tokenType === 'access') {
+        paramName = 'token'
+      } else {
+        paramName = 'refreshToken'
+      }
+    }
+    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCodeOrRt)}`
   }
   return url
 }
@@ -39,14 +50,18 @@ export function getCustomerSiteUrl(path: string = '', tokenOrCode?: string | nul
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
-export async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken()
+export async function refreshAccessToken(providedRefreshToken?: string): Promise<string | null> {
+  const refreshToken = providedRefreshToken || getRefreshToken()
   if (!refreshToken) {
     clearAllAuth()
     return null
   }
 
-  if (isRefreshing && refreshPromise) {
+  if (providedRefreshToken) {
+    setRefreshToken(providedRefreshToken)
+  }
+
+  if (isRefreshing && refreshPromise && !providedRefreshToken) {
     return refreshPromise
   }
 
@@ -55,12 +70,17 @@ export async function refreshAccessToken(): Promise<string | null> {
     try {
       const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       })
 
-      if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
         clearAllAuth()
+        return null
+      }
+
+      if (!res.ok) {
         return null
       }
 
@@ -83,7 +103,6 @@ export async function refreshAccessToken(): Promise<string | null> {
       clearAllAuth()
       return null
     } catch {
-      clearAllAuth()
       return null
     } finally {
       isRefreshing = false
@@ -134,13 +153,15 @@ export async function exchangeAuthCode(code: string): Promise<{
 export async function logoutUser(): Promise<void> {
   try {
     const token = getAuthToken()
+    const refreshToken = getRefreshToken()
     await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ refreshToken }),
     })
   } catch (err) {
     console.warn('Backend studio logout request notice:', err)
@@ -446,13 +467,13 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!token) {
     token = await refreshAccessToken()
     if (!token) {
-      clearAllAuth()
       return null
     }
   }
 
   try {
     let res = await fetch(`${API_BASE}/auth/me`, {
+      credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
     })
 
@@ -460,6 +481,7 @@ export async function getCurrentUser(): Promise<User | null> {
       const newToken = await refreshAccessToken()
       if (newToken) {
         res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: 'include',
           headers: { Authorization: `Bearer ${newToken}` },
         })
       }
@@ -479,13 +501,15 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    // User was deleted from database, expired, or token was invalidated -> Immediately wipe all auth
-    clearAllAuth()
-    return null
+    if (res.status === 401 || res.status === 403) {
+      clearAllAuth()
+      return null
+    }
+
+    return getAuthUser<User>()
   } catch (err) {
-    // Network failure
-    clearAllAuth()
-    return null
+    // On temporary network disconnection / hot-reload, preserve credentials
+    return getAuthUser<User>()
   }
 }
 

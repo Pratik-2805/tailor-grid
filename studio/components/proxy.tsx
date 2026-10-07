@@ -147,15 +147,24 @@ export function StudioProxy({ children }: StudioProxyProps) {
     window.addEventListener('unhandledrejection', handleUnhandledRejection, true)
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (!e.key || e.key === 'tg_token' || e.key === 'tg_user_role' || e.key === 'tg_user_data') {
+      if (!e.key || e.key === 'tg_token' || e.key === 'tg_refresh_token') {
         verifyRoleGate()
       }
     }
+    const handleVisibilityOrFocus = () => {
+      verifyRoleGate()
+    }
+
     window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleVisibilityOrFocus)
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+
     return () => {
       window.removeEventListener('error', handleWindowError, true)
       window.removeEventListener('unhandledrejection', handleUnhandledRejection, true)
       window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleVisibilityOrFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
     }
   }, [])
 

@@ -76,14 +76,14 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     }
   }, [])
 
-  // If auth check completes and user is not an active studio, redirect appropriately
+  // If auth check completes and user is TEMP_STUDIO, redirect to onboarding
   useEffect(() => {
-    if (!loadingUser) {
-      if (user?.role === 'TEMP_STUDIO' || (user?.role === 'STUDIO' && (!user.studioName || !user.phone || user.status === 'INACTIVE'))) {
+    if (!loadingUser && user) {
+      if (user.role === 'TEMP_STUDIO') {
         window.location.replace('/?step=1')
         return
       }
-      if (!user || (user.role !== 'STUDIO' && user.role !== 'ADMIN')) {
+      if (user.role !== 'STUDIO' && user.role !== 'ADMIN') {
         window.location.replace(customerSiteUrl)
       }
     }
@@ -106,7 +106,7 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     }
     setUser(null)
     if (typeof window !== 'undefined') {
-      window.location.href = customerSiteUrl || '/'
+      window.location.href = '/'
       return
     }
     router.replace('/')
@@ -146,7 +146,7 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
       <main className="flex-1 flex flex-col">
         <PartnerFlow
-          go={() => {}}
+          go={() => { }}
           otp={otp}
           user={user}
           onSignOut={handleSignOut}

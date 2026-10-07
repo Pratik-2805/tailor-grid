@@ -173,28 +173,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    getCurrentUser()
-      .then((u) => {
-        if (u && u.status !== 'INACTIVE') {
-          setUser(u)
-        } else {
-          setUser(null)
-          if (getAuthToken() || getRefreshToken()) {
+    const token = getAuthToken() || getRefreshToken()
+    if (token) {
+      getCurrentUser()
+        .then((u) => {
+          if (u && u.status !== 'INACTIVE') {
+            setUser(u)
+          } else {
+            setUser(null)
             clearAllAuth()
           }
-        }
-      })
-      .catch(() => {
-        const cached = getAuthUser<User>()
-        if (cached && cached.status !== 'INACTIVE') {
-          setUser(cached)
-        } else {
-          setUser(null)
-        }
-      })
-      .finally(() => {
-        setIsAuthLoading(false)
-      })
+        })
+        .catch(() => {
+          const cached = getAuthUser<User>()
+          if (cached && cached.status !== 'INACTIVE') {
+            setUser(cached)
+          } else {
+            setUser(null)
+          }
+        })
+        .finally(() => {
+          setIsAuthLoading(false)
+        })
+    } else {
+      setUser(null)
+      setIsAuthLoading(false)
+    }
+
+    // Sync auth state if cookies changed while user was in another portal tab
+    const handleSync = () => {
+      const hasToken = Boolean(getAuthToken() || getRefreshToken())
+      if (!hasToken) {
+        setUser((prev) => (prev ? null : prev))
+      } else {
+        getCurrentUser().then((u) => {
+          if (u && u.status !== 'INACTIVE') {
+            setUser(u)
+          } else {
+            setUser(null)
+          }
+        }).catch(() => {})
+      }
+    }
+
+    window.addEventListener('focus', handleSync)
+    document.addEventListener('visibilitychange', handleSync)
+
+    return () => {
+      window.removeEventListener('focus', handleSync)
+      document.removeEventListener('visibilitychange', handleSync)
+    }
   }, [])
 
   const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {

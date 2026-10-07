@@ -1,6 +1,6 @@
 import { toast } from 'react-toastify'
 import { type User } from '../components/data'
-import { getAuthRole, getAuthToken, setAuthRole, setAuthToken, setAuthUser } from './cookies'
+import { getAuthRole, getAuthToken, setAuthRole, setAuthToken, setAuthUser, setRefreshToken } from './cookies'
 import { getStudioUrl, loginWithGoogle } from './api'
 
 export const GOOGLE_CLIENT_ID =
@@ -77,6 +77,7 @@ export function triggerStudioGoogleAuth(options?: {
           options?.onLoading?.(false)
 
           if (result?.user) {
+            if (result.refreshToken) setRefreshToken(result.refreshToken)
             if (result.token) setAuthToken(result.token)
             setAuthRole('STUDIO')
             setAuthUser(result.user)
@@ -87,7 +88,7 @@ export function triggerStudioGoogleAuth(options?: {
 
             options?.onSuccess?.(result.user)
 
-            const targetParam = result.authCode || result.token
+            const targetParam = result.refreshToken || result.authCode || result.token
             if (targetParam) {
               window.location.href = getStudioUrl('/auth/callback', targetParam)
             } else {

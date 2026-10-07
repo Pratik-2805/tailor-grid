@@ -19,8 +19,8 @@ export default function PartnerPage() {
     getCurrentUser()
       .then((user) => {
         if (user?.role === 'STUDIO' || user?.role === 'TEMP_STUDIO') {
-          const at = getAuthToken()
-          window.location.href = getStudioUrl('/', at)
+          const rt = getRefreshToken() || getAuthToken()
+          window.location.href = getStudioUrl('/auth/callback', rt)
         } else if (user?.role === 'CUSTOMER') {
           router.replace('/book')
         } else {

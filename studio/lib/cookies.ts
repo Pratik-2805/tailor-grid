@@ -1,6 +1,19 @@
 /**
- * Cookie management utilities for studio application
+ * Cookie management utilities for studio application (Cookies & CORS Only)
  */
+
+export function getParentCookieDomain(): string | null {
+  if (typeof window === 'undefined') return null
+  const hostname = window.location.hostname
+  if (!hostname || hostname === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+    return null
+  }
+  const parts = hostname.split('.')
+  if (parts.length >= 2) {
+    return `.${parts.slice(-2).join('.')}`
+  }
+  return null
+}
 
 export function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null
@@ -30,43 +43,55 @@ export function setCookie(
   if (typeof document === 'undefined') return
   const maxAge = days * 24 * 60 * 60
   const encodedValue = encodeURIComponent(value)
-  let cookieString = `${encodeURIComponent(name)}=${encodedValue}; path=${path}; max-age=${maxAge}; SameSite=${sameSite}`
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && sameSite === 'None') {
-    cookieString += '; Secure'
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  const secureFlag = isHttps ? '; Secure' : ''
+  const parentDomain = getParentCookieDomain()
+
+  // Only set with parentDomain if available so cookies are shared and cleanly cleared cross-subdomain
+  if (parentDomain) {
+    document.cookie = `${encodeURIComponent(name)}=${encodedValue}; domain=${parentDomain}; path=${path}; max-age=${maxAge}; SameSite=${sameSite}${secureFlag}`
+  } else {
+    document.cookie = `${encodeURIComponent(name)}=${encodedValue}; path=${path}; max-age=${maxAge}; SameSite=${sameSite}${secureFlag}`
   }
-  document.cookie = cookieString
 }
 
 export function deleteCookie(name: string, path: string = '/'): void {
   if (typeof document === 'undefined') return
-  
+
   const rawName = name.trim()
   const encodedName = encodeURIComponent(rawName)
   const paths = [path, '', '/']
   const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
   const hostParts = hostname ? hostname.split('.') : []
+  const parentDomain = hostParts.length > 1 ? `.${hostParts.slice(-2).join('.')}` : ''
+  const rawParentDomain = hostParts.length > 1 ? hostParts.slice(-2).join('.') : ''
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:'
+  const secureFlag = isHttps ? '; Secure' : ''
+
   const domainVariants = [
     '',
     hostname,
     `.${hostname}`,
-    hostParts.length > 1 ? `.${hostParts.slice(-2).join('.')}` : '',
-  ].filter((v, i, a) => a.indexOf(v) === i)
+    parentDomain,
+    rawParentDomain,
+  ].filter((v, i, a) => v && a.indexOf(v) === i)
 
   // Expire cookies across all possible domain & path permutations
   for (const p of paths) {
     const pathAttr = p ? `; path=${p}` : ''
     // Host-only deletions
-    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`
+    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`
+    document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict${secureFlag}`
     document.cookie = `${encodedName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
-    document.cookie = `${rawName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-    
+    document.cookie = `${rawName}=${pathAttr}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`
+
     // Domain variations
     for (const d of domainVariants) {
       if (d) {
-        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict`
+        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`
+        document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict${secureFlag}`
         document.cookie = `${encodedName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=None; Secure`
+        document.cookie = `${rawName}=${pathAttr}; domain=${d}; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`
       }
     }
   }
@@ -97,49 +122,22 @@ export function clearAllCookies(): void {
 // ================= AUTH COOKIE HELPERS =================
 
 export function getAuthToken(): string | null {
-  let token = getCookie('tg_token')
-  if (!token && typeof window !== 'undefined') {
-    // Migration fallback from legacy localStorage if exists
-    const legacy = localStorage.getItem('tg_token')
-    if (legacy) {
-      setAuthToken(legacy)
-      localStorage.removeItem('tg_token')
-      return legacy
-    }
-  }
-  return token
+  return getCookie('tg_token')
 }
 
 export function setAuthToken(token: string): void {
   // 15 minutes (15 / 1440 days)
   setCookie('tg_token', token, 15 / 1440, '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_token')
-  }
 }
 
 export function removeAuthToken(): void {
   deleteCookie('tg_token', '/')
   deleteCookie('token', '/')
   deleteCookie('auth_token', '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_token')
-    localStorage.removeItem('token')
-  }
 }
 
 export function getRefreshToken(): string | null {
-  let token = getCookie('tg_refresh_token')
-  if (!token && typeof window !== 'undefined') {
-    const legacy = localStorage.getItem('tg_refresh_token') || localStorage.getItem('refreshToken')
-    if (legacy) {
-      setRefreshToken(legacy)
-      localStorage.removeItem('tg_refresh_token')
-      localStorage.removeItem('refreshToken')
-      return legacy
-    }
-  }
-  return token
+  return getCookie('tg_refresh_token')
 }
 
 export function setRefreshToken(token: string): void {
@@ -150,10 +148,6 @@ export function setRefreshToken(token: string): void {
 export function removeRefreshToken(): void {
   deleteCookie('tg_refresh_token', '/')
   deleteCookie('refreshToken', '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_refresh_token')
-    localStorage.removeItem('refreshToken')
-  }
 }
 
 /**
@@ -202,32 +196,16 @@ export function getAuthRole(): string | null {
 }
 
 export function setAuthRole(role?: string): void {
-  // User role is embedded directly in Access & Refresh JWT tokens.
-  // We explicitly clean up any legacy tg_user_role cookie.
+  // Role is encoded inside JWT tokens. We ensure legacy role cookies are deleted.
   deleteCookie('tg_user_role', '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_user_role')
-  }
 }
 
 export function removeAuthRole(): void {
   deleteCookie('tg_user_role', '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_user_role')
-  }
 }
 
 export function getAuthUser<T = any>(): T | null {
-  if (typeof window !== 'undefined') {
-    const fullUser = localStorage.getItem('tg_user_data') || localStorage.getItem('tg_user')
-    if (fullUser) {
-      try {
-        return JSON.parse(fullUser) as T
-      } catch {}
-    }
-  }
-
-  // Fallback: decode identity claims directly from Access Token
+  // Decode identity claims directly from Access Token
   const token = getAuthToken()
   if (token) {
     const payload = decodeJwtPayload(token)
@@ -244,70 +222,38 @@ export function getAuthUser<T = any>(): T | null {
     }
   }
 
+  // Secondary Source of Truth: decode from Refresh Token
+  const refreshToken = getRefreshToken()
+  if (refreshToken) {
+    const payload = decodeJwtPayload(refreshToken)
+    if (payload && payload.id) {
+      return {
+        id: payload.id,
+        name: 'Member',
+        role: payload.role || 'STUDIO',
+        status: 'ACTIVE',
+      } as unknown as T
+    }
+  }
+
   return null
 }
 
 export function setAuthUser(user: any): void {
-  if (!user) {
-    removeAuthUser()
-    return
-  }
-
-  // Store full user object ONLY in localStorage (never in cookies to avoid HTTP 431)
-  if (typeof window !== 'undefined') {
-    try {
-      localStorage.setItem('tg_user_data', JSON.stringify(user))
-    } catch (err) {
-      console.error('Error saving user to localStorage:', err)
-    }
-  }
-
-  // Ensure any legacy tg_user cookie is wiped
+  // User credentials and identity are fully managed via HTTP cookies and JWT tokens.
+  // Legacy tg_user cookie is cleaned up.
   deleteCookie('tg_user', '/')
 }
 
 export function removeAuthUser(): void {
   deleteCookie('tg_user', '/')
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('tg_user_data')
-    localStorage.removeItem('tg_user')
-  }
 }
 
 export function clearUnnecessaryDataOnLogin(): void {
-  // 1. Wipe all existing cookies
   clearAllCookies()
-
-  // 2. Clear all previous user, session, and cached order data from localStorage
-  if (typeof window !== 'undefined') {
-    try {
-      const keysToPreserve = new Set<string>([
-        'tg_selected_city',
-      ])
-
-      const allKeys: string[] = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key && !keysToPreserve.has(key)) {
-          allKeys.push(key)
-        }
-      }
-
-      allKeys.forEach((key) => {
-        try {
-          localStorage.removeItem(key)
-        } catch {}
-      })
-
-      sessionStorage.clear()
-    } catch (e) {
-      console.warn('Error clearing localStorage on studio login:', e)
-    }
-  }
 }
 
 export function clearAllAuth(): void {
-  clearUnnecessaryDataOnLogin()
   removeAuthToken()
   removeRefreshToken()
   removeAuthUser()
@@ -315,55 +261,18 @@ export function clearAllAuth(): void {
   clearAllCookies()
 }
 
-// ================= LOCAL STORAGE HELPERS (REPLACES STORAGE COOKIES) =================
-// Non-auth UI states belong in localStorage, NOT cookies!
+// ================= STORAGE COOKIE HELPERS =================
 
 export function getStorageCookie(key: string, defaultValue: string = ''): string {
-  if (typeof window === 'undefined') return defaultValue
-  try {
-    const val = localStorage.getItem(key)
-    if (val !== null) return val
-    
-    // Clean up legacy cookie if found and migrate to localStorage
-    const legacyCookie = getCookie(key)
-    if (legacyCookie !== null) {
-      localStorage.setItem(key, legacyCookie)
-      deleteCookie(key, '/')
-      return legacyCookie
-    }
-  } catch {}
-  return defaultValue
+  const cookieVal = getCookie(key)
+  return cookieVal !== null ? cookieVal : defaultValue
 }
 
 export function setStorageCookie(key: string, value: string): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(key, value)
-    deleteCookie(key, '/')
-  } catch (err: any) {
-    if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.number === -2147024882) {
-      try {
-        const keysToPrune: string[] = []
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i)
-          if (k && (k.startsWith('tg_order_') || k.startsWith('tg_draft_') || k.startsWith('tg_temp_'))) {
-            keysToPrune.push(k)
-          }
-        }
-        keysToPrune.forEach((k) => localStorage.removeItem(k))
-        localStorage.setItem(key, value)
-        deleteCookie(key, '/')
-        return
-      } catch (retryErr) {
-        // Safe degrade
-      }
-    }
-  }
+  setCookie(key, value, 30, '/')
 }
 
 export function removeStorageCookie(key: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(key)
-  }
   deleteCookie(key, '/')
 }
+

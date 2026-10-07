@@ -17,7 +17,7 @@ import {
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkEmailExists, checkPhoneExists, CUSTOMER_SITE_URL, getCustomerSiteUrl } from '@/lib/api'
-import { setAuthRole, setAuthToken, setAuthUser } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 import { OtpVerificationCard } from './otp-input'
 import { CustomSelect } from './custom-select'
 
@@ -118,20 +118,25 @@ export function AuthModal({
     setLinkOtp('')
   }, [isOpen, authType])
 
-  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string) => {
-    const effectiveRole = user.role || role || 'STUDIO'
-    const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string, refreshToken?: string) => {
+    const effectiveRt = refreshToken || getRefreshToken()
+    if (effectiveRt) {
+      setRefreshToken(effectiveRt)
+    }
+    const effectiveToken = token || getAuthToken()
+    if (effectiveToken) {
+      setAuthToken(effectiveToken)
+    }
+
+    const effectiveRole = user.role || role || (effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null) || 'STUDIO'
 
     if (effectiveRole === 'CUSTOMER') {
-      if (effectiveToken) {
-        setAuthToken(effectiveToken)
-      }
       setAuthRole('CUSTOMER')
-      setAuthUser(user)
+      setAuthUser({ ...user, role: 'CUSTOMER' })
       toast.info('Signed in as Customer. Redirecting to Customer Site...', { position: 'top-center' })
       if (onClose) onClose()
 
-      const targetParam = authCode || effectiveToken
+      const targetParam = effectiveRt || authCode || effectiveToken
       if (targetParam) {
         window.location.href = getCustomerSiteUrl('/auth/callback', targetParam)
       } else {
@@ -221,7 +226,7 @@ export function AuthModal({
             setLoading(false)
             if (result?.user) {
               if (result.user.role === 'CUSTOMER') {
-                finalizeAuth(result.user, 'CUSTOMER', result.token, result.authCode)
+                finalizeAuth(result.user, 'CUSTOMER', result.token, result.authCode, result.refreshToken)
                 return
               }
               if (!result.user.studioName) {
@@ -231,7 +236,7 @@ export function AuthModal({
                 setSEmail(result.user.email || result.user.contact || '')
                 toast.info('Google account verified! Please enter your workshop location details to complete registration.', { position: 'top-center' })
               } else {
-                finalizeAuth(result.user, 'STUDIO', result.token, result.authCode)
+                finalizeAuth(result.user, 'STUDIO', result.token, result.authCode, result.refreshToken)
               }
             }
           } catch (err: any) {
@@ -315,7 +320,7 @@ export function AuthModal({
         otp: sOtp.trim(),
       })
       setLoading(false)
-      if (res?.user) finalizeAuth(res.user, res.user.role, res.token, res.authCode)
+      if (res?.user) finalizeAuth(res.user, res.user.role, res.token, res.authCode, res.refreshToken)
     } catch (err: any) {
       setLoading(false)
       const msg = err.message || 'Invalid verification code.'
@@ -377,7 +382,7 @@ export function AuthModal({
       setLoading(false)
       if (res?.user) {
         toast.success('Mobile number linked successfully!', { position: 'top-center' })
-        finalizeAuth(res.user, res.user.role, res.token, res.authCode)
+        finalizeAuth(res.user, res.user.role, res.token, res.authCode, res.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
