@@ -213,7 +213,16 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     address: bo.postcode ? `Postcode: ${bo.postcode}` : (bo.store?.postcode ? `Postcode: ${bo.store.postcode}` : 'Partner Studio'),
     phone: bo.storePhone || bo.store?.phone || null,
     status: bo.status || 'Allocated',
-    price: typeof bo.price === 'number' ? `$${bo.price.toFixed(2)}` : (bo.price ? `$${bo.price}` : '$25.00'),
+    price: (() => {
+      const sym = bo.currencySymbol || '$'
+      const base = typeof bo.price === 'number' ? bo.price : parseFloat(bo.price || '20') || 20
+      const adj = bo.priceAdjustment ? parseFloat(String(bo.priceAdjustment)) : 0
+      const total = base + adj
+      if (bo.status === 'Allocated') {
+        return `~${sym}${base.toFixed(2)} (Pending Atelier)`
+      }
+      return `${sym}${total.toFixed(2)}`
+    })(),
     slot: bo.date && bo.timeSlot ? `${bo.date} @ ${bo.timeSlot}` : (bo.date || 'Fitting Slot Scheduled'),
     otp: bo.otp || '',
     isCurrent: idx === 0,

@@ -22,6 +22,7 @@ import {
   Sliders,
   Sparkles,
   Store,
+  Tag,
   Trash2,
   Upload,
   User,
@@ -35,6 +36,7 @@ import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
 import { StudioAvatar } from './studio-avatar'
+import { PriceCatalogView } from './price-catalog-view'
 import { toast } from 'react-toastify'
 
 interface StudioProfileViewProps {
@@ -114,7 +116,7 @@ export function StudioProfileView({
   onBack,
   onSignOut,
 }: StudioProfileViewProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft'>('profile')
+  const [activeSubTab, setActiveSubTab] = useState<'profile' | 'craft' | 'catalog'>('profile')
 
   const [name, setName] = useState(user?.name || '')
   const [studioName, setStudioName] = useState(user?.studioName || '')
@@ -707,12 +709,28 @@ export function StudioProfileView({
             {specialties.length}
           </span>
         </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('catalog')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer ${activeSubTab === 'catalog'
+              ? 'border-[#9E593B] text-[#9E593B]'
+              : 'border-transparent text-[#6B7280] hover:text-[#1E2229]'
+            }`}
+        >
+          <Tag size={14} />
+          <span>Price Catalog</span>
+        </button>
       </div>
 
-      {/* ── Form View ── */}
-      <form onSubmit={handleSave} className="space-y-6">
-        {activeSubTab === 'profile' ? (
-          <div className="space-y-6">
+      {/* ── Form View or Price Catalog ── */}
+      {activeSubTab === 'catalog' ? (
+        <div className="pt-2">
+          <PriceCatalogView user={user} />
+        </div>
+      ) : (
+        <form onSubmit={handleSave} className="space-y-6">
+          {activeSubTab === 'profile' ? (
+            <div className="space-y-6">
             {/* Atelier Identity & Branding Card */}
             <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -1405,6 +1423,7 @@ export function StudioProfileView({
           </div>
         )}
       </form>
+    )}
 
       {/* ── Edit Atelier Identity Modal ── */}
       {isEditAtelierModalOpen && (

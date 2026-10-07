@@ -27,6 +27,8 @@ import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
 import { CustomSelect } from './custom-select'
+import { WelcomeAboardModal } from './welcome-aboard-modal'
+import { PriceCatalogModal } from './price-catalog-modal'
 
 interface PartnerOnboardingProps {
   user?: User | null
@@ -122,6 +124,11 @@ export function PartnerOnboarding({
     }, 1000)
     return () => clearInterval(interval)
   }, [step3Countdown])
+
+  // Welcome Aboard & Price Catalog Modal Flow
+  const [createdUser, setCreatedUser] = useState<User | null>(null)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [showPriceCatalogModal, setShowPriceCatalogModal] = useState(false)
 
   // Multi-step Flow State (strictly location, shop-info, phone-verify)
   const [currentStep, setCurrentStepRaw] = useState<Step>(() => {
@@ -521,18 +528,42 @@ export function PartnerOnboarding({
         if (res?.token) setAuthToken(res.token)
         setAuthUser(finalUser)
         setAuthRole('STUDIO')
-        window.location.href = '/'
-        return
       }
 
-      if (onComplete) {
-        onComplete(finalUser)
-      }
+      setCreatedUser(finalUser)
+      setShowWelcomeModal(true)
     } catch (err: any) {
       console.error('Onboarding error:', err)
       setError(err.message || 'Failed to complete shop registration.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleProceedToCatalogFromWelcome = () => {
+    setShowWelcomeModal(false)
+    setShowPriceCatalogModal(true)
+  }
+
+  const handleSkipToDashboard = () => {
+    setShowWelcomeModal(false)
+    setShowPriceCatalogModal(false)
+    const targetUser = createdUser || user
+    if (onComplete && targetUser) {
+      onComplete(targetUser)
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard'
+    }
+  }
+
+  const handleCatalogSaved = () => {
+    setShowPriceCatalogModal(false)
+    toast.success('🎉 Studio price catalog active! Welcome to your atelier workbench.')
+    const targetUser = createdUser || user
+    if (onComplete && targetUser) {
+      onComplete(targetUser)
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/dashboard'
     }
   }
 
@@ -1194,6 +1225,23 @@ export function PartnerOnboarding({
         initialCity={locationCity}
         initialArea={shopArea}
         initialAddress={streetAddress}
+      />
+
+      {/* Welcome Aboard Modal */}
+      <WelcomeAboardModal
+        isOpen={showWelcomeModal}
+        onClose={handleSkipToDashboard}
+        user={createdUser || user}
+        onProceedToCatalog={handleProceedToCatalogFromWelcome}
+        onSkipToDashboard={handleSkipToDashboard}
+      />
+
+      {/* Price Catalog Modal */}
+      <PriceCatalogModal
+        isOpen={showPriceCatalogModal}
+        onClose={handleSkipToDashboard}
+        user={createdUser || user}
+        onSaved={handleCatalogSaved}
       />
     </div>
   )
