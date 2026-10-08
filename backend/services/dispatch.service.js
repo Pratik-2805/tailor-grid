@@ -44,9 +44,29 @@ async function fetchEligible5MilePool(lat, lng) {
     orderBy: { createdAt: 'desc' },
   });
 
+  // Only include studios that have completed price setup in StudioCatalogItem
+  const filledCatalogItems = await prisma.studioCatalogItem.findMany({
+    where: {
+      enabled: true,
+      price: { gt: 0 },
+    },
+    select: {
+      studioId: true,
+      userId: true,
+    },
+  });
+
+  const activeStudioIds = new Set(
+    filledCatalogItems.flatMap((item) => [item.studioId, item.userId]).filter(Boolean)
+  );
+
   const pool = [];
   if (Array.isArray(stores)) {
     stores.forEach((store) => {
+      // Must have configured prices to receive dispatches
+      if (!activeStudioIds.has(store.id)) {
+        return;
+      }
       if (typeof store.lat === 'number' && typeof store.lng === 'number') {
         const dist = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
         if (dist <= 5.0) {

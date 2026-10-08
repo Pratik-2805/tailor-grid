@@ -152,6 +152,30 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
           onSignOut={handleSignOut}
           onOpenProfile={() => router.push('/settings')}
           onUpdateUser={handleUpdateUser}
+          activeTab={
+            pathname?.includes('catalog')
+              ? 'catalog'
+              : pathname?.includes('orders')
+              ? 'pipeline'
+              : pathname?.includes('payouts')
+              ? 'payouts'
+              : pathname?.includes('settings') || pathname?.includes('profile')
+              ? 'profile'
+              : 'cockpit'
+          }
+          onTabChange={(tab) => {
+            const pathMap: Record<string, string> = {
+              cockpit: '/dashboard',
+              pipeline: '/orders',
+              catalog: '/catalog',
+              payouts: '/payouts',
+              profile: '/settings',
+            }
+            const target = pathMap[tab] || '/dashboard'
+            if (pathname !== target) {
+              router.push(target)
+            }
+          }}
         />
       </main>
       {children}

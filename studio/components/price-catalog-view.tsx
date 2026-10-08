@@ -158,7 +158,7 @@ export function PriceCatalogView({
           }
           setCustomCategories(customs)
         } else {
-          // Pre-populate defaults
+          // Do not prefetch default prices until tailor explicitly requests them via "Use Darzi Rates"
           const initialItems: StudioCatalogItemData[] = []
           for (const cat of data.baseCategories || []) {
             for (const svc of cat.services) {
@@ -168,10 +168,10 @@ export function PriceCatalogView({
                 serviceId: svc.id,
                 name: svc.name,
                 description: svc.description,
-                price: Number(svc.customerPrice) || 16,
+                price: 0,
                 currency: data.currency || 'GBP',
                 currencySymbol: data.currencySymbol || '£',
-                partnerPayout: Number(svc.partnerPayout) || Number(svc.customerPrice) * 0.75,
+                partnerPayout: 0,
                 turnaroundDays: svc.turnaroundDays || 2,
                 avgTurnaround: `${svc.turnaroundDays || 2} days`,
                 enabled: true,
@@ -499,9 +499,9 @@ export function PriceCatalogView({
           <button
             onClick={handleApplyRecommendedRates}
             type="button"
-            className="py-1.5 px-3 rounded-xl border border-[#E0D5C5] bg-[#FAF8F5] hover:bg-[#F2ECE1] text-xs font-semibold text-[#78543E] transition-colors cursor-pointer"
+            className="py-1.5 px-3 rounded-xl border border-[#9E593B]/40 bg-[#FFF9F5] hover:bg-[#FBECE3] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
           >
-            Use Darzi Rates
+            <span>⚡ Use Darzi Rates</span>
           </button>
 
           {/* Add Category */}
@@ -537,10 +537,10 @@ export function PriceCatalogView({
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-bold text-[#78350F]">
-              Please enable at least one service with a valid rate.
+              Your studio is currently offline until your price catalog is configured and saved.
             </p>
             <p className="text-[#92400E] mt-0.5">
-              Click <strong>"Use Darzi Rates"</strong> above to auto-fill with standard market prices, or set custom rates below.
+              Enter your tailor prices below or click <strong>&quot;⚡ Use Darzi Rates&quot;</strong> above to auto-fill with standard market prices, then click <strong>&quot;Save Price Catalog&quot;</strong>.
             </p>
           </div>
         </div>
@@ -732,13 +732,14 @@ export function PriceCatalogView({
                                   type="number"
                                   step="0.50"
                                   min="1"
+                                  placeholder="0.00"
                                   disabled={!item.enabled}
-                                  value={item.price}
+                                  value={item.price > 0 ? item.price : ''}
                                   onChange={(e) =>
                                     handleUpdateItemField(
                                       item,
                                       'price',
-                                      parseFloat(e.target.value) || 0
+                                      e.target.value === '' ? 0 : parseFloat(e.target.value) || 0
                                     )
                                   }
                                   className="w-20 pl-6 pr-2 py-1.5 rounded-lg border border-[#E8E1D5] text-xs font-bold text-[#0F1115] focus:outline-hidden focus:border-[#9E593B] disabled:bg-neutral-100 disabled:text-[#7A7E85]"

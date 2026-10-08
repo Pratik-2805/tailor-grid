@@ -701,9 +701,11 @@ export function PartnerFlow({
           setStudioCurrency(data.currency)
           setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
         }
-        // If not filled, prompt user with Welcome Aboard modal
+        // If price catalog is not yet configured, show Welcome Aboard modal over dashboard after 1s
         if (!data.hasFilledCatalog) {
-          setShowWelcomeModal(true)
+          setTimeout(() => {
+            if (isMounted) setShowWelcomeModal(true)
+          }, 1000)
         }
       })
       .catch((err) => {
@@ -2234,8 +2236,10 @@ export function PartnerFlow({
                   {studioName}
                 </div>
                 <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span className="text-slate-300 font-medium">Active Studio</span>
+                  <span className={`size-2 rounded-full ${hasFilledCatalog ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'} shrink-0`} />
+                  <span className="text-slate-300 font-medium">
+                    {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
+                  </span>
                   <span className="text-slate-500 font-mono text-[10px]">#{currentStudioId.slice(-6)}</span>
                 </div>
               </div>
@@ -2400,10 +2404,17 @@ export function PartnerFlow({
                 {activeTab === 'payouts' && 'Earnings & Payouts'}
                 {activeTab === 'profile' && 'Studio Settings'}
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Online
-              </span>
+              {hasFilledCatalog ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Online
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+                  <span className="size-1.5 rounded-full bg-amber-500" />
+                  Offline · Setup Required
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-slate-500 truncate hidden sm:block">
               {activeTab === 'cockpit' && 'Quick order check-in, customer PIN verification, and active alteration orders'}
@@ -2665,8 +2676,10 @@ export function PartnerFlow({
                       <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
                       <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Active Studio</span>
+                        <span className={`size-1.5 rounded-full ${hasFilledCatalog ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                        <span className={`text-[9px] font-bold ${hasFilledCatalog ? 'text-emerald-600' : 'text-amber-600'} uppercase tracking-wider`}>
+                          {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -2729,7 +2742,7 @@ export function PartnerFlow({
               </div>
               <button
                 type="button"
-                onClick={() => setShowWelcomeModal(true)}
+                onClick={() => setActiveTab('catalog')}
                 className="py-1.5 px-4 bg-white text-[#0F1115] hover:bg-amber-50 font-bold text-xs rounded-xl shadow-xs transition-transform active:scale-95 shrink-0 cursor-pointer"
               >
                 Configure Catalog →
@@ -5234,7 +5247,8 @@ export function PartnerFlow({
             setStudioCurrencySymbol(getCurrencySymbol(chosenCurrency))
           }
           setShowWelcomeModal(false)
-          setShowCatalogPromptModal(true)
+          setShowCatalogPromptModal(false)
+          setActiveTab('catalog')
         }}
         onSkipToDashboard={() => setShowWelcomeModal(false)}
       />

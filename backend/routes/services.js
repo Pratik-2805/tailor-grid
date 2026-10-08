@@ -88,6 +88,22 @@ router.get('/stores', async (req, res) => {
       },
     });
 
+    // Only display studios that have configured their alteration prices
+    const filledCatalogItems = await prisma.studioCatalogItem.findMany({
+      where: {
+        enabled: true,
+        price: { gt: 0 },
+      },
+      select: {
+        studioId: true,
+        userId: true,
+      },
+    });
+
+    const activeStudioIds = new Set(
+      filledCatalogItems.flatMap((item) => [item.studioId, item.userId]).filter(Boolean)
+    );
+
     const studioUsers = await prisma.user.findMany({
       where: { role: 'STUDIO' },
       select: {
@@ -113,6 +129,12 @@ router.get('/stores', async (req, res) => {
           (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
           (u.name && u.name.toLowerCase() === s.leadTailor.toLowerCase())
       );
+
+      // Studio must have configured prices to be visible to customers
+      const isConfigured = activeStudioIds.has(s.id) || (matchingUser && activeStudioIds.has(matchingUser.id));
+      if (!isConfigured) {
+        continue;
+      }
 
       const storeName = (matchingUser && matchingUser.studioName) ? matchingUser.studioName : s.name;
       const key = (storeName || s.leadTailor || s.id).toLowerCase().trim();

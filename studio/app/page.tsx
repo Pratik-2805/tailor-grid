@@ -81,7 +81,7 @@ export default function StudioPage() {
     }
   }, [loadingUser, user, router])
 
-  const handleAuthSuccess = (loggedUser: User) => {
+  const handleAuthSuccess = (loggedUser: User, targetTab?: 'cockpit' | 'catalog') => {
     if (loggedUser.role !== 'STUDIO' && loggedUser.role !== 'TEMP_STUDIO') {
       toast.error('Unauthorized user, access denied.', { position: 'top-center' })
       return
@@ -89,6 +89,9 @@ export default function StudioPage() {
     setUser(loggedUser)
     setAuthRole(loggedUser.role)
     setAuthUser(loggedUser)
+    if (targetTab) {
+      setPartnerTab(targetTab)
+    }
     toast.success(`Authenticated as ${loggedUser.name || 'Studio Partner'}!`, { position: 'top-center' })
   }
 

@@ -32,7 +32,7 @@ import { PriceCatalogModal } from './price-catalog-modal'
 
 interface PartnerOnboardingProps {
   user?: User | null
-  onComplete?: (user: User) => void
+  onComplete?: (user: User, targetTab?: 'cockpit' | 'catalog') => void
   onSignOut?: () => void
   hideHeader?: boolean
 }
@@ -246,35 +246,33 @@ export function PartnerOnboarding({
   const [postcode, setPostcode] = useState(cachedForm?.postcode || '')
   const [streetAddress, setStreetAddress] = useState(cachedForm?.streetAddress || '')
   const [tailorName, setTailorName] = useState(cachedForm?.tailorName || '')
-  const [phone, setPhone] = useState(
-    cachedForm?.phone ||
-    ssGet('tg_pending_mobile') ||
-    (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_mobile') : null) ||
-    ''
-  )
+  const [phone, setPhone] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        // Clean up any stale test/dummy phone numbers
+        const p = localStorage.getItem('tg_verified_phone') || localStorage.getItem('tg_pending_mobile') || ''
+        if (p.includes('56465456') || p.includes('123456')) {
+          localStorage.removeItem('tg_verified_phone')
+          localStorage.removeItem('tg_phone_verified')
+          localStorage.removeItem('tg_pending_mobile')
+          sessionStorage.removeItem('tg_verified_phone')
+          sessionStorage.removeItem('tg_phone_verified')
+          sessionStorage.removeItem('tg_pending_mobile')
+          return ''
+        }
+      } catch { }
+    }
+    return cachedForm?.phone || ''
+  })
   const [studioLat, setStudioLat] = useState<number | null>(cachedForm?.studioLat || null)
   const [studioLng, setStudioLng] = useState<number | null>(cachedForm?.studioLng || null)
   const [emailVal, setEmailVal] = useState(
     cachedForm?.emailVal || pendingGoogle?.email || user?.email || (typeof window !== 'undefined' ? localStorage.getItem('tg_onboard_email') : '') || ''
   )
 
-  // Direct Mobile Phone Twilio OTP Verification State
-  const [isPhoneVerified, setIsPhoneVerified] = useState(() => {
-    const cached = ssGet('tg_phone_verified') || (typeof window !== 'undefined' ? localStorage.getItem('tg_phone_verified') : null)
-    if (cached === 'true') return true
-    if (ssGet('tg_pending_mobile') || (typeof window !== 'undefined' && localStorage.getItem('tg_pending_mobile'))) return true
-    return Boolean(user?.phone)
-  })
-  const [step3VerifiedPhone, setStep3VerifiedPhone] = useState(() => {
-    return (
-      ssGet('tg_verified_phone') ||
-      (typeof window !== 'undefined' ? localStorage.getItem('tg_verified_phone') : null) ||
-      ssGet('tg_pending_mobile') ||
-      (typeof window !== 'undefined' ? localStorage.getItem('tg_pending_mobile') : null) ||
-      user?.phone ||
-      ''
-    )
-  })
+  // Direct Mobile Phone Twilio OTP Verification State (clean initial state, never prefetch stale dummy numbers)
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [step3VerifiedPhone, setStep3VerifiedPhone] = useState('')
   const [step3OtpSent, setStep3OtpSent] = useState(false)
   const [step3Otp, setStep3Otp] = useState('')
   const [step3OtpLoading, setStep3OtpLoading] = useState(false)
@@ -332,6 +330,27 @@ export function PartnerOnboarding({
     }
   }, [emailVal])
 
+  // Automatically purge legacy test phone numbers on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedPhone = localStorage.getItem('tg_verified_phone') || ''
+        const pendingMobile = localStorage.getItem('tg_pending_mobile') || ''
+        if (storedPhone.includes('56465456') || pendingMobile.includes('56465456')) {
+          localStorage.removeItem('tg_verified_phone')
+          localStorage.removeItem('tg_phone_verified')
+          localStorage.removeItem('tg_pending_mobile')
+          sessionStorage.removeItem('tg_verified_phone')
+          sessionStorage.removeItem('tg_phone_verified')
+          sessionStorage.removeItem('tg_pending_mobile')
+          setIsPhoneVerified(false)
+          setStep3VerifiedPhone('')
+          setPhone('')
+        }
+      } catch { }
+    }
+  }, [])
+
   // ──────── Persist form data to storage on every change ────────
   useEffect(() => {
     const formData = {
@@ -343,18 +362,25 @@ export function PartnerOnboarding({
     ssSet('tg_onboard_form', JSON.stringify(formData))
   }, [locationCity, referralCode, language, machines, dailyCapacity, openTime, closeTime, shopName, shopNo, shopArea, postcode, streetAddress, tailorName, phone, emailVal, studioLat, studioLng])
 
-  // Persist phone verification state
+  // Persist phone verification state (session-scoped only, avoid persistent localStorage pollution)
   useEffect(() => {
-    ssSet('tg_phone_verified', isPhoneVerified ? 'true' : 'false')
-    if (typeof window !== 'undefined') {
-      try { localStorage.setItem('tg_phone_verified', isPhoneVerified ? 'true' : 'false') } catch { }
+    if (isPhoneVerified) {
+      ssSet('tg_phone_verified', 'true')
+    } else {
+      sessionStorage.removeItem('tg_phone_verified')
+      if (typeof window !== 'undefined') {
+        try { localStorage.removeItem('tg_phone_verified') } catch { }
+      }
     }
   }, [isPhoneVerified])
+
   useEffect(() => {
     if (step3VerifiedPhone) {
       ssSet('tg_verified_phone', step3VerifiedPhone)
+    } else {
+      sessionStorage.removeItem('tg_verified_phone')
       if (typeof window !== 'undefined') {
-        try { localStorage.setItem('tg_verified_phone', step3VerifiedPhone) } catch { }
+        try { localStorage.removeItem('tg_verified_phone') } catch { }
       }
     }
   }, [step3VerifiedPhone])
@@ -436,7 +462,6 @@ export function PartnerOnboarding({
       setStep3VerifiedPhone(validatedPhone)
       setStep3OtpSent(false)
       setStep3Otp('')
-      toast.success('Mobile number verified! Activating studio...', { position: 'top-center' })
       await handleFinishOnboarding(validatedPhone)
       return true
     } catch (err: any) {
@@ -518,7 +543,7 @@ export function PartnerOnboarding({
         method: 'email',
         role: 'STUDIO',
         status: 'ACTIVE',
-        studioId: 'atelier-soho',
+        studioId: res?.user?.studioId || user?.studioId || 'atelier-soho',
         studioName: shopName.trim(),
         postcode: postcode.trim(),
         address: fullRegisteredAddress.trim(),
@@ -531,7 +556,11 @@ export function PartnerOnboarding({
       }
 
       setCreatedUser(finalUser)
-      setShowWelcomeModal(true)
+      if (onComplete) {
+        onComplete(finalUser)
+      } else if (typeof window !== 'undefined') {
+        window.location.href = '/dashboard'
+      }
     } catch (err: any) {
       console.error('Onboarding error:', err)
       setError(err.message || 'Failed to complete shop registration.')
@@ -540,9 +569,18 @@ export function PartnerOnboarding({
     }
   }
 
-  const handleProceedToCatalogFromWelcome = () => {
+  const handleProceedToCatalogFromWelcome = (chosenCurrency?: string) => {
     setShowWelcomeModal(false)
-    setShowPriceCatalogModal(true)
+    setShowPriceCatalogModal(false)
+    const targetUser = createdUser || user
+    if (chosenCurrency && targetUser) {
+      targetUser.currency = chosenCurrency
+    }
+    if (onComplete && targetUser) {
+      onComplete(targetUser, 'catalog')
+    } else if (typeof window !== 'undefined') {
+      window.location.href = '/catalog'
+    }
   }
 
   const handleSkipToDashboard = () => {
@@ -1095,6 +1133,18 @@ export function PartnerOnboarding({
                                   setIsPhoneVerified(false)
                                   setStep3OtpSent(false)
                                   setStep3Otp('')
+                                  setPhone('')
+                                  setStep3VerifiedPhone('')
+                                  if (typeof window !== 'undefined') {
+                                    try {
+                                      localStorage.removeItem('tg_phone_verified')
+                                      localStorage.removeItem('tg_verified_phone')
+                                      localStorage.removeItem('tg_pending_mobile')
+                                      sessionStorage.removeItem('tg_phone_verified')
+                                      sessionStorage.removeItem('tg_verified_phone')
+                                      sessionStorage.removeItem('tg_pending_mobile')
+                                    } catch { }
+                                  }
                                 }}
                                 className="text-xs text-[#9E593B] font-bold hover:underline cursor-pointer"
                               >
