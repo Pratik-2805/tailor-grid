@@ -41,7 +41,7 @@ function getSessionBookingData(): any | null {
     deleteCookie(SESSION_BOOKING_KEY, '/')
     const raw = sessionStorage.getItem(SESSION_BOOKING_KEY)
     if (raw) return JSON.parse(raw)
-  } catch {}
+  } catch { }
   return null
 }
 
@@ -51,14 +51,14 @@ function setSessionBookingData(data: any): void {
     const json = JSON.stringify(data)
     sessionStorage.setItem(SESSION_BOOKING_KEY, json)
     deleteCookie(SESSION_BOOKING_KEY, '/')
-  } catch {}
+  } catch { }
 }
 
 function clearSessionBookingData(): void {
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.removeItem(SESSION_BOOKING_KEY)
-    } catch {}
+    } catch { }
     deleteCookie(SESSION_BOOKING_KEY, '/')
   }
 }
@@ -194,7 +194,7 @@ export default function BookPage() {
 
   const [selectedCity, setSelectedCity] = useCityLocation()
   const [isCityModalOpen, setIsCityModalOpen] = useState(false)
-  
+
   // Initialize states from current session cookie/storage if present
   const [userGpsCoords, setUserGpsCoords] = useState<{ lat: number; lng: number } | null>(() => {
     const s = getSessionBookingData()
@@ -237,6 +237,57 @@ export default function BookPage() {
     })
   }
 
+  // Selection states initialized from prefilled context or session cookie
+  const [selectedGarmentId, setSelectedGarmentId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.garmentId || prefilledGarmentId || 'trousers'
+  })
+  const [selectedServiceId, setSelectedServiceId] = useState(() => {
+    const s = getSessionBookingData()
+    return s?.serviceId || prefilledServiceId || 'trouser-hem-plain'
+  })
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
+  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
+
+  // Garment Quantity state
+  const [garmentQuantity, setGarmentQuantity] = useState<number>(() => {
+    const s = getSessionBookingData()
+    return typeof s?.quantity === 'number' && s.quantity > 0 ? s.quantity : 1
+  })
+
+  // Image Upload state
+  const [uploadedImages, setUploadedImages] = useState<string[]>(() => {
+    const s = getSessionBookingData()
+    return Array.isArray(s?.images) ? s.images : []
+  })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Live device GPS location detection on mount: Always fetch fresh location on refresh
+  const liveGpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
+  const liveCityRef = useRef<string>('')
+  const liveAddressDetailsRef = useRef<CustomerAddressDetails>({
+    houseNo: '',
+    apartment: '',
+    locality: '',
+    city: '',
+    landmark: '',
+  })
+
+  // Confirmed / saved location snapshot to restore if user clicks "Back to Request" without saving
+  const savedLocationRef = useRef<{
+    coords: { lat: number; lng: number } | null
+    city: string
+    addressDetails: CustomerAddressDetails
+    isLiveLocation: boolean
+    isLocationSaved: boolean
+  }>({
+    coords: userGpsCoords,
+    city: selectedCity,
+    addressDetails,
+    isLiveLocation,
+    isLocationSaved,
+  })
+
   // Handle Save Address & Update Radius Centers & User Profile
   const handleSaveAddress = async () => {
     const fullAddress = [
@@ -255,6 +306,15 @@ export default function BookPage() {
     setUserGpsCoords(targetCoords)
     setIsLiveLocation(false)
     setIsLocationSaved(true)
+
+    // 1.5 Update confirmed snapshot
+    savedLocationRef.current = {
+      coords: targetCoords,
+      city: activeCityName,
+      addressDetails: { ...addressDetails, city: activeCityName },
+      isLiveLocation: false,
+      isLocationSaved: true,
+    }
 
     // 2. Fetch tailors from database taking this exact saved pinned location as center of 5.0-mile radius
     try {
@@ -297,49 +357,13 @@ export default function BookPage() {
           details: addressDetails,
           coords: targetCoords,
         }))
-      } catch {}
+      } catch { }
     }
 
     // 4. Flip card back to order request face
     setIsCardFlipped(false)
     toast.success('Address saved to profile & nearby ateliers updated!', { position: 'top-center' })
   }
-
-  // Selection states initialized from prefilled context or session cookie
-  const [selectedGarmentId, setSelectedGarmentId] = useState(() => {
-    const s = getSessionBookingData()
-    return s?.garmentId || prefilledGarmentId || 'trousers'
-  })
-  const [selectedServiceId, setSelectedServiceId] = useState(() => {
-    const s = getSessionBookingData()
-    return s?.serviceId || prefilledServiceId || 'trouser-hem-plain'
-  })
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
-  const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
-
-  // Garment Quantity state
-  const [garmentQuantity, setGarmentQuantity] = useState<number>(() => {
-    const s = getSessionBookingData()
-    return typeof s?.quantity === 'number' && s.quantity > 0 ? s.quantity : 1
-  })
-
-  // Image Upload state
-  const [uploadedImages, setUploadedImages] = useState<string[]>(() => {
-    const s = getSessionBookingData()
-    return Array.isArray(s?.images) ? s.images : []
-  })
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Live device GPS location detection on mount: Always fetch fresh location on refresh
-  const liveGpsCoordsRef = useRef<{ lat: number; lng: number } | null>(null)
-  const liveCityRef = useRef<string>('')
-  const liveAddressDetailsRef = useRef<CustomerAddressDetails>({
-    houseNo: '',
-    apartment: '',
-    locality: '',
-    city: '',
-    landmark: '',
-  })
 
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.geolocation) return
@@ -379,6 +403,14 @@ export default function BookPage() {
             }))
             setSelectedCity(geo.cityStateFormatted)
             setStoredCity(geo.cityStateFormatted, liveCoords)
+
+            savedLocationRef.current = {
+              coords: liveCoords,
+              city: geo.cityStateFormatted,
+              addressDetails: newDetails,
+              isLiveLocation: true,
+              isLocationSaved: false,
+            }
           }
         } catch (err) {
           console.warn('Geolocation reverse geocoding failed:', err)
@@ -391,8 +423,25 @@ export default function BookPage() {
     )
   }, [setSelectedCity])
 
-  // Handle clicking "Back to Request" on the address details card
+  // Handle clicking "Back to Request" on the address details card without saving (discards unconfirmed search/pin)
   const handleBackToRequest = () => {
+    const saved = savedLocationRef.current
+    if (saved) {
+      setUserGpsCoords(saved.coords)
+      setSelectedCity(saved.city)
+      setStoredCity(saved.city, saved.coords || getCityCoordinates(saved.city))
+      setAddressDetails({ ...saved.addressDetails })
+      setIsLiveLocation(saved.isLiveLocation)
+      setIsLocationSaved(saved.isLocationSaved)
+    } else if (liveGpsCoordsRef.current) {
+      setUserGpsCoords(liveGpsCoordsRef.current)
+      const city = liveCityRef.current || selectedCity
+      setSelectedCity(city)
+      setStoredCity(city, liveGpsCoordsRef.current)
+      setAddressDetails({ ...liveAddressDetailsRef.current })
+      setIsLiveLocation(true)
+      setIsLocationSaved(false)
+    }
     setIsCardFlipped(false)
   }
 
@@ -988,9 +1037,8 @@ export default function BookPage() {
                   backfaceVisibility: 'hidden',
                   WebkitBackfaceVisibility: 'hidden',
                 }}
-                className={`bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6 transition-opacity duration-300 ${
-                  isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
-                }`}
+                className={`bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                  }`}
               >
 
                 {/* City & Locality Pill Header */}
@@ -1174,17 +1222,17 @@ export default function BookPage() {
                   </div>
                 </div>
 
-              {/* 4. Garment Photo / Reference Fit (Optional - Max 4) */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
-                    <span>GARMENT PHOTO / REFERENCE FIT</span>
-                    <span className="text-gray-400 font-normal">(OPTIONAL)</span>
-                  </p>
-                  <span className="text-[10px] font-bold text-gray-500">
-                    {uploadedImages.length}/4 Photos
-                  </span>
-                </div>
+                {/* 4. Garment Photo / Reference Fit (Optional - Max 4) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                      <span>GARMENT PHOTO / REFERENCE FIT</span>
+                      <span className="text-gray-400 font-normal">(OPTIONAL)</span>
+                    </p>
+                    <span className="text-[10px] font-bold text-gray-500">
+                      {uploadedImages.length}/4 Photos
+                    </span>
+                  </div>
 
                   <div className="flex flex-wrap items-center gap-3">
                     <input
@@ -1227,21 +1275,21 @@ export default function BookPage() {
                   </div>
                 </div>
 
-              {/* 4. Fitting & Alteration Notes Section */}
-              <div className="pt-3.5 border-t border-gray-100 space-y-2">
-                <label htmlFor="booking-notes" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-neutral-500">
-                  <Edit3 size={13} className="text-[#9E593B]" />
-                  <span>Fitting &amp; Alteration Notes / Instructions</span>
-                </label>
-                <textarea
-                  id="booking-notes"
-                  value={bookingNotes}
-                  onChange={(e) => setBookingNotes(e.target.value)}
-                  placeholder="Add any specific fitting notes, style preferences, or alteration instructions for the tailor..."
-                  rows={3}
-                  className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-semibold text-black placeholder:text-gray-400 outline-none transition-all resize-none shadow-2xs"
-                />
-              </div>
+                {/* 4. Fitting & Alteration Notes Section */}
+                <div className="pt-3.5 border-t border-gray-100 space-y-2">
+                  <label htmlFor="booking-notes" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-neutral-500">
+                    <Edit3 size={13} className="text-[#9E593B]" />
+                    <span>Fitting &amp; Alteration Notes / Instructions</span>
+                  </label>
+                  <textarea
+                    id="booking-notes"
+                    value={bookingNotes}
+                    onChange={(e) => setBookingNotes(e.target.value)}
+                    placeholder="Add any specific fitting notes, style preferences, or alteration instructions for the tailor..."
+                    rows={3}
+                    className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-semibold text-black placeholder:text-gray-400 outline-none transition-all resize-none shadow-2xs"
+                  />
+                </div>
 
                 {/* 4.5 Atelier Pricing Notice */}
                 <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3 text-[11px] text-gray-600 flex items-start gap-2">
@@ -1280,9 +1328,8 @@ export default function BookPage() {
                   WebkitBackfaceVisibility: 'hidden',
                   transform: 'rotateY(180deg)',
                 }}
-                className={`absolute inset-0 bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 flex flex-col justify-between overflow-y-auto ${
-                  isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
-                }`}
+                className={`absolute inset-0 bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 flex flex-col justify-between overflow-y-auto ${isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
+                  }`}
               >
                 <div className="space-y-4 sm:space-y-5">
                   {/* Top Bar: Back button */}
@@ -1404,8 +1451,8 @@ export default function BookPage() {
                 className="w-full h-full"
                 showZoomControls={false}
                 disableNavigation={false}
-                isChoosing={isCardFlipped || (!isLiveLocation && !isLocationSaved)}
-                isFixed={!isCardFlipped && (isLiveLocation || isLocationSaved)}
+                isChoosing={isCardFlipped}
+                isFixed={!isCardFlipped}
                 fixedBoxMiles={5.0}
                 radiusMiles={5.0}
                 showUserPin={true}
@@ -1416,6 +1463,13 @@ export default function BookPage() {
                 selectedStoreId={selectedStore?.id}
                 onMapClick={() => {
                   if (!isCardFlipped) {
+                    savedLocationRef.current = {
+                      coords: userGpsCoords,
+                      city: selectedCity,
+                      addressDetails: { ...addressDetails },
+                      isLiveLocation,
+                      isLocationSaved,
+                    }
                     setIsCardFlipped(true)
                     setIsLiveLocation(false)
                     setIsLocationSaved(false)
@@ -1428,10 +1482,19 @@ export default function BookPage() {
                   }
                 }}
                 onPinLocationChange={async (newCoords) => {
+                  if (!isCardFlipped) {
+                    savedLocationRef.current = {
+                      coords: userGpsCoords,
+                      city: selectedCity,
+                      addressDetails: { ...addressDetails },
+                      isLiveLocation,
+                      isLocationSaved,
+                    }
+                    setIsCardFlipped(true)
+                  }
                   setUserGpsCoords(newCoords)
                   setIsLiveLocation(false)
                   setIsLocationSaved(false)
-                  setIsCardFlipped(true)
 
                   try {
                     const geo = await reverseGeocodeCoords(newCoords.lat, newCoords.lng)
@@ -1440,6 +1503,7 @@ export default function BookPage() {
                       apartment: geo.apartment || '',
                       locality: geo.locality || geo.displayLocality?.split(',')[0]?.trim() || '',
                       city: geo.cityStateFormatted || selectedCity,
+                      landmark: addressDetails.landmark || '',
                     }
 
                     setAddressDetails((prev) => ({
@@ -1447,10 +1511,8 @@ export default function BookPage() {
                       ...newDetails,
                     }))
                     setSelectedCity(geo.cityStateFormatted)
-                    setStoredCity(geo.cityStateFormatted, newCoords)
                   } catch (err) {
                     console.warn('Pin location reverse geocode error:', err)
-                    setStoredCity(selectedCity, newCoords)
                   }
                 }}
               />
@@ -1476,6 +1538,15 @@ export default function BookPage() {
             liveCityRef.current = c
             setIsCardFlipped(false)
           } else {
+            if (!isCardFlipped) {
+              savedLocationRef.current = {
+                coords: userGpsCoords,
+                city: selectedCity,
+                addressDetails: { ...addressDetails },
+                isLiveLocation,
+                isLocationSaved,
+              }
+            }
             setIsCardFlipped(true)
           }
 
@@ -1492,16 +1563,32 @@ export default function BookPage() {
 
             setSelectedCity(cleanCity)
             setAddressDetails(newDetails)
-            setStoredCity(cleanCity, targetCoords)
 
             if (isGps === true) {
+              setStoredCity(cleanCity, targetCoords)
               liveCityRef.current = cleanCity
               liveAddressDetailsRef.current = newDetails
+              savedLocationRef.current = {
+                coords: targetCoords,
+                city: cleanCity,
+                addressDetails: newDetails,
+                isLiveLocation: true,
+                isLocationSaved: false,
+              }
             }
           } catch {
             setSelectedCity(c)
             setAddressDetails((prev) => ({ ...prev, city: c }))
-            setStoredCity(c, targetCoords)
+            if (isGps === true) {
+              setStoredCity(c, targetCoords)
+              savedLocationRef.current = {
+                coords: targetCoords,
+                city: c,
+                addressDetails: { houseNo: '', apartment: '', locality: '', city: c },
+                isLiveLocation: true,
+                isLocationSaved: false,
+              }
+            }
           }
 
           // Dynamically fetch tailors within 5.0 miles of the selected coordinates

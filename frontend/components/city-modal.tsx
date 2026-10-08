@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Navigation, Loader2, Building2, MapPin, X } from 'lucide-react'
+import { Navigation, Loader2, Building2, MapPin, X, Home, Store, Compass } from 'lucide-react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import { setStoredCity, getCityCoordinates, getSessionCoordinates, formatLocationDisplay } from './use-city-location'
 import {
@@ -41,6 +41,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
   const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>([])
   const googlePlacesServiceRef = useRef<any>(null)
+  const googlePlacesDetailsRef = useRef<any>(null)
   const googleGeocoderRef = useRef<any>(null)
 
   // Load saved addresses when modal opens
@@ -64,7 +65,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     return formatLocationDisplay(selectedCity) || selectedCity.split(',')[0]
   }, [selectedCity])
 
-  // Lazy initialize Google Maps Services only when modal is opened
+  // Lazy initialize full Google Maps Places & Geocoding Services
   useEffect(() => {
     if (!isOpen) return
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
@@ -81,19 +82,32 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             } catch {}
           }
         }
+
+        // 1. Geocoder Library
         if (!googleGeocoderRef.current) {
           const { Geocoder } = (await importLibrary('geocoding')) as any
           googleGeocoderRef.current = new Geocoder()
         }
+
+        // 2. Places Library (AutocompleteService & PlacesService Details)
+        await importLibrary('places')
+        if (typeof google !== 'undefined' && google.maps?.places) {
+          if (!googlePlacesServiceRef.current && google.maps.places.AutocompleteService) {
+            googlePlacesServiceRef.current = new google.maps.places.AutocompleteService()
+          }
+          if (!googlePlacesDetailsRef.current && google.maps.places.PlacesService) {
+            googlePlacesDetailsRef.current = new google.maps.places.PlacesService(document.createElement('div'))
+          }
+        }
       } catch (err) {
-        console.warn('Google Places library load skipped, using proximity geocoding:', err)
+        console.warn('Google Places library load error:', err)
       }
     }
 
     loadGoogleServices()
   }, [isOpen])
 
-  // Live place, apartment, society, and address search powered by Google Maps Places Autocomplete
+  // Comprehensive Google Maps Places Autocomplete search
   useEffect(() => {
     const trimmed = search.trim()
     if (trimmed.length < 2) {
@@ -108,7 +122,76 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     const timeoutId = setTimeout(async () => {
       const sessionToken = getOrCreatePlacesSessionToken()
 
-      // 1. Modern Google Maps Places AutocompleteSuggestion API
+      // 1. Check Google Maps Places AutocompleteService
+      let service = googlePlacesServiceRef.current
+      if (!service && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
+        try {
+          service = new google.maps.places.AutocompleteService()
+          googlePlacesServiceRef.current = service
+        } catch {}
+      }
+
+      if (service && typeof google !== 'undefined' && google.maps) {
+        try {
+          const req: any = {
+            input: trimmed,
+          }
+          if (centerCoords && centerCoords.lat && centerCoords.lng) {
+            req.locationBias = new google.maps.Circle({
+              center: new google.maps.LatLng(centerCoords.lat, centerCoords.lng),
+              radius: 40000,
+            })
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
+          const predictions: google.maps.places.AutocompletePrediction[] = await new Promise((resolve) => {
+            service.getPlacePredictions(
+              req,
+              (results: any, status: any) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
+                  resolve(results)
+                } else {
+                  resolve([])
+                }
+              }
+            )
+          })
+
+          if (predictions && predictions.length > 0) {
+            const mapped: PlaceResult[] = predictions.map((p, idx) => {
+              const types = p.types || []
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+
+              if (types.some(t => ['locality', 'sublocality', 'sublocality_level_1', 'sublocality_level_2', 'administrative_area_level_1', 'administrative_area_level_2', 'country', 'postal_code'].includes(t))) {
+                category = 'city'
+              } else if (types.some(t => ['route', 'street_address', 'intersection', 'transit_station'].includes(t))) {
+                category = 'street'
+              } else if (types.some(t => ['store', 'shopping_mall', 'restaurant', 'cafe', 'point_of_interest', 'establishment', 'food'].includes(t))) {
+                category = 'poi'
+              } else if (types.some(t => ['apartment', 'residential', 'subpremise', 'premise', 'housing_complex'].includes(t))) {
+                category = 'apartment'
+              }
+
+              return {
+                id: `gplace-${p.place_id || idx}`,
+                title: p.structured_formatting?.main_text || p.description.split(',')[0],
+                subtitle: p.structured_formatting?.secondary_text || p.description,
+                fullName: p.description,
+                placeId: p.place_id,
+                type: category,
+              }
+            })
+
+            setPlaceResults(mapped)
+            setIsSearchingPlaces(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Google Places Autocomplete error:', err)
+        }
+      }
+
+      // 2. Modern Google Maps Places AutocompleteSuggestion API fallback
       if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
         try {
           const req: any = {
@@ -130,13 +213,22 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
               const fullName = p.text?.text || `${mainText}, ${secondaryText}`
               const types = p.types || []
 
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+              if (types.some((t: string) => ['locality', 'sublocality', 'administrative_area_level_1', 'administrative_area_level_2', 'country'].includes(t))) {
+                category = 'city'
+              } else if (types.some((t: string) => ['route', 'street_address'].includes(t))) {
+                category = 'street'
+              } else if (types.some((t: string) => ['store', 'restaurant', 'point_of_interest'].includes(t))) {
+                category = 'poi'
+              }
+
               return {
                 id: `gplace-sugg-${p.placeId || idx}`,
                 title: mainText,
                 subtitle: secondaryText,
                 fullName: fullName,
                 placeId: p.placeId,
-                type: types.includes('route') ? 'street' : types.includes('locality') ? 'city' : 'building',
+                type: category,
               }
             })
 
@@ -145,62 +237,11 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             return
           }
         } catch (err) {
-          console.warn('Google AutocompleteSuggestion API call failed:', err)
+          console.warn('Google AutocompleteSuggestion API fallback:', err)
         }
       }
 
-      // 2. Google Maps Places AutocompleteService
-      let service = googlePlacesServiceRef.current
-      if (!service && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
-        try {
-          service = new google.maps.places.AutocompleteService()
-          googlePlacesServiceRef.current = service
-        } catch {}
-      }
-
-      if (service && typeof google !== 'undefined' && google.maps) {
-        try {
-          const req: any = {
-            input: trimmed,
-            locationBias: new google.maps.Circle({
-              center: new google.maps.LatLng(centerCoords.lat, centerCoords.lng),
-              radius: 50000,
-            }),
-          }
-          if (sessionToken) req.sessionToken = sessionToken
-
-          const predictions: google.maps.places.AutocompletePrediction[] = await new Promise((resolve) => {
-            service.getPlacePredictions(
-              req,
-              (results: any, status: any) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && Array.isArray(results)) {
-                  resolve(results)
-                } else {
-                  resolve([])
-                }
-              }
-            )
-          })
-
-          if (predictions.length > 0) {
-            const mapped: PlaceResult[] = predictions.map((p, idx) => ({
-              id: `gplace-${p.place_id || idx}`,
-              title: p.structured_formatting?.main_text || p.description.split(',')[0],
-              subtitle: p.structured_formatting?.secondary_text || p.description,
-              fullName: p.description,
-              placeId: p.place_id,
-              type: p.types?.includes('route') ? 'street' : p.types?.includes('locality') ? 'city' : 'building',
-            }))
-            setPlaceResults(mapped)
-            setIsSearchingPlaces(false)
-            return
-          }
-        } catch (err) {
-          console.warn('Google Places Autocomplete error:', err)
-        }
-      }
-
-      // 3. Google Maps Geocoder as secondary direct resolver
+      // 3. Google Maps Geocoder as full global resolver
       const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
       if (geocoder && typeof google !== 'undefined' && google.maps) {
         try {
@@ -217,9 +258,17 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             )
           })
 
-          if (geoResults.length > 0) {
-            const mapped: PlaceResult[] = geoResults.slice(0, 8).map((gr, idx) => {
+          if (geoResults && geoResults.length > 0) {
+            const mapped: PlaceResult[] = geoResults.slice(0, 10).map((gr, idx) => {
               const loc = gr.geometry.location
+              const types = gr.types || []
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+              if (types.some(t => ['locality', 'sublocality', 'administrative_area_level_1', 'administrative_area_level_2', 'country', 'postal_code'].includes(t))) {
+                category = 'city'
+              } else if (types.some(t => ['route', 'street_address'].includes(t))) {
+                category = 'street'
+              }
+
               return {
                 id: `geocoder-${gr.place_id || idx}`,
                 title: gr.formatted_address.split(',')[0],
@@ -228,7 +277,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                 lat: loc.lat(),
                 lng: loc.lng(),
                 placeId: gr.place_id,
-                type: gr.types?.includes('route') ? 'street' : gr.types?.includes('locality') ? 'city' : 'building',
+                type: category,
               }
             })
             setPlaceResults(mapped)
@@ -241,7 +290,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       }
 
       setIsSearchingPlaces(false)
-    }, 200)
+    }, 180)
 
     return () => clearTimeout(timeoutId)
   }, [search, selectedCity])
@@ -259,6 +308,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   const handleSelectPlace = async (place: PlaceResult) => {
     let coords = place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null
 
+    // 1. Check cached details
     if (!coords && place.placeId) {
       const cached = getCachedPlaceDetails(place.placeId)
       if (cached) {
@@ -266,6 +316,46 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       }
     }
 
+    // 2. Fetch full place details via PlacesService
+    const placesDetails = googlePlacesDetailsRef.current
+    if (!coords && place.placeId && placesDetails) {
+      try {
+        const detailsRes: any = await new Promise((resolve) => {
+          placesDetails.getDetails(
+            {
+              placeId: place.placeId,
+              fields: ['geometry', 'formatted_address', 'name', 'address_components'],
+            },
+            (result: any, status: any) => {
+              if (status === google.maps.places.PlacesServiceStatus.OK && result?.geometry?.location) {
+                resolve(result)
+              } else {
+                resolve(null)
+              }
+            }
+          )
+        })
+
+        if (detailsRes?.geometry?.location) {
+          const loc = detailsRes.geometry.location
+          coords = {
+            lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+            lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng,
+          }
+          if (place.placeId) {
+            setCachedPlaceDetails(place.placeId, {
+              lat: coords.lat,
+              lng: coords.lng,
+              formattedAddress: detailsRes.formatted_address || place.fullName,
+            })
+          }
+        }
+      } catch (err) {
+        console.warn('Google Places getDetails resolution failed:', err)
+      }
+    }
+
+    // 3. Fallback: Resolve via Google Geocoder
     const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
     if (!coords && (place.placeId || place.fullName) && geocoder) {
       try {
@@ -290,7 +380,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           }
         }
       } catch (err) {
-        console.warn('Error resolving Google Place coordinates:', err)
+        console.warn('Error resolving Google Place coordinates via geocoder:', err)
       }
     }
 
@@ -463,17 +553,23 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                       key={`${place.id}-${idx}`}
                       type="button"
                       onClick={() => handleSelectPlace(place)}
-                      className="w-full text-left py-3.5 px-1 transition-colors flex items-start gap-3.5 group cursor-pointer hover:bg-[#F9FAFB] rounded-xl"
+                      className="w-full text-left py-3.5 px-2 transition-colors flex items-start gap-3.5 group cursor-pointer hover:bg-[#F9FAFB] rounded-xl"
                     >
                       <div className="size-8 rounded-full bg-[#F3F3F3] text-black flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#276EF1]/10 group-hover:text-[#276EF1] transition-colors">
                         {place.type === 'city' ? (
                           <MapPin size={16} />
+                        ) : place.type === 'street' ? (
+                          <Compass size={16} />
+                        ) : place.type === 'poi' ? (
+                          <Store size={16} />
+                        ) : place.type === 'apartment' ? (
+                          <Home size={16} />
                         ) : (
                           <Building2 size={16} />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[16px] font-medium text-black group-hover:text-[#276EF1] transition-colors truncate">
+                        <p className="text-[15px] font-semibold text-black group-hover:text-[#276EF1] transition-colors truncate">
                           {place.title}
                         </p>
                         {place.subtitle && (
@@ -484,6 +580,11 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                       </div>
                     </button>
                   ))}
+
+                  {/* Google Maps Attribution */}
+                  <div className="pt-3 pb-1 text-right text-[11px] font-medium text-gray-400 select-none">
+                    powered by <span className="font-bold text-gray-500">Google</span>
+                  </div>
                 </div>
               ) : !isSearchingPlaces ? (
                 <div className="py-8 text-center text-[#5E5E5E] text-[15px]">
