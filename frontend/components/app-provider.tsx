@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { getCurrentUser, logoutUser } from '@/lib/api'
+import { getCurrentUser, logoutUser, getStudioUrl } from '@/lib/api'
 import {
   getAuthToken,
   getRefreshToken,
@@ -148,6 +148,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const stored = getAuthUser<User>()
       if (stored && stored.status !== 'INACTIVE') {
+        if (stored.role === 'STUDIO' || stored.role === 'TEMP_STUDIO') {
+          const rt = getRefreshToken() || getAuthToken()
+          window.location.replace(getStudioUrl('/auth/callback', rt))
+          return
+        }
         setUser(stored)
       } else if (!getAuthToken() && !getRefreshToken()) {
         setUser(null)
@@ -173,28 +178,83 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    getCurrentUser()
-      .then((u) => {
-        if (u && u.status !== 'INACTIVE') {
-          setUser(u)
-        } else {
-          setUser(null)
-          if (getAuthToken() || getRefreshToken()) {
+    const token = getAuthToken() || getRefreshToken()
+    if (token) {
+      getCurrentUser()
+        .then((u) => {
+          if (u) {
+            if (u.role === 'STUDIO' || u.role === 'TEMP_STUDIO') {
+              const rt = getRefreshToken() || getAuthToken()
+              window.location.replace(getStudioUrl('/auth/callback', rt))
+              return
+            }
+            if (u.status !== 'INACTIVE') {
+              setUser(u)
+            } else {
+              setUser(null)
+              clearAllAuth()
+            }
+          } else {
+            setUser(null)
             clearAllAuth()
           }
-        }
-      })
-      .catch(() => {
-        const cached = getAuthUser<User>()
-        if (cached && cached.status !== 'INACTIVE') {
-          setUser(cached)
-        } else {
-          setUser(null)
-        }
-      })
-      .finally(() => {
-        setIsAuthLoading(false)
-      })
+        })
+        .catch(() => {
+          const cached = getAuthUser<User>()
+          if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO')) {
+            const rt = getRefreshToken() || getAuthToken()
+            window.location.replace(getStudioUrl('/auth/callback', rt))
+            return
+          }
+          if (cached && cached.status !== 'INACTIVE') {
+            setUser(cached)
+          } else {
+            setUser(null)
+            clearAllAuth()
+          }
+        })
+        .finally(() => {
+          setIsAuthLoading(false)
+        })
+    } else {
+      setUser(null)
+      setIsAuthLoading(false)
+    }
+
+    // Sync auth state if cookies changed while user was in another portal tab
+    const handleSync = () => {
+      const hasToken = Boolean(getAuthToken() || getRefreshToken())
+      if (!hasToken) {
+        setUser((prev) => (prev ? null : prev))
+      } else {
+        getCurrentUser().then((u) => {
+          if (u) {
+            if (u.role === 'STUDIO' || u.role === 'TEMP_STUDIO') {
+              const rt = getRefreshToken() || getAuthToken()
+              window.location.replace(getStudioUrl('/auth/callback', rt))
+              return
+            }
+            if (u.status !== 'INACTIVE') {
+              setUser(u)
+            } else {
+              setUser(null)
+              clearAllAuth()
+            }
+          } else {
+            setUser(null)
+            clearAllAuth()
+          }
+        }).catch(() => {})
+      }
+    }
+
+    window.addEventListener('focus', handleSync)
+    document.addEventListener('visibilitychange', handleSync)
+
+    return () => {
+      window.removeEventListener('focus', handleSync)
+      document.removeEventListener('visibilitychange', handleSync)
+    }
   }, [])
 
   const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
@@ -208,9 +268,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
+    if (loggedUser.role === 'STUDIO' || loggedUser.role === 'TEMP_STUDIO') {
+      setIsAuthOpen(false)
+      const rt = getRefreshToken() || getAuthToken()
+      window.location.replace(getStudioUrl('/auth/callback', rt))
+      return
+    }
+
     if (loggedUser.status === 'INACTIVE') {
       setUser(null)
       setIsAuthOpen(false)
+      clearAllAuth()
       toast.info('Studio enrollment is incomplete. Please complete your registration in Studio Portal.', {
         position: 'top-center',
         autoClose: 4000,
@@ -220,9 +288,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setUser(loggedUser)
     setIsAuthOpen(false)
-    const effectiveRole: 'CUSTOMER' | 'STUDIO' = loggedUser.role === 'STUDIO' ? 'STUDIO' : 'CUSTOMER'
+    const effectiveRole: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER'
     setAuthRole(effectiveRole)
-    setCookieAuthRole(effectiveRole)
+    setCookieAuthRole(loggedUser.role || effectiveRole)
     setAuthUser(loggedUser)
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {

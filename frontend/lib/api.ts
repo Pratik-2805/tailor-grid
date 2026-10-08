@@ -9,6 +9,7 @@ import {
   setAuthRole,
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
+  decodeJwtPayload,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -25,13 +26,17 @@ export function clearAuthCookies() {
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
-export async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken()
+export async function refreshAccessToken(providedRefreshToken?: string): Promise<string | null> {
+  const refreshToken = providedRefreshToken || getRefreshToken()
   if (!refreshToken) {
     return null
   }
 
-  if (isRefreshing && refreshPromise) {
+  if (providedRefreshToken) {
+    setRefreshToken(providedRefreshToken)
+  }
+
+  if (isRefreshing && refreshPromise && !providedRefreshToken) {
     return refreshPromise
   }
 
@@ -40,6 +45,7 @@ export async function refreshAccessToken(): Promise<string | null> {
     try {
       const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       })
@@ -102,14 +108,14 @@ export async function fetchWithAutoRefresh(url: string, options: RequestInit = {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  let res = await fetch(url, { ...options, headers })
+  let res = await fetch(url, { credentials: 'include', ...options, headers })
 
   // If 401 Unauthorized, attempt token refresh once and retry request
   if (res.status === 401 && getRefreshToken()) {
     const newToken = await refreshAccessToken()
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`)
-      res = await fetch(url, { ...options, headers })
+      res = await fetch(url, { credentials: 'include', ...options, headers })
     }
   }
 
@@ -119,12 +125,15 @@ export async function fetchWithAutoRefresh(url: string, options: RequestInit = {
 export async function logoutUser(): Promise<void> {
   try {
     const token = getAuthToken()
+    const refreshToken = getRefreshToken()
     await fetch(`${API_BASE}/auth/logout`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      body: JSON.stringify({ refreshToken }),
     })
   } catch (err) {
     console.warn('Backend logout request notice:', err)
@@ -138,15 +147,25 @@ export const STUDIO_BASE_URL =
   process.env.STUDIO_URL ||
   ''
 
-export function getStudioUrl(path: string = '', tokenOrCode?: string | null): string {
+export function getStudioUrl(path: string = '', tokenOrCodeOrRt?: string | null): string {
   const base = STUDIO_BASE_URL.replace(/\/$/, '')
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
   const url = `${base}${cleanPath}`
   
-  if (tokenOrCode) {
+  if (tokenOrCodeOrRt) {
     const separator = url.includes('?') ? '&' : '?'
-    const paramName = tokenOrCode.startsWith('ac_') ? 'code' : 'token'
-    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCode)}`
+    let paramName = 'refreshToken'
+    if (tokenOrCodeOrRt.startsWith('ac_')) {
+      paramName = 'code'
+    } else {
+      const decoded = decodeJwtPayload(tokenOrCodeOrRt)
+      if (decoded?.tokenType === 'access') {
+        paramName = 'token'
+      } else {
+        paramName = 'refreshToken'
+      }
+    }
+    return `${url}${separator}${paramName}=${encodeURIComponent(tokenOrCodeOrRt)}`
   }
   return url
 }
@@ -483,11 +502,6 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
-        // Strict Gate: If user status is INACTIVE or incomplete studio enroll, do NOT log in on customer site
-        if (data.user.status === 'INACTIVE' || (data.user.role === 'STUDIO' && (!data.user.studioName || !data.user.phone))) {
-          clearAllAuth()
-          return null
-        }
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'CUSTOMER')
         return data.user

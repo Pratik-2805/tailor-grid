@@ -34,13 +34,13 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
-              Upfront Pricing Matrix
+              Atelier Catalog Pricing
             </span>
             <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
-              Standardized, transparent rates.
+              Transparent, artisan rates.
             </h2>
             <p className="mt-2 text-sm text-[#5A5D64] max-w-[520px]">
-              No hidden fees, no studio markups. All prices include precision artisan work and our 100% Free Fit Guarantee.
+              Browse baseline rates below. Final pricing is calculated and confirmed by your matched local atelier based on their workshop price catalog upon order acceptance.
             </p>
           </div>
           <button
@@ -100,8 +100,8 @@ export function CatalogSection({ go, onSelectService }: CatalogSectionProps) {
 
               <div className="flex items-center justify-between sm:justify-end gap-6 border-t sm:border-t-0 pt-3 sm:pt-0 border-[#F3EFEA]">
                 <div className="text-left sm:text-right">
-                  <span className="text-xs text-[#7A7E85] block uppercase font-medium">Standard</span>
-                  <span className="font-serif text-xl font-bold text-[#18191B]">${svc.customerPrice}</span>
+                  <span className="text-[10px] text-[#7A7E85] block uppercase font-bold tracking-wider">Workshop Pricing</span>
+                  <span className="font-sans text-sm font-black text-[#18191B]">Set by Atelier</span>
                 </div>
                 <button
                   onClick={() => {

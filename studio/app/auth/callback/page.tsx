@@ -2,15 +2,15 @@
 
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { exchangeAuthCode, getCurrentUser } from '@/lib/api'
-import { setAuthToken, setAuthRole, setAuthUser } from '@/lib/cookies'
-import { ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
+import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getCustomerSiteUrl } from '@/lib/api'
+import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
+import { AlertCircle } from 'lucide-react'
+import { NormalLoader } from '@/components/normal-loader'
 
 function StudioAuthCallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(true)
   const exchangedRef = useRef(false)
 
   useEffect(() => {
@@ -18,12 +18,13 @@ function StudioAuthCallbackInner() {
       if (exchangedRef.current) return
       exchangedRef.current = true
 
+      const refreshToken = searchParams.get('refreshToken') || searchParams.get('refresh_token')
       const code = searchParams.get('code')
       const token = searchParams.get('token')
+      const existingRt = getRefreshToken()
 
-      if (!code && !token) {
-        setError('No authorization code or token found in callback URL.')
-        setIsProcessing(false)
+      if (!refreshToken && !code && !token && !existingRt) {
+        setError('No authentication token or authorization code found in callback URL.')
         return
       }
 
@@ -31,19 +32,41 @@ function StudioAuthCallbackInner() {
         let user: any = null
         let result: any = null
 
-        if (code) {
-          // Option A: Exchange single-use authorization code
+        if (refreshToken) {
+          // 1. Push refresh token into cookie of this site
+          setRefreshToken(refreshToken)
+          // 2. Validate refresh token with backend and mint new access token into cookie
+          const newAccessToken = await refreshAccessToken(refreshToken)
+          if (!newAccessToken) {
+            throw new Error('Refresh token validation failed. Please sign in again.')
+          }
+          user = await getCurrentUser()
+        } else if (code) {
+          // Exchange single-use authorization code
           result = await exchangeAuthCode(code)
           user = result.user
         } else if (token) {
-          // Fallback if legacy token was passed
+          // Legacy access token fallback
           setAuthToken(token)
+          user = await getCurrentUser()
+        } else if (existingRt) {
+          // Validate existing cookie refresh token
+          const newAccessToken = await refreshAccessToken(existingRt)
+          if (!newAccessToken) {
+            throw new Error('Session expired. Please sign in again.')
+          }
           user = await getCurrentUser()
         }
 
         if (!user) {
           setError('Authentication session could not be established. Please try logging in again.')
-          setIsProcessing(false)
+          return
+        }
+
+        // If user is actually a CUSTOMER, route to Customer Portal
+        if (user.role === 'CUSTOMER') {
+          const rt = refreshToken || getRefreshToken()
+          window.location.replace(getCustomerSiteUrl('/auth/callback', rt))
           return
         }
 
@@ -66,8 +89,7 @@ function StudioAuthCallbackInner() {
           window.location.replace('/?step=1')
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to authenticate authorization code.')
-        setIsProcessing(false)
+        setError(err.message || 'Failed to authenticate session.')
       }
     }
 
@@ -97,23 +119,8 @@ function StudioAuthCallbackInner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F1115] px-4">
-      <div className="max-w-md w-full bg-[#181B20] border border-white/5 rounded-2xl p-8 text-center shadow-2xl">
-        <div className="relative w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-[#9E593B]/20 animate-ping opacity-40" />
-          <div className="w-16 h-16 rounded-full bg-[#9E593B]/10 border border-[#9E593B]/30 flex items-center justify-center text-[#9E593B]">
-            <ShieldCheck className="w-8 h-8 animate-pulse" />
-          </div>
-        </div>
-        <h2 className="text-xl font-serif font-bold text-white mb-2">Authenticating Studio Atelier</h2>
-        <p className="text-sm text-slate-400 mb-6">
-          Exchanging secure one-time credentials and syncing your partner workbench...
-        </p>
-        <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#9E593B]" />
-          <span>Setting up workspace session...</span>
-        </div>
-      </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <NormalLoader />
     </div>
   )
 }
@@ -122,8 +129,8 @@ export default function StudioAuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-          <div className="w-8 h-8 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+          <NormalLoader />
         </div>
       }
     >

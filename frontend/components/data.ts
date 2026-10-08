@@ -46,6 +46,8 @@ export type User = {
   status?: 'ACTIVE' | 'INACTIVE'
   studioId?: string | null
   studioName?: string | null
+  currency?: string | null
+  currencySymbol?: string | null
 }
 
 export type StoreOption = {
@@ -135,6 +137,8 @@ export type FittingBooking = {
   ratingFeedback?: string
   status: OrderStatus
   price: number
+  currency?: string
+  currencySymbol?: string
   otp: string
   pickupOtpGenerated?: boolean
   createdAt?: string

@@ -595,7 +595,7 @@ export default function CleanGoogleMap({
         this.div.innerHTML = `
           <div style="background: #FFFFFF; border-radius: 12px; border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22); padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative; pointer-events: none;">
             <div style="display: flex; align-items: center; justify-content: center; padding: 1px;">
-              <img src="/landscape_logo.JPEG" style="height: 24px; width: auto; max-width: 60px; object-fit: cover; border-radius: 6px; display: block; pointer-events: none;" alt="" />
+              <img src="/landscape_logo.jpeg" style="height: 24px; width: auto; max-width: 60px; object-fit: cover; border-radius: 6px; display: block; pointer-events: none;" alt="" />
             </div>
             <div style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0F1115;"></div>
           </div>

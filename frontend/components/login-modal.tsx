@@ -6,7 +6,7 @@ import { ArrowLeft, LogOut, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, verifyOtp, checkPhoneExists } from '@/lib/api'
-import { setAuthUser, setAuthRole, setAuthToken } from '@/lib/cookies'
+import { setAuthUser, setAuthRole, setAuthToken, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 
 type LoginMode = 'options' | 'email' | 'mobile' | 'link-phone'
 
@@ -87,26 +87,31 @@ export function LoginModal({
     setLinkOtp('')
   }, [isOpen, targetRole, currentUser, mandatoryPhoneRequired])
 
-  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string) => {
-    const effectiveRole = user.role || role || 'CUSTOMER'
-    const effectiveToken = token || (typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null)
+  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string, refreshToken?: string) => {
+    const effectiveRt = refreshToken || getRefreshToken()
+    if (effectiveRt) {
+      setRefreshToken(effectiveRt)
+    }
+    const effectiveToken = token || getAuthToken()
+    if (effectiveToken) {
+      setAuthToken(effectiveToken)
+    }
+
+    const effectiveRole = user.role || role || (effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null) || 'CUSTOMER'
 
     if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
-      if (effectiveToken) {
-        setAuthToken(effectiveToken)
-      }
       setAuthRole(effectiveRole)
-      setAuthUser(user)
+      setAuthUser({ ...user, role: effectiveRole })
       toast.success(`Welcome ${effectiveRole === 'TEMP_STUDIO' ? '' : 'back, '}${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
       onClose()
 
-      const targetParam = authCode || effectiveToken
+      const targetParam = effectiveRt || authCode || effectiveToken
       if (targetParam) {
         window.location.href = getStudioUrl('/auth/callback', targetParam)
       } else if (!user.studioName || !user.phone || user.status === 'INACTIVE' || effectiveRole === 'TEMP_STUDIO') {
         window.location.href = getStudioUrl('/?step=1')
       } else {
-        window.location.href = getStudioUrl('/')
+        window.location.href = getStudioUrl('/dashboard')
       }
       return
     }
@@ -187,7 +192,7 @@ export function LoginModal({
             }
 
             if (result?.user) {
-              finalizeAuth(result.user, result.user.role || roleToUse, result.token, result.authCode)
+              finalizeAuth(result.user, result.user.role || roleToUse, result.token, result.authCode, result.refreshToken)
             }
           } catch (err: any) {
             setLoading(false)
@@ -273,7 +278,7 @@ export function LoginModal({
       })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode)
+        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode, result.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
@@ -295,7 +300,7 @@ export function LoginModal({
       const result = await loginUser({ identifier: cleanEmail })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode)
+        finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode, result.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)

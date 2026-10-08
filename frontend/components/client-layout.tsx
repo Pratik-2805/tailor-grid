@@ -10,6 +10,7 @@ import { Footer } from './footer'
 import { LoginModal } from './login-modal'
 import { SignUpModal } from './signup-modal'
 import { SewingLoader } from './sewing-loader'
+import { NormalLoader } from './normal-loader'
 import { getAuthRole } from '@/lib/cookies'
 import type { Screen } from './data'
 
@@ -94,6 +95,27 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       window.scrollTo(0, 0)
     }
   }, [pathname])
+
+  // Full-screen clean site normal loader without navbar or footer during initial load
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
+        <ToastContainer
+          position="top-center"
+          autoClose={3500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="colored"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF8F5] text-[#18191B]">

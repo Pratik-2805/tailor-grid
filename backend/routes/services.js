@@ -1,5 +1,6 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
+const { authenticateUser } = require('../lib/auth-middleware');
 
 const router = express.Router();
 
@@ -87,6 +88,22 @@ router.get('/stores', async (req, res) => {
       },
     });
 
+    // Only display studios that have configured their alteration prices
+    const filledCatalogItems = await prisma.studioCatalogItem.findMany({
+      where: {
+        enabled: true,
+        price: { gt: 0 },
+      },
+      select: {
+        studioId: true,
+        userId: true,
+      },
+    });
+
+    const activeStudioIds = new Set(
+      filledCatalogItems.flatMap((item) => [item.studioId, item.userId]).filter(Boolean)
+    );
+
     const studioUsers = await prisma.user.findMany({
       where: { role: 'STUDIO' },
       select: {
@@ -112,6 +129,12 @@ router.get('/stores', async (req, res) => {
           (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
           (u.name && u.name.toLowerCase() === s.leadTailor.toLowerCase())
       );
+
+      // Studio must have configured prices to be visible to customers
+      const isConfigured = activeStudioIds.has(s.id) || (matchingUser && activeStudioIds.has(matchingUser.id));
+      if (!isConfigured) {
+        continue;
+      }
 
       const storeName = (matchingUser && matchingUser.studioName) ? matchingUser.studioName : s.name;
       const key = (storeName || s.leadTailor || s.id).toLowerCase().trim();
@@ -282,5 +305,302 @@ const handleLocateTailors = async (req, res) => {
 
 router.get('/tailors/nearby', handleLocateTailors);
 router.get('/locate/tailors', handleLocateTailors);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDIO PRICE CATALOG MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/studio/catalog - Fetch studio specific price catalog & base categories
+router.get('/studio/catalog', authenticateUser, async (req, res) => {
+  try {
+    const requestedStudioId = req.query.studioId;
+    const effectiveStudioId = requestedStudioId || req.user?.studioId || req.user?.id;
+
+    // Fetch base categories and alteration services
+    const baseCategories = await prisma.garmentCategory.findMany({
+      include: {
+        services: true,
+      },
+      orderBy: {
+        startingPrice: 'asc',
+      },
+    });
+
+    const formattedBaseCategories = baseCategories.map((cat) => ({
+      id: cat.id,
+      name: cat.name,
+      tagline: cat.tagline,
+      startingPrice: cat.startingPrice,
+      avgTurnaround: cat.avgTurnaround,
+      services: cat.services.map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        customerPrice: s.customerPrice,
+        partnerPayout: s.partnerPayout,
+        platformFee: s.platformFee,
+        turnaroundDays: s.turnaroundDays,
+        popular: s.popular,
+      })),
+    }));
+
+    if (!effectiveStudioId) {
+      return res.json({
+        success: true,
+        studioId: null,
+        hasFilledCatalog: false,
+        items: [],
+        baseCategories: formattedBaseCategories,
+      });
+    }
+
+    // Find custom studio catalog items
+    const customItems = await prisma.studioCatalogItem.findMany({
+      where: {
+        OR: [
+          { studioId: effectiveStudioId },
+          ...(req.user?.id ? [{ userId: req.user.id }] : []),
+          ...(req.user?.studioId ? [{ studioId: req.user.studioId }] : []),
+        ],
+      },
+      orderBy: [{ categoryId: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    const hasFilledCatalog =
+      customItems.length > 0 &&
+      customItems.some((i) => i.enabled !== false && Number(i.price) > 0);
+
+    let studioCurrency = 'GBP';
+    let studioCurrencySymbol = '£';
+
+    if (customItems.length > 0 && customItems[0].currency) {
+      studioCurrency = customItems[0].currency;
+      studioCurrencySymbol = customItems[0].currencySymbol || '£';
+    } else {
+      const store = await prisma.partnerStore.findFirst({
+        where: { id: effectiveStudioId },
+      });
+      if (store?.currency) {
+        studioCurrency = store.currency;
+        studioCurrencySymbol = store.currencySymbol || '£';
+      }
+    }
+
+    return res.json({
+      success: true,
+      studioId: effectiveStudioId,
+      hasFilledCatalog,
+      currency: studioCurrency,
+      currencySymbol: studioCurrencySymbol,
+      items: customItems,
+      baseCategories: formattedBaseCategories,
+    });
+  } catch (err) {
+    console.error('Error fetching studio catalog:', err);
+    return res.status(500).json({ error: 'Failed to fetch price catalog' });
+  }
+});
+
+// POST /api/studio/catalog - Bulk save / update studio price catalog
+router.post('/studio/catalog', authenticateUser, async (req, res) => {
+  try {
+    const { studioId, items, currency, currencySymbol } = req.body;
+    const effectiveStudioId = studioId || req.user?.studioId || req.user?.id;
+
+    if (!effectiveStudioId) {
+      return res.status(400).json({ error: 'Studio ID or active authenticated session is required.' });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Catalog items array is required.' });
+    }
+
+    const effectiveCurrency = currency || 'GBP';
+    const effectiveSymbol = currencySymbol || (effectiveCurrency === 'USD' ? '$' : effectiveCurrency === 'EUR' ? '€' : effectiveCurrency === 'INR' ? '₹' : '£');
+
+    // Validate that at least 1 valid service has a proper positive price
+    const validItems = items.filter(
+      (item) => item && item.name && item.categoryId && item.enabled !== false && Number(item.price) > 0
+    );
+
+    if (validItems.length === 0) {
+      return res.status(400).json({
+        error: 'Please configure at least one alteration service with a proper price greater than 0.',
+      });
+    }
+
+    const userId = req.user?.id || null;
+
+    // Atomically replace existing studio catalog items
+    await prisma.$transaction(async (tx) => {
+      await tx.studioCatalogItem.deleteMany({
+        where: {
+          OR: [
+            { studioId: effectiveStudioId },
+            ...(userId ? [{ userId }] : []),
+          ],
+        },
+      });
+
+      const itemsToCreate = items.map((item) => ({
+        studioId: effectiveStudioId,
+        userId: userId,
+        categoryId: String(item.categoryId || 'general').trim(),
+        categoryName: String(item.categoryName || item.categoryId || 'Alterations').trim(),
+        serviceId: item.serviceId ? String(item.serviceId).trim() : null,
+        name: String(item.name).trim(),
+        description: item.description ? String(item.description).trim() : null,
+        price: parseFloat(item.price) || 0,
+        currency: effectiveCurrency,
+        currencySymbol: effectiveSymbol,
+        partnerPayout: item.partnerPayout ? parseFloat(item.partnerPayout) : null,
+        turnaroundDays: parseInt(item.turnaroundDays) || 2,
+        avgTurnaround: item.avgTurnaround ? String(item.avgTurnaround).trim() : `${parseInt(item.turnaroundDays) || 2} days`,
+        enabled: item.enabled !== false,
+        isCustom: Boolean(item.isCustom),
+      }));
+
+      await tx.studioCatalogItem.createMany({
+        data: itemsToCreate,
+      });
+
+      await tx.partnerStore.updateMany({
+        where: { id: effectiveStudioId },
+        data: { currency: effectiveCurrency, currencySymbol: effectiveSymbol },
+      });
+
+      if (userId) {
+        await tx.user.updateMany({
+          where: { OR: [{ id: userId }, { studioId: effectiveStudioId }] },
+          data: { currency: effectiveCurrency, currencySymbol: effectiveSymbol },
+        });
+      }
+
+      await tx.order.updateMany({
+        where: { storeId: effectiveStudioId },
+        data: { currency: effectiveCurrency, currencySymbol: effectiveSymbol },
+      });
+    });
+
+    const updatedItems = await prisma.studioCatalogItem.findMany({
+      where: {
+        OR: [
+          { studioId: effectiveStudioId },
+          ...(userId ? [{ userId }] : []),
+        ],
+      },
+      orderBy: [{ categoryId: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Studio price catalog saved successfully!',
+      count: updatedItems.length,
+      hasFilledCatalog: true,
+      currency: effectiveCurrency,
+      currencySymbol: effectiveSymbol,
+      items: updatedItems,
+    });
+  } catch (err) {
+    console.error('Error saving studio catalog:', err);
+    return res.status(500).json({ error: 'Failed to save price catalog.' });
+  }
+});
+
+// POST /api/studio/catalog/item - Add or update a single item in studio catalog
+router.post('/studio/catalog/item', authenticateUser, async (req, res) => {
+  try {
+    const { studioId, item } = req.body;
+    const effectiveStudioId = studioId || req.user?.studioId || req.user?.id;
+
+    if (!effectiveStudioId) {
+      return res.status(400).json({ error: 'Studio ID or authenticated session is required.' });
+    }
+
+    if (!item || !item.name || !item.categoryId || Number(item.price) <= 0) {
+      return res.status(400).json({ error: 'Valid service name, category, and price > 0 are required.' });
+    }
+
+    const userId = req.user?.id || null;
+
+    let savedItem;
+    if (item.id && !item.id.startsWith('temp_')) {
+      savedItem = await prisma.studioCatalogItem.update({
+        where: { id: item.id },
+        data: {
+          categoryId: String(item.categoryId).trim(),
+          categoryName: String(item.categoryName || item.categoryId).trim(),
+          name: String(item.name).trim(),
+          description: item.description ? String(item.description).trim() : null,
+          price: parseFloat(item.price) || 0,
+          turnaroundDays: parseInt(item.turnaroundDays) || 2,
+          avgTurnaround: item.avgTurnaround ? String(item.avgTurnaround).trim() : `${parseInt(item.turnaroundDays) || 2} days`,
+          enabled: item.enabled !== false,
+          isCustom: Boolean(item.isCustom),
+        },
+      });
+    } else {
+      savedItem = await prisma.studioCatalogItem.create({
+        data: {
+          studioId: effectiveStudioId,
+          userId: userId,
+          categoryId: String(item.categoryId).trim(),
+          categoryName: String(item.categoryName || item.categoryId).trim(),
+          serviceId: item.serviceId ? String(item.serviceId).trim() : null,
+          name: String(item.name).trim(),
+          description: item.description ? String(item.description).trim() : null,
+          price: parseFloat(item.price) || 0,
+          turnaroundDays: parseInt(item.turnaroundDays) || 2,
+          avgTurnaround: item.avgTurnaround ? String(item.avgTurnaround).trim() : `${parseInt(item.turnaroundDays) || 2} days`,
+          enabled: item.enabled !== false,
+          isCustom: Boolean(item.isCustom),
+        },
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Catalog item updated successfully',
+      item: savedItem,
+    });
+  } catch (err) {
+    console.error('Error updating catalog item:', err);
+    return res.status(500).json({ error: 'Failed to update catalog item' });
+  }
+});
+
+// DELETE /api/studio/catalog/item/:id - Delete an item from studio catalog
+router.delete('/studio/catalog/item/:id', authenticateUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const effectiveStudioId = req.query.studioId || req.user?.studioId || req.user?.id;
+
+    const existing = await prisma.studioCatalogItem.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Catalog item not found' });
+    }
+
+    if (
+      req.user &&
+      req.user.role === 'STUDIO' &&
+      existing.studioId !== effectiveStudioId &&
+      existing.userId !== req.user.id
+    ) {
+      return res.status(403).json({ error: 'Forbidden: Cannot delete item from another studio.' });
+    }
+
+    await prisma.studioCatalogItem.delete({
+      where: { id },
+    });
+
+    return res.json({ success: true, message: 'Catalog item deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting catalog item:', err);
+    return res.status(500).json({ error: 'Failed to delete catalog item' });
+  }
+});
 
 module.exports = router;

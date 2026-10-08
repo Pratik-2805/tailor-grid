@@ -8,9 +8,9 @@ import { makeOtp, type User } from '@/components/data'
 import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
-import { CustomLoader } from '@/components/custom-loader'
-import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser } from '@/lib/api'
-import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth } from '@/lib/cookies'
+import { NormalLoader } from '@/components/normal-loader'
+import { getCurrentUser, logoutUser, getCustomerSiteUrl } from '@/lib/api'
+import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth, getRefreshToken, getAuthToken } from '@/lib/cookies'
 
 export default function StudioPage() {
   const router = useRouter()
@@ -38,8 +38,6 @@ export default function StudioPage() {
     return true
   })
 
-  const customerSiteUrl = CUSTOMER_SITE_URL
-
   useEffect(() => {
     // 1. If single-use auth code or token is passed in query, forward immediately to callback
     if (typeof window !== 'undefined') {
@@ -54,6 +52,11 @@ export default function StudioPage() {
     getCurrentUser()
       .then((u) => {
         if (u) {
+          if (u.role === 'CUSTOMER') {
+            const rt = getRefreshToken() || getAuthToken()
+            window.location.replace(getCustomerSiteUrl('/auth/callback', rt))
+            return
+          }
           const currentRole = getAuthRole()
           const effectiveRole: 'STUDIO' | 'TEMP_STUDIO' = (u.role === 'STUDIO' || currentRole === 'STUDIO') ? 'STUDIO' : 'TEMP_STUDIO'
           const finalUser: User = { ...u, role: effectiveRole }
@@ -74,35 +77,26 @@ export default function StudioPage() {
       })
   }, [])
 
-  // 3. Strict Role-based Redirection
+  // 3. Active studio partner: forward root to /dashboard
   useEffect(() => {
-    if (!loadingUser) {
-      if (!user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) {
-        // Unauthenticated or customer: redirect to main website
-        if (typeof window !== 'undefined') {
-          window.location.replace(customerSiteUrl)
-        }
-        return
-      }
-
-      // Active & complete Studio partner: redirect directly to dashboard
+    if (!loadingUser && user) {
       if (user.role === 'STUDIO' && user.status === 'ACTIVE' && user.studioName && user.phone) {
         router.replace('/dashboard')
       }
     }
-  }, [loadingUser, user, router, customerSiteUrl])
+  }, [loadingUser, user, router])
 
-  const handleAuthSuccess = (loggedUser: User) => {
-    if (loggedUser.role !== 'STUDIO') {
+  const handleAuthSuccess = (loggedUser: User, targetTab?: 'cockpit' | 'catalog') => {
+    if (loggedUser.role !== 'STUDIO' && loggedUser.role !== 'TEMP_STUDIO') {
       toast.error('Unauthorized user, access denied.', { position: 'top-center' })
-      if (typeof window !== 'undefined') {
-        window.location.replace(customerSiteUrl)
-      }
       return
     }
     setUser(loggedUser)
-    setAuthRole('STUDIO')
+    setAuthRole(loggedUser.role)
     setAuthUser(loggedUser)
+    if (targetTab) {
+      setPartnerTab(targetTab)
+    }
     toast.success(`Authenticated as ${loggedUser.name || 'Studio Partner'}!`, { position: 'top-center' })
   }
 
@@ -119,43 +113,19 @@ export default function StudioPage() {
       clearAllAuth()
     }
     setUser(null)
-    if (typeof window !== 'undefined') {
-      window.location.replace(customerSiteUrl)
-    }
+    router.replace('/')
   }
 
-  // ── Loading state or Redirecting to Customer Portal ──
-  if (loadingUser || !user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) {
+  if (loadingUser) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text={user ? 'Connecting to Workbench' : 'Redirecting to Darzi...'}
-          steps={[
-            'Verifying Partner Permissions',
-            'Syncing Workbench Workspace',
-            'Connecting to Partner Network',
-          ]}
-          subtext={user ? 'Loading tailor workbench telemetry…' : 'Studio access is restricted to verified partner accounts.'}
-        />
-        <ToastContainer
-          position="top-center"
-          autoClose={2500}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss={false}
-          draggable
-          pauseOnHover
-          theme="colored"
-        />
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
       </div>
     )
   }
 
   const isProfileComplete = Boolean(
+    user &&
     user.role === 'STUDIO' &&
     user.status === 'ACTIVE' &&
     user.studioName &&
@@ -164,7 +134,7 @@ export default function StudioPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
-      {!isProfileComplete && (
+      {user && !isProfileComplete && (
         <StudioHeader
           user={user}
           onSignOut={handleSignOut}
@@ -173,7 +143,7 @@ export default function StudioPage() {
       )}
 
       <main className="flex-1 flex flex-col">
-        {isProfileComplete ? (
+        {user && isProfileComplete ? (
           <PartnerFlow
             go={() => { }}
             otp={otp}
@@ -185,7 +155,7 @@ export default function StudioPage() {
             onTabChange={setPartnerTab}
           />
         ) : (
-          /* Profile completion for newly approved / invited partners */
+          /* Profile onboarding & login/registration for partners */
           <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden my-auto">
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-[#9E593B]/8 rounded-full blur-3xl pointer-events-none" />
             <div className="relative z-10 w-full max-w-[540px] flex flex-col items-center justify-center my-auto">

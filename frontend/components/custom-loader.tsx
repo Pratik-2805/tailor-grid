@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+export { NormalLoader, NormalLoaderScreen } from './normal-loader'
+export type { NormalLoaderProps } from './normal-loader'
 
 export interface CustomLoaderProps {
   /** Text to display below the loader */
@@ -74,9 +76,8 @@ export function CustomLoader({
 
   const content = (
     <div
-      className={`flex flex-col items-center justify-center text-center select-none ${
-        dark ? 'text-white' : 'text-[#0F1115]'
-      } ${className}`}
+      className={`flex flex-col items-center justify-center text-center select-none ${dark ? 'text-white' : 'text-[#0F1115]'
+        } ${className}`}
       role="status"
       aria-live="polite"
     >
@@ -84,9 +85,8 @@ export function CustomLoader({
       <div className="relative flex items-center justify-center transform-gpu">
         {/* Ambient Radial Aura */}
         <div
-          className={`absolute rounded-full pointer-events-none transition-all duration-700 ${
-            dark ? 'bg-[#9E593B]/25' : 'bg-[#9E593B]/12'
-          }`}
+          className={`absolute rounded-full pointer-events-none transition-all duration-700 ${dark ? 'bg-[#9E593B]/25' : 'bg-[#9E593B]/12'
+            }`}
           style={{
             width: sizeConfig.iconSize * 1.8,
             height: sizeConfig.iconSize * 1.8,
@@ -109,9 +109,8 @@ export function CustomLoader({
       {displayText && (
         <div className="mt-5 flex items-center justify-center font-medium tracking-tight">
           <p
-            className={`${sizeConfig.textSize} font-semibold transition-all duration-300 ${
-              dark ? 'text-white/95' : 'text-[#0F1115]'
-            }`}
+            className={`${sizeConfig.textSize} font-semibold transition-all duration-300 ${dark ? 'text-white/95' : 'text-[#0F1115]'
+              }`}
           >
             {displayText}
             <span className="inline-block w-[1.2em] text-left font-mono font-bold text-[#9E593B]">
@@ -124,9 +123,8 @@ export function CustomLoader({
       {/* Subtitle / Context Note */}
       {subtext && (
         <p
-          className={`mt-1.5 max-w-[290px] ${sizeConfig.subSize} leading-relaxed transition-opacity duration-300 ${
-            dark ? 'text-white/60' : 'text-[#6B7280]'
-          }`}
+          className={`mt-1.5 max-w-[290px] ${sizeConfig.subSize} leading-relaxed transition-opacity duration-300 ${dark ? 'text-white/60' : 'text-[#6B7280]'
+            }`}
         >
           {subtext}
         </p>
@@ -201,9 +199,8 @@ export function CustomLoader({
   if (isFullscreenMode) {
     return (
       <div
-        className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in ${
-          dark ? 'bg-[#0F1115]' : 'bg-[#FAF8F5]'
-        } ${blurBackdrop ? 'backdrop-blur-md' : ''}`}
+        className={`fixed inset-0 z-[99999] flex items-center justify-center p-4 transition-all duration-300 animate-in fade-in ${dark ? 'bg-[#0F1115]' : 'bg-[#FAF8F5]'
+          } ${blurBackdrop ? 'backdrop-blur-md' : ''}`}
       >
         <div className="relative z-10">{content}</div>
       </div>

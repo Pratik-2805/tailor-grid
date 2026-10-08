@@ -409,3 +409,73 @@ input[type="time"]::-webkit-clear-button {
   animation: cardMorphRecede 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
+
+/* Site Normal Animated Loader (From Uiverse.io by Subaashbala) */
+.uiverse-loader {
+  --ANIMATION-DELAY-MULTIPLIER: 70ms;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  height: 3.5rem;
+}
+
+.uiverse-loader span {
+  padding: 0;
+  margin: 0;
+  letter-spacing: -5rem;
+  animation-delay: 0s;
+  transform: translateY(4rem);
+  animation: hideAndSeek 1s alternate infinite cubic-bezier(0.86, 0, 0.07, 1);
+  display: flex;
+  align-items: center;
+}
+
+.uiverse-loader .l {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 0);
+}
+
+.uiverse-loader .o {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 1);
+}
+
+.uiverse-loader .a {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 2);
+}
+
+.uiverse-loader .d {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 3);
+}
+
+.uiverse-loader .ispan {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 4);
+}
+
+.uiverse-loader .n {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 5);
+}
+
+.uiverse-loader .g {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 6);
+}
+
+.uiverse-loader .letter {
+  width: fit-content;
+  height: 3rem;
+}
+
+.uiverse-loader .i {
+  margin-inline: 5px;
+}
+
+@keyframes hideAndSeek {
+  0% {
+    transform: translateY(4rem);
+  }
+  100% {
+    transform: translateY(0rem);
+  }
+}

@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ProfileView } from '@/components/profile-view'
 import { useApp } from '@/components/app-provider'
-import { CustomLoader } from '@/components/custom-loader'
+import { NormalLoader } from '@/components/normal-loader'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -19,13 +19,8 @@ export default function ProfilePage() {
 
   if (isAuthLoading || !user) {
     return (
-      <div className="flex-1 flex items-center justify-center py-20 p-6 bg-[#FAF8F5] transition-opacity duration-300">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text="Accessing member profile"
-          subtext="Loading your personal fitting preferences and measurements"
-        />
+      <div className="flex-1 min-h-[60vh] flex items-center justify-center py-20 p-6 bg-[#FAF8F5] transition-opacity duration-300">
+        <NormalLoader />
       </div>
     )
   }

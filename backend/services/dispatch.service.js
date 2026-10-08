@@ -45,9 +45,29 @@ async function fetchEligible5MilePool(lat, lng) {
     orderBy: { createdAt: 'desc' },
   });
 
+  // Only include studios that have completed price setup in StudioCatalogItem
+  const filledCatalogItems = await prisma.studioCatalogItem.findMany({
+    where: {
+      enabled: true,
+      price: { gt: 0 },
+    },
+    select: {
+      studioId: true,
+      userId: true,
+    },
+  });
+
+  const activeStudioIds = new Set(
+    filledCatalogItems.flatMap((item) => [item.studioId, item.userId]).filter(Boolean)
+  );
+
   const pool = [];
   if (Array.isArray(stores)) {
     stores.forEach((store) => {
+      // Must have configured prices to receive dispatches
+      if (!activeStudioIds.has(store.id)) {
+        return;
+      }
       if (typeof store.lat === 'number' && typeof store.lng === 'number') {
         const dist = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
         if (dist <= 5.0) {
@@ -362,6 +382,48 @@ async function recordTailorAccept(orderId, tailorId) {
       const oData = session?.orderData || {};
       const customerCoords = session?.customerCoords || { lat: 51.5074, lng: -0.1278 };
 
+      // Look up custom price from the accepting studio's catalog
+      const studioCatalogItems = await tx.studioCatalogItem.findMany({
+        where: {
+          OR: [
+            { studioId: store.id },
+            ...(store.userId ? [{ userId: store.userId }] : []),
+          ],
+          enabled: true,
+        },
+      });
+
+      let calculatedPrice = oData.price ? parseFloat(oData.price) : 20;
+      let calculatedPayout = oData.partnerPayout ? parseFloat(oData.partnerPayout) : calculatedPrice;
+      let studioCurrency = store.currency || 'GBP';
+      let studioCurrencySymbol = store.currencySymbol || '£';
+
+      if (studioCatalogItems.length > 0) {
+        if (studioCatalogItems[0].currency) studioCurrency = studioCatalogItems[0].currency;
+        if (studioCatalogItems[0].currencySymbol) studioCurrencySymbol = studioCatalogItems[0].currencySymbol;
+
+        // Find match: by serviceId, or service name case-insensitive, or category
+        const matchedItem = studioCatalogItems.find((item) => {
+          if (oData.serviceId && item.serviceId && item.serviceId.toLowerCase() === oData.serviceId.toLowerCase()) {
+            return true;
+          }
+          if (oData.serviceName && item.name && item.name.toLowerCase().trim() === oData.serviceName.toLowerCase().trim()) {
+            return true;
+          }
+          if (oData.garmentId && item.categoryId && item.categoryId.toLowerCase().trim() === oData.garmentId.toLowerCase().trim()) {
+            return true;
+          }
+          return false;
+        });
+
+        if (matchedItem && Number(matchedItem.price) > 0) {
+          calculatedPrice = Number(matchedItem.price);
+          calculatedPayout = Number(matchedItem.partnerPayout) || calculatedPrice * 0.75;
+          if (matchedItem.currency) studioCurrency = matchedItem.currency;
+          if (matchedItem.currencySymbol) studioCurrencySymbol = matchedItem.currencySymbol;
+        }
+      }
+
       // 3. Insert or update confirmed order in PostgreSQL
       let savedOrder;
       if (existingDbOrder) {
@@ -373,6 +435,10 @@ async function recordTailorAccept(orderId, tailorId) {
             storePhone: store.phone,
             tailorLat: store.lat,
             tailorLng: store.lng,
+            price: calculatedPrice,
+            partnerPayout: calculatedPayout,
+            currency: studioCurrency,
+            currencySymbol: studioCurrencySymbol,
             status: 'Accepted',
           },
           include: { store: true },
@@ -405,11 +471,13 @@ async function recordTailorAccept(orderId, tailorId) {
             pinnedAdjustment: oData.pinnedAdjustment || (typeof oData.measurements === 'object' ? JSON.stringify(oData.measurements) : (oData.measurements || '')),
             sewingNotes: '',
             slaHours: 48,
-            partnerPayout: oData.partnerPayout || oData.price || 20,
+            partnerPayout: calculatedPayout,
             retailSold: false,
             intakePhotoUrl: oData.imageUrl || null,
             status: 'Accepted',
-            price: oData.price || 20,
+            price: calculatedPrice,
+            currency: studioCurrency,
+            currencySymbol: studioCurrencySymbol,
             otp: oData.otp || '1234',
           },
           include: { store: true },
@@ -428,6 +496,12 @@ async function recordTailorAccept(orderId, tailorId) {
       session.acceptedTailorId = tailorId;
       session.acceptedTailor = result.store;
       session.confirmedOrder = result.order;
+      if (session.orderData) {
+        session.orderData.price = result.order.price;
+        session.orderData.partnerPayout = result.order.partnerPayout;
+        session.orderData.currency = result.order.currency;
+        session.orderData.currencySymbol = result.order.currencySymbol;
+      }
       session.activeCandidateTailorIds.clear();
       if (session.timer) {
         clearTimeout(session.timer);

@@ -321,7 +321,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           const parsed = JSON.parse(cached)
           if (parsed && typeof parsed === 'object') return parsed
         }
-        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        const latest = getStorageCookie('tg_latest_order')
         if (latest) {
           const parsed = JSON.parse(latest)
           if (parsed && (parsed.id === slugId || !slugId)) return parsed
@@ -333,9 +333,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && slugId) {
       try {
-        const cached = getStorageCookie(`tg_order_${slugId}`) || localStorage.getItem(`tg_order_${slugId}`)
+        const cached = getStorageCookie(`tg_order_${slugId}`)
         if (cached) return false
-        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        const latest = getStorageCookie('tg_latest_order')
         if (latest) {
           const parsed = JSON.parse(latest)
           if (parsed && (parsed.id === slugId || !slugId)) return false
@@ -1222,6 +1222,73 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 </div>
 
               </div>
+
+              {/* Atelier Pricing & Invoice Card */}
+              {(() => {
+                const currencySym = (order as any)?.currencySymbol || '$'
+                const isAwaitingAcceptance = !order?.status || order?.status === 'Allocated'
+                const basePrice = typeof order?.price === 'number' ? order.price : parseFloat((order as any)?.price || '20') || 20
+                const adjustment = (order as any)?.priceAdjustment ? parseFloat(String((order as any).priceAdjustment)) : 0
+                const totalPrice = basePrice + adjustment
+
+                return (
+                  <div className="py-3.5 border-b border-gray-100">
+                    <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-500">
+                          Workshop Pricing &amp; Bill
+                        </span>
+                        {isAwaitingAcceptance ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                            Pending Atelier Match
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            ✓ Confirmed by {storeNameDisplay}
+                          </span>
+                        )}
+                      </div>
+
+                      {isAwaitingAcceptance ? (
+                        <div className="space-y-1">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-xs text-gray-600 font-medium">Estimated Starting Rate:</span>
+                            <span className="text-sm font-bold text-gray-800">~{currencySym}{basePrice.toFixed(2)}</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800 leading-snug">
+                            Exact alteration price will be calculated and confirmed from the atelier&apos;s workshop catalog once they accept your order.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 pt-0.5">
+                          <div className="flex items-center justify-between text-xs text-gray-700">
+                            <span>Base Workshop Alteration:</span>
+                            <span className="font-semibold">{currencySym}{basePrice.toFixed(2)}</span>
+                          </div>
+
+                          {adjustment > 0 && (
+                            <div className="flex items-center justify-between text-xs text-amber-900 bg-amber-50/80 px-2 py-1 rounded-lg border border-amber-200/60">
+                              <span className="truncate pr-2">
+                                Critical Work Surcharge ({(order as any).priceAdjustmentReason || 'Delicate fabric / complex finishing'}):
+                              </span>
+                              <span className="font-bold shrink-0">+{currencySym}{adjustment.toFixed(2)}</span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1 border-t border-gray-200 text-xs sm:text-sm font-extrabold text-[#0F1115]">
+                            <span>Total Due at Studio Pickup:</span>
+                            <span className="text-base text-[#9E593B] font-mono">{currencySym}{totalPrice.toFixed(2)}</span>
+                          </div>
+
+                          <p className="text-[10px] text-gray-500 pt-0.5">
+                            Direct counter payment to the partner atelier upon inspecting your fitted garment.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Lower Section: Garment Notes & Photos */}
               <div className="pt-4 space-y-3">

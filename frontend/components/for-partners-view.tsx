@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { type Screen } from './data'
 import { getStudioUrl } from '@/lib/api'
-import { getAuthToken, getAuthRole } from '@/lib/cookies'
+import { getAuthToken, getAuthRole, getRefreshToken } from '@/lib/cookies'
 import { triggerStudioGoogleAuth } from '@/lib/google-auth'
 
 interface ForPartnersViewProps {
@@ -91,7 +91,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                   onClick={() => {
                     const role = getAuthRole()
                     if (role === 'STUDIO') {
-                      window.location.href = getStudioUrl('/', getAuthToken())
+                      const token = getRefreshToken() || getAuthToken()
+                      window.location.href = getStudioUrl('/dashboard', token)
                     } else {
                       onOpenAuth?.('STUDIO', 'signup')
                     }
@@ -105,7 +106,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                   onClick={() => {
                     const role = getAuthRole()
                     if (role === 'STUDIO') {
-                      window.location.href = getStudioUrl('/', getAuthToken())
+                      const token = getRefreshToken() || getAuthToken()
+                      window.location.href = getStudioUrl('/dashboard', token)
                     } else {
                       onOpenAuth?.('STUDIO', 'signin')
                     }
@@ -443,7 +445,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               onClick={() => {
                 const role = getAuthRole()
                 if (role === 'STUDIO') {
-                  window.location.href = getStudioUrl('/', getAuthToken())
+                  const token = getRefreshToken() || getAuthToken()
+                  window.location.href = getStudioUrl('/dashboard', token)
                 } else {
                   onOpenAuth?.('STUDIO', 'signup')
                 }
@@ -457,7 +460,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
               onClick={() => {
                 const role = getAuthRole()
                 if (role === 'STUDIO') {
-                  window.location.href = getStudioUrl('/', getAuthToken())
+                  const token = getRefreshToken() || getAuthToken()
+                  window.location.href = getStudioUrl('/dashboard', token)
                 } else {
                   onOpenAuth?.('STUDIO', 'signin')
                 }
@@ -480,7 +484,8 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           onClick={() => {
             const role = getAuthRole()
             if (role === 'STUDIO') {
-              window.location.href = getStudioUrl('/', getAuthToken())
+              const token = getRefreshToken() || getAuthToken()
+              window.location.href = getStudioUrl('/dashboard', token)
             } else {
               onOpenAuth?.('STUDIO', 'signup')
             }

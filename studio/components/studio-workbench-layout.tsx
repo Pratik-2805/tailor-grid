@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type User } from '@/components/data'
 import { PartnerFlow } from '@/components/partner-flow'
-import { CustomLoader } from '@/components/custom-loader'
+import { NormalLoader } from '@/components/normal-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser } from '@/lib/api'
 import { getAuthUser, setAuthUser, clearAllAuth } from '@/lib/cookies'
 
@@ -76,14 +76,14 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     }
   }, [])
 
-  // If auth check completes and user is not an active studio, redirect appropriately
+  // If auth check completes and user is TEMP_STUDIO, redirect to onboarding
   useEffect(() => {
-    if (!loadingUser) {
-      if (user?.role === 'TEMP_STUDIO' || (user?.role === 'STUDIO' && (!user.studioName || !user.phone || user.status === 'INACTIVE'))) {
+    if (!loadingUser && user) {
+      if (user.role === 'TEMP_STUDIO') {
         window.location.replace('/?step=1')
         return
       }
-      if (!user || (user.role !== 'STUDIO' && user.role !== 'ADMIN')) {
+      if (user.role !== 'STUDIO' && user.role !== 'ADMIN') {
         window.location.replace(customerSiteUrl)
       }
     }
@@ -106,7 +106,7 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     }
     setUser(null)
     if (typeof window !== 'undefined') {
-      window.location.href = customerSiteUrl || '/'
+      window.location.href = '/'
       return
     }
     router.replace('/')
@@ -114,18 +114,8 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
 
   if (loadingUser || !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text="Accessing Master Workshop"
-          steps={[
-            'Accessing Master Workshop',
-            'Syncing active alteration queue',
-            'Connecting to Partner Network',
-          ]}
-          subtext="Preparing your tailor workbench controls and live telemetry"
-        />
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
         <ToastContainer
           position="top-center"
           autoClose={3500}
@@ -146,12 +136,36 @@ export function StudioWorkbenchLayout({ children }: { children?: ReactNode }) {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-[#0F172A]">
       <main className="flex-1 flex flex-col">
         <PartnerFlow
-          go={() => {}}
+          go={() => { }}
           otp={otp}
           user={user}
           onSignOut={handleSignOut}
           onOpenProfile={() => router.push('/settings')}
           onUpdateUser={handleUpdateUser}
+          activeTab={
+            pathname?.includes('catalog')
+              ? 'catalog'
+              : pathname?.includes('orders')
+              ? 'pipeline'
+              : pathname?.includes('payouts')
+              ? 'payouts'
+              : pathname?.includes('settings') || pathname?.includes('profile')
+              ? 'profile'
+              : 'cockpit'
+          }
+          onTabChange={(tab) => {
+            const pathMap: Record<string, string> = {
+              cockpit: '/dashboard',
+              pipeline: '/orders',
+              catalog: '/catalog',
+              payouts: '/payouts',
+              profile: '/settings',
+            }
+            const target = pathMap[tab] || '/dashboard'
+            if (pathname !== target) {
+              router.push(target)
+            }
+          }}
         />
       </main>
       {children}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Building2, LogOut, Menu, Package, Phone, User as UserIcon, X } from 'lucide-react'
 import { getStudioUrl } from '@/lib/api'
+import { getRefreshToken, getAuthToken } from '@/lib/cookies'
 import { type Screen, type User } from './data'
 
 interface HeaderProps {
@@ -192,7 +193,7 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
                         onClick={() => {
                           setIsPinned(false)
                           setIsHovered(false)
-                          const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                          const token = getRefreshToken() || getAuthToken()
                           window.location.href = getStudioUrl('/', token)
                         }}
                         className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl hover:bg-[#FAF8F5] text-[13px] font-semibold text-[#18191B] transition-colors text-left group"
@@ -308,7 +309,7 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
                 <button
                   onClick={() => {
                     setOpen(false)
-                    const token = typeof window !== 'undefined' ? localStorage.getItem('tg_token') : null
+                    const token = getRefreshToken() || getAuthToken()
                     window.location.href = getStudioUrl('/', token)
                   }}
                   className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"

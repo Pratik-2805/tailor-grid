@@ -2,11 +2,11 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ToastContainer, toast } from 'react-toastify'
+import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getStudioUrl, getCurrentUser } from '@/lib/api'
-import { getAuthRole, getAuthToken, getRefreshToken } from '@/lib/cookies'
-import { CustomLoader } from '@/components/custom-loader'
+import { getAuthToken, getRefreshToken } from '@/lib/cookies'
+import { NormalLoader } from '@/components/normal-loader'
 
 export default function PartnerOnboardingPage() {
   const router = useRouter()
@@ -19,8 +19,8 @@ export default function PartnerOnboardingPage() {
     getCurrentUser()
       .then((user) => {
         if (user?.role === 'STUDIO' || user?.role === 'TEMP_STUDIO') {
-          const at = getAuthToken()
-          window.location.href = getStudioUrl('/', at)
+          const rt = getRefreshToken() || getAuthToken()
+          window.location.href = getStudioUrl('/auth/callback', rt)
         } else if (user?.role === 'CUSTOMER') {
           router.replace('/book')
         } else {
@@ -33,13 +33,8 @@ export default function PartnerOnboardingPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#FAF8F5] relative">
-      <CustomLoader
-        size="lg"
-        variant="atelier"
-        text="Verifying Studio Access"
-        subtext="Checking partner credentials and role permissions…"
-      />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <NormalLoader />
       <ToastContainer
         position="top-center"
         autoClose={2500}
