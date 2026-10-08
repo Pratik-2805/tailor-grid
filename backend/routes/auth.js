@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { prisma } = require('../lib/prisma');
 const { validateAndFormatPhone, sendVerificationSms, saveOtp, verifyOtp } = require('../lib/sms');
+const { sendAuthOtpEmail, sendWelcomeEmail } = require('../lib/email');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
@@ -482,6 +483,18 @@ async function findOrLinkUser({
     user = await prisma.user.create({
       data: newUserData,
     });
+
+    // Automatically send welcome email to newly created customer
+    if (user?.email && user.email.includes('@') && !user.email.includes('example.com')) {
+      if (user.role === 'CUSTOMER') {
+        sendWelcomeEmail({
+          toEmail: user.email,
+          name: user.name,
+          role: 'CUSTOMER',
+          phone: user.phone || '',
+        }).catch((wErr) => console.warn('[WELCOME EMAIL] findOrLinkUser dispatch notice:', wErr.message));
+      }
+    }
   }
 
   return user;
@@ -544,10 +557,42 @@ router.post('/send-otp', async (req, res) => {
         // Send real SMS via AWS SNS
         const smsResult = await sendVerificationSms(cleanPhone, code);
 
+        // If email is passed or associated with this user, also dispatch OTP via Resend
+        let emailSent = false;
+        try {
+          let targetEmail = req.body.email ? String(req.body.email).trim().toLowerCase() : null;
+          let customerName = 'Darzi User';
+          if (!targetEmail) {
+            const user = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  { phone: cleanPhone },
+                  { contact: cleanPhone },
+                ],
+              },
+            });
+            if (user?.email) {
+              targetEmail = user.email.trim().toLowerCase();
+              if (user.name) customerName = user.name;
+            }
+          }
+          if (targetEmail && targetEmail.includes('@') && !targetEmail.includes('example.com')) {
+            const emailRes = await sendAuthOtpEmail({ toEmail: targetEmail, otp: code, customerName });
+            if (emailRes.success) {
+              emailSent = true;
+              console.log(`[AUTH-OTP] Sent OTP code via Resend to ${targetEmail}`);
+            }
+          }
+        } catch (emailErr) {
+          console.warn('[AUTH-OTP] Non-blocking email dispatch warning:', emailErr.message);
+        }
+
         const responsePayload = {
           success: true,
           phone: cleanPhone,
-          message: smsResult.message || `Verification code sent via SMS to ${cleanPhone}`,
+          message: emailSent
+            ? `Verification code sent via SMS & Email to ${cleanPhone}`
+            : (smsResult.message || `Verification code sent via SMS to ${cleanPhone}`),
         };
         resolveDispatch(responsePayload);
       } catch (dispatchErr) {
@@ -717,6 +762,15 @@ router.post('/verify-otp', async (req, res) => {
     const tokens = await generateTokens(returnUser);
     const authCode = createAuthCode(returnUser, tokens.accessToken);
     setAuthCookies(res, tokens);
+
+    if (returnUser?.email && returnUser.role === 'CUSTOMER') {
+      sendWelcomeEmail({
+        toEmail: returnUser.email,
+        name: returnUser.name,
+        role: 'CUSTOMER',
+        phone: returnUser.phone || '',
+      }).catch((wErr) => console.warn('[WELCOME EMAIL] verify-otp notice:', wErr.message));
+    }
     return res.json({
       success: true,
       message: 'Mobile number verified and authenticated successfully',
@@ -842,6 +896,15 @@ router.post('/link-phone', async (req, res) => {
     const tokens = await generateTokens(user);
     const authCode = createAuthCode(user, tokens.accessToken);
     setAuthCookies(res, tokens);
+
+    if (user?.email && user.role === 'CUSTOMER') {
+      sendWelcomeEmail({
+        toEmail: user.email,
+        name: user.name,
+        role: 'CUSTOMER',
+        phone: user.phone || cleanPhone || '',
+      }).catch((wErr) => console.warn('[WELCOME EMAIL] link-phone notice:', wErr.message));
+    }
     return res.json({
       success: true,
       message: 'Mobile number linked successfully',
@@ -1088,6 +1151,15 @@ router.post('/google', async (req, res) => {
         const tokens = await generateTokens(returnUser);
         const authCode = createAuthCode(returnUser, tokens.accessToken);
         setAuthCookies(res, tokens);
+
+        if (returnUser?.email && returnUser.role === 'CUSTOMER') {
+          sendWelcomeEmail({
+            toEmail: returnUser.email,
+            name: returnUser.name,
+            role: 'CUSTOMER',
+            phone: returnUser.phone || '',
+          }).catch((wErr) => console.warn('[WELCOME EMAIL] Google auth notice:', wErr.message));
+        }
         return res.json({
           success: true,
           message: 'Authenticated with Google successfully',
@@ -1329,6 +1401,23 @@ router.post('/signup', async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
+    // Dispatch Welcome Email asynchronously if user has a valid email address
+    if (returnUser?.email && returnUser.email.includes('@') && !returnUser.email.includes('example.com')) {
+      const isCompleteStudio = returnUser.role === 'STUDIO';
+      const isCustomer = returnUser.role === 'CUSTOMER';
+      if (isCompleteStudio || isCustomer) {
+        sendWelcomeEmail({
+          toEmail: returnUser.email,
+          name: returnUser.name,
+          role: returnUser.role,
+          studioName: returnUser.studioName || storeName || '',
+          phone: returnUser.phone || '',
+        }).catch((wErr) => {
+          console.warn('[WELCOME EMAIL] Async dispatch notice:', wErr.message);
+        });
+      }
+    }
+
     const tokens = await generateTokens(returnUser);
     const authCode = createAuthCode(returnUser, tokens.accessToken);
     setAuthCookies(res, tokens);
@@ -1346,6 +1435,40 @@ router.post('/signup', async (req, res) => {
   } catch (err) {
     console.error('Signup Error:', err);
     return res.status(500).json({ error: err.message || 'Server error during registration.' });
+  }
+});
+
+// POST /api/auth/send-welcome-email - Dedicated endpoint to send or test welcome email
+router.post('/send-welcome-email', async (req, res) => {
+  try {
+    const { email, name, role = 'CUSTOMER', studioName, phone, portalUrl, loginUrl, force = true } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email address is required.' });
+    }
+
+    const result = await sendWelcomeEmail({
+      toEmail: email,
+      name,
+      role,
+      studioName,
+      phone,
+      portalUrl,
+      loginUrl,
+      force: Boolean(force),
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.reason || result.error || 'Failed to dispatch welcome email' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Welcome email dispatched successfully to ${email} as ${role}`,
+      resendId: result.id,
+    });
+  } catch (err) {
+    console.error('Send Welcome Email Error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to send welcome email.' });
   }
 });
 

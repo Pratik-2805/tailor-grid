@@ -1,5 +1,6 @@
 const { prisma } = require('../lib/prisma');
 const { calculateDistanceInMiles } = require('./locate.service');
+const { sendOrderOtpEmail } = require('../lib/email');
 
 // In-memory cache for fast order dispatch sessions with automatic 10-minute TTL
 const dispatchSessions = new Map();
@@ -437,6 +438,38 @@ async function recordTailorAccept(orderId, tailorId) {
         session.hardTimer = null;
       }
       console.log(`[Dispatch Engine] Order ${orderId} successfully ACCEPTED & created in PostgreSQL for ${result.store.name} (${tailorId})`);
+    }
+
+    if (result.success && result.order) {
+      // Asynchronously dispatch Order OTP confirmation email to customer via Resend
+      (async () => {
+        try {
+          let customerEmail = result.order.customerEmail;
+          let customerName = result.order.customerName;
+          if ((!customerEmail || customerEmail.includes('example.com')) && result.order.userId) {
+            const user = await prisma.user.findUnique({ where: { id: result.order.userId } });
+            if (user?.email) {
+              customerEmail = user.email;
+              if (user.name) customerName = user.name;
+            }
+          }
+          if (customerEmail && customerEmail.includes('@') && !customerEmail.includes('example.com')) {
+            await sendOrderOtpEmail({
+              toEmail: customerEmail,
+              otp: result.order.otp,
+              orderId: result.order.id,
+              customerName: customerName || 'Valued Customer',
+              garmentName: result.order.garmentName,
+              serviceName: result.order.serviceName,
+              storeName: result.store?.name || result.order.storeName,
+              storeAddress: result.store?.address,
+              storePhone: result.store?.phone,
+            });
+          }
+        } catch (emailErr) {
+          console.error('[Dispatch Engine] Error dispatching order OTP email:', emailErr.message || emailErr);
+        }
+      })();
     }
 
     return result;
