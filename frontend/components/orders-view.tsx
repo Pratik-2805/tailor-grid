@@ -17,6 +17,7 @@ import {
 import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
 import { fetchOrders, updateOrder } from '@/lib/api'
+import { setStorageCookie } from '@/lib/cookies'
 
 interface OrdersViewProps {
   go: (s: Screen) => void
@@ -32,6 +33,17 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   const [backendOrders, setBackendOrders] = useState<FittingBooking[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
+  const handleNavigateToOrder = (orderId: string) => {
+    const targetOrder = backendOrders.find((bo) => bo.id === orderId)
+    if (targetOrder && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`tg_order_${orderId}`, JSON.stringify(targetOrder))
+        setStorageCookie(`tg_order_${orderId}`, JSON.stringify(targetOrder))
+      } catch {}
+    }
+    router.push(`/order/${orderId}`)
+  }
+
   useEffect(() => {
     if (user) {
       setIsLoading(true)
@@ -39,9 +51,17 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
         .then((fetched) => {
           const ordersFromBackend = Array.isArray(fetched) ? fetched : []
 
-          // Purge stale dummy/mock orders from localStorage that do not exist in the database
+          // Synchronize and update local storage cache for all active backend orders
+          // so navigating to /order/[id] immediately loads the fresh status (e.g. Work in Progress)
           if (typeof window !== 'undefined') {
             try {
+              ordersFromBackend.forEach((bo) => {
+                if (bo && bo.id) {
+                  localStorage.setItem(`tg_order_${bo.id}`, JSON.stringify(bo))
+                  setStorageCookie(`tg_order_${bo.id}`, JSON.stringify(bo))
+                }
+              })
+
               const localKeys = Object.keys(localStorage).filter((k) => k.startsWith('tg_order_'))
               for (const key of localKeys) {
                 const raw = localStorage.getItem(key)
@@ -280,7 +300,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
               return (
                 <div
                   key={o.id}
-                  onClick={() => router.push(`/order/${o.id}`)}
+                  onClick={() => handleNavigateToOrder(o.id)}
                   className="rounded-2xl border border-[#DDD6CB] bg-white p-6 shadow-xs hover:border-[#9E593B] hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6 cursor-pointer group"
                 >
                   <div>
@@ -326,7 +346,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          router.push(`/order/${o.id}`)
+                          handleNavigateToOrder(o.id)
                         }}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-[#0F1115] hover:bg-[#9E593B] px-4 py-2 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
                       >

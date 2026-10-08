@@ -2,6 +2,7 @@ const express = require('express');
 const { prisma } = require('../lib/prisma');
 const dispatchService = require('../services/dispatch.service');
 const { authenticateUser } = require('../lib/auth-middleware');
+const { sendOrderOtpEmail, sendWelcomeEmail } = require('../lib/email');
 
 const router = express.Router();
 router.use(authenticateUser);
@@ -614,6 +615,15 @@ router.post('/', async (req, res) => {
           },
         });
         linkedUserId = newCustomer.id;
+
+        if (newCustomer?.email && newCustomer.email.includes('@') && !newCustomer.email.includes('example.com')) {
+          sendWelcomeEmail({
+            toEmail: newCustomer.email,
+            name: newCustomer.name,
+            role: 'CUSTOMER',
+            phone: newCustomer.phone || '',
+          }).catch((wErr) => console.warn('[WELCOME EMAIL] Orders notice:', wErr.message));
+        }
       } catch (userErr) {
         const found = await prisma.user.findFirst({
           where: {
@@ -719,6 +729,34 @@ router.post('/', async (req, res) => {
       console.warn('Background dispatch session warning:', err.message || err);
     });
 
+    // Asynchronously dispatch Order OTP confirmation email to user via Resend
+    (async () => {
+      try {
+        let targetEmail = newOrder.customerEmail;
+        let customerName = newOrder.customerName;
+        if ((!targetEmail || targetEmail.includes('example.com')) && newOrder.userId) {
+          const u = await prisma.user.findUnique({ where: { id: newOrder.userId } });
+          if (u?.email) {
+            targetEmail = u.email;
+            if (u.name) customerName = u.name;
+          }
+        }
+        if (targetEmail && targetEmail.includes('@') && !targetEmail.includes('example.com')) {
+          await sendOrderOtpEmail({
+            toEmail: targetEmail,
+            otp: newOrder.otp,
+            orderId: newOrder.id,
+            customerName: customerName || 'Valued Customer',
+            garmentName: newOrder.garmentName,
+            serviceName: newOrder.serviceName,
+            storeName: newOrder.storeName || 'Partner Atelier',
+          });
+        }
+      } catch (emailErr) {
+        console.error('[Create Order] Error sending order OTP email:', emailErr.message || emailErr);
+      }
+    })();
+
     return res.status(201).json({
       success: true,
       message: 'Order created and saved successfully',
@@ -727,6 +765,90 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('Create order error:', err);
     return res.status(500).json({ error: 'Failed to create order in database' });
+  }
+});
+
+// POST /api/orders/:id/send-otp-email - Resend confirmation PIN/OTP email to customer
+router.post('/:id/send-otp-email', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let order = await prisma.order.findUnique({
+      where: { id },
+      include: { store: true },
+    });
+
+    let otp = order?.otp;
+    let customerEmail = order?.customerEmail;
+    let customerName = order?.customerName;
+    let garmentName = order?.garmentName;
+    let serviceName = order?.serviceName;
+    let storeName = order?.store?.name || order?.storeName;
+    let storeAddress = order?.store?.address;
+    let storePhone = order?.store?.phone;
+
+    // Check in-flight dispatch session cache if not found in database yet
+    if (!order) {
+      const session = dispatchService.getDispatchSessionStatus(id);
+      if (session && session.order) {
+        otp = session.order.otp;
+        customerEmail = session.order.customerEmail;
+        customerName = session.order.customerName;
+        garmentName = session.order.garmentName;
+        serviceName = session.order.serviceName;
+      }
+    }
+
+    if (!otp) {
+      return res.status(404).json({ error: 'Order not found or no OTP exists for this order.' });
+    }
+
+    let targetEmail = (req.body?.email || customerEmail || '').trim();
+    if ((!targetEmail || targetEmail.includes('example.com')) && order?.userId) {
+      const u = await prisma.user.findUnique({ where: { id: order.userId } });
+      if (u?.email) {
+        targetEmail = u.email.trim();
+        if (u.name && !customerName) customerName = u.name;
+      }
+    }
+
+    // Also check authenticated caller's email
+    if ((!targetEmail || targetEmail.includes('example.com')) && req.user?.email) {
+      targetEmail = req.user.email.trim();
+    }
+
+    if (!targetEmail || !targetEmail.includes('@')) {
+      return res.status(400).json({ error: 'No recipient email address available for this order.' });
+    }
+
+    const isReadyStatus = order?.status === 'Ready' || order?.status === 'READY_FOR_PICKUP';
+    const emailResult = await sendOrderOtpEmail({
+      toEmail: targetEmail,
+      otp,
+      orderId: id,
+      customerName: customerName || 'Valued Customer',
+      garmentName: garmentName || 'Alteration Service',
+      serviceName: serviceName || 'Standard Hemming',
+      storeName: storeName || 'Partner Atelier',
+      storeAddress,
+      storePhone,
+      isPickup: isReadyStatus,
+      force: true,
+    });
+
+    if (!emailResult.success) {
+      return res.status(500).json({ error: emailResult.error || 'Failed to dispatch email' });
+    }
+
+    return res.json({
+      success: true,
+      message: `Order confirmation PIN sent to ${targetEmail}`,
+      email: targetEmail,
+      otp,
+      id: emailResult.id,
+    });
+  } catch (err) {
+    console.error('Send order OTP email error:', err);
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
@@ -857,6 +979,15 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    const isReadyTransition =
+      (status && (status.toLowerCase() === 'ready' || status.toLowerCase() === 'ready_for_pickup')) ||
+      req.body.pickupOtpGenerated === true;
+
+    // Ensure a 4-digit pickup OTP exists when moving to Ready state
+    if (isReadyTransition && !updateData.otp) {
+      updateData.otp = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
     const updated = await prisma.order.update({
       where: { id },
       data: updateData,
@@ -864,6 +995,40 @@ router.put('/:id', async (req, res) => {
         store: true,
       },
     });
+
+    // When an order is processed to Ready for pickup, immediately email the pickup OTP to customer
+    if (isReadyTransition) {
+      (async () => {
+        try {
+          let customerEmail = updated.customerEmail;
+          let customerName = updated.customerName;
+          if ((!customerEmail || customerEmail.includes('example.com')) && updated.userId) {
+            const u = await prisma.user.findUnique({ where: { id: updated.userId } });
+            if (u?.email) {
+              customerEmail = u.email;
+              if (u.name) customerName = u.name;
+            }
+          }
+          if (customerEmail && customerEmail.includes('@') && !customerEmail.includes('example.com')) {
+            await sendOrderOtpEmail({
+              toEmail: customerEmail,
+              otp: updated.otp,
+              orderId: updated.id,
+              customerName: customerName || 'Valued Customer',
+              garmentName: updated.garmentName,
+              serviceName: updated.serviceName,
+              storeName: updated.store?.name || updated.storeName || 'Partner Atelier',
+              storeAddress: updated.store?.address || '',
+              storePhone: updated.store?.phone || '',
+              isPickup: true,
+            });
+            console.log(`[Order Pickup Alert] Sent Pickup OTP email to ${customerEmail} for #${updated.id} (PIN: ${updated.otp})`);
+          }
+        } catch (emailErr) {
+          console.error('[Order Pickup Alert] Error sending pickup OTP email:', emailErr.message || emailErr);
+        }
+      })();
+    }
 
     return res.json({
       success: true,

@@ -23,9 +23,10 @@ import {
   Clock,
   X,
   Copy,
+  Mail,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
+import { createOrder, fetchOrderById, getCurrentUser, updateOrder, sendOrderPinEmail } from '@/lib/api'
 import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
 import { getAllGarmentPhotos, type User, type StoreOption } from './data'
 import CleanGoogleMap, { openCarNavigation, calculateDistanceInMiles } from './CleanGoogleMap'
@@ -343,9 +344,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     }
     return true
   })
+  const [initialFetchDone, setInitialFetchDone] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
-  const [isPinGenerated, setIsPinGenerated] = useState(false)
-  const [isGeneratingPin, setIsGeneratingPin] = useState(false)
+  const [isSendingPinEmail, setIsSendingPinEmail] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [inProcessDots, setInProcessDots] = useState('')
@@ -374,11 +375,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    if (isReady) {
-      setIsPinGenerated(false)
-    }
-  }, [isReady])
 
   // Auto-detect location non-blocking if permission granted
   useEffect(() => {
@@ -422,8 +418,19 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         if (isMounted) {
           if (fetched) {
             setOrder(fetched)
+            if (typeof window !== 'undefined') {
+              try {
+                localStorage.setItem(`tg_order_${slugId}`, JSON.stringify(fetched))
+                setStorageCookie(`tg_order_${slugId}`, JSON.stringify(fetched))
+                if (fetched.id) {
+                  localStorage.setItem(`tg_order_${fetched.id}`, JSON.stringify(fetched))
+                  setStorageCookie(`tg_order_${fetched.id}`, JSON.stringify(fetched))
+                }
+              } catch {}
+            }
             if (isInitial) {
               setIsLoading(false)
+              setInitialFetchDone(true)
               stopBookingTransition()
             }
             return
@@ -439,6 +446,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             setOrder(null)
             if (isInitial) {
               setIsLoading(false)
+              setInitialFetchDone(true)
               stopBookingTransition()
             }
             return
@@ -452,10 +460,12 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       if (isMounted && isInitial) {
         setOrder(null)
         setIsLoading(false)
+        setInitialFetchDone(true)
         stopBookingTransition()
       }
     }
 
+    setInitialFetchDone(false)
     loadOrderData(true)
 
     const interval = setInterval(() => {
@@ -633,22 +643,27 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     coords: tailorCoords,
   }
 
-  const handleGeneratePin = async () => {
-    if (isPinGenerated) return
-    setIsGeneratingPin(true)
-    if (!order?.otp && (order?.id || slugId)) {
-      try {
-        const fresh = await fetchOrderById(order?.id || slugId)
-        if (fresh && fresh.otp) {
-          setOrder(fresh)
-        }
-      } catch { }
+
+  const handleSendPinEmail = async () => {
+    const oId = order?.id || slugId
+    if (!oId) return
+    setIsSendingPinEmail(true)
+    try {
+      const targetEmail = order?.customerEmail || currentUser?.email
+      const res = await sendOrderPinEmail(oId, targetEmail)
+      if (res.success) {
+        toast.success(`PIN sent to ${res.email || targetEmail || 'your email'}!`, {
+          position: 'top-center',
+          autoClose: 3000,
+        })
+      } else {
+        toast.error(res.error || res.message || 'Failed to send PIN email', { position: 'top-center' })
+      }
+    } catch {
+      toast.error('Unable to send PIN email. Please try again.', { position: 'top-center' })
+    } finally {
+      setIsSendingPinEmail(false)
     }
-    setTimeout(() => {
-      setIsGeneratingPin(false)
-      setIsPinGenerated(true)
-      toast.success('4-Digit PIN revealed successfully!', { position: 'top-center', autoClose: 2000 })
-    }, 450)
   }
 
   const handleShareMap = () => {
@@ -851,7 +866,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     )
   }
 
-  if (isLoading && !order) {
+  if ((isLoading && !order) || (!initialFetchDone && (!order || isAllocated))) {
     return (
       <div className="min-h-[calc(100vh-68px)] flex items-center justify-center p-6 bg-[#FAF8F5]">
         <SewingLoader
@@ -1137,29 +1152,36 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       ✓ Fulfilled &bull; Closed
                     </span>
                   </div>
-                ) : !isPinGenerated ? (
-                  <button
-                    type="button"
-                    onClick={handleGeneratePin}
-                    disabled={isGeneratingPin}
-                    className="shrink-0 bg-black text-white hover:bg-neutral-800 active:scale-95 border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md transition-all cursor-pointer flex items-center justify-center font-bold text-xs sm:text-sm tracking-wide group"
-                  >
-                    {isGeneratingPin ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 size={15} className="animate-spin text-white" />
-                        <span>Revealing...</span>
-                      </div>
-                    ) : (
-                      <span>Reveal PIN</span>
-                    )}
-                  </button>
                 ) : (
-                  <div
-                    className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
-                  >
-                    <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
-                      {formattedOtp}
-                    </span>
+                  <div className="flex flex-col items-center shrink-0">
+                    <div
+                      className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
+                    >
+                      <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
+                        {formattedOtp}
+                      </span>
+                    </div>
+                    {(order?.customerEmail || currentUser?.email) && (
+                      <button
+                        type="button"
+                        onClick={handleSendPinEmail}
+                        disabled={isSendingPinEmail}
+                        className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-black transition-colors cursor-pointer disabled:opacity-50"
+                        title="Send confirmation PIN to your email"
+                      >
+                        {isSendingPinEmail ? (
+                          <>
+                            <Loader2 size={10} className="animate-spin" />
+                            <span>Sending...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mail size={10} />
+                            <span>Email PIN to Me</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
 

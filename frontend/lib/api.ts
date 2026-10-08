@@ -624,6 +624,19 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
   }
 }
 
+export async function sendOrderPinEmail(orderId: string, email?: string): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/send-otp-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    return await res.json()
+  } catch (err: any) {
+    return { success: false, message: err.message || 'Failed to send PIN email' }
+  }
+}
+
 export async function fetchStores(search?: string): Promise<StoreOption[]> {
   try {
     const url = search ? `${API_BASE}/stores?search=${encodeURIComponent(search)}` : `${API_BASE}/stores`

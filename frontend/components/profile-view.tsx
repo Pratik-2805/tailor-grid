@@ -498,7 +498,15 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
               {orders.slice(0, 3).map((order) => (
                 <div
                   key={order.id}
-                  onClick={() => go(`/order/${order.id}`)}
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      try {
+                        localStorage.setItem(`tg_order_${order.id}`, JSON.stringify(order))
+                        setStorageCookie(`tg_order_${order.id}`, JSON.stringify(order))
+                      } catch {}
+                    }
+                    go(`/order/${order.id}`)
+                  }}
                   className="py-3 flex items-center justify-between cursor-pointer group"
                 >
                   <div>
