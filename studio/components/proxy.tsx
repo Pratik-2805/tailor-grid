@@ -7,7 +7,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { getCurrentUser, CUSTOMER_SITE_URL } from '@/lib/api'
 import { getAuthRole, getAuthUser, clearAllAuth } from '@/lib/cookies'
 import type { User } from '@/components/data'
-import { CustomLoader } from '@/components/custom-loader'
+import { NormalLoader } from '@/components/normal-loader'
 
 interface StudioProxyProps {
   children: React.ReactNode
@@ -171,17 +171,8 @@ export function StudioProxy({ children }: StudioProxyProps) {
   // ── 1. Checking Role Gate / Redirecting State ──
   if (isChecking || isCustomerBlocked) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6 relative">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text={isCustomerBlocked ? 'Unauthorized Access Detected' : 'Verifying Partner Atelier Gate'}
-          subtext={
-            isCustomerBlocked
-              ? 'Customer account detected. Redirecting to User Portal…'
-              : 'Validating workshop credentials and role permissions…'
-          }
-        />
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
         <ToastContainer
           position="top-center"
           autoClose={2500}

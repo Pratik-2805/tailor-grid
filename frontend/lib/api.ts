@@ -502,11 +502,6 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
-        // Strict Gate: If user status is INACTIVE or incomplete studio enroll, do NOT log in on customer site
-        if (data.user.status === 'INACTIVE' || (data.user.role === 'STUDIO' && (!data.user.studioName || !data.user.phone))) {
-          clearAllAuth()
-          return null
-        }
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'CUSTOMER')
         return data.user
