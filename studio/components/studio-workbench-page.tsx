@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type User } from '@/components/data'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
-import { CustomLoader } from '@/components/custom-loader'
+import { NormalLoader } from '@/components/normal-loader'
 import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser } from '@/lib/api'
 import { getAuthUser, setAuthUser, clearAllAuth } from '@/lib/cookies'
 
@@ -117,18 +117,8 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
 
   if (loadingUser || !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAF8F5] text-[#18191B] p-6">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text="Accessing Master Workshop"
-          steps={[
-            'Accessing Master Workshop',
-            'Syncing active alteration queue',
-            'Connecting to Partner Network',
-          ]}
-          subtext="Preparing your tailor workbench controls and live telemetry"
-        />
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
         <ToastContainer
           position="top-center"
           autoClose={3500}

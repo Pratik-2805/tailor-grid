@@ -259,6 +259,14 @@ export function clearAllAuth(): void {
   removeAuthUser()
   removeAuthRole()
   clearAllCookies()
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (e) {
+      console.warn('Failed to clear local storage:', e)
+    }
+  }
 }
 
 // ================= STORAGE COOKIE HELPERS =================

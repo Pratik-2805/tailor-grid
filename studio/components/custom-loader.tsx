@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+export { NormalLoader, NormalLoaderScreen } from './normal-loader'
+export type { NormalLoaderProps } from './normal-loader'
 
 export interface CustomLoaderProps {
   /** Text to display below the loader */
@@ -442,42 +444,3 @@ function MinimalSpinner({ size, dark }: { size: number; dark: boolean }) {
   )
 }
 
-/**
- * Lightweight inline spinner component for buttons, badges, and small icons
- */
-export function TailorSpinner({
-  size = 18,
-  className = '',
-  color = '#9E593B',
-}: {
-  size?: number
-  className?: string
-  color?: string
-}) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={`animate-spin inline-block shrink-0 ${className}`}
-    >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeOpacity="0.2"
-      />
-      <path
-        d="M12 3C7.02944 3 3 7.02944 3 12"
-        stroke={color}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-      />
-      <circle cx="12" cy="3" r="1.2" fill={color} />
-    </svg>
-  )
-}

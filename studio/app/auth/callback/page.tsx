@@ -4,13 +4,13 @@ import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getCustomerSiteUrl } from '@/lib/api'
 import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
-import { ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { NormalLoader } from '@/components/normal-loader'
 
 function StudioAuthCallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(true)
   const exchangedRef = useRef(false)
 
   useEffect(() => {
@@ -25,7 +25,6 @@ function StudioAuthCallbackInner() {
 
       if (!refreshToken && !code && !token && !existingRt) {
         setError('No authentication token or authorization code found in callback URL.')
-        setIsProcessing(false)
         return
       }
 
@@ -61,7 +60,6 @@ function StudioAuthCallbackInner() {
 
         if (!user) {
           setError('Authentication session could not be established. Please try logging in again.')
-          setIsProcessing(false)
           return
         }
 
@@ -92,7 +90,6 @@ function StudioAuthCallbackInner() {
         }
       } catch (err: any) {
         setError(err.message || 'Failed to authenticate session.')
-        setIsProcessing(false)
       }
     }
 
@@ -122,23 +119,8 @@ function StudioAuthCallbackInner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0F1115] px-4">
-      <div className="max-w-md w-full bg-[#181B20] border border-white/5 rounded-2xl p-8 text-center shadow-2xl">
-        <div className="relative w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-[#9E593B]/20 animate-ping opacity-40" />
-          <div className="w-16 h-16 rounded-full bg-[#9E593B]/10 border border-[#9E593B]/30 flex items-center justify-center text-[#9E593B]">
-            <ShieldCheck className="w-8 h-8 animate-pulse" />
-          </div>
-        </div>
-        <h2 className="text-xl font-serif font-bold text-white mb-2">Authenticating Studio Atelier</h2>
-        <p className="text-sm text-slate-400 mb-6">
-          Exchanging secure one-time credentials and syncing your partner workbench...
-        </p>
-        <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-          <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#9E593B]" />
-          <span>Setting up workspace session...</span>
-        </div>
-      </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <NormalLoader />
     </div>
   )
 }
@@ -147,8 +129,8 @@ export default function StudioAuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#0F1115]">
-          <div className="w-8 h-8 border-2 border-[#9E593B] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+          <NormalLoader />
         </div>
       }
     >

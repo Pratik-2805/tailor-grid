@@ -4,13 +4,13 @@ import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getStudioUrl } from '@/lib/api'
 import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
-import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { NormalLoader } from '@/components/normal-loader'
 
 function CustomerAuthCallbackInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(true)
   const exchangedRef = useRef(false)
 
   useEffect(() => {
@@ -26,7 +26,6 @@ function CustomerAuthCallbackInner() {
 
       if (!refreshToken && !code && !token && !existingRt) {
         setError('No authentication token or authorization code found in callback URL.')
-        setIsProcessing(false)
         return
       }
 
@@ -61,7 +60,6 @@ function CustomerAuthCallbackInner() {
 
         if (!user) {
           setError('Authentication session could not be established. Please try signing in again.')
-          setIsProcessing(false)
           return
         }
 
@@ -77,7 +75,6 @@ function CustomerAuthCallbackInner() {
         window.location.replace(redirectPath)
       } catch (err: any) {
         setError(err.message || 'Failed to authenticate session.')
-        setIsProcessing(false)
       }
     }
 
@@ -107,23 +104,8 @@ function CustomerAuthCallbackInner() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5] px-4">
-      <div className="max-w-md w-full bg-white border border-[#E7E2D9] rounded-2xl p-8 text-center shadow-lg">
-        <div className="relative w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-[#18191B]/10 animate-ping opacity-40" />
-          <div className="w-16 h-16 rounded-full bg-[#18191B]/5 border border-[#18191B]/10 flex items-center justify-center text-[#18191B]">
-            <ShieldCheck className="w-8 h-8 animate-pulse" />
-          </div>
-        </div>
-        <h2 className="text-xl font-serif font-bold text-[#1D2024] mb-2">Completing Sign-In</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Verifying single-use authorization code and establishing your secure session...
-        </p>
-        <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#18191B]" />
-          <span>Finalizing account details...</span>
-        </div>
-      </div>
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <NormalLoader />
     </div>
   )
 }
@@ -132,8 +114,8 @@ export default function CustomerAuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5]">
-          <div className="w-8 h-8 border-2 border-[#18191B] border-t-transparent rounded-full animate-spin" />
+        <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+          <NormalLoader />
         </div>
       }
     >

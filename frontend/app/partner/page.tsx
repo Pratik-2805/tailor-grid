@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ToastContainer, toast } from 'react-toastify'
+import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { getStudioUrl, getCurrentUser } from '@/lib/api'
-import { getAuthRole, getAuthToken, getRefreshToken } from '@/lib/cookies'
-import { CustomLoader } from '@/components/custom-loader'
+import { getAuthToken, getRefreshToken } from '@/lib/cookies'
+import { NormalLoader } from '@/components/normal-loader'
 
 export default function PartnerPage() {
   const router = useRouter()
@@ -33,13 +33,8 @@ export default function PartnerPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[#FAF8F5] relative">
-      <CustomLoader
-        size="lg"
-        variant="atelier"
-        text="Verifying Studio Access"
-        subtext="Checking partner credentials and role permissions…"
-      />
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <NormalLoader />
       <ToastContainer
         position="top-center"
         autoClose={2500}

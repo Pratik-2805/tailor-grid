@@ -25,7 +25,7 @@ import {
 import { CityModal } from '@/components/city-modal'
 import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay, resolveAccurateCityFromComponents } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
-import { CustomLoader } from '@/components/custom-loader'
+import { NormalLoader } from '@/components/normal-loader'
 import { SewingLoader } from '@/components/sewing-loader'
 import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile, fetchServices } from '@/lib/api'
 import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
@@ -1024,13 +1024,8 @@ export default function BookPage() {
 
   if (isAuthLoading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text="Accessing booking portal"
-          subtext="Verifying your member session..."
-        />
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+        <NormalLoader />
       </div>
     )
   }
