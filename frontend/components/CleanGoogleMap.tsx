@@ -207,7 +207,8 @@ export default function CleanGoogleMap({
   onStoresFound,
   onPinLocationChange,
   onConfirmPinLocation,
-}: Props) {
+  isChoosing: isChoosingProp,
+}: Props & { isChoosing?: boolean }) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<any[]>([])
@@ -234,7 +235,7 @@ export default function CleanGoogleMap({
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMapDragging, setIsMapDragging] = useState(false)
 
-  const isChoosing = !isLiveLocation && !isLocationSaved
+  const isChoosing = typeof isChoosingProp === 'boolean' ? isChoosingProp : (!isLiveLocation && !isLocationSaved)
 
   // 1. Initial Google Maps Engine Mount (RUNS ONCE ONLY - prevents unneeded re-renders)
   useEffect(() => {

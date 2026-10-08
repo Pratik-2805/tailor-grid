@@ -23,7 +23,7 @@ import {
   Minus,
 } from 'lucide-react'
 import { CityModal } from '@/components/city-modal'
-import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay, resolveAccurateCityFromComponents } from '@/components/use-city-location'
+import { useCityLocation, getCityCoordinates, setStoredCity, formatLocationDisplay, resolveAccurateCityFromComponents, reverseGeocodeCoords } from '@/components/use-city-location'
 import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { NormalLoader } from '@/components/normal-loader'
 import { SewingLoader } from '@/components/sewing-loader'
@@ -348,7 +348,7 @@ export default function BookPage() {
     const hasManualLocationOverride = sessionData && sessionData.isLocationSaved === true
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords
         const liveCoords = { lat: latitude, lng: longitude }
         liveGpsCoordsRef.current = liveCoords
@@ -359,67 +359,29 @@ export default function BookPage() {
           setIsLiveLocation(true)
         }
 
-        // Check cache first to avoid redundant Google Geocoder call
-        const cached = getCachedReverseGeocode(liveCoords.lat, liveCoords.lng)
-        if (cached) {
-          const cachedDetails: CustomerAddressDetails = {
-            houseNo: cached.houseNo,
-            apartment: cached.apartment,
-            locality: cached.locality,
-            city: cached.city,
+        try {
+          const geo = await reverseGeocodeCoords(latitude, longitude)
+          const newDetails: CustomerAddressDetails = {
+            houseNo: geo.houseNo || '',
+            apartment: geo.apartment || '',
+            locality: geo.locality || geo.displayLocality?.split(',')[0]?.trim() || '',
+            city: geo.cityStateFormatted || selectedCity,
             landmark: '',
           }
-          liveAddressDetailsRef.current = cachedDetails
-          liveCityRef.current = cached.city
+
+          liveAddressDetailsRef.current = newDetails
+          liveCityRef.current = geo.cityStateFormatted
+
           if (!hasManualLocationOverride) {
-            setAddressDetails((prev) => ({ ...prev, ...cachedDetails }))
-            setSelectedCity(cached.city)
-            setStoredCity(cached.city, liveCoords)
+            setAddressDetails((prev) => ({
+              ...prev,
+              ...newDetails,
+            }))
+            setSelectedCity(geo.cityStateFormatted)
+            setStoredCity(geo.cityStateFormatted, liveCoords)
           }
-          return
-        }
-
-        // Reverse geocode via Google Geocoder if available
-        if (typeof google !== 'undefined' && google.maps?.Geocoder) {
-          try {
-            const geocoder = new google.maps.Geocoder()
-            geocoder.geocode({ location: liveCoords }, (results, status) => {
-              if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                const parsed = parseGoogleAddressComponents(results, liveCoords.lat, liveCoords.lng)
-                const newDetails: CustomerAddressDetails = {
-                  houseNo: parsed.houseNo || '',
-                  apartment: parsed.apartment || '',
-                  locality: parsed.locality || '',
-                  city: parsed.city || '',
-                  landmark: '',
-                }
-                liveAddressDetailsRef.current = newDetails
-
-                const comps = results[0]?.address_components || []
-                const formattedAddress = results[0]?.formatted_address || ''
-                const accurate = resolveAccurateCityFromComponents(comps, liveCoords.lat, liveCoords.lng, formattedAddress)
-                const formatted = accurate.fullFormatted
-                liveCityRef.current = formatted
-
-                setCachedReverseGeocode(liveCoords.lat, liveCoords.lng, {
-                  houseNo: newDetails.houseNo,
-                  apartment: newDetails.apartment,
-                  locality: newDetails.locality,
-                  city: formatted,
-                  formattedAddress: formatted,
-                })
-
-                if (!hasManualLocationOverride) {
-                  setAddressDetails((prev) => ({
-                    ...prev,
-                    ...newDetails,
-                  }))
-                  setSelectedCity(formatted)
-                  setStoredCity(formatted, liveCoords)
-                }
-              }
-            })
-          } catch {}
+        } catch (err) {
+          console.warn('Geolocation reverse geocoding failed:', err)
         }
       },
       (err) => {
@@ -432,32 +394,6 @@ export default function BookPage() {
   // Handle clicking "Back to Request" on the address details card
   const handleBackToRequest = () => {
     setIsCardFlipped(false)
-
-    // If the user did not explicitly save this location, automatically revert to current live location
-    if (!isLocationSaved) {
-      if (liveGpsCoordsRef.current) {
-        setUserGpsCoords(liveGpsCoordsRef.current)
-        setIsLiveLocation(true)
-        if (liveCityRef.current) {
-          setSelectedCity(liveCityRef.current)
-          setStoredCity(liveCityRef.current, liveGpsCoordsRef.current)
-        }
-        if (liveAddressDetailsRef.current) {
-          setAddressDetails(liveAddressDetailsRef.current)
-        }
-      } else if (typeof window !== 'undefined' && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const live = { lat: position.coords.latitude, lng: position.coords.longitude }
-            liveGpsCoordsRef.current = live
-            setUserGpsCoords(live)
-            setIsLiveLocation(true)
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 6000 }
-        )
-      }
-    }
   }
 
   const [bookingNotes, setBookingNotes] = useState(() => {
@@ -1057,11 +993,14 @@ export default function BookPage() {
                 }`}
               >
 
-                {/* City Pill Header */}
+                {/* City & Locality Pill Header */}
                 <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
                   <MapPin size={16} className="text-black shrink-0" />
-                  <span className="font-extrabold truncate max-w-[320px]" title={selectedCity}>
-                    {formatLocationDisplay(selectedCity)}
+                  <span
+                    className="font-extrabold truncate max-w-[320px]"
+                    title={addressDetails.locality ? `${addressDetails.locality}, ${addressDetails.city || selectedCity}` : (addressDetails.city || selectedCity)}
+                  >
+                    {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality)}
                   </span>
                   <button
                     type="button"
@@ -1464,8 +1403,9 @@ export default function BookPage() {
                 origin={selectedCity}
                 className="w-full h-full"
                 showZoomControls={false}
-                disableNavigation={true}
-                isFixed={isLiveLocation || isLocationSaved}
+                disableNavigation={false}
+                isChoosing={isCardFlipped || (!isLiveLocation && !isLocationSaved)}
+                isFixed={!isCardFlipped && (isLiveLocation || isLocationSaved)}
                 fixedBoxMiles={5.0}
                 radiusMiles={5.0}
                 showUserPin={true}
@@ -1474,73 +1414,42 @@ export default function BookPage() {
                 userPinLabel={isLiveLocation ? 'You' : (selectedCity.split(',')[0] || 'Pinned Location')}
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
+                onMapClick={() => {
+                  if (!isCardFlipped) {
+                    setIsCardFlipped(true)
+                    setIsLiveLocation(false)
+                    setIsLocationSaved(false)
+                  }
+                }}
                 onSelectStore={(st) => setSelectedStore(st)}
                 onStoresFound={(foundStores) => {
                   if (foundStores.length > 0 && (!selectedStore || !foundStores.some((s) => s.id === selectedStore.id))) {
                     setSelectedStore(foundStores[0])
                   }
                 }}
-                onPinLocationChange={(newCoords) => {
+                onPinLocationChange={async (newCoords) => {
                   setUserGpsCoords(newCoords)
                   setIsLiveLocation(false)
                   setIsLocationSaved(false)
                   setIsCardFlipped(true)
 
-                  // Check cache first
-                  const cached = getCachedReverseGeocode(newCoords.lat, newCoords.lng)
-                  if (cached) {
+                  try {
+                    const geo = await reverseGeocodeCoords(newCoords.lat, newCoords.lng)
+                    const newDetails = {
+                      houseNo: geo.houseNo || '',
+                      apartment: geo.apartment || '',
+                      locality: geo.locality || geo.displayLocality?.split(',')[0]?.trim() || '',
+                      city: geo.cityStateFormatted || selectedCity,
+                    }
+
                     setAddressDetails((prev) => ({
                       ...prev,
-                      houseNo: cached.houseNo || prev.houseNo,
-                      apartment: cached.apartment || prev.apartment,
-                      locality: cached.locality || prev.locality,
-                      city: cached.city || prev.city || selectedCity,
+                      ...newDetails,
                     }))
-                    setSelectedCity(cached.city)
-                    setStoredCity(cached.city, newCoords)
-                    return
-                  }
-
-                  if (typeof google !== 'undefined' && google.maps?.Geocoder) {
-                    try {
-                      const geocoder = new google.maps.Geocoder()
-                      geocoder.geocode({ location: newCoords }, (results, status) => {
-                        if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                          const parsed = parseGoogleAddressComponents(results, newCoords.lat, newCoords.lng)
-                          const newDetails = {
-                            houseNo: parsed.houseNo || '',
-                            apartment: parsed.apartment || '',
-                            locality: parsed.locality || '',
-                            city: parsed.city || selectedCity,
-                          }
-
-                          setAddressDetails((prev) => ({
-                            ...prev,
-                            houseNo: newDetails.houseNo || prev.houseNo,
-                            apartment: newDetails.apartment || prev.apartment,
-                            locality: newDetails.locality || prev.locality,
-                            city: newDetails.city || prev.city || selectedCity,
-                          }))
-
-                          const comps = results[0]?.address_components || []
-                          const formattedAddress = results[0]?.formatted_address || ''
-                          const accurate = resolveAccurateCityFromComponents(comps, newCoords.lat, newCoords.lng, formattedAddress)
-                          const formatted = accurate.fullFormatted
-
-                          setCachedReverseGeocode(newCoords.lat, newCoords.lng, {
-                            houseNo: newDetails.houseNo,
-                            apartment: newDetails.apartment,
-                            locality: newDetails.locality,
-                            city: formatted,
-                            formattedAddress: formatted,
-                          })
-
-                          setSelectedCity(formatted)
-                          setStoredCity(formatted, newCoords)
-                        }
-                      })
-                    } catch {}
-                  } else {
+                    setSelectedCity(geo.cityStateFormatted)
+                    setStoredCity(geo.cityStateFormatted, newCoords)
+                  } catch (err) {
+                    console.warn('Pin location reverse geocode error:', err)
                     setStoredCity(selectedCity, newCoords)
                   }
                 }}
@@ -1556,13 +1465,11 @@ export default function BookPage() {
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         selectedCity={selectedCity}
-        onSelectCity={(c, coords, isGps) => {
-          setSelectedCity(c)
+        onSelectCity={async (c, coords, isGps) => {
           const targetCoords = coords || getCityCoordinates(c)
           setUserGpsCoords(targetCoords)
           setIsLiveLocation(isGps === true)
           setIsLocationSaved(isGps === true)
-          setStoredCity(c, targetCoords)
 
           if (isGps === true) {
             liveGpsCoordsRef.current = targetCoords
@@ -1570,6 +1477,31 @@ export default function BookPage() {
             setIsCardFlipped(false)
           } else {
             setIsCardFlipped(true)
+          }
+
+          try {
+            const geo = await reverseGeocodeCoords(targetCoords.lat, targetCoords.lng)
+            const cleanCity = geo.cityStateFormatted || c
+            const newDetails: CustomerAddressDetails = {
+              houseNo: geo.houseNo || '',
+              apartment: geo.apartment || '',
+              locality: geo.locality || '',
+              city: cleanCity,
+              landmark: '',
+            }
+
+            setSelectedCity(cleanCity)
+            setAddressDetails(newDetails)
+            setStoredCity(cleanCity, targetCoords)
+
+            if (isGps === true) {
+              liveCityRef.current = cleanCity
+              liveAddressDetailsRef.current = newDetails
+            }
+          } catch {
+            setSelectedCity(c)
+            setAddressDetails((prev) => ({ ...prev, city: c }))
+            setStoredCity(c, targetCoords)
           }
 
           // Dynamically fetch tailors within 5.0 miles of the selected coordinates
@@ -1585,33 +1517,6 @@ export default function BookPage() {
               }
             })
             .catch((err) => console.warn('Fetch tailors error on location select:', err))
-
-          if (isGps !== true && typeof google !== 'undefined' && google.maps?.Geocoder) {
-            try {
-              const geocoder = new google.maps.Geocoder()
-              geocoder.geocode({ location: targetCoords }, (results, status) => {
-                if (status === 'OK' && Array.isArray(results) && results.length > 0) {
-                  const parsed = parseGoogleAddressComponents(results, targetCoords.lat, targetCoords.lng)
-                  setAddressDetails({
-                    houseNo: parsed.houseNo || '',
-                    apartment: parsed.apartment || '',
-                    locality: parsed.locality || '',
-                    city: parsed.city || c,
-                  })
-                } else {
-                  setAddressDetails((prev) => ({
-                    ...prev,
-                    city: c,
-                  }))
-                }
-              })
-            } catch {
-              setAddressDetails((prev) => ({
-                ...prev,
-                city: c,
-              }))
-            }
-          }
         }}
       />
 

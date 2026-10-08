@@ -30,7 +30,9 @@ export function getCachedReverseGeocode(lat: number, lng: number): CachedAddress
 
   if (typeof window !== 'undefined') {
     try {
-      const item = sessionStorage.getItem(`tg_geo_${key}`)
+      // Purge legacy unversioned caches
+      sessionStorage.removeItem(`tg_geo_${key}`)
+      const item = sessionStorage.getItem(`tg_geo_v2_${key}`)
       if (item) {
         const parsed = JSON.parse(item)
         memoryGeocodeCache.set(key, parsed)
@@ -54,7 +56,7 @@ export function setCachedReverseGeocode(lat: number, lng: number, data: Omit<Cac
 
   if (typeof window !== 'undefined') {
     try {
-      sessionStorage.setItem(`tg_geo_${key}`, JSON.stringify(fullData))
+      sessionStorage.setItem(`tg_geo_v2_${key}`, JSON.stringify(fullData))
     } catch {}
   }
 }
