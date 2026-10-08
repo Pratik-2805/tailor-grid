@@ -52,13 +52,17 @@ import {
   FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, type PendingDispatchRequest } from '@/lib/api'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
 import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
 import { StudioAvatar } from './studio-avatar'
+import { PriceCatalogView, getCurrencySymbol } from './price-catalog-view'
+import { PriceCatalogModal } from './price-catalog-modal'
+import { WelcomeAboardModal } from './welcome-aboard-modal'
+import { toast } from 'react-toastify'
 
-export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile'
+export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile' | 'catalog'
 
 interface BroadcastRequest {
   id: string
@@ -74,6 +78,8 @@ interface BroadcastRequest {
   notes?: string
   partnerPayout: number
   price?: number
+  currency?: string
+  currencySymbol?: string
   slaHours: number
   imageUrl: string
   intakePhotoUrl?: string
@@ -542,6 +548,7 @@ export interface NavItemConfig {
 export const NAV_ITEMS: NavItemConfig[] = [
   { id: 'cockpit', label: 'Workshop Dashboard', icon: Zap, shortLabel: 'Dashboard', href: '/dashboard' },
   { id: 'pipeline', label: 'Orders & Alterations', icon: Layers, shortLabel: 'Orders', href: '/orders' },
+  { id: 'catalog', label: 'Price Catalog', icon: Tag, shortLabel: 'Catalog', href: '/catalog' },
   { id: 'payouts', label: 'Earnings & Payouts', icon: CreditCard, shortLabel: 'Earnings', href: '/payouts' },
   { id: 'profile', label: 'Studio Settings', icon: Sliders, shortLabel: 'Settings', href: '/settings' },
 ]
@@ -592,6 +599,7 @@ export function PartnerFlow({
   const getTabFromPathname = (path?: string): StudioTab | null => {
     if (!path) return null
     if (path.startsWith('/orders')) return 'pipeline'
+    if (path.startsWith('/catalog') || path.startsWith('/pricing')) return 'catalog'
     if (path.startsWith('/payouts') || path.startsWith('/earnings')) return 'payouts'
     if (path.startsWith('/settings') || path.startsWith('/profile')) return 'profile'
     if (path.startsWith('/dashboard')) return 'cockpit'
@@ -631,6 +639,7 @@ export function PartnerFlow({
   const TAB_TO_ROUTE: Record<StudioTab, string> = {
     cockpit: '/dashboard',
     pipeline: '/orders',
+    catalog: '/catalog',
     payouts: '/payouts',
     profile: '/settings',
   }
@@ -656,6 +665,57 @@ export function PartnerFlow({
   const [payoutsFilter, setPayoutsFilter] = useState<'ALL' | 'COLLECTED' | 'DUE' | 'IN_PROGRESS'>('ALL')
   const [payoutsSearch, setPayoutsSearch] = useState('')
 
+  // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile)
+  const [studioCurrency, setStudioCurrency] = useState<string>(() => (user as any)?.currency || 'GBP')
+  const [studioCurrencySymbol, setStudioCurrencySymbol] = useState<string>(() => (user as any)?.currencySymbol || getCurrencySymbol((user as any)?.currency || 'GBP'))
+
+  // Sync if user object prop updates
+  useEffect(() => {
+    if ((user as any)?.currency) {
+      setStudioCurrency((user as any).currency)
+    }
+    if ((user as any)?.currencySymbol) {
+      setStudioCurrencySymbol((user as any).currencySymbol)
+    } else if ((user as any)?.currency) {
+      setStudioCurrencySymbol(getCurrencySymbol((user as any).currency))
+    }
+  }, [user])
+
+  // Price Catalog Verification State & Persistent Prompt
+  const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(null)
+  const [showCatalogPromptModal, setShowCatalogPromptModal] = useState(false)
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+
+  // Verify on login / mount if studio has configured price catalog
+  useEffect(() => {
+    let isMounted = true
+    const studioIdToVerify = user?.studioId || (user as any)?.id
+
+    if (!studioIdToVerify) return
+
+    fetchStudioCatalog(studioIdToVerify)
+      .then((data) => {
+        if (!isMounted) return
+        setHasFilledCatalog(data.hasFilledCatalog)
+        if (data.currency) {
+          setStudioCurrency(data.currency)
+          setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
+        }
+        // If price catalog is not yet configured, show Welcome Aboard modal over dashboard after 1s
+        if (!data.hasFilledCatalog) {
+          setTimeout(() => {
+            if (isMounted) setShowWelcomeModal(true)
+          }, 1000)
+        }
+      })
+      .catch((err) => {
+        console.warn('Price catalog verification notice:', err)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [user?.studioId, (user as any)?.id])
 
   // Full View Image Lightbox State
   const [lightboxPhotos, setLightboxPhotos] = useState<string[] | null>(null)
@@ -1067,6 +1127,105 @@ export function PartnerFlow({
     }
   }, [])
 
+  // Instantly handle saved catalog: updates cards, orders, parent user state, and cross-tab broadcasts with 0ms delay
+  const handleCatalogSaved = (items: StudioCatalogItemData[], curr?: string, currSym?: string) => {
+    setHasFilledCatalog(true)
+    setShowCatalogPromptModal(false)
+    const effectiveCurr = curr || items?.[0]?.currency || studioCurrency
+    const effectiveSym = currSym || items?.[0]?.currencySymbol || getCurrencySymbol(effectiveCurr)
+
+    // 1. Immediately update reactive studio currency state
+    setStudioCurrency(effectiveCurr)
+    setStudioCurrencySymbol(effectiveSym)
+
+    // 2. Instantly update current in-memory orders so cards reflect without reload
+    setOrders((prev) =>
+      prev.map((o) => ({
+        ...o,
+        currency: effectiveCurr,
+        currencySymbol: effectiveSym,
+      }))
+    )
+
+    // 3. Trigger instant background sync with backend
+    handleRefresh()
+
+    // 4. Sync authenticated user in parent layout & cookie storage
+    if (onUpdateUser && user) {
+      onUpdateUser({
+        ...user,
+        currency: effectiveCurr,
+        currencySymbol: effectiveSym,
+      } as any)
+    }
+
+    // 5. Broadcast cross-tab and intra-window instant event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('tg_currency_updated', {
+          detail: { currency: effectiveCurr, currencySymbol: effectiveSym },
+        })
+      )
+      try {
+        const bc = new BroadcastChannel('tg_currency_channel')
+        bc.postMessage({ currency: effectiveCurr, currencySymbol: effectiveSym })
+        bc.close()
+      } catch { }
+    }
+  }
+
+  // Cross-tab and window synchronization listener for instant currency updates
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleCurrencyEvent = (e: any) => {
+      const { currency, currencySymbol } = e.detail || {}
+      if (currency) setStudioCurrency(currency)
+      if (currencySymbol) {
+        setStudioCurrencySymbol(currencySymbol)
+      } else if (currency) {
+        setStudioCurrencySymbol(getCurrencySymbol(currency))
+      }
+      setOrders((prev) =>
+        prev.map((o) => ({
+          ...o,
+          currency: currency || o.currency,
+          currencySymbol: currencySymbol || o.currencySymbol,
+        }))
+      )
+      handleRefresh()
+    }
+
+    window.addEventListener('tg_currency_updated', handleCurrencyEvent)
+
+    let bc: BroadcastChannel | null = null
+    try {
+      bc = new BroadcastChannel('tg_currency_channel')
+      bc.onmessage = (event) => {
+        const { currency, currencySymbol } = event.data || {}
+        if (currency) setStudioCurrency(currency)
+        if (currencySymbol) {
+          setStudioCurrencySymbol(currencySymbol)
+        } else if (currency) {
+          setStudioCurrencySymbol(getCurrencySymbol(currency))
+        }
+        setOrders((prev) =>
+          prev.map((o) => ({
+            ...o,
+            currency: currency || o.currency,
+            currencySymbol: currencySymbol || o.currencySymbol,
+          }))
+        )
+        handleRefresh()
+      }
+    } catch { }
+
+    return () => {
+      window.removeEventListener('tg_currency_updated', handleCurrencyEvent)
+      if (bc) bc.close()
+    }
+  }, [])
+
   // Single Dispatch Session Listener - Live Pending Dispatches Feed (1s interval)
   useEffect(() => {
     if (!online || !currentStudioId) {
@@ -1128,6 +1287,9 @@ export function PartnerFlow({
       notes: pd.order?.notes || pd.order?.fitNotes || pd.order?.bookingNotes || '',
       fitNotes: pd.order?.notes || pd.order?.fitNotes || pd.order?.bookingNotes || '',
       partnerPayout: pd.payout || pd.order?.partnerPayout || 15,
+      price: pd.order?.price,
+      currency: pd.order?.currency,
+      currencySymbol: pd.order?.currencySymbol,
       slaHours: pd.order?.slaHours || 48,
       imageUrl: pd.order?.imageUrl || pd.order?.intakePhotoUrl || '',
       otp: pd.order?.otp || '0000',
@@ -1151,6 +1313,9 @@ export function PartnerFlow({
     notes: o.notes || o.fitNotes || '',
     fitNotes: o.notes || o.fitNotes || '',
     partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
+    price: o.price,
+    currency: o.currency,
+    currencySymbol: o.currencySymbol,
     slaHours: o.slaHours || 48,
     imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
     otp: o.otp || '0000',
@@ -1798,7 +1963,7 @@ export function PartnerFlow({
     setTimeout(() => {
       setPickupModalOrder(null)
       setPickupCompleted(false)
-      setBroadcastToast(`✓ Payment Received! +$${collectedPrice} added to Today's Revenue. Handover complete.`)
+      setBroadcastToast(`✓ Payment Received! +${studioCurrencySymbol}${collectedPrice} added to Today's Revenue. Handover complete.`)
       setTimeout(() => setBroadcastToast(null), 5000)
     }, 1500)
   }
@@ -1946,7 +2111,7 @@ export function PartnerFlow({
         id: `allocated-${o.id}`,
         category: 'dispatch' as const,
         title: `Booking · ${o.customerName}`,
-        subtitle: `${cleanGarmentTitle(o.garmentName)} · ${cleanServiceTitle(o.serviceName)} · $${o.price || 35}`,
+        subtitle: `${cleanGarmentTitle(o.garmentName)} · ${cleanServiceTitle(o.serviceName)} · ${o.currencySymbol || studioCurrencySymbol}${o.price || 35}`,
         time: 'New',
         badge: 'Booking',
         actionLabel: 'Accept',
@@ -1963,7 +2128,7 @@ export function PartnerFlow({
       id: `dispatch-${bc.id}`,
       category: 'dispatch' as const,
       title: 'New Request',
-      subtitle: `${cleanGarmentTitle(bc.garmentName)} · ${cleanServiceTitle(bc.serviceName)} · $${bc.price || bc.partnerPayout}`,
+      subtitle: `${cleanGarmentTitle(bc.garmentName)} · ${cleanServiceTitle(bc.serviceName)} · ${bc.currencySymbol || studioCurrencySymbol}${bc.price || bc.partnerPayout}`,
       time: bc.secondsRemaining ? `${bc.secondsRemaining}s left` : 'Live',
       badge: 'Live',
       actionLabel: 'Review',
@@ -2071,8 +2236,10 @@ export function PartnerFlow({
                   {studioName}
                 </div>
                 <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <span className="text-slate-300 font-medium">Active Studio</span>
+                  <span className={`size-2 rounded-full ${hasFilledCatalog ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'} shrink-0`} />
+                  <span className="text-slate-300 font-medium">
+                    {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
+                  </span>
                   <span className="text-slate-500 font-mono text-[10px]">#{currentStudioId.slice(-6)}</span>
                 </div>
               </div>
@@ -2233,17 +2400,26 @@ export function PartnerFlow({
               <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                 {activeTab === 'cockpit' && 'Workshop Dashboard'}
                 {activeTab === 'pipeline' && 'Orders & Alterations'}
+                {activeTab === 'catalog' && 'Price Catalog'}
                 {activeTab === 'payouts' && 'Earnings & Payouts'}
                 {activeTab === 'profile' && 'Studio Settings'}
               </h1>
-              <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Online
-              </span>
+              {hasFilledCatalog ? (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
+                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Online
+                </span>
+              ) : (
+                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+                  <span className="size-1.5 rounded-full bg-amber-500" />
+                  Offline · Setup Required
+                </span>
+              )}
             </div>
             <span className="text-[11px] text-slate-500 truncate hidden sm:block">
               {activeTab === 'cockpit' && 'Quick order check-in, customer PIN verification, and active alteration orders'}
               {activeTab === 'pipeline' && 'Manage orders from customer drop-off to tailoring and final pickup'}
+              {activeTab === 'catalog' && 'Configure custom pricing, turnaround times, and alteration offerings'}
               {activeTab === 'payouts' && 'Track your daily earnings and direct payouts to your bank account'}
               {activeTab === 'profile' && 'Manage your shop details, opening hours, equipment, and contact info'}
             </span>
@@ -2256,7 +2432,7 @@ export function PartnerFlow({
             {/* Quick Metrics Capsules */}
             <div className="hidden xl:flex items-center gap-2 text-xs bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 font-medium">
               <div className="px-2.5 py-1 rounded-lg bg-white shadow-2xs text-slate-800 font-bold flex items-center gap-1.5">
-                <span className="text-emerald-700">${todayEarned}</span>
+                <span className="text-emerald-700">{studioCurrencySymbol}{todayEarned}</span>
                 <span className="text-[10px] text-slate-400 font-normal">Earned</span>
               </div>
               <div className="px-2.5 py-1 rounded-lg text-slate-600 flex items-center gap-1">
@@ -2500,14 +2676,25 @@ export function PartnerFlow({
                       <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
                       <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">Active Studio</span>
+                        <span className={`size-1.5 rounded-full ${hasFilledCatalog ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                        <span className={`text-[9px] font-bold ${hasFilledCatalog ? 'text-emerald-600' : 'text-amber-600'} uppercase tracking-wider`}>
+                          {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Menu Actions */}
                   <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowWelcomeModal(true)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-[#9E593B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                    >
+                      <Sparkles size={13} className="text-[#9E593B]" />
+                      <span>Welcome Card</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setActiveTab('profile')}
@@ -2534,6 +2721,34 @@ export function PartnerFlow({
 
         {/* ── SCROLLABLE WORKSPACE ── */}
         <main className="flex-1 overflow-y-auto">
+          {/* Action Required: Incomplete Price Catalog Banner */}
+          {hasFilledCatalog === false && (
+            <div className="bg-gradient-to-r from-amber-600 via-[#9E593B] to-amber-700 text-white px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border-b border-amber-800/40">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                  <Tag className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded text-amber-100">
+                      Setup Incomplete
+                    </span>
+                    <span className="font-semibold text-sm">Please configure your Price Catalog</span>
+                  </div>
+                  <p className="text-xs text-amber-100 mt-0.5">
+                    Your workshop cannot receive order allocations from customers until you add your alteration rates.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('catalog')}
+                className="py-1.5 px-4 bg-white text-[#0F1115] hover:bg-amber-50 font-bold text-xs rounded-xl shadow-xs transition-transform active:scale-95 shrink-0 cursor-pointer"
+              >
+                Configure Catalog →
+              </button>
+            </div>
+          )}
 
           {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION (STACKED BUNDLE SUPPORT) ── */}
           {online && currentBroadcast && currentBroadcastKey ? (
@@ -2570,7 +2785,7 @@ export function PartnerFlow({
                       <span className="text-stone-500 hidden sm:inline">·</span>
                       <span className="text-stone-300 truncate hidden sm:inline">{nextBroadcast.customerArea}</span>
                       <span className="text-stone-500">·</span>
-                      <span className="text-emerald-400 font-bold shrink-0">${nextBroadcast.price || nextBroadcast.partnerPayout}</span>
+                      <span className="text-emerald-400 font-bold shrink-0">{nextBroadcast.currencySymbol || studioCurrencySymbol}{nextBroadcast.price || nextBroadcast.partnerPayout}</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0 bg-white/10 group-hover:bg-[#9E593B] text-[#E8A588] group-hover:text-white backdrop-blur-md border border-white/15 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide transition-all shadow-sm">
@@ -2745,13 +2960,13 @@ export function PartnerFlow({
                       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                         Today's Revenue
                       </span>
-                      <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs">
-                        <DollarSign size={16} />
+                      <div className="size-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center transition-transform group-hover:scale-110 shadow-2xs font-extrabold text-sm">
+                        <span>{studioCurrencySymbol}</span>
                       </div>
                     </div>
                     <div className="mt-2 flex items-baseline gap-2">
                       <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-                        ${todayEarned}
+                        {studioCurrencySymbol}{todayEarned}
                       </span>
                       <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
                         Collected at Pickup
@@ -2764,7 +2979,7 @@ export function PartnerFlow({
                     {pendingPickupValue > 0 && (
                       <p className="text-[10px] text-amber-700 font-semibold mt-1 flex items-center gap-1">
                         <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
-                        ${pendingPickupValue} pending payment (on bench / rack)
+                        {studioCurrencySymbol}{pendingPickupValue} pending payment (on bench / rack)
                       </p>
                     )}
                   </div>
@@ -3061,45 +3276,138 @@ export function PartnerFlow({
                             </div>
                           </div>
 
-                          {/* Complex Fabric Surcharge Option */}
-                          <div className="pt-1">
-                            {!showPriceAdjust ? (
-                              <button
-                                type="button"
-                                onClick={() => setShowPriceAdjust(true)}
-                                className="text-xs font-medium text-[#9E593B] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Plus size={12} />
-                                <span>Add complex fabric / delicate lining surcharge</span>
-                              </button>
-                            ) : (
-                              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs space-y-2">
-                                <span className="font-bold text-amber-950">Complex Fabric Surcharge</span>
-                                <div className="flex gap-2">
-                                  <input
-                                    type="number"
-                                    placeholder="Amount ($)"
-                                    value={priceAdjustAmount}
-                                    onChange={(e) => setPriceAdjustAmount(e.target.value)}
-                                    className="w-24 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 font-bold"
-                                  />
-                                  <input
-                                    type="text"
-                                    placeholder="Reason (e.g. delicate silk lining)"
-                                    value={priceAdjustReason}
-                                    onChange={(e) => setPriceAdjustReason(e.target.value)}
-                                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-white border border-amber-300"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => setPriceAdjustApproved(true)}
-                                    className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-[#9E593B] text-white font-semibold cursor-pointer transition-colors"
-                                  >
-                                    {priceAdjustApproved ? '✓ Added' : 'Apply'}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
+                          {/* Critical Work & Complex Fabric Surcharge Option */}
+                          <div className="pt-2">
+                            {(() => {
+                              const studioCurrSym = activeIntake.currencySymbol || studioCurrencySymbol || (user as any)?.currencySymbol || '$'
+                              const adjNum = parseFloat(priceAdjustAmount) || 0
+                              const basePriceNum = activeIntake.price || 0
+                              const calculatedTotal = basePriceNum + (priceAdjustApproved ? adjNum : 0)
+
+                              return (
+                                <>
+                                  {!showPriceAdjust ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowPriceAdjust(true)}
+                                      className="text-xs font-semibold text-[#9E593B] hover:underline flex items-center gap-1.5 cursor-pointer transition-colors"
+                                    >
+                                      <Plus size={13} />
+                                      <span>+ Add critical work / delicate fabric surcharge (applied at drop-off)</span>
+                                    </button>
+                                  ) : (
+                                    <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200 text-xs space-y-3 shadow-2xs">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                          <Sparkles size={14} className="text-amber-700" />
+                                          <span className="font-bold text-amber-950">
+                                            Critical Work &amp; Delicate Fabric Surcharge
+                                          </span>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setShowPriceAdjust(false)
+                                            setPriceAdjustApproved(false)
+                                            setPriceAdjustAmount('')
+                                            setPriceAdjustReason('')
+                                          }}
+                                          className="text-[11px] text-amber-800 hover:text-black font-semibold cursor-pointer"
+                                        >
+                                          ✕ Cancel
+                                        </button>
+                                      </div>
+
+                                      <p className="text-[11px] text-amber-800 leading-relaxed">
+                                        Add extra money for delicate fabrics (silk, chiffon, velvet), complex hand-beading, intensive relining, or emergency rush turnaround identified during garment inspection.
+                                      </p>
+
+                                      {/* Quick preset chips */}
+                                      <div className="flex flex-wrap items-center gap-1.5">
+                                        {[
+                                          'Delicate silk / chiffon fabric',
+                                          'Hand-beaded & sequin detailing',
+                                          'Complex inner lining / padding',
+                                          'Critical seam reconstruction',
+                                          'Express rush turnaround',
+                                        ].map((preset) => (
+                                          <button
+                                            key={preset}
+                                            type="button"
+                                            onClick={() => setPriceAdjustReason(preset)}
+                                            className={`text-[10px] font-medium px-2 py-0.5 rounded-md border transition-all cursor-pointer ${
+                                              priceAdjustReason === preset
+                                                ? 'bg-amber-900 text-white border-amber-900'
+                                                : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100/70'
+                                            }`}
+                                          >
+                                            {preset}
+                                          </button>
+                                        ))}
+                                      </div>
+
+                                      <div className="flex flex-col sm:flex-row gap-2">
+                                        <div className="relative">
+                                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs pointer-events-none">
+                                            {studioCurrSym}
+                                          </span>
+                                          <input
+                                            type="number"
+                                            step="0.50"
+                                            min="0"
+                                            placeholder="Extra amount"
+                                            value={priceAdjustAmount}
+                                            onChange={(e) => {
+                                              setPriceAdjustAmount(e.target.value)
+                                              if (priceAdjustApproved) setPriceAdjustApproved(false)
+                                            }}
+                                            className="w-full sm:w-28 pl-6 pr-2.5 py-2 rounded-xl bg-white border border-amber-300 font-bold text-slate-900 focus:outline-none focus:border-[#9E593B]"
+                                          />
+                                        </div>
+
+                                        <input
+                                          type="text"
+                                          placeholder="Specific reason for extra charge..."
+                                          value={priceAdjustReason}
+                                          onChange={(e) => {
+                                            setPriceAdjustReason(e.target.value)
+                                            if (priceAdjustApproved) setPriceAdjustApproved(false)
+                                          }}
+                                          className="flex-1 px-3 py-2 rounded-xl bg-white border border-amber-300 text-slate-900 focus:outline-none focus:border-[#9E593B]"
+                                        />
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (!priceAdjustAmount || parseFloat(priceAdjustAmount) <= 0) {
+                                              toast.error('Please enter a valid extra amount.')
+                                              return
+                                            }
+                                            setPriceAdjustApproved(true)
+                                            toast.success(`Applied ${studioCurrSym}${parseFloat(priceAdjustAmount).toFixed(2)} critical work surcharge.`)
+                                          }}
+                                          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-[#9E593B] text-white font-semibold text-xs cursor-pointer transition-colors shadow-2xs active:scale-95 shrink-0"
+                                        >
+                                          {priceAdjustApproved ? '✓ Surcharge Applied' : 'Apply Surcharge'}
+                                        </button>
+                                      </div>
+
+                                      {/* Itemized Price Calculation Preview */}
+                                      {adjNum > 0 && priceAdjustApproved && (
+                                        <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between text-[11px] font-semibold text-amber-950">
+                                          <span>
+                                            Base: {studioCurrSym}{basePriceNum.toFixed(2)} + Critical Work: {studioCurrSym}{adjNum.toFixed(2)}
+                                          </span>
+                                          <span className="font-extrabold text-xs text-[#9E593B]">
+                                            Total at Pickup: {studioCurrSym}{calculatedTotal.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </div>
                         </div>
 
@@ -3889,7 +4197,7 @@ export function PartnerFlow({
                                 </div>
                               </div>
                               <div className="text-right shrink-0">
-                                <div className="font-bold text-sm text-emerald-800">${order.price || 35}</div>
+                                <div className="font-bold text-sm text-emerald-800">{order.currencySymbol || studioCurrencySymbol}{order.price || 35}</div>
                                 <div className="text-[10px] text-[#9E593B] font-semibold">Standard Rate</div>
                               </div>
                             </div>
@@ -3983,7 +4291,7 @@ export function PartnerFlow({
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <div className="text-right">
-                              <div className="text-xl font-bold text-emerald-800">${activeSelectedOrder.price || 35}</div>
+                              <div className="text-xl font-bold text-emerald-800">{activeSelectedOrder.currencySymbol || studioCurrencySymbol}{activeSelectedOrder.price || 35}</div>
                               <div className="text-[10px] text-[#9E593B] font-semibold">Standard Rate</div>
                             </div>
                             <button
@@ -4214,12 +4522,12 @@ export function PartnerFlow({
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
                           Collected Revenue
                         </span>
-                        <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center">
-                          <DollarSign size={14} />
+                        <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center font-extrabold text-xs">
+                          <span>{studioCurrencySymbol}</span>
                         </div>
                       </div>
                       <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
-                        ${totalCollectedSum}
+                        {studioCurrencySymbol}{totalCollectedSum}
                       </div>
                       <p className="text-xs text-emerald-700 font-semibold mt-1">
                         {collectedOrders.length} order{collectedOrders.length === 1 ? '' : 's'} settled at counter
@@ -4237,7 +4545,7 @@ export function PartnerFlow({
                         </div>
                       </div>
                       <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
-                        ${totalPendingPickupSum}
+                        {studioCurrencySymbol}{totalPendingPickupSum}
                       </div>
                       <p className="text-xs text-amber-800 font-medium mt-1">
                         {readyOrders.length} ready on rack
@@ -4255,7 +4563,7 @@ export function PartnerFlow({
                         </div>
                       </div>
                       <div className="text-2xl sm:text-3xl font-extrabold text-[#1E2229] mt-2">
-                        ${totalInProgressSum}
+                        {studioCurrencySymbol}{totalInProgressSum}
                       </div>
                       <p className="text-xs text-[#6B7280] font-medium mt-1">
                         {inProgressOrders.length} active in tailoring
@@ -4432,7 +4740,7 @@ export function PartnerFlow({
                                 {/* 4. Amount */}
                                 <td className="py-3 px-4 text-right">
                                   <div className="font-bold text-xs text-[#1E2229]">
-                                    ${price}.00
+                                    {o.currencySymbol || studioCurrencySymbol}{price}.00
                                   </div>
                                   <div className="text-[10px] text-emerald-700 font-semibold">
                                     100% Studio
@@ -4524,6 +4832,18 @@ export function PartnerFlow({
               </div>
             )}
 
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* TAB: STUDIO PRICE CATALOG CONFIGURATION                         */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {activeTab === 'catalog' && (
+              <div className="animate-fadeIn p-4 sm:p-8 max-w-7xl mx-auto w-full">
+                <PriceCatalogView
+                  user={user}
+                  onSaved={handleCatalogSaved}
+                />
+              </div>
+            )}
+
           </div>
         </main>
 
@@ -4610,63 +4930,92 @@ export function PartnerFlow({
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-bold text-emerald-950">
-                      <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
-                      Pickup PIN Verified!
-                    </span>
-                    <span className="text-base font-extrabold text-emerald-800">
-                      ${pickupModalOrder.price || 0}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-emerald-800">
-                    Collect <strong>${pickupModalOrder.price || 0}</strong> standard counter payment directly from {pickupModalOrder.customerName}.
-                  </p>
-                </div>
+                {(() => {
+                  const pSymbol = pickupModalOrder.currencySymbol || studioCurrencySymbol || '$'
+                  const basePrice = pickupModalOrder.price || 0
+                  const surcharge = pickupModalOrder.priceAdjustment || 0
+                  const finalTotal = basePrice + surcharge
 
-                {/* Retail In-Store Sales Prompt - Simple Yes or No */}
-                <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 text-xs">
-                  <label className="font-semibold text-[#1E2229] block">
-                    Did the customer purchase retail accessories during pickup?
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRetailAnswer('YES')}
-                      className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
-                        ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                        : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
-                        }`}
-                    >
-                      Yes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRetailAnswer('NO')}
-                      className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
-                        ? 'bg-[#0F1115] text-white border-[#0F1115]'
-                        : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
-                        }`}
-                    >
-                      No
-                    </button>
-                  </div>
-                </div>
+                  return (
+                    <>
+                      <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 font-bold text-emerald-950">
+                            <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                            Pickup PIN Verified!
+                          </span>
+                          <span className="text-base font-extrabold text-emerald-800">
+                            {pSymbol}{finalTotal.toFixed(2)}
+                          </span>
+                        </div>
 
-                <button
-                  type="button"
-                  onClick={handleCompletePickupAndSettlement}
-                  disabled={retailAnswer === null}
-                  className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${retailAnswer === null
-                    ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
-                    : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
-                    }`}
-                >
-                  {pickupCompleted
-                    ? '✓ Payment Collected & Settled!'
-                    : `Complete Handover & Collect $${pickupModalOrder.price || 0} →`}
-                </button>
+                        {surcharge > 0 ? (
+                          <div className="pt-2 border-t border-emerald-200/70 text-[11px] space-y-1">
+                            <div className="flex justify-between text-emerald-800">
+                              <span>Base Workshop Alteration:</span>
+                              <span className="font-semibold">{pSymbol}{basePrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-amber-900 font-semibold">
+                              <span>Critical Work Surcharge ({pickupModalOrder.priceAdjustmentReason || 'Delicate work'}):</span>
+                              <span>+{pSymbol}{surcharge.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between font-extrabold text-emerald-950 pt-1 border-t border-emerald-200/60 text-xs">
+                              <span>Total Counter Settlement:</span>
+                              <span>{pSymbol}{finalTotal.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-emerald-800">
+                            Collect <strong>{pSymbol}{finalTotal.toFixed(2)}</strong> standard counter payment directly from {pickupModalOrder.customerName}.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Retail In-Store Sales Prompt - Simple Yes or No */}
+                      <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] space-y-3 text-xs">
+                        <label className="font-semibold text-[#1E2229] block">
+                          Did the customer purchase retail accessories during pickup?
+                        </label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRetailAnswer('YES')}
+                            className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'YES'
+                              ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                              : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
+                              }`}
+                          >
+                            Yes
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRetailAnswer('NO')}
+                            className={`flex-1 py-2.5 rounded-xl font-semibold border transition-colors cursor-pointer ${retailAnswer === 'NO'
+                              ? 'bg-[#0F1115] text-white border-[#0F1115]'
+                              : 'bg-white text-[#1E2229] border-[#E8E1D5] hover:bg-[#F3EFEA]'
+                              }`}
+                          >
+                            No
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCompletePickupAndSettlement}
+                        disabled={retailAnswer === null}
+                        className={`w-full py-3 rounded-xl text-xs font-semibold transition-all shadow-xs ${retailAnswer === null
+                          ? 'bg-[#E8E1D5] text-[#9CA3AF] cursor-not-allowed'
+                          : 'bg-[#9E593B] hover:bg-[#8A4C32] text-white cursor-pointer active:scale-95'
+                          }`}
+                      >
+                        {pickupCompleted
+                          ? '✓ Payment Collected & Settled!'
+                          : `Complete Handover & Collect ${pSymbol}${finalTotal.toFixed(2)} →`}
+                      </button>
+                    </>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -4886,6 +5235,31 @@ export function PartnerFlow({
           <span className="text-sm font-semibold">{broadcastToast || studioNotice}</span>
         </div>
       )}
+
+      {/* Welcome Aboard Modal (Featuring 3 Distinct UI Designs) */}
+      <WelcomeAboardModal
+        isOpen={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+        user={user}
+        onProceedToCatalog={(chosenCurrency) => {
+          if (chosenCurrency) {
+            setStudioCurrency(chosenCurrency)
+            setStudioCurrencySymbol(getCurrencySymbol(chosenCurrency))
+          }
+          setShowWelcomeModal(false)
+          setShowCatalogPromptModal(false)
+          setActiveTab('catalog')
+        }}
+        onSkipToDashboard={() => setShowWelcomeModal(false)}
+      />
+
+      {/* Persistent Price Catalog Modal Prompt */}
+      <PriceCatalogModal
+        isOpen={showCatalogPromptModal}
+        onClose={() => setShowCatalogPromptModal(false)}
+        user={user}
+        onSaved={handleCatalogSaved}
+      />
     </div>
   )
 }

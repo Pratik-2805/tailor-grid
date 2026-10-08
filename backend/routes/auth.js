@@ -1496,6 +1496,8 @@ async function enrichStudioUser(user) {
         workers: store.workers ?? 4,
         specialties: store.specialties || ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
         leadTailor: store.leadTailor || user.name,
+        currency: store.currency || user.currency || 'GBP',
+        currencySymbol: store.currencySymbol || user.currencySymbol || '£',
       };
     }
   } catch (err) {

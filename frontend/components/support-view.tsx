@@ -46,8 +46,8 @@ const FAQS: FaqItem[] = [
   },
   {
     category: 'pricing',
-    q: 'Are the prices shown on Darzi fixed or will the atelier charge extra?',
-    a: 'All prices on Darzi are 100% upfront and standardized across all 500+ certified partner studios. The price you see at checkout includes the alteration, matching OEM industrial thread, pressing, and our 100% Fit Guarantee. No hidden workshop surcharges or surprise fees are permitted.',
+    q: 'How does workshop pricing work on Darzi?',
+    a: 'Prices displayed during browsing are estimated starting rates. Once you submit a fitting request, your matched local atelier calculates and confirms the exact price based on their workshop catalog upon accepting the order. If delicate fabrics or intricate beading require critical hand finishing, any transparent surcharge is agreed upon and itemized at garment drop-off before work begins.',
   },
   {
     category: 'process',

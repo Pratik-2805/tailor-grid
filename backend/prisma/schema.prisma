@@ -24,6 +24,8 @@ model User {
   status     String   @default("ACTIVE") // ACTIVE, INACTIVE
   studioId   String?
   studioName String?
+  currency   String   @default("GBP")
+  currencySymbol String @default("£")
   measurements String?
   refreshToken String?
   createdAt  DateTime @default(now())
@@ -97,6 +99,8 @@ model PartnerStore {
   leadTailor    String
   specialties   String[]
   retailSold    Boolean  @default(true)
+  currency      String   @default("GBP")
+  currencySymbol String  @default("£")
   lat           Float
   lng           Float
   distance      String?
@@ -158,6 +162,8 @@ model Order {
   tailorLng             Float?
   status                String        @default("Allocated") // Allocated, Accepted, Customer Arrived, Fitting Completed, Work in Progress, Ready, Collected, Closed
   price                 Float
+  currency              String        @default("GBP")
+  currencySymbol        String        @default("£")
   otp                   String
   otpExpiresAt          DateTime?
   createdAt             DateTime      @default(now())
@@ -182,6 +188,32 @@ model NewsletterSubscription {
   @@index([email])
   @@index([status])
   @@map("newsletter_subscriptions")
+}
+
+model StudioCatalogItem {
+  id             String   @id @default(cuid())
+  studioId       String
+  userId         String?
+  categoryId     String
+  categoryName   String
+  serviceId      String?
+  name           String
+  description    String?
+  price          Float
+  currency       String   @default("GBP")
+  currencySymbol String   @default("£")
+  partnerPayout  Float?
+  turnaroundDays Int      @default(2)
+  avgTurnaround  String   @default("48 hours")
+  enabled        Boolean  @default(true)
+  isCustom       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([studioId])
+  @@index([userId])
+  @@index([categoryId])
+  @@map("studio_catalog_items")
 }
 
 

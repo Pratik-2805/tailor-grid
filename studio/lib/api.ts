@@ -978,5 +978,160 @@ export async function checkPhoneExists(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// STUDIO PRICE CATALOG API HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
 
+export interface StudioCatalogItemData {
+  id?: string
+  studioId?: string
+  categoryId: string
+  categoryName: string
+  serviceId?: string | null
+  name: string
+  description?: string | null
+  price: number
+  currency?: string
+  currencySymbol?: string
+  partnerPayout?: number | null
+  turnaroundDays: number
+  avgTurnaround?: string
+  enabled: boolean
+  isCustom?: boolean
+}
 
+export interface BaseServiceCategory {
+  id: string
+  name: string
+  tagline?: string
+  startingPrice: number
+  avgTurnaround: string
+  services: {
+    id: string
+    name: string
+    description?: string
+    customerPrice: number
+    partnerPayout: number
+    turnaroundDays: number
+    popular?: boolean
+  }[]
+}
+
+export interface StudioCatalogResponse {
+  success: boolean
+  studioId?: string
+  hasFilledCatalog: boolean
+  currency?: string
+  currencySymbol?: string
+  items: StudioCatalogItemData[]
+  baseCategories: BaseServiceCategory[]
+}
+
+export async function fetchStudioCatalog(studioId?: string): Promise<StudioCatalogResponse> {
+  const token = getAuthToken()
+  const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
+  try {
+    const res = await fetch(`${API_BASE}/studio/catalog${q}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to fetch studio catalog')
+    }
+    return await res.json()
+  } catch (err: any) {
+    console.error('fetchStudioCatalog error:', err)
+    return {
+      success: false,
+      studioId: studioId || '',
+      hasFilledCatalog: false,
+      items: [],
+      baseCategories: [],
+    }
+  }
+}
+
+export async function saveStudioCatalog(params: {
+  studioId?: string
+  currency?: string
+  currencySymbol?: string
+  items: StudioCatalogItemData[]
+}): Promise<{
+  success: boolean
+  message: string
+  count: number
+  hasFilledCatalog: boolean
+  currency?: string
+  currencySymbol?: string
+  items: StudioCatalogItemData[]
+}> {
+  const token = getAuthToken()
+  try {
+    const res = await fetch(`${API_BASE}/studio/catalog`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(params),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to save price catalog')
+    }
+    return await res.json()
+  } catch (err: any) {
+    console.error('saveStudioCatalog error:', err)
+    throw err
+  }
+}
+
+export async function saveStudioCatalogItem(params: {
+  studioId?: string
+  item: StudioCatalogItemData
+}): Promise<{ success: boolean; item: StudioCatalogItemData }> {
+  const token = getAuthToken()
+  try {
+    const res = await fetch(`${API_BASE}/studio/catalog/item`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(params),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to save catalog item')
+    }
+    return await res.json()
+  } catch (err: any) {
+    console.error('saveStudioCatalogItem error:', err)
+    throw err
+  }
+}
+
+export async function deleteStudioCatalogItem(id: string, studioId?: string): Promise<{ success: boolean }> {
+  const token = getAuthToken()
+  const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
+  try {
+    const res = await fetch(`${API_BASE}/studio/catalog/item/${encodeURIComponent(id)}${q}`, {
+      method: 'DELETE',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to delete catalog item')
+    }
+    return await res.json()
+  } catch (err: any) {
+    console.error('deleteStudioCatalogItem error:', err)
+    throw err
+  }
+}

@@ -507,13 +507,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                         Category of clothes
                       </span>
                       <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {currentCategory ? (
-                          <>
-                            {currentCategory.name} <span className="font-semibold text-black">(from ${currentCategory.startingPrice})</span>
-                          </>
-                        ) : (
-                          'Loading services...'
-                        )}
+                        {currentCategory ? currentCategory.name : 'Loading services...'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showGarmentPicker ? 'rotate-180' : ''}`} />
@@ -542,7 +536,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                               <div className="min-w-0">
                                 <div className="text-sm font-bold truncate leading-tight">{cat.name}</div>
                                 <div className={`text-xs mt-0.5 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
-                                  From ${cat.startingPrice} · {cat.avgTurnaround}
+                                  {cat.avgTurnaround} · Atelier Tailored
                                 </div>
                               </div>
                             </div>
@@ -572,7 +566,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                         What needs to be done?
                       </span>
                       <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {selectedAlteration || (selectedServiceObj ? selectedServiceObj.name : 'Select alteration')} {selectedServiceObj ? `($${selectedServiceObj.customerPrice})` : ''}
+                        {selectedAlteration || (selectedServiceObj ? selectedServiceObj.name : 'Select alteration')}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showAlterationPicker ? 'rotate-180' : ''}`} />
@@ -608,9 +602,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-xs font-extrabold px-2.5 py-1 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-black group-hover:bg-white'
-                                }`}>
-                                ${svc.customerPrice}
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-neutral-800'}`}>
+                                {svc.turnaroundDays}d SLA
                               </span>
                               {isSelected && <Check size={16} className="text-white shrink-0" />}
                             </div>

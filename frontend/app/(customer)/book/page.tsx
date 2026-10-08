@@ -1096,7 +1096,7 @@ export default function BookPage() {
                           CATEGORY OF CLOTHES
                         </p>
                         <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                          {currentCategory ? `${currentCategory.name} (from $${currentCategory.startingPrice})` : 'Loading categories...'}
+                          {currentCategory ? currentCategory.name : 'Loading categories...'}
                         </p>
                       </div>
                     </div>
@@ -1126,7 +1126,7 @@ export default function BookPage() {
                               </div>
                               <div>
                                 <p className="text-xs sm:text-sm text-black font-extrabold">{cat.name}</p>
-                                <p className="text-[11px] text-gray-500">From ${cat.startingPrice} • {cat.avgTurnaround}</p>
+                                <p className="text-[11px] text-gray-500">{cat.avgTurnaround} • Atelier Tailored</p>
                               </div>
                             </div>
                             {isSelected && <Check size={16} className="text-black shrink-0" />}
@@ -1156,7 +1156,7 @@ export default function BookPage() {
                           WHAT NEEDS TO BE DONE?
                         </p>
                         <p className="text-sm sm:text-base font-extrabold text-black truncate">
-                          {currentService ? `${currentService.name} ($${currentService.customerPrice})` : 'Select alteration'}
+                          {currentService ? currentService.name : 'Select alteration'}
                         </p>
                       </div>
                     </div>
@@ -1188,8 +1188,9 @@ export default function BookPage() {
                               <p className="text-[11px] text-gray-500">{srv.description}</p>
                             </div>
                             <div className="text-right shrink-0 ml-3">
-                              <p className="text-xs sm:text-sm font-black text-black">${srv.customerPrice}</p>
-                              <p className="text-[10px] text-gray-400">{srv.turnaroundDays}d SLA</p>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-neutral-200 text-neutral-800">
+                                {srv.turnaroundDays}d SLA
+                              </span>
                             </div>
                           </button>
                         )
@@ -1302,6 +1303,14 @@ export default function BookPage() {
                   className="w-full px-3.5 py-2.5 rounded-2xl border border-gray-200 bg-[#F9F9F9] focus:bg-white focus:border-black text-xs font-semibold text-black placeholder:text-gray-400 outline-none transition-all resize-none shadow-2xs"
                 />
               </div>
+
+                {/* 4.5 Atelier Pricing Notice */}
+                <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3 text-[11px] text-gray-600 flex items-start gap-2">
+                  <Sparkles size={14} className="text-[#9E593B] shrink-0 mt-0.5" />
+                  <p>
+                    <strong className="text-black font-semibold">Workshop Pricing Guarantee:</strong> Alteration rates are confirmed by your matched local atelier based on their workshop price catalog upon order acceptance. Counter payment at pickup.
+                  </p>
+                </div>
 
                 {/* 5. Action Buttons Row */}
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
