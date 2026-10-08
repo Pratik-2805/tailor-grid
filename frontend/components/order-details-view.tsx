@@ -320,7 +320,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           const parsed = JSON.parse(cached)
           if (parsed && typeof parsed === 'object') return parsed
         }
-        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        const latest = getStorageCookie('tg_latest_order')
         if (latest) {
           const parsed = JSON.parse(latest)
           if (parsed && (parsed.id === slugId || !slugId)) return parsed
@@ -332,9 +332,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (typeof window !== 'undefined' && slugId) {
       try {
-        const cached = getStorageCookie(`tg_order_${slugId}`) || localStorage.getItem(`tg_order_${slugId}`)
+        const cached = getStorageCookie(`tg_order_${slugId}`)
         if (cached) return false
-        const latest = getStorageCookie('tg_latest_order') || localStorage.getItem('tg_latest_order')
+        const latest = getStorageCookie('tg_latest_order')
         if (latest) {
           const parsed = JSON.parse(latest)
           if (parsed && (parsed.id === slugId || !slugId)) return false

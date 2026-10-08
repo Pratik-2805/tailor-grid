@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { exchangeAuthCode, getCurrentUser, syncAuthCookies } from '@/lib/api'
+import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getStudioUrl } from '@/lib/api'
+import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
 import { ShieldCheck, AlertCircle, Loader2 } from 'lucide-react'
 
 function CustomerAuthCallbackInner() {
@@ -17,12 +18,14 @@ function CustomerAuthCallbackInner() {
       if (exchangedRef.current) return
       exchangedRef.current = true
 
+      const refreshToken = searchParams.get('refreshToken') || searchParams.get('refresh_token')
       const code = searchParams.get('code')
       const token = searchParams.get('token')
       const redirectPath = searchParams.get('redirect') || '/'
+      const existingRt = getRefreshToken()
 
-      if (!code && !token) {
-        setError('No authorization code or token found in callback URL.')
+      if (!refreshToken && !code && !token && !existingRt) {
+        setError('No authentication token or authorization code found in callback URL.')
         setIsProcessing(false)
         return
       }
@@ -30,13 +33,29 @@ function CustomerAuthCallbackInner() {
       try {
         let user: any = null
 
-        if (code) {
-          // Option A: Exchange single-use authorization code
+        if (refreshToken) {
+          // 1. Push refresh token into cookie of this site
+          setRefreshToken(refreshToken)
+          // 2. Validate refresh token with backend and mint new access token into cookie
+          const newAccessToken = await refreshAccessToken(refreshToken)
+          if (!newAccessToken) {
+            throw new Error('Refresh token validation failed. Please sign in again.')
+          }
+          user = await getCurrentUser()
+        } else if (code) {
+          // Exchange single-use authorization code
           const result = await exchangeAuthCode(code)
           user = result.user
         } else if (token) {
-          // Fallback if legacy token was passed
-          syncAuthCookies(token, 'CUSTOMER')
+          // Legacy access token fallback
+          setAuthToken(token)
+          user = await getCurrentUser()
+        } else if (existingRt) {
+          // Validate existing cookie refresh token
+          const newAccessToken = await refreshAccessToken(existingRt)
+          if (!newAccessToken) {
+            throw new Error('Session expired. Please sign in again.')
+          }
           user = await getCurrentUser()
         }
 
@@ -46,9 +65,18 @@ function CustomerAuthCallbackInner() {
           return
         }
 
+        // If user is actually a STUDIO / TEMP_STUDIO, route to Studio Portal
+        if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+          const rt = refreshToken || getRefreshToken()
+          window.location.replace(getStudioUrl('/auth/callback', rt))
+          return
+        }
+
+        setAuthRole('CUSTOMER')
+        setAuthUser(user)
         window.location.replace(redirectPath)
       } catch (err: any) {
-        setError(err.message || 'Failed to authenticate authorization code.')
+        setError(err.message || 'Failed to authenticate session.')
         setIsProcessing(false)
       }
     }

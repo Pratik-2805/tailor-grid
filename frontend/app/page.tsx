@@ -1,19 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { HomeView } from '@/components/home-view'
 import { useApp } from '@/components/app-provider'
-import { CustomLoader } from '@/components/custom-loader'
-import type { StoreOption, User } from '@/components/data'
-import { getAuthToken, getRefreshToken, getAuthUser, getAuthRole, setStorageCookie } from '@/lib/cookies'
-import { STUDIO_BASE_URL } from '@/lib/api'
+import type { StoreOption } from '@/components/data'
+import { setStorageCookie } from '@/lib/cookies'
 
 export default function HomePage() {
-  const router = useRouter()
   const {
     user,
-    isAuthLoading,
     navigate,
     openAuth,
     setPrefilledPostcode,
@@ -22,72 +16,6 @@ export default function HomePage() {
     setPrefilledStore,
     setMeasurementDraft,
   } = useApp()
-
-  const [hasCustomerSession, setHasCustomerSession] = useState<boolean>(false)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUser = getAuthUser<User>()
-      if (storedUser) {
-        if (storedUser.role === 'STUDIO') {
-          window.location.href = STUDIO_BASE_URL
-          return
-        }
-        setHasCustomerSession(storedUser.role === 'CUSTOMER')
-      } else {
-        const token = getAuthToken() || getRefreshToken()
-        const role = getAuthRole()
-        if (token && role === 'STUDIO') {
-          window.location.href = STUDIO_BASE_URL
-          return
-        }
-        setHasCustomerSession(Boolean(token && (role === 'CUSTOMER' || !role)))
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!isAuthLoading) {
-      if (user?.role === 'CUSTOMER') {
-        const timer = setTimeout(() => {
-          router.replace('/book')
-        }, 50)
-        return () => clearTimeout(timer)
-      } else if (user?.role === 'STUDIO') {
-        window.location.href = STUDIO_BASE_URL
-      } else {
-        setHasCustomerSession(false)
-      }
-    }
-  }, [user, isAuthLoading, router])
-
-  // Forward customer role to /book, and redirect STUDIO role to Studio Workbench
-  if (
-    isAuthLoading ||
-    (hasCustomerSession && (!user || user.role === 'CUSTOMER')) ||
-    (user && user.role === 'CUSTOMER') ||
-    (user && user.role === 'STUDIO')
-  ) {
-    const isStudio = user?.role === 'STUDIO'
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-[#FAF8F5] transition-opacity duration-300">
-        <CustomLoader
-          size="lg"
-          variant="atelier"
-          text={
-            isStudio
-              ? 'Opening Workbench Dashboard'
-              : (user?.name ? `Welcome back, ${user.name.split(' ')[0]}` : 'Opening your Atelier studio')
-          }
-          subtext={
-            isStudio
-              ? 'Redirecting to your Studio Workbench'
-              : 'Preparing your bespoke alteration experience'
-          }
-        />
-      </div>
-    )
-  }
 
   const handleQuickSearch = (postcode: string, garmentId: string) => {
     setPrefilledPostcode(postcode)

@@ -60,32 +60,46 @@ export function proxy(request: NextRequest) {
   const refreshToken = request.cookies.get('tg_refresh_token')?.value || request.cookies.get('refreshToken')?.value
   const hasAnyToken = Boolean(token || refreshToken)
 
+  const isWorkbenchRoute =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/earnings') ||
+    pathname.startsWith('/payouts') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/settings')
+
+  // Unauthenticated guests accessing protected workbench routes get redirected to login/onboarding
   if (!hasAnyToken) {
-    return NextResponse.redirect(new URL(CUSTOMER_SITE_URL))
+    if (isWorkbenchRoute) {
+      return NextResponse.redirect(new URL('/?auth=required', request.url))
+    }
+    return NextResponse.next()
   }
 
   // Extract role directly from token payload as primary source of truth
   const tokenPayload = decodeJwtPayload(token) || decodeJwtPayload(refreshToken)
   let role = tokenPayload?.role || request.cookies.get('tg_user_role')?.value || (tokenPayload?.type === 'pending_google_signup' ? 'TEMP_STUDIO' : 'STUDIO')
 
-  // Unauthenticated or Customer users cannot access Studio at all
+  // Unauthenticated or Customer users visiting workbench are redirected
   if (role === 'CUSTOMER') {
-    return NextResponse.redirect(new URL(CUSTOMER_SITE_URL))
+    if (isWorkbenchRoute) {
+      if (CUSTOMER_SITE_URL) {
+        return NextResponse.redirect(new URL(CUSTOMER_SITE_URL))
+      }
+      return NextResponse.redirect(new URL('/?auth=required', request.url))
+    }
+    return NextResponse.next()
   }
 
-  // TEMP_STUDIO role is strictly restricted to onboarding steps
+  // TEMP_STUDIO role is onboarding-only
   if (role === 'TEMP_STUDIO') {
-    const isOnboardingRoute = pathname === '/' || pathname.startsWith('/onboarding')
-    if (!isOnboardingRoute) {
+    if (isWorkbenchRoute) {
       return NextResponse.redirect(new URL('/?step=1', request.url))
     }
     return NextResponse.next()
   }
 
-  // STUDIO (and ADMIN) full partner role
-
-
-
+  // Active STUDIO / ADMIN partner: redirect root to /dashboard unless ?step is present
   if (role === 'STUDIO' || role === 'ADMIN') {
     if (pathname === '/' && !searchParams.has('step')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
@@ -93,7 +107,6 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Allow next for valid tokens by default on root onboarding
   return NextResponse.next()
 }
 

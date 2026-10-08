@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { type Screen, type User } from './data'
 import { getStudioUrl } from '../lib/api'
-import { getAuthToken, getAuthRole } from '../lib/cookies'
+import { getAuthToken, getAuthRole, getRefreshToken } from '../lib/cookies'
 import { triggerStudioGoogleAuth } from '../lib/google-auth'
 
 interface StudioSubNavProps {
@@ -158,7 +158,8 @@ export function StudioSubNav({
                 onClick={() => {
                   const role = isClient ? getAuthRole() : null
                   if (role === 'STUDIO') {
-                    window.location.href = getStudioUrl('/', getAuthToken())
+                    const token = getRefreshToken() || getAuthToken()
+                    window.location.href = getStudioUrl('/dashboard', token)
                   } else if (onOpenAuth) {
                     onOpenAuth('STUDIO', 'signup')
                   } else {

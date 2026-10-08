@@ -28,19 +28,24 @@ export function proxy(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl
 
+    // 1. Allow public static assets and auth API requests to pass through
+    if (
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/api') ||
+      pathname === '/favicon.ico' ||
+      pathname.includes('.')
+    ) {
+      return NextResponse.next()
+    }
+
     const token = request.cookies.get('tg_token')?.value
     const refreshToken = request.cookies.get('tg_refresh_token')?.value
     const hasAnyToken = Boolean(token || refreshToken)
 
-    // Decode role directly from JWT Access Token or Refresh Token
-    const tokenPayload = decodeJwtPayload(token) || decodeJwtPayload(refreshToken)
-    const role = tokenPayload?.role
-
-    const studioUrl = process.env.NEXT_PUBLIC_STUDIO_URL || process.env.STUDIO_URL || ''
-
-    // When a STUDIO partner is logged in, restrict them exclusively to Studio Workbench
-    if (hasAnyToken && role === 'STUDIO' && studioUrl) {
-      return NextResponse.redirect(new URL(studioUrl))
+    // 2. Prevent infinite redirect loops on auth pages
+    const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/auth')
+    if (isAuthPage && hasAnyToken) {
+      return NextResponse.next()
     }
 
     const isCustomerProtected =
@@ -53,21 +58,14 @@ export function proxy(request: NextRequest) {
       pathname === '/profile' ||
       pathname.startsWith('/profile/')
 
-    // Redirect unauthenticated guests attempting to visit protected customer routes (only if no token and no refresh token)
+    // 3. Redirect unauthenticated guests attempting to visit protected customer routes
     if (isCustomerProtected && !hasAnyToken) {
       return NextResponse.redirect(new URL('/?auth=required', request.nextUrl.origin))
     }
 
-    // When an authenticated CUSTOMER visits root '/', redirect seamlessly to '/book'
-    if (pathname === '/') {
-      if (hasAnyToken && role === 'CUSTOMER') {
-        return NextResponse.redirect(new URL('/book', request.nextUrl.origin))
-      }
-    }
-
     return NextResponse.next()
   } catch (err) {
-    console.error('Proxy execution error:', err)
+    console.error('Frontend proxy execution error:', err)
     return NextResponse.next()
   }
 }

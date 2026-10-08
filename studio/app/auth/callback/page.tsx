@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { exchangeAuthCode, getCurrentUser } from '@/lib/api'
-import { setAuthToken, setAuthRole, setAuthUser } from '@/lib/cookies'
+import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getCustomerSiteUrl } from '@/lib/api'
+import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
 import { ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react'
 
 function StudioAuthCallbackInner() {
@@ -18,11 +18,13 @@ function StudioAuthCallbackInner() {
       if (exchangedRef.current) return
       exchangedRef.current = true
 
+      const refreshToken = searchParams.get('refreshToken') || searchParams.get('refresh_token')
       const code = searchParams.get('code')
       const token = searchParams.get('token')
+      const existingRt = getRefreshToken()
 
-      if (!code && !token) {
-        setError('No authorization code or token found in callback URL.')
+      if (!refreshToken && !code && !token && !existingRt) {
+        setError('No authentication token or authorization code found in callback URL.')
         setIsProcessing(false)
         return
       }
@@ -31,19 +33,42 @@ function StudioAuthCallbackInner() {
         let user: any = null
         let result: any = null
 
-        if (code) {
-          // Option A: Exchange single-use authorization code
+        if (refreshToken) {
+          // 1. Push refresh token into cookie of this site
+          setRefreshToken(refreshToken)
+          // 2. Validate refresh token with backend and mint new access token into cookie
+          const newAccessToken = await refreshAccessToken(refreshToken)
+          if (!newAccessToken) {
+            throw new Error('Refresh token validation failed. Please sign in again.')
+          }
+          user = await getCurrentUser()
+        } else if (code) {
+          // Exchange single-use authorization code
           result = await exchangeAuthCode(code)
           user = result.user
         } else if (token) {
-          // Fallback if legacy token was passed
+          // Legacy access token fallback
           setAuthToken(token)
+          user = await getCurrentUser()
+        } else if (existingRt) {
+          // Validate existing cookie refresh token
+          const newAccessToken = await refreshAccessToken(existingRt)
+          if (!newAccessToken) {
+            throw new Error('Session expired. Please sign in again.')
+          }
           user = await getCurrentUser()
         }
 
         if (!user) {
           setError('Authentication session could not be established. Please try logging in again.')
           setIsProcessing(false)
+          return
+        }
+
+        // If user is actually a CUSTOMER, route to Customer Portal
+        if (user.role === 'CUSTOMER') {
+          const rt = refreshToken || getRefreshToken()
+          window.location.replace(getCustomerSiteUrl('/auth/callback', rt))
           return
         }
 
@@ -66,7 +91,7 @@ function StudioAuthCallbackInner() {
           window.location.replace('/?step=1')
         }
       } catch (err: any) {
-        setError(err.message || 'Failed to authenticate authorization code.')
+        setError(err.message || 'Failed to authenticate session.')
         setIsProcessing(false)
       }
     }
