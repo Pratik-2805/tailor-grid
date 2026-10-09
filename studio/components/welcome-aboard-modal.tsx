@@ -51,14 +51,13 @@ export function WelcomeAboardModal({
           <X className="w-4 h-4" />
         </button>
 
-        {/* ── 1. Atelier Theme Brand & Status Header ── */}
-        <div className="relative z-10 flex flex-col items-center justify-center space-y-1.5">
-          {/* Brand Logo */}
+        {/* ── Brand Logo Only ── */}
+        <div className="relative z-10 flex flex-col items-center justify-center mb-6">
           <div className="relative">
             <img
               src="/removed_bg_logo.png"
-              alt="Darzi Atelier"
-              className="h-9 sm:h-10 w-auto object-contain mx-auto"
+              alt="Darzi"
+              className="h-10 sm:h-12 w-auto object-contain mx-auto"
               onError={(e) => {
                 const target = e.currentTarget
                 target.style.display = 'none'
@@ -69,49 +68,15 @@ export function WelcomeAboardModal({
             <div
               id="darzi-fallback-badge-sm"
               style={{ display: 'none' }}
-              className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#B86B47] text-white items-center justify-center shadow-xs mx-auto"
+              className="h-10 px-3 items-center justify-center rounded-lg bg-[#FAF8F5] border border-[#EBE7DF] text-[#713f12] text-xs font-semibold"
             >
-              <Scissors className="w-4 h-4 rotate-45" />
+              DARZI
             </div>
           </div>
-
-          {/* Sub-Brand Text */}
-          <div className="text-center">
-            <span className="font-serif text-xs sm:text-[13px] font-bold tracking-[0.2em] uppercase text-[#9E593B] block leading-tight">
-              Darzi Atelier
-            </span>
-            <span className="text-[9.5px] font-medium tracking-widest uppercase text-[#8C8275]">
-              Bespoke Tailoring Network
-            </span>
-          </div>
-
-          {/* Workshop Live Pill */}
-          <div className="pt-0.5">
-            <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#EAF3E7] text-[#3D6633] border border-[#CDE0C7]">
-              <span className="size-1.5 rounded-full bg-[#3D6633] animate-pulse" />
-              <span>Workshop Live</span>
-              {studioName && (
-                <span className="text-[#3D6633]/70 font-normal truncate max-w-[220px]">
-                  · {studioName}
-                </span>
-              )}
-            </span>
-          </div>
         </div>
 
-        {/* ── Elegant Atelier Divider ── */}
-        <div className="relative z-10 flex items-center justify-center gap-3 my-4 sm:my-5 opacity-70">
-          <div className="h-px w-20 bg-gradient-to-r from-transparent to-[#D8BEA8]" />
-          <div className="w-1.5 h-1.5 rotate-45 bg-[#9E593B]/40" />
-          <div className="h-px w-20 bg-gradient-to-l from-transparent to-[#D8BEA8]" />
-        </div>
-
-        {/* ── 2. Seamless Welcome Greeting (No nested box - open & elegant) ── */}
-        <div className="relative z-10 space-y-1 mb-6 sm:mb-7">
-          {/* Kicker */}
-          <p className="text-[10px] sm:text-[10.5px] font-semibold tracking-[0.24em] uppercase text-[#6E7B68] font-sans">
-            Explore Your Workshop
-          </p>
+        {/* ── Main Welcome Section ── */}
+        <div className="relative z-10 text-center space-y-1">
 
           {/* Headline */}
           <h2 className="font-serif text-2xl sm:text-[32px] font-bold tracking-[0.06em] uppercase text-[#2C3127] leading-tight">
