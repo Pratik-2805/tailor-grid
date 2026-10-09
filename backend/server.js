@@ -28,6 +28,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const envOrigins = [
   process.env.FRONTEND_URL,
   process.env.STUDIO_URL,
+  process.env.ADMIN_URL,
   process.env.ALLOWED_ORIGINS,
 ]
   .filter(Boolean)
