@@ -771,9 +771,17 @@ router.post('/', async (req, res) => {
 // POST /api/orders/:id/send-otp-email - Resend confirmation PIN/OTP email to customer
 router.post('/:id/send-otp-email', async (req, res) => {
   try {
-    const { id } = req.params;
-    let order = await prisma.order.findUnique({
-      where: { id },
+    const rawId = (req.params.id || '').trim();
+    const cleanId = rawId.replace(/^%23|^#/, '').trim();
+
+    let order = await prisma.order.findFirst({
+      where: {
+        OR: [
+          { id: cleanId },
+          { id: rawId },
+          { id: `#${cleanId}` },
+        ],
+      },
       include: { store: true },
     });
 
@@ -788,7 +796,9 @@ router.post('/:id/send-otp-email', async (req, res) => {
 
     // Check in-flight dispatch session cache if not found in database yet
     if (!order) {
-      const session = dispatchService.getDispatchSessionStatus(id);
+      const session =
+        dispatchService.getDispatchSessionStatus(cleanId) ||
+        dispatchService.getDispatchSessionStatus(rawId);
       if (session && session.order) {
         otp = session.order.otp;
         customerEmail = session.order.customerEmail;
@@ -802,49 +812,74 @@ router.post('/:id/send-otp-email', async (req, res) => {
       return res.status(404).json({ error: 'Order not found or no OTP exists for this order.' });
     }
 
-    let targetEmail = (req.body?.email || customerEmail || '').trim();
-    if ((!targetEmail || targetEmail.includes('example.com')) && order?.userId) {
-      const u = await prisma.user.findUnique({ where: { id: order.userId } });
-      if (u?.email) {
-        targetEmail = u.email.trim();
+    const emailsToSend = new Set();
+
+    if (req.body?.email && req.body.email.includes('@') && !req.body.email.includes('example.com')) {
+      emailsToSend.add(req.body.email.trim().toLowerCase());
+    }
+    if (customerEmail && customerEmail.includes('@') && !customerEmail.includes('example.com')) {
+      emailsToSend.add(customerEmail.trim().toLowerCase());
+    }
+    if (req.user?.email && req.user.email.includes('@') && !req.user.email.includes('example.com')) {
+      emailsToSend.add(req.user.email.trim().toLowerCase());
+    }
+    if (order?.userId) {
+      const u = await prisma.user.findUnique({ where: { id: order.userId } }).catch(() => null);
+      if (u?.email && u.email.includes('@') && !u.email.includes('example.com')) {
+        emailsToSend.add(u.email.trim().toLowerCase());
         if (u.name && !customerName) customerName = u.name;
       }
     }
 
-    // Also check authenticated caller's email
-    if ((!targetEmail || targetEmail.includes('example.com')) && req.user?.email) {
-      targetEmail = req.user.email.trim();
-    }
-
-    if (!targetEmail || !targetEmail.includes('@')) {
+    if (emailsToSend.size === 0) {
       return res.status(400).json({ error: 'No recipient email address available for this order.' });
     }
 
-    const isReadyStatus = order?.status === 'Ready' || order?.status === 'READY_FOR_PICKUP';
-    const emailResult = await sendOrderOtpEmail({
-      toEmail: targetEmail,
-      otp,
-      orderId: id,
-      customerName: customerName || 'Valued Customer',
-      garmentName: garmentName || 'Alteration Service',
-      serviceName: serviceName || 'Standard Hemming',
-      storeName: storeName || 'Partner Atelier',
-      storeAddress,
-      storePhone,
-      isPickup: isReadyStatus,
-      force: true,
-    });
+    // Update order with the newly requested recipient email if different
+    if (req.body?.email && req.body.email.includes('@') && order?.id && order.customerEmail !== req.body.email) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { customerEmail: req.body.email.trim().toLowerCase() },
+      }).catch(() => {});
+    }
 
-    if (!emailResult.success) {
-      return res.status(500).json({ error: emailResult.error || 'Failed to dispatch email' });
+    const isReadyStatus = order?.status === 'Ready' || order?.status === 'READY_FOR_PICKUP';
+    let lastResult = null;
+    const sentTo = [];
+
+    for (const targetEmail of emailsToSend) {
+      const emailResult = await sendOrderOtpEmail({
+        toEmail: targetEmail,
+        otp,
+        orderId: cleanId || order?.id || rawId,
+        customerName: customerName || 'Valued Customer',
+        garmentName: garmentName || 'Alteration Service',
+        serviceName: serviceName || 'Standard Hemming',
+        storeName: storeName || 'Partner Atelier',
+        storeAddress,
+        storePhone,
+        isPickup: isReadyStatus,
+        force: true,
+      });
+
+      if (emailResult.success) {
+        sentTo.push(targetEmail);
+        lastResult = emailResult;
+      } else {
+        console.warn(`[Send OTP Email] Dispatch to ${targetEmail} failed:`, emailResult.error || emailResult.reason);
+      }
+    }
+
+    if (sentTo.length === 0) {
+      return res.status(500).json({ error: lastResult?.error || 'Failed to dispatch OTP email' });
     }
 
     return res.json({
       success: true,
-      message: `Order confirmation PIN sent to ${targetEmail}`,
-      email: targetEmail,
+      message: `Order confirmation PIN sent to ${sentTo.join(', ')}`,
+      email: sentTo.join(', '),
       otp,
-      id: emailResult.id,
+      id: lastResult?.id,
     });
   } catch (err) {
     console.error('Send order OTP email error:', err);
