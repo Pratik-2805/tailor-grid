@@ -1,5 +1,5 @@
-require('dotenv').config();
-const { Resend } = require('resend');
+require("dotenv").config();
+const { Resend } = require("resend");
 
 let resendClient = null;
 
@@ -10,7 +10,9 @@ function getResendClient() {
   if (resendClient) return resendClient;
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn('[EMAIL] RESEND_API_KEY is not defined in environment variables.');
+    console.warn(
+      "[EMAIL] RESEND_API_KEY is not defined in environment variables.",
+    );
     return null;
   }
   resendClient = new Resend(apiKey);
@@ -21,7 +23,9 @@ function getResendClient() {
  * Normalizes sender address from environment or fallback.
  */
 function getFromEmail() {
-  return process.env.DEFAULT_FROM_EMAIL || 'IGTF <no-reply@indoglobaltradefair.com>';
+  return (
+    process.env.DEFAULT_FROM_EMAIL || "IGTF <no-reply@indoglobaltradefair.com>"
+  );
 }
 
 /**
@@ -30,8 +34,10 @@ function getFromEmail() {
  * All boxes share identical clean styling.
  */
 function renderDigitBoxes(otpCode) {
-  const cleanCode = String(otpCode || '1234').trim().slice(0, 6);
-  const digits = cleanCode.split('');
+  const cleanCode = String(otpCode || "1234")
+    .trim()
+    .slice(0, 6);
+  const digits = cleanCode.split("");
 
   return digits
     .map((digit) => {
@@ -43,7 +49,7 @@ function renderDigitBoxes(otpCode) {
         </td>
       `;
     })
-    .join('');
+    .join("");
 }
 
 /**
@@ -56,12 +62,12 @@ function renderDigitBoxes(otpCode) {
  * - Important notice strip
  */
 function buildOtpEmailHtml({
-  greeting = '',
-  title = 'Here is your Order Confirmation PIN',
-  subtitle = 'Your garment alteration request has been scheduled. Please share the PIN below with your tailor to authenticate and confirm your order drop-off.',
-  otp = '1234',
+  greeting = "",
+  title = "Here is your Order Confirmation PIN",
+  subtitle = "Your garment alteration request has been scheduled. Please share the PIN below with your tailor to authenticate and confirm your order drop-off.",
+  otp = "1234",
   details = [],
-  importantNote = 'Give this PIN to the tailor for confirming the order upon drop-off, or when collecting your finished bespoke alteration.',
+  importantNote = "Give this PIN to the tailor for confirming the order upon drop-off, or when collecting your finished bespoke alteration.",
 }) {
   const digitBoxes = renderDigitBoxes(otp);
 
@@ -75,7 +81,7 @@ function buildOtpEmailHtml({
         </tr>
       `;
     })
-    .join('');
+    .join("");
 
   return `
 <!DOCTYPE html>
@@ -95,7 +101,9 @@ function buildOtpEmailHtml({
         <table role="presentation" width="100%" style="max-width: 480px; background-color: #FFFFFF; border-radius: 24px; box-shadow: 0 12px 36px rgba(0, 0, 0, 0.07); border: 1px solid #ECE5D8; padding: 32px 28px;">
           
           <!-- Greeting Header -->
-          ${greeting ? `
+          ${
+            greeting
+              ? `
           <tr>
             <td style="padding-bottom: 6px;">
               <span style="font-size: 11px; font-weight: 800; color: #8C9099; text-transform: uppercase; letter-spacing: 1px; display: block;">
@@ -103,7 +111,9 @@ function buildOtpEmailHtml({
               </span>
             </td>
           </tr>
-          ` : ''}
+          `
+              : ""
+          }
 
           <!-- Title -->
           <tr>
@@ -135,7 +145,9 @@ function buildOtpEmailHtml({
           </tr>
 
           <!-- Short Details Card -->
-          ${detailsRows ? `
+          ${
+            detailsRows
+              ? `
           <tr>
             <td style="padding-bottom: 18px;">
               <table role="presentation" width="100%" style="background-color: #F9FAFB; border-radius: 14px; border: 1px solid #E5E7EB; padding: 12px 16px;">
@@ -143,10 +155,14 @@ function buildOtpEmailHtml({
               </table>
             </td>
           </tr>
-          ` : ''}
+          `
+              : ""
+          }
 
           <!-- Important Note Strip -->
-          ${importantNote ? `
+          ${
+            importantNote
+              ? `
           <tr>
             <td style="padding-bottom: 14px;">
               <table role="presentation" width="100%" style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; border-radius: 6px; padding: 10px 14px;">
@@ -158,7 +174,9 @@ function buildOtpEmailHtml({
               </table>
             </td>
           </tr>
-          ` : ''}
+          `
+              : ""
+          }
 
           <!-- Discreet Footer -->
           <tr>
@@ -192,37 +210,47 @@ async function sendOrderOtpEmail({
   toEmail,
   otp,
   orderId,
-  customerName = 'Valued Customer',
-  garmentName = 'Garment Alteration',
-  serviceName = 'Standard Hemming',
-  storeName = 'Partner Atelier',
-  storeAddress = '',
-  storePhone = '',
+  customerName = "Valued Customer",
+  garmentName = "Garment Alteration",
+  serviceName = "Standard Hemming",
+  storeName = "Partner Atelier",
+  storeAddress = "",
+  storePhone = "",
   isPickup = false,
   force = false,
 }) {
   if (!orderId) {
-    return { success: false, reason: 'Missing orderId' };
+    return { success: false, reason: "Missing orderId" };
   }
 
-  const emailStage = isPickup ? 'pickup' : 'dropoff';
+  const emailStage = isPickup ? "pickup" : "dropoff";
   const dedupKey = `${orderId}:${emailStage}`;
 
   // Strict deduplication: Each order receives at most 1 drop-off email and 1 pickup email
   if (!force && sentOrderEmailTracker.has(dedupKey)) {
-    console.log(`[EMAIL DEDUPLICATION] Skipped redundant ${emailStage} email for order #${orderId} (already delivered).`);
-    return { success: true, deduplicated: true, message: `Already delivered ${emailStage} email` };
+    console.log(
+      `[EMAIL DEDUPLICATION] Skipped redundant ${emailStage} email for order #${orderId} (already delivered).`,
+    );
+    return {
+      success: true,
+      deduplicated: true,
+      message: `Already delivered ${emailStage} email`,
+    };
   }
 
-  if (!toEmail || !toEmail.includes('@')) {
-    console.warn(`[EMAIL] Skipped sending Order OTP: Invalid or missing email address (${toEmail})`);
-    return { success: false, reason: 'Invalid email address' };
+  if (!toEmail || !toEmail.includes("@")) {
+    console.warn(
+      `[EMAIL] Skipped sending Order OTP: Invalid or missing email address (${toEmail})`,
+    );
+    return { success: false, reason: "Invalid email address" };
   }
 
   const client = getResendClient();
   if (!client) {
-    console.warn(`[EMAIL] Resend client not configured. Order PIN for ${orderId}: ${otp}`);
-    return { success: false, reason: 'RESEND_API_KEY missing' };
+    console.warn(
+      `[EMAIL] Resend client not configured. Order PIN for ${orderId}: ${otp}`,
+    );
+    return { success: false, reason: "RESEND_API_KEY missing" };
   }
 
   const subject = isPickup
@@ -230,28 +258,31 @@ async function sendOrderOtpEmail({
     : `Your Darzi Order #${orderId} Drop-Off PIN: ${otp}`;
 
   const title = isPickup
-    ? 'Your Garment is Ready for Pickup!'
-    : 'Here is your Order Drop-Off PIN';
+    ? "Your Garment is Ready for Pickup!"
+    : "Here is your Order Drop-Off PIN";
 
   const subtitle = isPickup
     ? `Your bespoke alteration is complete and ready on the rack at ${storeName}. Please share the PIN below with your tailor to collect your garment.`
     : `Your garment alteration request has been scheduled with ${storeName}. Please share the PIN below with your tailor to authenticate and confirm your order drop-off.`;
 
   const importantNote = isPickup
-    ? 'Give this PIN to the tailor for collecting your completed garment.'
-    : 'Give this PIN to the tailor for confirming your garment drop-off.';
+    ? "Give this PIN to the tailor for collecting your completed garment."
+    : "Give this PIN to the tailor for confirming your garment drop-off.";
 
   const details = [
-    { label: 'Order ID', value: `#${orderId}` },
-    { label: 'Garment Type', value: garmentName },
-    { label: 'Alteration Service', value: serviceName },
-    { label: 'Partner Studio', value: storeName },
-    storeAddress ? { label: 'Studio Address', value: storeAddress } : null,
-    storePhone ? { label: 'Studio Phone', value: storePhone } : null,
+    { label: "Order ID", value: `#${orderId}` },
+    { label: "Garment Type", value: garmentName },
+    { label: "Alteration Service", value: serviceName },
+    { label: "Partner Studio", value: storeName },
+    storeAddress ? { label: "Studio Address", value: storeAddress } : null,
+    storePhone ? { label: "Studio Phone", value: storePhone } : null,
   ].filter(Boolean);
 
   const html = buildOtpEmailHtml({
-    greeting: customerName && customerName !== 'Valued Customer' ? `HELLO ${customerName.toUpperCase()},` : 'HELLO,',
+    greeting:
+      customerName && customerName !== "Valued Customer"
+        ? `HELLO ${customerName.toUpperCase()},`
+        : "HELLO,",
     title,
     subtitle,
     otp,
@@ -261,7 +292,7 @@ async function sendOrderOtpEmail({
 
   const text = `
 Darzi - On-Demand Alterations
-${isPickup ? 'YOUR ORDER IS READY FOR PICKUP!' : `ORDER #${orderId} CONFIRMATION PIN`}
+${isPickup ? "YOUR ORDER IS READY FOR PICKUP!" : `ORDER #${orderId} CONFIRMATION PIN`}
 
 Hello ${customerName},
 
@@ -274,7 +305,7 @@ Order Details:
 - Garment Type: ${garmentName}
 - Alteration Service: ${serviceName}
 - Partner Studio: ${storeName}
-${storeAddress ? `- Address: ${storeAddress}\n` : ''}${storePhone ? `- Phone: ${storePhone}\n` : ''}
+${storeAddress ? `- Address: ${storeAddress}\n` : ""}${storePhone ? `- Phone: ${storePhone}\n` : ""}
 
 ${importantNote}
   `.trim();
@@ -290,15 +321,23 @@ ${importantNote}
     });
 
     if (result.error) {
-      console.error(`[EMAIL ERROR] Resend rejected order OTP email to ${toEmail}:`, result.error);
+      console.error(
+        `[EMAIL ERROR] Resend rejected order OTP email to ${toEmail}:`,
+        result.error,
+      );
       return { success: false, error: result.error };
     }
 
     sentOrderEmailTracker.add(dedupKey);
-    console.log(`[EMAIL] Order OTP email sent successfully to ${toEmail} for #${orderId} (Resend ID: ${result.data?.id})`);
+    console.log(
+      `[EMAIL] Order OTP email sent successfully to ${toEmail} for #${orderId} (Resend ID: ${result.data?.id})`,
+    );
     return { success: true, id: result.data?.id };
   } catch (err) {
-    console.error(`[EMAIL ERROR] Failed to send order OTP email to ${toEmail}:`, err.message || err);
+    console.error(
+      `[EMAIL ERROR] Failed to send order OTP email to ${toEmail}:`,
+      err.message || err,
+    );
     return { success: false, error: err.message };
   }
 }
@@ -306,30 +345,32 @@ ${importantNote}
 /**
  * Sends an Authentication Verification Code OTP email.
  */
-async function sendAuthOtpEmail({ toEmail, otp, customerName = 'Darzi User' }) {
-  if (!toEmail || !toEmail.includes('@')) {
-    return { success: false, reason: 'Invalid email address' };
+async function sendAuthOtpEmail({ toEmail, otp, customerName = "Darzi User" }) {
+  if (!toEmail || !toEmail.includes("@")) {
+    return { success: false, reason: "Invalid email address" };
   }
 
   const client = getResendClient();
   if (!client) {
-    return { success: false, reason: 'RESEND_API_KEY missing' };
+    return { success: false, reason: "RESEND_API_KEY missing" };
   }
 
   const subject = `Your Darzi Verification Code: ${otp}`;
 
   const details = [
-    { label: 'Purpose', value: 'Account Sign-In Verification' },
-    { label: 'Valid For', value: '10 Minutes' },
+    { label: "Purpose", value: "Account Sign-In Verification" },
+    { label: "Valid For", value: "10 Minutes" },
   ];
 
   const html = buildOtpEmailHtml({
-    greeting: customerName ? `HELLO ${customerName.toUpperCase()},` : 'HELLO,',
-    title: 'Verify Your Email Address',
-    subtitle: 'Please use the 4-digit verification code below to complete your sign-in to Darzi.',
+    greeting: customerName ? `HELLO ${customerName.toUpperCase()},` : "HELLO,",
+    title: "Verify Your Email Address",
+    subtitle:
+      "Please use the 4-digit verification code below to complete your sign-in to Darzi.",
     otp,
     details,
-    importantNote: 'This code is valid for 10 minutes. Do not share this code with anyone.',
+    importantNote:
+      "This code is valid for 10 minutes. Do not share this code with anyone.",
   });
 
   const text = `Your Darzi verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
@@ -345,14 +386,22 @@ async function sendAuthOtpEmail({ toEmail, otp, customerName = 'Darzi User' }) {
     });
 
     if (result.error) {
-      console.error(`[EMAIL ERROR] Resend rejected auth OTP email to ${toEmail}:`, result.error);
+      console.error(
+        `[EMAIL ERROR] Resend rejected auth OTP email to ${toEmail}:`,
+        result.error,
+      );
       return { success: false, error: result.error };
     }
 
-    console.log(`[EMAIL] Auth OTP email dispatched to ${toEmail} (Resend ID: ${result.data?.id})`);
+    console.log(
+      `[EMAIL] Auth OTP email dispatched to ${toEmail} (Resend ID: ${result.data?.id})`,
+    );
     return { success: true, id: result.data?.id };
   } catch (err) {
-    console.error(`[EMAIL ERROR] Failed to send auth OTP email to ${toEmail}:`, err.message || err);
+    console.error(
+      `[EMAIL ERROR] Failed to send auth OTP email to ${toEmail}:`,
+      err.message || err,
+    );
     return { success: false, error: err.message };
   }
 }
@@ -371,32 +420,41 @@ async function sendAuthOtpEmail({ toEmail, otp, customerName = 'Darzi User' }) {
  * - Centered muted grey logo and copyright footer below card
  */
 function buildWelcomeEmailHtml({
-  name = 'Valued Member',
-  email = 'member@darzi.com',
-  role = 'CUSTOMER', // 'CUSTOMER' | 'STUDIO'
-  studioName = '',
-  phone = '',
-  portalUrl = '',
-  loginUrl = '',
+  name = "Valued Member",
+  email = "member@darzi.com",
+  role = "CUSTOMER", // 'CUSTOMER' | 'STUDIO'
+  studioName = "",
+  phone = "",
+  portalUrl = "",
+  loginUrl = "",
 }) {
-  const isStudio = role === 'STUDIO' || role === 'TEMP_STUDIO';
-  const defaultCustomerUrl = process.env.CUSTOMER_SITE_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
-  const defaultStudioUrl = process.env.STUDIO_SITE_URL || process.env.STUDIO_URL || 'http://localhost:3001';
+  const isStudio = role === "STUDIO" || role === "TEMP_STUDIO";
+  const defaultCustomerUrl =
+    process.env.CUSTOMER_SITE_URL ||
+    process.env.FRONTEND_URL ||
+    "http://localhost:3000";
+  const defaultStudioUrl =
+    process.env.STUDIO_SITE_URL ||
+    process.env.STUDIO_URL ||
+    "http://localhost:3001";
 
-  const effectivePortalUrl = portalUrl || (isStudio ? defaultStudioUrl : defaultCustomerUrl);
+  const effectivePortalUrl =
+    portalUrl || (isStudio ? defaultStudioUrl : defaultCustomerUrl);
   const effectiveLoginUrl = loginUrl || effectivePortalUrl;
 
-  const contactUrl = `${effectivePortalUrl.replace(/\/$/, '')}/contact`;
-  const buttonText = isStudio ? 'Head to your Darzi Studio' : 'Head to your Darzi';
-  const teamText = isStudio ? 'Team Darzi Studio' : 'Team Darzi';
+  const contactUrl = `${effectivePortalUrl.replace(/\/$/, "")}/contact`;
+  const buttonText = isStudio
+    ? "Head to your Darzi Studio"
+    : "Head to your Darzi";
+  const teamText = isStudio ? "Team Darzi Studio" : "Team Darzi";
 
   const paragraph1 = isStudio
-    ? 'Woo! Your studio is active - your atelier is now onboarded with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you grow your bespoke alteration business too.'
-    : 'Woo! Your account is active - you have full access with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you get the most out of your bespoke garment alterations too.';
+    ? "Woo! Your studio is active - your atelier is now onboarded with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you grow your bespoke alteration business too."
+    : "Woo! Your account is active - you have full access with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you get the most out of your bespoke garment alterations too.";
 
   const paragraph2 = isStudio
-    ? 'Reach out at any time with questions! Right now, head into the workbench, set up your tailor machines and view your incoming orders. We will be happy to help with the rest.'
-    : 'Reach out at any time with questions! Right now, head into the app, explore nearby partner studios and place your first alteration order. We will be happy to help with the rest.';
+    ? "Reach out at any time with questions! Right now, head into the workbench, set up your tailor machines and view your incoming orders. We will be happy to help with the rest."
+    : "Reach out at any time with questions! Right now, head into the app, explore nearby partner studios and place your first alteration order. We will be happy to help with the rest.";
 
   return `
 <!DOCTYPE html>
@@ -404,7 +462,7 @@ function buildWelcomeEmailHtml({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome!</title>
+  <title>Welcome to Darzi</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@700&display=swap');
   </style>
@@ -420,20 +478,11 @@ function buildWelcomeEmailHtml({
           
           <!-- Top Dark Navy/Slate Header Section (#373C52) -->
           <tr>
-            <td align="center" style="background-color: #373C52; padding: 44px 24px 36px 24px; text-align: center;">
+            <td align="center" style="background-color: #373C52; padding: 22px 20px; text-align: center;">
               
-              <!-- Coral/Salmon Handshake Image Circle (#F05B48) -->
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 18px auto;">
-                <tr>
-                  <td align="center" valign="middle" style="width: 104px; height: 104px; text-align: center;">
-                    <img src="cid:welcome-handshake-badge" width="104" height="104" alt="Welcome Handshake" style="display: block; width: 104px; height: 104px; margin: 0 auto; border-radius: 50%; border: 0; outline: none; text-decoration: none;" />
-                  </td>
-                </tr>
-              </table>
-
-              <!-- "Welcome!" Script / Cursive Title -->
-              <h1 style="margin: 0; padding: 0; font-family: 'Dancing Script', 'Caveat', 'Brush Script MT', 'Snell Roundhand', 'Segoe Script', cursive; font-size: 42px; font-weight: 500; font-style: italic; color: #FFFFFF; letter-spacing: 0.5px; line-height: 1.1;">
-                Welcome!
+              <!-- "Welcome to Darzi" Title -->
+              <h1 style="margin: 0; padding: 0; font-family: 'Dancing Script', 'Caveat', 'Brush Script MT', 'Snell Roundhand', 'Segoe Script', cursive; font-size: 34px; font-weight: 600; font-style: italic; color: #FFFFFF; letter-spacing: 0.5px; line-height: 1.2;">
+                Welcome to Darzi
               </h1>
 
             </td>
@@ -527,39 +576,10 @@ function buildWelcomeEmailHtml({
   `.trim();
 }
 
-const fs = require('fs');
-const path = require('path');
-
-const WELCOME_CACHE_FILE = path.join(__dirname, '..', 'data', 'sent_welcome_emails.json');
-
-function loadSentWelcomeTracker() {
-  try {
-    if (fs.existsSync(WELCOME_CACHE_FILE)) {
-      const data = JSON.parse(fs.readFileSync(WELCOME_CACHE_FILE, 'utf8'));
-      if (Array.isArray(data)) {
-        return new Set(data);
-      }
-    }
-  } catch (err) {
-    console.warn('[WELCOME EMAIL] Cache read notice:', err.message);
-  }
-  return new Set();
-}
-
-function saveSentWelcomeTracker(tracker) {
-  try {
-    const dir = path.dirname(WELCOME_CACHE_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(WELCOME_CACHE_FILE, JSON.stringify(Array.from(tracker), null, 2), 'utf8');
-  } catch (err) {
-    console.warn('[WELCOME EMAIL] Cache save notice:', err.message);
-  }
-}
-
-// Track sent welcome emails to ensure users and studios receive at most one welcome email
-const sentWelcomeEmailTracker = loadSentWelcomeTracker();
+// In-memory cooldown store to prevent rapid duplicate sends during a single signup flow
+// Cooldown duration: 2 minutes (120,000ms)
+const WELCOME_EMAIL_COOLDOWN_MS = 2 * 60 * 1000;
+const welcomeEmailCooldownMap = new Map();
 
 /**
  * Sends a Welcome email to a newly onboarded user or partner studio.
@@ -568,40 +588,67 @@ const sentWelcomeEmailTracker = loadSentWelcomeTracker();
 async function sendWelcomeEmail({
   toEmail,
   name,
-  role = 'CUSTOMER',
-  studioName = '',
-  phone = '',
-  portalUrl = '',
-  loginUrl = '',
+  role = "CUSTOMER",
+  studioName = "",
+  phone = "",
+  portalUrl = "",
+  loginUrl = "",
   force = false,
 }) {
-  if (!toEmail || !toEmail.includes('@') || toEmail.includes('example.com')) {
-    console.warn(`[WELCOME EMAIL] Skipped: Invalid or missing email address (${toEmail})`);
-    return { success: false, reason: 'Invalid or missing email address' };
+  if (!toEmail || !toEmail.includes("@") || toEmail.includes("example.com")) {
+    console.warn(
+      `[WELCOME EMAIL] Skipped: Invalid or missing email address (${toEmail})`,
+    );
+    return { success: false, reason: "Invalid or missing email address" };
   }
 
   const cleanEmail = toEmail.trim().toLowerCase();
-  const isStudio = role === 'STUDIO' || role === 'TEMP_STUDIO';
-  const dedupKey = `welcome:${cleanEmail}:${isStudio ? 'studio' : 'customer'}`;
+  const isStudio = role === "STUDIO" || role === "TEMP_STUDIO";
+  const dedupKey = `welcome:${cleanEmail}:${isStudio ? "studio" : "customer"}`;
 
-  // Deduplication check
-  if (!force && sentWelcomeEmailTracker.has(dedupKey)) {
-    console.log(`[WELCOME EMAIL DEDUPLICATION] Welcome email already dispatched to ${cleanEmail} as ${role}. Skipping.`);
-    return { success: true, deduplicated: true, message: 'Welcome email already delivered' };
+  const now = Date.now();
+  const lastSentTime = welcomeEmailCooldownMap.get(dedupKey);
+
+  // Debounce check: prevent duplicate dispatches within 2 minutes (e.g., rapid auth steps)
+  if (
+    !force &&
+    lastSentTime &&
+    now - lastSentTime < WELCOME_EMAIL_COOLDOWN_MS
+  ) {
+    const remainingSec = Math.ceil(
+      (WELCOME_EMAIL_COOLDOWN_MS - (now - lastSentTime)) / 1000,
+    );
+    console.log(
+      `[WELCOME EMAIL COOLDOWN] Welcome email recently dispatched to ${cleanEmail} as ${role} (${remainingSec}s cooldown remaining). Skipping duplicate.`,
+    );
+    return {
+      success: true,
+      deduplicated: true,
+      message: `Welcome email recently delivered. Cooldown active for ${remainingSec}s.`,
+    };
   }
 
   const client = getResendClient();
   if (!client) {
-    console.warn(`[WELCOME EMAIL] Resend client not configured. Welcome email simulated for ${cleanEmail}.`);
-    return { success: false, reason: 'RESEND_API_KEY missing' };
+    console.warn(
+      `[WELCOME EMAIL] Resend client not configured. Welcome email simulated for ${cleanEmail}.`,
+    );
+    return { success: false, reason: "RESEND_API_KEY missing" };
   }
 
-  const subject = 'Welcome!';
+  const subject = "Welcome!";
 
-  const defaultCustomerUrl = process.env.CUSTOMER_SITE_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
-  const defaultStudioUrl = process.env.STUDIO_SITE_URL || process.env.STUDIO_URL || 'http://localhost:3001';
-  const effectivePortalUrl = portalUrl || (isStudio ? defaultStudioUrl : defaultCustomerUrl);
-  const contactUrl = `${effectivePortalUrl.replace(/\/$/, '')}/contact`;
+  const defaultCustomerUrl =
+    process.env.CUSTOMER_SITE_URL ||
+    process.env.FRONTEND_URL ||
+    "http://localhost:3000";
+  const defaultStudioUrl =
+    process.env.STUDIO_SITE_URL ||
+    process.env.STUDIO_URL ||
+    "http://localhost:3001";
+  const effectivePortalUrl =
+    portalUrl || (isStudio ? defaultStudioUrl : defaultCustomerUrl);
+  const contactUrl = `${effectivePortalUrl.replace(/\/$/, "")}/contact`;
 
   const html = buildWelcomeEmailHtml({
     name,
@@ -616,19 +663,23 @@ async function sendWelcomeEmail({
   const plainText = `
 Welcome!
 
-${isStudio
-  ? 'Woo! Your studio is active - your atelier is now onboarded with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you grow your bespoke alteration business too.'
-  : 'Woo! Your account is active - you have full access with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you get the most out of your bespoke garment alterations too.'}
+${
+  isStudio
+    ? "Woo! Your studio is active - your atelier is now onboarded with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you grow your bespoke alteration business too."
+    : "Woo! Your account is active - you have full access with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you get the most out of your bespoke garment alterations too."
+}
 
-${isStudio
-  ? 'Reach out at any time with questions! Right now, head into the workbench, set up your tailor machines and view your incoming orders. We will be happy to help with the rest.'
-  : 'Reach out at any time with questions! Right now, head into the app, explore nearby partner studios and place your first alteration order. We will be happy to help with the rest.'}
+${
+  isStudio
+    ? "Reach out at any time with questions! Right now, head into the workbench, set up your tailor machines and view your incoming orders. We will be happy to help with the rest."
+    : "Reach out at any time with questions! Right now, head into the app, explore nearby partner studios and place your first alteration order. We will be happy to help with the rest."
+}
 
 By the way,
 
-${isStudio ? 'Head to your Darzi Studio' : 'Head to your Darzi'}: ${loginUrl || portalUrl || 'https://darzi.com'}
+${isStudio ? "Head to your Darzi Studio" : "Head to your Darzi"}: ${loginUrl || portalUrl || "https://darzi.com"}
 
-${isStudio ? 'Team Darzi Studio' : 'Team Darzi'}
+${isStudio ? "Team Darzi Studio" : "Team Darzi"}
 
 Have questions or need assistance? Visit our Contact Page: ${contactUrl}
 
@@ -636,16 +687,6 @@ Have questions or need assistance? Visit our Contact Page: ${contactUrl}
   `.trim();
 
   // Prepare CID attachment for welcome handshake image
-  const handshakeImagePath = path.join(__dirname, '..', 'assets', 'welcome-handshake.jpg');
-  const attachments = [];
-  if (fs.existsSync(handshakeImagePath)) {
-    attachments.push({
-      filename: 'welcome-handshake.jpg',
-      content: fs.readFileSync(handshakeImagePath),
-      cid: 'welcome-handshake-badge',
-    });
-  }
-
   try {
     const fromAddress = getFromEmail();
     const result = await client.emails.send({
@@ -654,20 +695,26 @@ Have questions or need assistance? Visit our Contact Page: ${contactUrl}
       subject,
       html,
       text: plainText,
-      ...(attachments.length > 0 ? { attachments } : {}),
     });
 
     if (result.error) {
-      console.error(`[WELCOME EMAIL ERROR] Resend rejected welcome email to ${cleanEmail}:`, result.error);
+      console.error(
+        `[WELCOME EMAIL ERROR] Resend rejected welcome email to ${cleanEmail}:`,
+        result.error,
+      );
       return { success: false, error: result.error };
     }
 
-    sentWelcomeEmailTracker.add(dedupKey);
-    saveSentWelcomeTracker(sentWelcomeEmailTracker);
-    console.log(`[WELCOME EMAIL] Successfully delivered welcome email to ${cleanEmail} (${role}) via Resend (ID: ${result.data?.id})`);
+    welcomeEmailCooldownMap.set(dedupKey, Date.now());
+    console.log(
+      `[WELCOME EMAIL] Successfully delivered welcome email to ${cleanEmail} (${role}) via Resend (ID: ${result.data?.id})`,
+    );
     return { success: true, id: result.data?.id };
   } catch (err) {
-    console.error(`[WELCOME EMAIL ERROR] Failed to send welcome email to ${cleanEmail}:`, err.message || err);
+    console.error(
+      `[WELCOME EMAIL ERROR] Failed to send welcome email to ${cleanEmail}:`,
+      err.message || err,
+    );
     return { success: false, error: err.message };
   }
 }

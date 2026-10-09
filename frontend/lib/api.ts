@@ -626,9 +626,13 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
 
 export async function sendOrderPinEmail(orderId: string, email?: string): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/send-otp-email`, {
+    const cleanId = orderId ? encodeURIComponent(orderId.replace(/^#/, '').trim()) : ''
+    const res = await fetch(`${API_BASE}/orders/${cleanId}/send-otp-email`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(getAuthHeader() || {}),
+      },
       body: JSON.stringify({ email }),
     })
     return await res.json()

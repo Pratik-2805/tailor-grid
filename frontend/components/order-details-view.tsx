@@ -645,16 +645,17 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
 
   const handleSendPinEmail = async () => {
-    const oId = order?.id || slugId
-    if (!oId) return
+    const rawOId = order?.id || slugId
+    if (!rawOId) return
+    const cleanOId = String(rawOId).replace(/^#/, '').trim()
     setIsSendingPinEmail(true)
     try {
-      const targetEmail = order?.customerEmail || currentUser?.email
-      const res = await sendOrderPinEmail(oId, targetEmail)
+      const targetEmail = currentUser?.email || order?.customerEmail
+      const res = await sendOrderPinEmail(cleanOId, targetEmail)
       if (res.success) {
         toast.success(`PIN sent to ${res.email || targetEmail || 'your email'}!`, {
           position: 'top-center',
-          autoClose: 3000,
+          autoClose: 4000,
         })
       } else {
         toast.error(res.error || res.message || 'Failed to send PIN email', { position: 'top-center' })

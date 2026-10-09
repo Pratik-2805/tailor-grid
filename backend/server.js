@@ -78,13 +78,14 @@ app.use(
 
 // 3. Rate Limiting Protection (Anti-DoS / Brute Force)
 const isLoopbackIp = (req) => {
-  const ip = req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || '';
+  const ip =
+    req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || "";
   return (
-    ip === '127.0.0.1' ||
-    ip === '::1' ||
-    ip === '::ffff:127.0.0.1' ||
-    ip.endsWith('127.0.0.1') ||
-    ip === 'localhost'
+    ip === "127.0.0.1" ||
+    ip === "::1" ||
+    ip === "::ffff:127.0.0.1" ||
+    ip.endsWith("127.0.0.1") ||
+    ip === "localhost"
   );
 };
 
