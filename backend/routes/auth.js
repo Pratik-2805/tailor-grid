@@ -1,16 +1,21 @@
-const express = require('express');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { OAuth2Client } = require('google-auth-library');
-const { prisma } = require('../lib/prisma');
-const { validateAndFormatPhone, sendVerificationSms, saveOtp, verifyOtp } = require('../lib/sms');
-const { sendAuthOtpEmail, sendWelcomeEmail } = require('../lib/email');
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
+const { prisma } = require("../lib/prisma");
+const {
+  validateAndFormatPhone,
+  sendVerificationSms,
+  saveOtp,
+  verifyOtp,
+} = require("../lib/sms");
+const { sendAuthOtpEmail, sendWelcomeEmail } = require("../lib/email");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET || "Darzi_jwt_secret_key_2026";
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID ||
-  '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com';
+  "927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com";
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
@@ -27,7 +32,7 @@ function createAuthCode(user, token, roleOverride) {
   authCodeStore.set(code, {
     token,
     user,
-    role: roleOverride || user.role || 'CUSTOMER',
+    role: roleOverride || user.role || "CUSTOMER",
     expiresAt: Date.now() + 60 * 1000, // 60 seconds TTL (single-use)
   });
   return code;
@@ -49,7 +54,7 @@ async function cleanupExpiredTempStudioUsers() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const expiredUsers = await prisma.user.findMany({
       where: {
-        role: 'TEMP_STUDIO',
+        role: "TEMP_STUDIO",
         createdAt: { lt: cutoff },
       },
       select: { id: true, studioId: true },
@@ -60,19 +65,23 @@ async function cleanupExpiredTempStudioUsers() {
       const studioIds = expiredUsers.map((u) => u.studioId).filter(Boolean);
 
       if (studioIds.length > 0) {
-        await prisma.partnerStore.deleteMany({
-          where: { id: { in: studioIds } },
-        }).catch(() => { });
+        await prisma.partnerStore
+          .deleteMany({
+            where: { id: { in: studioIds } },
+          })
+          .catch(() => {});
       }
 
       const deleted = await prisma.user.deleteMany({
         where: { id: { in: userIds } },
       });
 
-      console.log(`[TEMP-STUDIO-CLEANUP] Cleared ${deleted.count} expired TEMP_STUDIO accounts (>24h old).`);
+      console.log(
+        `[TEMP-STUDIO-CLEANUP] Cleared ${deleted.count} expired TEMP_STUDIO accounts (>24h old).`,
+      );
     }
   } catch (err) {
-    console.warn('[TEMP-STUDIO-CLEANUP] Notice:', err.message);
+    console.warn("[TEMP-STUDIO-CLEANUP] Notice:", err.message);
   }
 }
 
@@ -82,29 +91,37 @@ setInterval(cleanupExpiredTempStudioUsers, 15 * 60 * 1000);
 
 // Helper to check if a TEMP_STUDIO user has exceeded 24 hours
 async function isUserExpiredTempStudio(user) {
-  if (!user || user.role !== 'TEMP_STUDIO') return false;
+  if (!user || user.role !== "TEMP_STUDIO") return false;
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
   if (new Date(user.createdAt) < cutoff) {
     try {
       if (user.studioId) {
-        await prisma.partnerStore.delete({ where: { id: user.studioId } }).catch(() => { });
+        await prisma.partnerStore
+          .delete({ where: { id: user.studioId } })
+          .catch(() => {});
       }
-      await prisma.user.delete({ where: { id: user.id } }).catch(() => { });
-      console.log(`[TEMP-STUDIO] Expired user ${user.id} (${user.email || user.phone}) cleared after 24h.`);
-    } catch (_) { }
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+      console.log(
+        `[TEMP-STUDIO] Expired user ${user.id} (${user.email || user.phone}) cleared after 24h.`,
+      );
+    } catch (_) {}
     return true;
   }
   return false;
 }
 
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'Darzi_jwt_refresh_secret_key_2026';
-const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
-const REFRESH_TOKEN_EXPIRY = '15d'; // 15 days
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || "Darzi_jwt_refresh_secret_key_2026";
+const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
+const REFRESH_TOKEN_EXPIRY = "15d"; // 15 days
 
 // Encrypted HMAC hash of refresh token for secure database storage
 function hashRefreshToken(token) {
   if (!token) return null;
-  return crypto.createHmac('sha256', JWT_REFRESH_SECRET).update(token).digest('hex');
+  return crypto
+    .createHmac("sha256", JWT_REFRESH_SECRET)
+    .update(token)
+    .digest("hex");
 }
 
 // Helper to generate access token (15 minutes)
@@ -115,13 +132,13 @@ function generateAccessToken(user) {
       email: user.email || null,
       phone: user.phone || null,
       name: user.name,
-      role: user.role || 'CUSTOMER',
-      status: user.status || 'ACTIVE',
+      role: user.role || "CUSTOMER",
+      status: user.status || "ACTIVE",
       studioId: user.studioId || null,
-      tokenType: 'access',
+      tokenType: "access",
     },
     JWT_SECRET,
-    { expiresIn: ACCESS_TOKEN_EXPIRY }
+    { expiresIn: ACCESS_TOKEN_EXPIRY },
   );
 }
 
@@ -130,14 +147,14 @@ function generateRefreshToken(user) {
   return jwt.sign(
     {
       id: user.id,
-      role: user.role || 'CUSTOMER',
-      status: user.status || 'ACTIVE',
+      role: user.role || "CUSTOMER",
+      status: user.status || "ACTIVE",
       studioId: user.studioId || null,
       studioName: user.studioName || null,
-      tokenType: 'refresh',
+      tokenType: "refresh",
     },
     JWT_REFRESH_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRY }
+    { expiresIn: REFRESH_TOKEN_EXPIRY },
   );
 }
 
@@ -147,14 +164,17 @@ async function generateTokens(user) {
   const refreshToken = generateRefreshToken(user);
   const hashedRt = hashRefreshToken(refreshToken);
 
-  if (user?.id && !String(user.id).startsWith('temp_g_')) {
+  if (user?.id && !String(user.id).startsWith("temp_g_")) {
     try {
       await prisma.user.update({
         where: { id: user.id },
         data: { refreshToken: hashedRt },
       });
     } catch (err) {
-      console.warn('[AUTH] Notice saving hashed refresh token in database:', err.message);
+      console.warn(
+        "[AUTH] Notice saving hashed refresh token in database:",
+        err.message,
+      );
     }
   }
 
@@ -172,31 +192,30 @@ function generateToken(user) {
 
 // Helper to set both access and refresh cookies scoped to shared parent domain (.luxenart.in)
 function setAuthCookies(res, tokens, req) {
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = process.env.NODE_ENV === "production";
   const atMaxAge = 15 * 60; // 15 minutes
   const rtMaxAge = 15 * 24 * 60 * 60; // 15 days
 
   // Use wildcard parent domain (.luxenart.in) in production so user and studio share one session
-  const cookieDomain = process.env.COOKIE_DOMAIN || (isProd ? '.luxenart.in' : undefined);
+  const cookieDomain =
+    process.env.COOKIE_DOMAIN || (isProd ? ".luxenart.in" : undefined);
 
   const cookieOptions = {
-    path: '/',
+    path: "/",
     maxAge: atMaxAge * 1000,
     httpOnly: false,
-    sameSite: 'lax',
+    sameSite: "lax",
     secure: isProd,
     ...(cookieDomain && { domain: cookieDomain }), // Scopes across .luxenart.in (both luxenart.in and studio.luxenart.in)
   };
 
-  res.cookie('tg_token', tokens.accessToken, cookieOptions);
+  res.cookie("tg_token", tokens.accessToken, cookieOptions);
 
-  res.cookie('tg_refresh_token', tokens.refreshToken, {
+  res.cookie("tg_refresh_token", tokens.refreshToken, {
     ...cookieOptions,
     maxAge: rtMaxAge * 1000,
   });
 }
-
-
 
 // Unified user resolution & creation helper directly in PostgreSQL
 async function findOrLinkUser({
@@ -206,8 +225,8 @@ async function findOrLinkUser({
   avatar,
   address,
   postcode,
-  method = 'email',
-  role = 'CUSTOMER',
+  method = "email",
+  role = "CUSTOMER",
   status,
   studioId,
   studioName,
@@ -219,7 +238,7 @@ async function findOrLinkUser({
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
   const normPhone = phone ? phone.trim() : null;
-  const contactStr = normEmail || normPhone || 'member@darzi.com';
+  const contactStr = normEmail || normPhone || "member@darzi.com";
 
   let user = null;
 
@@ -227,10 +246,7 @@ async function findOrLinkUser({
   if (normEmail) {
     user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { email: normEmail },
-          { contact: normEmail },
-        ],
+        OR: [{ email: normEmail }, { contact: normEmail }],
       },
     });
   }
@@ -239,30 +255,30 @@ async function findOrLinkUser({
   if (!user && normPhone) {
     user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { phone: normPhone },
-          { contact: normPhone },
-        ],
+        OR: [{ phone: normPhone }, { contact: normPhone }],
       },
     });
   }
 
   // Check if existing user is an expired TEMP_STUDIO account (>24h)
-  if (user && await isUserExpiredTempStudio(user)) {
+  if (user && (await isUserExpiredTempStudio(user))) {
     user = null;
   }
 
   // STRICT ROLE GATE: Reject any cross-role switching or reuse
   // Allow TEMP_STUDIO -> STUDIO progression
   const isStudioProgression =
-    (user?.role === 'TEMP_STUDIO' && (role === 'STUDIO' || role === 'TEMP_STUDIO')) ||
-    (user?.role === 'STUDIO' && (role === 'STUDIO' || role === 'TEMP_STUDIO'));
+    (user?.role === "TEMP_STUDIO" &&
+      (role === "STUDIO" || role === "TEMP_STUDIO")) ||
+    (user?.role === "STUDIO" && (role === "STUDIO" || role === "TEMP_STUDIO"));
 
   if (user && user.role && user.role !== role && !isStudioProgression) {
-    const currentRoleName = user.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
-    const requestedRoleName = role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+    const currentRoleName =
+      user.role === "CUSTOMER" ? "Customer" : "Studio partner";
+    const requestedRoleName =
+      role === "CUSTOMER" ? "Customer" : "Studio partner";
     const roleErr = new Error(
-      `This account is registered as a ${currentRoleName}. It cannot be switched or used as a ${requestedRoleName} account. Please use a different phone or email.`
+      `This account is registered as a ${currentRoleName}. It cannot be switched or used as a ${requestedRoleName} account. Please use a different phone or email.`,
     );
     roleErr.statusCode = 403;
     throw roleErr;
@@ -271,14 +287,17 @@ async function findOrLinkUser({
   // 3. If Studio role and creating a store
   let actualStudioId = studioId || user?.studioId;
   let resolvedStore = null;
-  const isStudioRole = role === 'STUDIO' || role === 'TEMP_STUDIO';
+  const isStudioRole = role === "STUDIO" || role === "TEMP_STUDIO";
   if (isStudioRole && (studioName || studioId || user?.studioId)) {
-    const actualStoreName = studioName || user?.studioName || `${name || 'Master'}'s Studio`;
+    const actualStoreName =
+      studioName || user?.studioName || `${name || "Master"}'s Studio`;
 
     try {
       let existingStore = null;
       if (actualStudioId) {
-        existingStore = await prisma.partnerStore.findUnique({ where: { id: actualStudioId } });
+        existingStore = await prisma.partnerStore.findUnique({
+          where: { id: actualStudioId },
+        });
       }
       if (!existingStore) {
         existingStore = await prisma.partnerStore.findFirst({
@@ -287,7 +306,7 @@ async function findOrLinkUser({
               ...(normEmail ? [{ email: normEmail }] : []),
               ...(normPhone ? [{ phone: normPhone }] : []),
               { name: actualStoreName },
-              { leadTailor: name || '' },
+              { leadTailor: name || "" },
             ],
           },
         });
@@ -297,20 +316,42 @@ async function findOrLinkUser({
       }
 
       if (!actualStudioId) {
-        const storeSlug = actualStoreName.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 30);
+        const storeSlug = actualStoreName
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "-")
+          .slice(0, 30);
         actualStudioId = `store-${storeSlug}-${Math.floor(100 + Math.random() * 900)}`;
       }
 
-      const parsedLat = typeof lat === 'number' && !isNaN(lat) ? lat : (lat ? parseFloat(lat) : 40.7259);
-      const parsedLng = typeof lng === 'number' && !isNaN(lng) ? lng : (lng ? parseFloat(lng) : -74.0003);
+      const parsedLat =
+        typeof lat === "number" && !isNaN(lat)
+          ? lat
+          : lat
+            ? parseFloat(lat)
+            : 40.7259;
+      const parsedLng =
+        typeof lng === "number" && !isNaN(lng)
+          ? lng
+          : lng
+            ? parseFloat(lng)
+            : -74.0003;
 
-      const resolvedSpecialties = (specialties && Array.isArray(specialties) && specialties.length > 0)
-        ? specialties
-        : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'];
+      const resolvedSpecialties =
+        specialties && Array.isArray(specialties) && specialties.length > 0
+          ? specialties
+          : ["Custom Alterations", "Precision Hemming", "Express Tailoring"];
 
-      const resolvedAddress = address ? address.trim() : (storeArea ? storeArea.trim() : 'Neighborhood Atelier');
-      const resolvedPostcode = postcode ? postcode.trim().toUpperCase() : '';
-      const resolvedArea = storeArea || (resolvedPostcode ? `Area ${resolvedPostcode}` : 'Neighborhood Atelier');
+      const resolvedAddress = address
+        ? address.trim()
+        : storeArea
+          ? storeArea.trim()
+          : "Neighborhood Atelier";
+      const resolvedPostcode = postcode ? postcode.trim().toUpperCase() : "";
+      const resolvedArea =
+        storeArea ||
+        (resolvedPostcode
+          ? `Area ${resolvedPostcode}`
+          : "Neighborhood Atelier");
 
       if (!existingStore) {
         resolvedStore = await prisma.partnerStore.create({
@@ -324,11 +365,11 @@ async function findOrLinkUser({
             postcode: resolvedPostcode,
             rating: 5.0,
             reviewCount: 1,
-            openingHours: 'Mon–Sat: 09:00 – 19:00',
+            openingHours: "Mon–Sat: 09:00 – 19:00",
             dailyCapacity: 25,
             machines: machines ? parseInt(machines) || 6 : 6,
             workers: 4,
-            leadTailor: name || 'Master Tailor',
+            leadTailor: name || "Master Tailor",
             specialties: resolvedSpecialties,
             retailSold: true,
             lat: parsedLat,
@@ -346,20 +387,30 @@ async function findOrLinkUser({
             ...(address ? { address: address.trim() } : {}),
             ...(postcode ? { postcode: postcode.trim().toUpperCase() } : {}),
             ...(storeArea ? { area: storeArea.trim() } : {}),
-            ...(machines ? { machines: parseInt(machines) || existingStore.machines } : {}),
-            ...(specialties && Array.isArray(specialties) && specialties.length > 0 ? { specialties } : {}),
-            ...(typeof lat === 'number' && !isNaN(lat) ? { lat: parsedLat } : {}),
-            ...(typeof lng === 'number' && !isNaN(lng) ? { lng: parsedLng } : {}),
+            ...(machines
+              ? { machines: parseInt(machines) || existingStore.machines }
+              : {}),
+            ...(specialties &&
+            Array.isArray(specialties) &&
+            specialties.length > 0
+              ? { specialties }
+              : {}),
+            ...(typeof lat === "number" && !isNaN(lat)
+              ? { lat: parsedLat }
+              : {}),
+            ...(typeof lng === "number" && !isNaN(lng)
+              ? { lng: parsedLng }
+              : {}),
           },
         });
       }
     } catch (storeErr) {
-      console.warn('Store creation notice:', storeErr.message);
+      console.warn("Store creation notice:", storeErr.message);
     }
   }
 
   // 4. Update existing user or create new user
-  const resolvedRole = role || user?.role || 'CUSTOMER';
+  const resolvedRole = role || user?.role || "CUSTOMER";
 
   if (user) {
     let updatedPhone = user.phone;
@@ -374,14 +425,16 @@ async function findOrLinkUser({
 
     const isStudioComplete = Boolean(
       (studioName || resolvedStore?.name || user.studioName) &&
-      (normPhone || updatedPhone || user.phone)
+      (normPhone || updatedPhone || user.phone),
     );
     let resolvedStatus = status;
     if (!resolvedStatus) {
-      if (resolvedRole === 'STUDIO') {
-        resolvedStatus = isStudioComplete ? 'ACTIVE' : (user.status || 'INACTIVE');
+      if (resolvedRole === "STUDIO") {
+        resolvedStatus = isStudioComplete
+          ? "ACTIVE"
+          : user.status || "INACTIVE";
       } else {
-        resolvedStatus = user.status || 'ACTIVE';
+        resolvedStatus = user.status || "ACTIVE";
       }
     }
 
@@ -391,25 +444,34 @@ async function findOrLinkUser({
       status: resolvedStatus,
       phone: updatedPhone,
       name:
-        name && name !== 'Master Tailor' && name !== 'Google User' && name !== 'Darzi Member' && name !== 'Mobile Member'
+        name &&
+        name !== "Master Tailor" &&
+        name !== "Google User" &&
+        name !== "Darzi Member" &&
+        name !== "Mobile Member"
           ? name
-          : user.name || name || 'Darzi Member',
+          : user.name || name || "Darzi Member",
       avatar:
-        user.avatar && !user.avatar.includes('dicebear')
+        user.avatar && !user.avatar.includes("dicebear")
           ? user.avatar
-          : avatar && !avatar.includes('dicebear')
+          : avatar && !avatar.includes("dicebear")
             ? avatar
             : user.avatar ||
-            avatar ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-              normEmail || normPhone || 'user'
-            )}`,
+              avatar ||
+              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                normEmail || normPhone || "user",
+              )}`,
       address: address || resolvedStore?.address || user.address || null,
       postcode: postcode || resolvedStore?.postcode || user.postcode || null,
-      contact: normEmail || normPhone || user.email || user.phone || user.contact,
-      role: role || user.role || 'CUSTOMER',
-      studioId: (role === 'CUSTOMER' ? null : (actualStudioId || user.studioId || null)),
-      studioName: (role === 'CUSTOMER' ? null : (studioName || resolvedStore?.name || user.studioName || null)),
+      contact:
+        normEmail || normPhone || user.email || user.phone || user.contact,
+      role: role || user.role || "CUSTOMER",
+      studioId:
+        role === "CUSTOMER" ? null : actualStudioId || user.studioId || null,
+      studioName:
+        role === "CUSTOMER"
+          ? null
+          : studioName || resolvedStore?.name || user.studioName || null,
     };
 
     user = await prisma.user.update({
@@ -424,15 +486,21 @@ async function findOrLinkUser({
       });
       if (phoneTaken) {
         if (phoneTaken.role && phoneTaken.role !== role) {
-          const roleName = phoneTaken.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
-          const roleErr = new Error(`This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`);
+          const roleName =
+            phoneTaken.role === "CUSTOMER" ? "Customer" : "Studio partner";
+          const roleErr = new Error(
+            `This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`,
+          );
           roleErr.statusCode = 403;
           throw roleErr;
         }
         if (!phoneTaken.role) {
           return await prisma.user.update({
             where: { id: phoneTaken.id },
-            data: { role, status: status || (role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE') },
+            data: {
+              role,
+              status: status || (role === "STUDIO" ? "INACTIVE" : "ACTIVE"),
+            },
           });
         }
         return phoneTaken;
@@ -444,15 +512,21 @@ async function findOrLinkUser({
       });
       if (emailTaken) {
         if (emailTaken.role && emailTaken.role !== role) {
-          const roleName = emailTaken.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
-          const roleErr = new Error(`This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email address.`);
+          const roleName =
+            emailTaken.role === "CUSTOMER" ? "Customer" : "Studio partner";
+          const roleErr = new Error(
+            `This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email address.`,
+          );
           roleErr.statusCode = 403;
           throw roleErr;
         }
         if (!emailTaken.role) {
           return await prisma.user.update({
             where: { id: emailTaken.id },
-            data: { role, status: status || (role === 'STUDIO' ? 'INACTIVE' : 'ACTIVE') },
+            data: {
+              role,
+              status: status || (role === "STUDIO" ? "INACTIVE" : "ACTIVE"),
+            },
           });
         }
         return emailTaken;
@@ -460,26 +534,44 @@ async function findOrLinkUser({
     }
 
     const isStudioComplete = Boolean(
-      (studioName || resolvedStore?.name) && normPhone
+      (studioName || resolvedStore?.name) && normPhone,
     );
-    const resolvedStatus = status || (resolvedRole === 'STUDIO' ? (isStudioComplete ? 'ACTIVE' : 'INACTIVE') : 'ACTIVE');
+    const resolvedStatus =
+      status ||
+      (resolvedRole === "STUDIO"
+        ? isStudioComplete
+          ? "ACTIVE"
+          : "INACTIVE"
+        : "ACTIVE");
 
     const newUserData = {
       id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       name:
         name ||
-        (normEmail ? 'Darzi User' : normPhone ? 'Mobile Member' : 'Darzi Member'),
+        (normEmail
+          ? "Darzi User"
+          : normPhone
+            ? "Mobile Member"
+            : "Darzi Member"),
       email: normEmail,
       phone: normPhone,
       contact: contactStr,
       avatar:
         avatar ||
         `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
-      address: address || (resolvedRole === 'STUDIO' ? (resolvedStore?.address || null) : null),
-      postcode: postcode || (resolvedRole === 'STUDIO' ? (resolvedStore?.postcode || null) : null),
+      address:
+        address ||
+        (resolvedRole === "STUDIO" ? resolvedStore?.address || null : null),
+      postcode:
+        postcode ||
+        (resolvedRole === "STUDIO" ? resolvedStore?.postcode || null : null),
       method:
         method ||
-        (normEmail ? (normEmail.includes('google') ? 'google' : 'email') : 'mobile'),
+        (normEmail
+          ? normEmail.includes("google")
+            ? "google"
+            : "email"
+          : "mobile"),
       role: resolvedRole,
       status: resolvedStatus,
       studioId: actualStudioId || null,
@@ -491,14 +583,23 @@ async function findOrLinkUser({
     });
 
     // Automatically send welcome email to newly created customer
-    if (user?.email && user.email.includes('@') && !user.email.includes('example.com')) {
-      if (user.role === 'CUSTOMER') {
+    if (
+      user?.email &&
+      user.email.includes("@") &&
+      !user.email.includes("example.com")
+    ) {
+      if (user.role === "CUSTOMER") {
         sendWelcomeEmail({
           toEmail: user.email,
           name: user.name,
-          role: 'CUSTOMER',
-          phone: user.phone || '',
-        }).catch((wErr) => console.warn('[WELCOME EMAIL] findOrLinkUser dispatch notice:', wErr.message));
+          role: "CUSTOMER",
+          phone: user.phone || "",
+        }).catch((wErr) =>
+          console.warn(
+            "[WELCOME EMAIL] findOrLinkUser dispatch notice:",
+            wErr.message,
+          ),
+        );
       }
     }
   }
@@ -511,7 +612,7 @@ const inFlightOtpRequests = new Map();
 const otpCooldownStore = new Map();
 
 // POST /api/auth/send-otp
-router.post('/send-otp', async (req, res) => {
+router.post("/send-otp", async (req, res) => {
   try {
     const { phone, forceResend = false } = req.body;
     const phoneValidation = validateAndFormatPhone(phone);
@@ -523,7 +624,9 @@ router.post('/send-otp', async (req, res) => {
 
     // 1. If another request for this phone is currently processing, wait for it instead of duplicating
     if (inFlightOtpRequests.has(cleanPhone)) {
-      console.log(`[AUTH-OTP] Deduplicating concurrent request for ${cleanPhone}`);
+      console.log(
+        `[AUTH-OTP] Deduplicating concurrent request for ${cleanPhone}`,
+      );
       const inFlightResult = await inFlightOtpRequests.get(cleanPhone);
       return res.json(inFlightResult);
     }
@@ -531,8 +634,10 @@ router.post('/send-otp', async (req, res) => {
     // 2. Cooldown check: if an OTP was sent within the last 30 seconds, reuse existing without spamming SMS
     const lastSentAt = otpCooldownStore.get(cleanPhone);
     const now = Date.now();
-    if (lastSentAt && (now - lastSentAt < 30000) && !forceResend) {
-      console.log(`[AUTH-OTP] Cooldown active for ${cleanPhone} (${Math.round((30000 - (now - lastSentAt)) / 1000)}s remaining)`);
+    if (lastSentAt && now - lastSentAt < 30000 && !forceResend) {
+      console.log(
+        `[AUTH-OTP] Cooldown active for ${cleanPhone} (${Math.round((30000 - (now - lastSentAt)) / 1000)}s remaining)`,
+      );
       return res.json({
         success: true,
         phone: cleanPhone,
@@ -558,7 +663,9 @@ router.post('/send-otp', async (req, res) => {
 
         // Persist OTP in PostgreSQL DB (and memory cache)
         await saveOtp(cleanPhone, code);
-        console.log(`[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`);
+        console.log(
+          `[AUTH-OTP] Generated & saved OTP code for ${cleanPhone}: ${code}`,
+        );
 
         // Send real SMS via AWS SNS
         const smsResult = await sendVerificationSms(cleanPhone, code);
@@ -566,15 +673,14 @@ router.post('/send-otp', async (req, res) => {
         // If email is passed or associated with this user, also dispatch OTP via Resend
         let emailSent = false;
         try {
-          let targetEmail = req.body.email ? String(req.body.email).trim().toLowerCase() : null;
-          let customerName = 'Darzi User';
+          let targetEmail = req.body.email
+            ? String(req.body.email).trim().toLowerCase()
+            : null;
+          let customerName = "Darzi User";
           if (!targetEmail) {
             const user = await prisma.user.findFirst({
               where: {
-                OR: [
-                  { phone: cleanPhone },
-                  { contact: cleanPhone },
-                ],
+                OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
               },
             });
             if (user?.email) {
@@ -582,15 +688,28 @@ router.post('/send-otp', async (req, res) => {
               if (user.name) customerName = user.name;
             }
           }
-          if (targetEmail && targetEmail.includes('@') && !targetEmail.includes('example.com')) {
-            const emailRes = await sendAuthOtpEmail({ toEmail: targetEmail, otp: code, customerName });
+          if (
+            targetEmail &&
+            targetEmail.includes("@") &&
+            !targetEmail.includes("example.com")
+          ) {
+            const emailRes = await sendAuthOtpEmail({
+              toEmail: targetEmail,
+              otp: code,
+              customerName,
+            });
             if (emailRes.success) {
               emailSent = true;
-              console.log(`[AUTH-OTP] Sent OTP code via Resend to ${targetEmail}`);
+              console.log(
+                `[AUTH-OTP] Sent OTP code via Resend to ${targetEmail}`,
+              );
             }
           }
         } catch (emailErr) {
-          console.warn('[AUTH-OTP] Non-blocking email dispatch warning:', emailErr.message);
+          console.warn(
+            "[AUTH-OTP] Non-blocking email dispatch warning:",
+            emailErr.message,
+          );
         }
 
         const responsePayload = {
@@ -598,7 +717,8 @@ router.post('/send-otp', async (req, res) => {
           phone: cleanPhone,
           message: emailSent
             ? `Verification code sent via SMS & Email to ${cleanPhone}`
-            : (smsResult.message || `Verification code sent via SMS to ${cleanPhone}`),
+            : smsResult.message ||
+              `Verification code sent via SMS to ${cleanPhone}`,
         };
         resolveDispatch(responsePayload);
       } catch (dispatchErr) {
@@ -613,25 +733,35 @@ router.post('/send-otp', async (req, res) => {
     const result = await dispatchPromise;
     return res.json(result);
   } catch (err) {
-    console.error('Send OTP Error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to send verification code.' });
+    console.error("Send OTP Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to send verification code." });
   }
 });
 
 // POST /api/auth/verify-otp
-router.post('/verify-otp', async (req, res) => {
+router.post("/verify-otp", async (req, res) => {
   try {
-    const { phone, otp, name, email, role = 'CUSTOMER', userId } = req.body;
-    console.log(`[AUTH-VERIFY] Request received: phone="${phone}", otp="${otp}", role="${role}", userId="${userId || ''}"`);
+    const { phone, otp, name, email, role = "CUSTOMER", userId } = req.body;
+    console.log(
+      `[AUTH-VERIFY] Request received: phone="${phone}", otp="${otp}", role="${role}", userId="${userId || ""}"`,
+    );
 
     if (!phone || !otp) {
-      console.warn(`[AUTH-VERIFY] Rejected: Missing phone or otp (phone="${phone}", otp="${otp}")`);
-      return res.status(400).json({ error: 'Mobile number and verification code are required.' });
+      console.warn(
+        `[AUTH-VERIFY] Rejected: Missing phone or otp (phone="${phone}", otp="${otp}")`,
+      );
+      return res
+        .status(400)
+        .json({ error: "Mobile number and verification code are required." });
     }
 
     const phoneValidation = validateAndFormatPhone(phone);
     if (!phoneValidation.isValid) {
-      console.warn(`[AUTH-VERIFY] Rejected: Invalid phone format: ${phoneValidation.error}`);
+      console.warn(
+        `[AUTH-VERIFY] Rejected: Invalid phone format: ${phoneValidation.error}`,
+      );
       return res.status(400).json({ error: phoneValidation.error });
     }
 
@@ -641,28 +771,40 @@ router.post('/verify-otp', async (req, res) => {
     const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
 
     if (!isValidOtp) {
-      console.warn(`[AUTH-VERIFY] Verification failed: Code "${cleanOtp}" invalid or expired for ${cleanPhone}`);
+      console.warn(
+        `[AUTH-VERIFY] Verification failed: Code "${cleanOtp}" invalid or expired for ${cleanPhone}`,
+      );
       return res
         .status(400)
-        .json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
+        .json({
+          error:
+            "Invalid or expired verification code. Please check your SMS and try again or click Resend.",
+        });
     }
 
-    console.log(`[AUTH-VERIFY] Code "${cleanOtp}" verified successfully for ${cleanPhone}!`);
+    console.log(
+      `[AUTH-VERIFY] Code "${cleanOtp}" verified successfully for ${cleanPhone}!`,
+    );
 
     let targetUserId = userId;
     const authHeader = req.headers.authorization;
-    if (!targetUserId && authHeader && authHeader.startsWith('Bearer ')) {
+    if (!targetUserId && authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
-        if (decoded.id && !String(decoded.id).startsWith('temp_g_')) {
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
+        if (decoded.id && !String(decoded.id).startsWith("temp_g_")) {
           targetUserId = decoded.id;
         } else if (decoded.email) {
           const u = await prisma.user.findFirst({
-            where: { OR: [{ email: decoded.email.toLowerCase() }, { contact: decoded.email.toLowerCase() }] },
+            where: {
+              OR: [
+                { email: decoded.email.toLowerCase() },
+                { contact: decoded.email.toLowerCase() },
+              ],
+            },
           });
           if (u) targetUserId = u.id;
         }
-      } catch (_) { }
+      } catch (_) {}
     }
 
     if (!targetUserId && email) {
@@ -681,7 +823,7 @@ router.post('/verify-otp', async (req, res) => {
       });
       if (phoneConflict) {
         return res.status(409).json({
-          error: 'This mobile number is already registered to another account.',
+          error: "This mobile number is already registered to another account.",
         });
       }
 
@@ -691,8 +833,12 @@ router.post('/verify-otp', async (req, res) => {
           where: { id: targetUserId },
           data: {
             phone: cleanPhone,
-            ...(email && !user.email ? { email: email.toLowerCase().trim() } : {}),
-            ...(role === 'STUDIO' || role === 'TEMP_STUDIO' ? { role: user.role === 'CUSTOMER' ? 'TEMP_STUDIO' : user.role } : {}),
+            ...(email && !user.email
+              ? { email: email.toLowerCase().trim() }
+              : {}),
+            ...(role === "STUDIO" || role === "TEMP_STUDIO"
+              ? { role: user.role === "CUSTOMER" ? "TEMP_STUDIO" : user.role }
+              : {}),
           },
         });
       }
@@ -709,35 +855,43 @@ router.post('/verify-otp', async (req, res) => {
           user = null;
         } else {
           user = existingUser;
-          if (existingUser.role === 'TEMP_STUDIO' || (existingUser.role === 'STUDIO' && (existingUser.status === 'INACTIVE' || !existingUser.studioName))) {
+          if (
+            existingUser.role === "TEMP_STUDIO" ||
+            (existingUser.role === "STUDIO" &&
+              (existingUser.status === "INACTIVE" || !existingUser.studioName))
+          ) {
             const tempTokens = await generateTokens(existingUser);
-            const tempAuthCode = createAuthCode(existingUser, tempTokens.accessToken);
+            const tempAuthCode = createAuthCode(
+              existingUser,
+              tempTokens.accessToken,
+            );
             setAuthCookies(res, tempTokens);
             return res.json({
               success: true,
               isNewUser: true,
               phone: cleanPhone,
               user: existingUser,
-              role: 'TEMP_STUDIO',
+              role: "TEMP_STUDIO",
               token: tempTokens.accessToken,
               accessToken: tempTokens.accessToken,
               refreshToken: tempTokens.refreshToken,
               authCode: tempAuthCode,
-              message: 'Mobile number verified. Please complete your studio registration.',
+              message:
+                "Mobile number verified. Please complete your studio registration.",
             });
           }
         }
       }
 
       if (!user) {
-        if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
+        if (role === "STUDIO" || role === "TEMP_STUDIO") {
           user = await findOrLinkUser({
             phone: cleanPhone,
             email,
             name,
-            method: 'mobile',
-            role: 'TEMP_STUDIO',
-            status: 'INACTIVE',
+            method: "mobile",
+            role: "TEMP_STUDIO",
+            status: "INACTIVE",
           });
 
           const tempTokens = await generateTokens(user);
@@ -748,26 +902,27 @@ router.post('/verify-otp', async (req, res) => {
             isNewUser: true,
             phone: cleanPhone,
             user,
-            role: 'TEMP_STUDIO',
+            role: "TEMP_STUDIO",
             token: tempTokens.accessToken,
             accessToken: tempTokens.accessToken,
             refreshToken: tempTokens.refreshToken,
             authCode: tempAuthCode,
-            message: 'Mobile number verified. Please complete your studio registration.',
+            message:
+              "Mobile number verified. Please complete your studio registration.",
           });
         }
         user = await findOrLinkUser({
           phone: cleanPhone,
           email,
           name,
-          method: 'mobile',
-          role: 'CUSTOMER',
+          method: "mobile",
+          role: "CUSTOMER",
         });
       }
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       returnUser = await enrichStudioUser(user);
     }
 
@@ -775,17 +930,19 @@ router.post('/verify-otp', async (req, res) => {
     const authCode = createAuthCode(returnUser, tokens.accessToken);
     setAuthCookies(res, tokens);
 
-    if (returnUser?.email && returnUser.role === 'CUSTOMER') {
+    if (returnUser?.email && returnUser.role === "CUSTOMER") {
       sendWelcomeEmail({
         toEmail: returnUser.email,
         name: returnUser.name,
-        role: 'CUSTOMER',
-        phone: returnUser.phone || '',
-      }).catch((wErr) => console.warn('[WELCOME EMAIL] verify-otp notice:', wErr.message));
+        role: "CUSTOMER",
+        phone: returnUser.phone || "",
+      }).catch((wErr) =>
+        console.warn("[WELCOME EMAIL] verify-otp notice:", wErr.message),
+      );
     }
     return res.json({
       success: true,
-      message: 'Mobile number verified and authenticated successfully',
+      message: "Mobile number verified and authenticated successfully",
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       token: tokens.accessToken,
@@ -795,30 +952,32 @@ router.post('/verify-otp', async (req, res) => {
       hasPhone: true,
     });
   } catch (err) {
-    console.error('Verify OTP Error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to verify code.' });
+    console.error("Verify OTP Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to verify code." });
   }
 });
 
 // POST /api/auth/link-phone
-router.post('/link-phone', async (req, res) => {
+router.post("/link-phone", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let userId = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const { phone, otp, id } = req.body;
     const targetUserId = userId || id;
     if (!targetUserId) {
-      return res.status(401).json({ error: 'Unauthorized: User ID required.' });
+      return res.status(401).json({ error: "Unauthorized: User ID required." });
     }
     if (!phone) {
-      return res.status(400).json({ error: 'Mobile number is required.' });
+      return res.status(400).json({ error: "Mobile number is required." });
     }
 
     const phoneValidation = validateAndFormatPhone(phone);
@@ -838,7 +997,8 @@ router.post('/link-phone', async (req, res) => {
 
     if (existingWithPhone) {
       return res.status(409).json({
-        error: 'This mobile number is already linked to another account. Please use a different number.',
+        error:
+          "This mobile number is already linked to another account. Please use a different number.",
       });
     }
 
@@ -846,11 +1006,16 @@ router.post('/link-phone', async (req, res) => {
       const cleanOtp = otp.trim();
       const isValid = await verifyOtp(cleanPhone, cleanOtp);
       if (!isValid) {
-        return res.status(400).json({ error: 'Invalid or expired verification code. Please check your SMS and try again or click Resend.' });
+        return res
+          .status(400)
+          .json({
+            error:
+              "Invalid or expired verification code. Please check your SMS and try again or click Resend.",
+          });
       }
     }
 
-    if (targetUserId && String(targetUserId).startsWith('temp_g_')) {
+    if (targetUserId && String(targetUserId).startsWith("temp_g_")) {
       const cached = getPendingGoogleSignup(targetUserId);
       if (cached) {
         const createdUser = await findOrLinkUser({
@@ -858,8 +1023,8 @@ router.post('/link-phone', async (req, res) => {
           email: cached.email,
           avatar: cached.avatar,
           phone: cleanPhone,
-          method: 'google',
-          role: cached.role || 'CUSTOMER',
+          method: "google",
+          role: cached.role || "CUSTOMER",
         });
 
         removePendingGoogleSignup(targetUserId);
@@ -869,7 +1034,7 @@ router.post('/link-phone', async (req, res) => {
         setAuthCookies(res, tokens);
         return res.json({
           success: true,
-          message: 'Mobile number linked and account created successfully',
+          message: "Mobile number linked and account created successfully",
           user: createdUser,
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
@@ -882,7 +1047,9 @@ router.post('/link-phone', async (req, res) => {
 
     let user = null;
     if (targetUserId) {
-      user = await prisma.user.findUnique({ where: { id: targetUserId } }).catch(() => null);
+      user = await prisma.user
+        .findUnique({ where: { id: targetUserId } })
+        .catch(() => null);
     }
 
     if (!user) {
@@ -901,7 +1068,7 @@ router.post('/link-phone', async (req, res) => {
     } else {
       user = await findOrLinkUser({
         phone: cleanPhone,
-        role: 'CUSTOMER',
+        role: "CUSTOMER",
       });
     }
 
@@ -909,17 +1076,19 @@ router.post('/link-phone', async (req, res) => {
     const authCode = createAuthCode(user, tokens.accessToken);
     setAuthCookies(res, tokens);
 
-    if (user?.email && user.role === 'CUSTOMER') {
+    if (user?.email && user.role === "CUSTOMER") {
       sendWelcomeEmail({
         toEmail: user.email,
         name: user.name,
-        role: 'CUSTOMER',
-        phone: user.phone || cleanPhone || '',
-      }).catch((wErr) => console.warn('[WELCOME EMAIL] link-phone notice:', wErr.message));
+        role: "CUSTOMER",
+        phone: user.phone || cleanPhone || "",
+      }).catch((wErr) =>
+        console.warn("[WELCOME EMAIL] link-phone notice:", wErr.message),
+      );
     }
     return res.json({
       success: true,
-      message: 'Mobile number linked successfully',
+      message: "Mobile number linked successfully",
       user,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -928,23 +1097,26 @@ router.post('/link-phone', async (req, res) => {
       hasPhone: true,
     });
   } catch (err) {
-    console.error('Link Phone Error:', err);
-    return res.status(500).json({ error: 'Failed to link mobile number.' });
+    console.error("Link Phone Error:", err);
+    return res.status(500).json({ error: "Failed to link mobile number." });
   }
 });
 
 // GET /api/auth/check-email
-router.get('/check-email', async (req, res) => {
+router.get("/check-email", async (req, res) => {
   try {
-    const { email, role = 'STUDIO' } = req.query;
+    const { email, role = "STUDIO" } = req.query;
     if (!email) return res.json({ exists: false });
 
     const cleanEmail = email.trim().toLowerCase();
-    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
 
     if (existingUser) {
       if (existingUser.role && existingUser.role !== role) {
-        const roleName = existingUser.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+        const roleName =
+          existingUser.role === "CUSTOMER" ? "Customer" : "Studio partner";
         return res.json({
           exists: true,
           user: existingUser,
@@ -954,7 +1126,8 @@ router.get('/check-email', async (req, res) => {
       return res.json({
         exists: true,
         user: existingUser,
-        error: 'An account with this email address is already registered. Please sign in instead.',
+        error:
+          "An account with this email address is already registered. Please sign in instead.",
       });
     }
 
@@ -965,9 +1138,9 @@ router.get('/check-email', async (req, res) => {
 });
 
 // GET /api/auth/check-phone
-router.get('/check-phone', async (req, res) => {
+router.get("/check-phone", async (req, res) => {
   try {
-    const { phone, role = 'CUSTOMER' } = req.query;
+    const { phone, role = "CUSTOMER" } = req.query;
     if (!phone) return res.json({ exists: false });
 
     const phoneValidation = validateAndFormatPhone(phone);
@@ -976,7 +1149,7 @@ router.get('/check-phone', async (req, res) => {
     }
 
     const cleanPhone = phoneValidation.formatted;
-    const rawDigits = phone.replace(/\D/g, '');
+    const rawDigits = phone.replace(/\D/g, "");
 
     // Search user by formatted phone, raw contact, or digits
     const existingUser = await prisma.user.findFirst({
@@ -986,7 +1159,12 @@ router.get('/check-phone', async (req, res) => {
           { contact: cleanPhone },
           { phone: phone.trim() },
           { contact: phone.trim() },
-          ...(rawDigits.length >= 10 ? [{ phone: { contains: rawDigits.slice(-10) } }, { contact: { contains: rawDigits.slice(-10) } }] : [])
+          ...(rawDigits.length >= 10
+            ? [
+                { phone: { contains: rawDigits.slice(-10) } },
+                { contact: { contains: rawDigits.slice(-10) } },
+              ]
+            : []),
         ],
       },
     });
@@ -996,7 +1174,7 @@ router.get('/check-phone', async (req, res) => {
         exists: true,
         user: existingUser,
         phone: cleanPhone,
-        role: existingUser.role || 'CUSTOMER',
+        role: existingUser.role || "CUSTOMER",
       });
     }
 
@@ -1009,14 +1187,17 @@ router.get('/check-phone', async (req, res) => {
 // In-memory cache for pending Google signups (as optional fallback)
 const pendingGoogleSignups = new Map();
 
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, item] of pendingGoogleSignups.entries()) {
-    if (item.expiresAt < now) {
-      pendingGoogleSignups.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, item] of pendingGoogleSignups.entries()) {
+      if (item.expiresAt < now) {
+        pendingGoogleSignups.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000,
+);
 
 function storePendingGoogleSignup(tempId, data, ttlMs = 60 * 60 * 1000) {
   pendingGoogleSignups.set(tempId, {
@@ -1038,17 +1219,22 @@ function getPendingGoogleSignup(tempId) {
   }
 
   // 2. Stateless JWT verification: allows surviving server restarts & multi-day onboarding
-  const rawToken = String(tempId).startsWith('temp_g_') ? String(tempId).slice(7) : String(tempId);
+  const rawToken = String(tempId).startsWith("temp_g_")
+    ? String(tempId).slice(7)
+    : String(tempId);
   try {
     const decoded = jwt.verify(rawToken, JWT_SECRET);
-    if (decoded && (decoded.email || decoded.type === 'pending_google_signup')) {
+    if (
+      decoded &&
+      (decoded.email || decoded.type === "pending_google_signup")
+    ) {
       return {
         tempSignupId: tempId,
         email: decoded.email,
-        name: decoded.name || 'Google User',
+        name: decoded.name || "Google User",
         avatar: decoded.avatar,
-        role: decoded.role || 'CUSTOMER',
-        method: decoded.method || 'google',
+        role: decoded.role || "CUSTOMER",
+        method: decoded.method || "google",
       };
     }
   } catch (jwtErr) {
@@ -1063,13 +1249,21 @@ function removePendingGoogleSignup(tempId) {
 }
 
 // POST /api/auth/google
-router.post('/google', async (req, res) => {
+router.post("/google", async (req, res) => {
   try {
-    const { idToken, accessToken, profile, role = 'CUSTOMER', isSignup = false, flow, isLogin } = req.body;
+    const {
+      idToken,
+      accessToken,
+      profile,
+      role = "CUSTOMER",
+      isSignup = false,
+      flow,
+      isLogin,
+    } = req.body;
 
-    let email = req.body.email || '';
-    let name = req.body.name || '';
-    let avatar = req.body.avatar || '';
+    let email = req.body.email || "";
+    let name = req.body.name || "";
+    let avatar = req.body.avatar || "";
 
     if (idToken) {
       try {
@@ -1079,39 +1273,45 @@ router.post('/google', async (req, res) => {
         });
         const payload = ticket.getPayload();
         email = email || payload.email;
-        name = name || payload.name || payload.given_name || 'Google User';
+        name = name || payload.name || payload.given_name || "Google User";
         avatar = avatar || payload.picture;
       } catch (verifyErr) {
-        console.warn('ID Token verification warning:', verifyErr.message);
+        console.warn("ID Token verification warning:", verifyErr.message);
       }
     }
 
     if (!email && accessToken) {
       try {
-        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        const userInfoRes = await fetch(
+          "https://www.googleapis.com/oauth2/v3/userinfo",
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          },
+        );
         if (userInfoRes.ok) {
           const uInfo = await userInfoRes.json();
           email = uInfo.email;
-          name = name || uInfo.name || uInfo.given_name || 'Google User';
+          name = name || uInfo.name || uInfo.given_name || "Google User";
           avatar = avatar || uInfo.picture;
         }
       } catch (apiErr) {
-        console.warn('Google userinfo fetch error:', apiErr.message);
+        console.warn("Google userinfo fetch error:", apiErr.message);
       }
     }
 
     if (!email && profile) {
       email = profile.email || profile.contact;
-      name = name || profile.name || 'Google User';
+      name = name || profile.name || "Google User";
       avatar = avatar || profile.avatar || profile.picture;
     }
 
     if (!email) {
       return res
         .status(400)
-        .json({ error: 'Failed to retrieve email or identity from Google authentication.' });
+        .json({
+          error:
+            "Failed to retrieve email or identity from Google authentication.",
+        });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -1127,54 +1327,67 @@ router.post('/google', async (req, res) => {
       if (await isUserExpiredTempStudio(existingUser)) {
         existingUser = null;
       } else {
-        if (existingUser.method !== 'google') {
-          await prisma.user.update({
-            where: { id: existingUser.id },
-            data: { method: 'google' },
-          }).catch(() => { });
-          existingUser.method = 'google';
+        if (existingUser.method !== "google") {
+          await prisma.user
+            .update({
+              where: { id: existingUser.id },
+              data: { method: "google" },
+            })
+            .catch(() => {});
+          existingUser.method = "google";
         }
 
-        if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
-          if (existingUser.role === 'CUSTOMER' || !existingUser.role) {
+        if (role === "STUDIO" || role === "TEMP_STUDIO") {
+          if (existingUser.role === "CUSTOMER" || !existingUser.role) {
             existingUser = await prisma.user.update({
               where: { id: existingUser.id },
               data: {
-                role: 'TEMP_STUDIO',
-                status: existingUser.status === 'ACTIVE' ? existingUser.status : 'INACTIVE',
+                role: "TEMP_STUDIO",
+                status:
+                  existingUser.status === "ACTIVE"
+                    ? existingUser.status
+                    : "INACTIVE",
               },
             });
           }
         }
 
         let returnUser = existingUser;
-        if (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') {
+        if (
+          existingUser.role === "STUDIO" ||
+          existingUser.role === "TEMP_STUDIO"
+        ) {
           returnUser = await enrichStudioUser(existingUser);
         }
 
         const isRegisteredStudio = Boolean(
-          existingUser.role === 'STUDIO' &&
-          existingUser.status === 'ACTIVE' &&
+          existingUser.role === "STUDIO" &&
+          existingUser.status === "ACTIVE" &&
           existingUser.studioName &&
-          existingUser.phone
+          existingUser.phone,
         );
-        const isNewUser = (existingUser.role === 'STUDIO' || existingUser.role === 'TEMP_STUDIO') ? !isRegisteredStudio : false;
+        const isNewUser =
+          existingUser.role === "STUDIO" || existingUser.role === "TEMP_STUDIO"
+            ? !isRegisteredStudio
+            : false;
 
         const tokens = await generateTokens(returnUser);
         const authCode = createAuthCode(returnUser, tokens.accessToken);
         setAuthCookies(res, tokens);
 
-        if (returnUser?.email && returnUser.role === 'CUSTOMER') {
+        if (returnUser?.email && returnUser.role === "CUSTOMER") {
           sendWelcomeEmail({
             toEmail: returnUser.email,
             name: returnUser.name,
-            role: 'CUSTOMER',
-            phone: returnUser.phone || '',
-          }).catch((wErr) => console.warn('[WELCOME EMAIL] Google auth notice:', wErr.message));
+            role: "CUSTOMER",
+            phone: returnUser.phone || "",
+          }).catch((wErr) =>
+            console.warn("[WELCOME EMAIL] Google auth notice:", wErr.message),
+          );
         }
         return res.json({
           success: true,
-          message: 'Authenticated with Google successfully',
+          message: "Authenticated with Google successfully",
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
           token: tokens.accessToken,
@@ -1189,22 +1402,24 @@ router.post('/google', async (req, res) => {
     }
 
     // If login flow (not signup) and account is not found in DB
-    if (flow === 'login' || isLogin) {
+    if (flow === "login" || isLogin) {
       return res.status(404).json({
-        error: 'No account with Google Id , please sign up',
+        error: "No account with Google Id , please sign up",
         noAccount: true,
       });
     }
 
     // When signing up for STUDIO, create a temporary DB record with role TEMP_STUDIO
-    if (role === 'STUDIO' || role === 'TEMP_STUDIO') {
+    if (role === "STUDIO" || role === "TEMP_STUDIO") {
       const createdTempUser = await findOrLinkUser({
-        name: name || 'Google User',
+        name: name || "Google User",
         email: cleanEmail,
-        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
-        method: 'google',
-        role: 'TEMP_STUDIO',
-        status: 'INACTIVE',
+        avatar:
+          avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        method: "google",
+        role: "TEMP_STUDIO",
+        status: "INACTIVE",
       });
 
       const tokens = await generateTokens(createdTempUser);
@@ -1214,13 +1429,14 @@ router.post('/google', async (req, res) => {
       return res.json({
         success: true,
         isNewUser: true,
-        message: 'Google identity verified successfully. Please complete studio onboarding.',
+        message:
+          "Google identity verified successfully. Please complete studio onboarding.",
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
         token: tokens.accessToken,
         authCode,
         user: createdTempUser,
-        role: 'TEMP_STUDIO',
+        role: "TEMP_STUDIO",
         needsPhone: true,
         hasPhone: false,
       });
@@ -1230,40 +1446,47 @@ router.post('/google', async (req, res) => {
     const tempPayloadToken = jwt.sign(
       {
         email: cleanEmail,
-        name: name || 'Google User',
-        avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        name: name || "Google User",
+        avatar:
+          avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
         role,
-        method: 'google',
-        type: 'pending_google_signup',
+        method: "google",
+        type: "pending_google_signup",
       },
       JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: "7d" },
     );
     const tempSignupId = `temp_g_${tempPayloadToken}`;
     storePendingGoogleSignup(tempSignupId, {
       tempSignupId,
       email: cleanEmail,
-      name: name || 'Google User',
-      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+      name: name || "Google User",
+      avatar:
+        avatar ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
-      method: 'google',
+      method: "google",
     });
 
     const pendingUserObject = {
       id: tempSignupId,
-      name: name || 'Google User',
+      name: name || "Google User",
       email: cleanEmail,
-      avatar: avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+      avatar:
+        avatar ||
+        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
       role,
-      status: 'ACTIVE',
+      status: "ACTIVE",
       contact: cleanEmail,
-      method: 'google',
+      method: "google",
     };
 
     return res.json({
       success: true,
       isNewUser: true,
-      message: 'Google identity verified successfully. Complete registration to save account.',
+      message:
+        "Google identity verified successfully. Complete registration to save account.",
       tempSignupId,
       token: tempPayloadToken,
       user: pendingUserObject,
@@ -1271,21 +1494,25 @@ router.post('/google', async (req, res) => {
       hasPhone: false,
     });
   } catch (err) {
-    console.error('Google Auth Route Error:', err);
-    return res.status(err.statusCode || 500).json({ error: err.message || 'Server error during Google authentication.' });
+    console.error("Google Auth Route Error:", err);
+    return res
+      .status(err.statusCode || 500)
+      .json({
+        error: err.message || "Server error during Google authentication.",
+      });
   }
 });
 
 // POST /api/auth/signup
-router.post('/signup', async (req, res) => {
+router.post("/signup", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let currentUserId = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
         currentUserId = decoded.id;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const {
@@ -1295,7 +1522,7 @@ router.post('/signup', async (req, res) => {
       phone,
       address,
       postcode,
-      role = 'CUSTOMER',
+      role = "CUSTOMER",
       storeName,
       storeArea,
       machines,
@@ -1310,12 +1537,15 @@ router.post('/signup', async (req, res) => {
       cachedGoogleData = getPendingGoogleSignup(tempSignupId);
       if (!cachedGoogleData && !email && !phone) {
         return res.status(400).json({
-          error: 'Your sign-up session has expired. Please sign up with Google again.',
+          error:
+            "Your sign-up session has expired. Please sign up with Google again.",
         });
       }
     }
 
-    const finalEmail = (email || cachedGoogleData?.email || '').trim().toLowerCase();
+    const finalEmail = (email || cachedGoogleData?.email || "")
+      .trim()
+      .toLowerCase();
     let finalPhone = null;
     if (phone) {
       const phoneValidation = validateAndFormatPhone(phone);
@@ -1324,13 +1554,15 @@ router.post('/signup', async (req, res) => {
       }
       finalPhone = phoneValidation.formatted;
     }
-    const finalName = name || cachedGoogleData?.name || 'Darzi Member';
+    const finalName = name || cachedGoogleData?.name || "Darzi Member";
     const finalAvatar = cachedGoogleData?.avatar;
-    const finalMethod = (tempSignupId || cachedGoogleData) ? 'google' : 'email';
+    const finalMethod = tempSignupId || cachedGoogleData ? "google" : "email";
 
     const contactStr = finalEmail || finalPhone;
     if (!contactStr) {
-      return res.status(400).json({ error: 'Email or mobile number is required.' });
+      return res
+        .status(400)
+        .json({ error: "Email or mobile number is required." });
     }
 
     // Check existing email conflict
@@ -1343,14 +1575,19 @@ router.post('/signup', async (req, res) => {
       if (existingEmail) {
         if (await isUserExpiredTempStudio(existingEmail)) {
           // expired, continue fresh
-        } else if (existingEmail.role !== role && !(existingEmail.role === 'TEMP_STUDIO' && role === 'STUDIO')) {
-          const roleName = existingEmail.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+        } else if (
+          existingEmail.role !== role &&
+          !(existingEmail.role === "TEMP_STUDIO" && role === "STUDIO")
+        ) {
+          const roleName =
+            existingEmail.role === "CUSTOMER" ? "Customer" : "Studio partner";
           return res.status(403).json({
             error: `This email is already registered as a ${roleName} account. Role switching is not allowed. Please use a different email.`,
           });
-        } else if (role === 'CUSTOMER') {
+        } else if (role === "CUSTOMER") {
           return res.status(409).json({
-            error: 'An account with this email address is already registered. Please sign in instead.',
+            error:
+              "An account with this email address is already registered. Please sign in instead.",
           });
         }
       }
@@ -1366,24 +1603,37 @@ router.post('/signup', async (req, res) => {
       if (existingPhone) {
         if (await isUserExpiredTempStudio(existingPhone)) {
           // expired, continue fresh
-        } else if (existingPhone.role !== role && !(existingPhone.role === 'TEMP_STUDIO' && role === 'STUDIO')) {
-          const roleName = existingPhone.role === 'CUSTOMER' ? 'Customer' : 'Studio partner';
+        } else if (
+          existingPhone.role !== role &&
+          !(existingPhone.role === "TEMP_STUDIO" && role === "STUDIO")
+        ) {
+          const roleName =
+            existingPhone.role === "CUSTOMER" ? "Customer" : "Studio partner";
           return res.status(403).json({
             error: `This mobile number is already registered as a ${roleName} account. Role switching is not allowed. Please use a different mobile number.`,
           });
-        } else if (existingPhone.email && finalEmail && existingPhone.email !== finalEmail) {
+        } else if (
+          existingPhone.email &&
+          finalEmail &&
+          existingPhone.email !== finalEmail
+        ) {
           return res.status(409).json({
-            error: 'An account with this mobile number is already registered to another email.',
+            error:
+              "An account with this mobile number is already registered to another email.",
           });
         }
       }
     }
 
     // Determine target role: If studio registration has completed storeName/shop details, role becomes STUDIO
-    const isStudioSignup = role === 'STUDIO' || role === 'TEMP_STUDIO';
+    const isStudioSignup = role === "STUDIO" || role === "TEMP_STUDIO";
     const isCompletedStudio = Boolean(isStudioSignup && storeName);
-    const targetRole = isStudioSignup ? (isCompletedStudio ? 'STUDIO' : 'TEMP_STUDIO') : (role || 'CUSTOMER');
-    const targetStatus = targetRole === 'TEMP_STUDIO' ? 'INACTIVE' : 'ACTIVE';
+    const targetRole = isStudioSignup
+      ? isCompletedStudio
+        ? "STUDIO"
+        : "TEMP_STUDIO"
+      : role || "CUSTOMER";
+    const targetStatus = targetRole === "TEMP_STUDIO" ? "INACTIVE" : "ACTIVE";
 
     // Now write to database
     const user = await findOrLinkUser({
@@ -1409,23 +1659,27 @@ router.post('/signup', async (req, res) => {
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       returnUser = await enrichStudioUser(user);
     }
 
     // Dispatch Welcome Email asynchronously if user has a valid email address
-    if (returnUser?.email && returnUser.email.includes('@') && !returnUser.email.includes('example.com')) {
-      const isCompleteStudio = returnUser.role === 'STUDIO';
-      const isCustomer = returnUser.role === 'CUSTOMER';
+    if (
+      returnUser?.email &&
+      returnUser.email.includes("@") &&
+      !returnUser.email.includes("example.com")
+    ) {
+      const isCompleteStudio = returnUser.role === "STUDIO";
+      const isCustomer = returnUser.role === "CUSTOMER";
       if (isCompleteStudio || isCustomer) {
         sendWelcomeEmail({
           toEmail: returnUser.email,
           name: returnUser.name,
           role: returnUser.role,
-          studioName: returnUser.studioName || storeName || '',
-          phone: returnUser.phone || '',
+          studioName: returnUser.studioName || storeName || "",
+          phone: returnUser.phone || "",
         }).catch((wErr) => {
-          console.warn('[WELCOME EMAIL] Async dispatch notice:', wErr.message);
+          console.warn("[WELCOME EMAIL] Async dispatch notice:", wErr.message);
         });
       }
     }
@@ -1445,17 +1699,30 @@ router.post('/signup', async (req, res) => {
       hasPhone: Boolean(returnUser.phone),
     });
   } catch (err) {
-    console.error('Signup Error:', err);
-    return res.status(500).json({ error: err.message || 'Server error during registration.' });
+    console.error("Signup Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Server error during registration." });
   }
 });
 
 // POST /api/auth/send-welcome-email - Dedicated endpoint to send or test welcome email
-router.post('/send-welcome-email', async (req, res) => {
+router.post("/send-welcome-email", async (req, res) => {
   try {
-    const { email, name, role = 'CUSTOMER', studioName, phone, portalUrl, loginUrl, force = true } = req.body;
-    if (!email || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid email address is required.' });
+    const {
+      email,
+      name,
+      role = "CUSTOMER",
+      studioName,
+      phone,
+      portalUrl,
+      loginUrl,
+      force = true,
+    } = req.body;
+    if (!email || !email.includes("@")) {
+      return res
+        .status(400)
+        .json({ error: "Valid email address is required." });
     }
 
     const result = await sendWelcomeEmail({
@@ -1470,7 +1737,12 @@ router.post('/send-welcome-email', async (req, res) => {
     });
 
     if (!result.success) {
-      return res.status(500).json({ error: result.reason || result.error || 'Failed to dispatch welcome email' });
+      return res
+        .status(500)
+        .json({
+          error:
+            result.reason || result.error || "Failed to dispatch welcome email",
+        });
     }
 
     return res.json({
@@ -1479,28 +1751,36 @@ router.post('/send-welcome-email', async (req, res) => {
       resendId: result.id,
     });
   } catch (err) {
-    console.error('Send Welcome Email Error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to send welcome email.' });
+    console.error("Send Welcome Email Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to send welcome email." });
   }
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
-    const { email, phone, identifier, role = 'CUSTOMER' } = req.body;
+    const { email, phone, identifier, role = "CUSTOMER" } = req.body;
     const searchVal = identifier || email || phone;
     if (!searchVal || !searchVal.trim()) {
-      return res.status(400).json({ error: 'Please enter your email address or mobile number.' });
+      return res
+        .status(400)
+        .json({ error: "Please enter your email address or mobile number." });
     }
 
     const cleanVal = searchVal.trim();
     let user = null;
 
-    if (cleanVal.includes('@')) {
+    if (cleanVal.includes("@")) {
       // Validate Email Format
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailRegex.test(cleanVal)) {
-        return res.status(400).json({ error: 'Please enter a valid email address (e.g. name@domain.com).' });
+        return res
+          .status(400)
+          .json({
+            error: "Please enter a valid email address (e.g. name@domain.com).",
+          });
       }
 
       user = await prisma.user.findFirst({
@@ -1515,7 +1795,13 @@ router.post('/login', async (req, res) => {
       // Validate Mobile Number Format
       const phoneValidation = validateAndFormatPhone(cleanVal);
       if (!phoneValidation.isValid) {
-        return res.status(400).json({ error: phoneValidation.error || 'Please enter a valid email address or 10-digit mobile number.' });
+        return res
+          .status(400)
+          .json({
+            error:
+              phoneValidation.error ||
+              "Please enter a valid email address or 10-digit mobile number.",
+          });
       }
 
       const searchFormatted = phoneValidation.formatted;
@@ -1533,27 +1819,29 @@ router.post('/login', async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        error: 'No account found with this email or mobile number. Please register first.',
+        error:
+          "No account found with this email or mobile number. Please register first.",
       });
     }
 
     // Check if user is expired TEMP_STUDIO (>24h)
     if (await isUserExpiredTempStudio(user)) {
       return res.status(404).json({
-        error: 'Your temporary studio registration expired after 24 hours. Please sign up again.',
+        error:
+          "Your temporary studio registration expired after 24 hours. Please sign up again.",
         expired: true,
       });
     }
 
     // Account Status Validation
-    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
+    if (user.status === "BANNED" || user.status === "SUSPENDED") {
       return res.status(403).json({
-        error: 'Your account has been suspended. Please contact support.',
+        error: "Your account has been suspended. Please contact support.",
       });
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       returnUser = await enrichStudioUser(user);
     }
 
@@ -1572,17 +1860,20 @@ router.post('/login', async (req, res) => {
       hasPhone: Boolean(returnUser.phone),
     });
   } catch (err) {
-    console.error('Login Error:', err);
-    return res.status(500).json({ error: 'Server error during login.' });
+    console.error("Login Error:", err);
+    return res.status(500).json({ error: "Server error during login." });
   }
 });
 
 async function enrichStudioUser(user) {
-  if (!user || (user.role !== 'STUDIO' && user.role !== 'TEMP_STUDIO')) return user;
+  if (!user || (user.role !== "STUDIO" && user.role !== "TEMP_STUDIO"))
+    return user;
   try {
     let store = null;
     if (user.studioId) {
-      store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+      store = await prisma.partnerStore.findUnique({
+        where: { id: user.studioId },
+      });
     }
     if (!store && (user.studioName || user.name)) {
       store = await prisma.partnerStore.findFirst({
@@ -1613,32 +1904,36 @@ async function enrichStudioUser(user) {
         area: user.area || store.area || null,
         lat: user.lat ?? store.lat ?? null,
         lng: user.lng ?? store.lng ?? null,
-        openingHours: store.openingHours || 'Mon–Sat: 09:00 – 19:00',
+        openingHours: store.openingHours || "Mon–Sat: 09:00 – 19:00",
         dailyCapacity: store.dailyCapacity ?? 25,
         machines: store.machines ?? 4,
         workers: store.workers ?? 4,
-        specialties: store.specialties || ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+        specialties: store.specialties || [
+          "Custom Alterations",
+          "Precision Hemming",
+          "Express Tailoring",
+        ],
         leadTailor: store.leadTailor || user.name,
-        currency: store.currency || user.currency || 'GBP',
-        currencySymbol: store.currencySymbol || user.currencySymbol || '£',
+        currency: store.currency || user.currency || "GBP",
+        currencySymbol: store.currencySymbol || user.currencySymbol || "£",
       };
     }
   } catch (err) {
-    console.warn('enrichStudioUser error:', err.message);
+    console.warn("enrichStudioUser error:", err.message);
   }
   return user;
 }
 
 // POST /api/auth/update-profile
-router.post('/update-profile', async (req, res) => {
+router.post("/update-profile", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let userId = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (e) { }
+      } catch (e) {}
     }
 
     const {
@@ -1672,20 +1967,27 @@ router.post('/update-profile', async (req, res) => {
     }
 
     if (!targetId) {
-      return res.status(401).json({ error: 'Unauthorized: missing user identity.' });
+      return res
+        .status(401)
+        .json({ error: "Unauthorized: missing user identity." });
     }
 
-    const currentUser = await prisma.user.findUnique({ where: { id: targetId } });
+    const currentUser = await prisma.user.findUnique({
+      where: { id: targetId },
+    });
     if (!currentUser) {
-      return res.status(404).json({ error: 'User not found.' });
+      return res.status(404).json({ error: "User not found." });
     }
 
     let cleanEmail = null;
     let cleanPhone = null;
 
     const updateData = {};
-    if (name !== undefined) updateData.name = typeof name === 'string' ? name.trim() : name;
-    if (studioName !== undefined) updateData.studioName = typeof studioName === 'string' ? studioName.trim() : studioName;
+    if (name !== undefined)
+      updateData.name = typeof name === "string" ? name.trim() : name;
+    if (studioName !== undefined)
+      updateData.studioName =
+        typeof studioName === "string" ? studioName.trim() : studioName;
     if (avatar !== undefined) updateData.avatar = avatar;
     if (email) {
       cleanEmail = email.toLowerCase().trim();
@@ -1693,7 +1995,9 @@ router.post('/update-profile', async (req, res) => {
         where: { email: cleanEmail, NOT: { id: targetId } },
       });
       if (emailConflict) {
-        return res.status(409).json({ error: 'This email is already in use by another account.' });
+        return res
+          .status(409)
+          .json({ error: "This email is already in use by another account." });
       }
       updateData.email = cleanEmail;
     }
@@ -1705,14 +2009,17 @@ router.post('/update-profile', async (req, res) => {
       cleanPhone = phoneValidation.formatted;
 
       // If phone number is being changed from an existing registered phone, require OTP verification!
-      const currentDigits = (currentUser.phone || '').replace(/\D/g, '');
-      const newDigits = cleanPhone.replace(/\D/g, '');
-      const isPhoneChanged = Boolean(currentUser.phone && currentDigits !== newDigits);
+      const currentDigits = (currentUser.phone || "").replace(/\D/g, "");
+      const newDigits = cleanPhone.replace(/\D/g, "");
+      const isPhoneChanged = Boolean(
+        currentUser.phone && currentDigits !== newDigits,
+      );
 
       if (isPhoneChanged) {
         if (!otp) {
           return res.status(400).json({
-            error: 'Verification code (OTP) is required to update your mobile number.',
+            error:
+              "Verification code (OTP) is required to update your mobile number.",
             requireOtp: true,
             phone: cleanPhone,
           });
@@ -1721,7 +2028,8 @@ router.post('/update-profile', async (req, res) => {
         const isValidOtp = await verifyOtp(cleanPhone, cleanOtp);
         if (!isValidOtp) {
           return res.status(400).json({
-            error: 'Invalid or expired verification code for the new mobile number. Please check your SMS and try again.',
+            error:
+              "Invalid or expired verification code for the new mobile number. Please check your SMS and try again.",
             requireOtp: true,
           });
         }
@@ -1733,14 +2041,23 @@ router.post('/update-profile', async (req, res) => {
       if (phoneConflict) {
         return res
           .status(409)
-          .json({ error: 'This mobile number is already in use by another account.' });
+          .json({
+            error: "This mobile number is already in use by another account.",
+          });
       }
       updateData.phone = cleanPhone;
     }
-    if (address !== undefined) updateData.address = typeof address === 'string' ? address.trim() : address;
-    if (postcode !== undefined) updateData.postcode = typeof postcode === 'string' ? postcode.trim().toUpperCase() : postcode;
+    if (address !== undefined)
+      updateData.address =
+        typeof address === "string" ? address.trim() : address;
+    if (postcode !== undefined)
+      updateData.postcode =
+        typeof postcode === "string" ? postcode.trim().toUpperCase() : postcode;
     if (measurements !== undefined) {
-      updateData.measurements = typeof measurements === 'object' ? JSON.stringify(measurements) : String(measurements);
+      updateData.measurements =
+        typeof measurements === "object"
+          ? JSON.stringify(measurements)
+          : String(measurements);
     }
 
     let user = await prisma.user.update({
@@ -1749,11 +2066,13 @@ router.post('/update-profile', async (req, res) => {
     });
 
     // If user is a Studio partner, sync details to partnerStore
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       try {
         let store = null;
         if (user.studioId) {
-          store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+          store = await prisma.partnerStore.findUnique({
+            where: { id: user.studioId },
+          });
         }
         if (!store) {
           store = await prisma.partnerStore.findFirst({
@@ -1772,12 +2091,31 @@ router.post('/update-profile', async (req, res) => {
         // If no partner store exists yet for this studio partner, create one
         if (!store) {
           const generatedId = `store-${Math.random().toString(36).substring(2, 6)}-${Math.floor(100 + Math.random() * 900)}`;
-          const storeName = (studioName || user.studioName || user.name || 'Darzi Partner Studio').trim();
-          const storeArea = (area || user.postcode || 'Mumbai').trim();
-          const storeAddress = (address !== undefined ? String(address).trim() : (user.address || 'Partner Workshop Address')).trim();
-          const storePostcode = (postcode !== undefined ? String(postcode).trim().toUpperCase() : (user.postcode || '400001')).trim();
-          const storeLat = (lat !== undefined && lat !== null && !isNaN(parseFloat(lat))) ? parseFloat(lat) : 19.0760;
-          const storeLng = (lng !== undefined && lng !== null && !isNaN(parseFloat(lng))) ? parseFloat(lng) : 72.8777;
+          const storeName = (
+            studioName ||
+            user.studioName ||
+            user.name ||
+            "Darzi Partner Studio"
+          ).trim();
+          const storeArea = (area || user.postcode || "Mumbai").trim();
+          const storeAddress = (
+            address !== undefined
+              ? String(address).trim()
+              : user.address || "Partner Workshop Address"
+          ).trim();
+          const storePostcode = (
+            postcode !== undefined
+              ? String(postcode).trim().toUpperCase()
+              : user.postcode || "400001"
+          ).trim();
+          const storeLat =
+            lat !== undefined && lat !== null && !isNaN(parseFloat(lat))
+              ? parseFloat(lat)
+              : 19.076;
+          const storeLng =
+            lng !== undefined && lng !== null && !isNaN(parseFloat(lng))
+              ? parseFloat(lng)
+              : 72.8777;
 
           store = await prisma.partnerStore.create({
             data: {
@@ -1790,12 +2128,37 @@ router.post('/update-profile', async (req, res) => {
               postcode: storePostcode,
               rating: 5.0,
               reviewCount: 1,
-              openingHours: (openingHours && typeof openingHours === 'string') ? openingHours.trim() : 'Mon–Sat: 09:00 – 19:00',
-              dailyCapacity: (dailyCapacity !== undefined && !isNaN(parseInt(dailyCapacity, 10))) ? parseInt(dailyCapacity, 10) : 25,
-              machines: (machines !== undefined && !isNaN(parseInt(machines, 10))) ? parseInt(machines, 10) : 4,
-              workers: (workers !== undefined && !isNaN(parseInt(workers, 10))) ? parseInt(workers, 10) : 4,
-              leadTailor: (leadTailor || name || user.name || 'Master Tailor').trim(),
-              specialties: Array.isArray(specialties) && specialties.length > 0 ? specialties : ['Custom Alterations', 'Precision Hemming', 'Express Tailoring'],
+              openingHours:
+                openingHours && typeof openingHours === "string"
+                  ? openingHours.trim()
+                  : "Mon–Sat: 09:00 – 19:00",
+              dailyCapacity:
+                dailyCapacity !== undefined &&
+                !isNaN(parseInt(dailyCapacity, 10))
+                  ? parseInt(dailyCapacity, 10)
+                  : 25,
+              machines:
+                machines !== undefined && !isNaN(parseInt(machines, 10))
+                  ? parseInt(machines, 10)
+                  : 4,
+              workers:
+                workers !== undefined && !isNaN(parseInt(workers, 10))
+                  ? parseInt(workers, 10)
+                  : 4,
+              leadTailor: (
+                leadTailor ||
+                name ||
+                user.name ||
+                "Master Tailor"
+              ).trim(),
+              specialties:
+                Array.isArray(specialties) && specialties.length > 0
+                  ? specialties
+                  : [
+                      "Custom Alterations",
+                      "Precision Hemming",
+                      "Express Tailoring",
+                    ],
               retailSold: true,
               lat: storeLat,
               lng: storeLng,
@@ -1809,15 +2172,25 @@ router.post('/update-profile', async (req, res) => {
         } else {
           // Store already exists, update all changed fields safely
           const storeUpdateData = {};
-          if (studioName !== undefined) storeUpdateData.name = String(studioName).trim();
+          if (studioName !== undefined)
+            storeUpdateData.name = String(studioName).trim();
           if (cleanEmail || updateData.email || email) {
-            storeUpdateData.email = cleanEmail || updateData.email || String(email).trim().toLowerCase();
+            storeUpdateData.email =
+              cleanEmail ||
+              updateData.email ||
+              String(email).trim().toLowerCase();
           }
           if (cleanPhone || updateData.phone || phone) {
-            storeUpdateData.phone = cleanPhone || updateData.phone || String(phone).trim();
+            storeUpdateData.phone =
+              cleanPhone || updateData.phone || String(phone).trim();
           }
           if (leadTailor !== undefined || name !== undefined) {
-            storeUpdateData.leadTailor = (leadTailor || name || user.name || '').trim();
+            storeUpdateData.leadTailor = (
+              leadTailor ||
+              name ||
+              user.name ||
+              ""
+            ).trim();
           }
           if (address !== undefined) {
             storeUpdateData.address = String(address).trim();
@@ -1837,13 +2210,25 @@ router.post('/update-profile', async (req, res) => {
           if (openingHours !== undefined) {
             storeUpdateData.openingHours = String(openingHours).trim();
           }
-          if (dailyCapacity !== undefined && dailyCapacity !== null && !isNaN(parseInt(dailyCapacity, 10))) {
+          if (
+            dailyCapacity !== undefined &&
+            dailyCapacity !== null &&
+            !isNaN(parseInt(dailyCapacity, 10))
+          ) {
             storeUpdateData.dailyCapacity = parseInt(dailyCapacity, 10);
           }
-          if (machines !== undefined && machines !== null && !isNaN(parseInt(machines, 10))) {
+          if (
+            machines !== undefined &&
+            machines !== null &&
+            !isNaN(parseInt(machines, 10))
+          ) {
             storeUpdateData.machines = parseInt(machines, 10);
           }
-          if (workers !== undefined && workers !== null && !isNaN(parseInt(workers, 10))) {
+          if (
+            workers !== undefined &&
+            workers !== null &&
+            !isNaN(parseInt(workers, 10))
+          ) {
             storeUpdateData.workers = parseInt(workers, 10);
           }
           if (specialties !== undefined && Array.isArray(specialties)) {
@@ -1865,12 +2250,12 @@ router.post('/update-profile', async (req, res) => {
           }
         }
       } catch (storeSyncErr) {
-        console.error('Sync partner store error:', storeSyncErr);
+        console.error("Sync partner store error:", storeSyncErr);
       }
     }
 
     let enrichedUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       enrichedUser = await enrichStudioUser(user);
     }
 
@@ -1878,7 +2263,7 @@ router.post('/update-profile', async (req, res) => {
     setAuthCookies(res, tokens);
     return res.json({
       success: true,
-      message: 'Profile updated successfully',
+      message: "Profile updated successfully",
       user: enrichedUser,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
@@ -1886,19 +2271,19 @@ router.post('/update-profile', async (req, res) => {
       hasPhone: Boolean(user.phone),
     });
   } catch (err) {
-    console.error('Update Profile Error:', err);
-    return res.status(500).json({ error: 'Failed to update profile.' });
+    console.error("Update Profile Error:", err);
+    return res.status(500).json({ error: "Failed to update profile." });
   }
 });
 
 // GET /api/auth/me
-router.get('/me', async (req, res) => {
+router.get("/me", async (req, res) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: missing token' });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Unauthorized: missing token" });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
@@ -1914,41 +2299,50 @@ router.get('/me', async (req, res) => {
     }
 
     if (!user) {
-      if (decoded.type === 'pending_google_signup' && decoded.email) {
+      if (decoded.type === "pending_google_signup" && decoded.email) {
         return res.json({
           user: {
             id: `temp_g_${decoded.email}`,
             email: decoded.email,
-            name: decoded.name || 'Google User',
+            name: decoded.name || "Google User",
             avatar: decoded.avatar || null,
-            role: decoded.role || 'TEMP_STUDIO',
-            status: 'INACTIVE',
+            role: decoded.role || "TEMP_STUDIO",
+            status: "INACTIVE",
             isNewUser: true,
           },
         });
       }
-      return res.status(404).json({ error: 'User profile not found' });
+      return res.status(404).json({ error: "User profile not found" });
     }
 
     if (await isUserExpiredTempStudio(user)) {
       return res.status(401).json({
-        error: 'Your temporary studio registration expired after 24 hours. Please sign up again.',
+        error:
+          "Your temporary studio registration expired after 24 hours. Please sign up again.",
         expired: true,
       });
     }
 
-    if ((decoded.role === 'STUDIO' || decoded.role === 'TEMP_STUDIO') && user && user.role === 'CUSTOMER') {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { role: 'TEMP_STUDIO' },
-      }).catch(() => ({ ...user, role: 'TEMP_STUDIO' }));
+    if (
+      (decoded.role === "STUDIO" || decoded.role === "TEMP_STUDIO") &&
+      user &&
+      user.role === "CUSTOMER"
+    ) {
+      user = await prisma.user
+        .update({
+          where: { id: user.id },
+          data: { role: "TEMP_STUDIO" },
+        })
+        .catch(() => ({ ...user, role: "TEMP_STUDIO" }));
     }
 
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       try {
         let store = null;
         if (user.studioId) {
-          store = await prisma.partnerStore.findUnique({ where: { id: user.studioId } });
+          store = await prisma.partnerStore.findUnique({
+            where: { id: user.studioId },
+          });
         }
         if (!store && (user.studioName || user.name)) {
           store = await prisma.partnerStore.findFirst({
@@ -1963,9 +2357,12 @@ router.get('/me', async (req, res) => {
         if (store) {
           const userUpdates = {};
           if (!user.studioId) userUpdates.studioId = store.id;
-          if (!user.address && store.address) userUpdates.address = store.address;
-          if (!user.postcode && store.postcode) userUpdates.postcode = store.postcode;
-          if (!user.studioName && store.name) userUpdates.studioName = store.name;
+          if (!user.address && store.address)
+            userUpdates.address = store.address;
+          if (!user.postcode && store.postcode)
+            userUpdates.postcode = store.postcode;
+          if (!user.studioName && store.name)
+            userUpdates.studioName = store.name;
 
           if (Object.keys(userUpdates).length > 0) {
             user = await prisma.user.update({
@@ -1976,10 +2373,14 @@ router.get('/me', async (req, res) => {
 
           // Ensure store also matches user's latest address, postcode, studioName, and leadTailor
           const storeUpdates = {};
-          if (user.address && store.address !== user.address) storeUpdates.address = user.address;
-          if (user.postcode && store.postcode !== user.postcode) storeUpdates.postcode = user.postcode;
-          if (user.studioName && store.name !== user.studioName) storeUpdates.name = user.studioName;
-          if (user.name && store.leadTailor !== user.name) storeUpdates.leadTailor = user.name;
+          if (user.address && store.address !== user.address)
+            storeUpdates.address = user.address;
+          if (user.postcode && store.postcode !== user.postcode)
+            storeUpdates.postcode = user.postcode;
+          if (user.studioName && store.name !== user.studioName)
+            storeUpdates.name = user.studioName;
+          if (user.name && store.leadTailor !== user.name)
+            storeUpdates.leadTailor = user.name;
 
           if (Object.keys(storeUpdates).length > 0) {
             await prisma.partnerStore.update({
@@ -1989,19 +2390,23 @@ router.get('/me', async (req, res) => {
           }
         }
       } catch (syncErr) {
-        console.warn('Sync partner store in /me notice:', syncErr.message);
+        console.warn("Sync partner store in /me notice:", syncErr.message);
       }
     }
 
     if (!user.role) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data: { role: 'CUSTOMER' },
+        data: { role: "CUSTOMER" },
       });
     }
 
     if (!user.status) {
-      const defaultStatus = ((user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') && (!user.studioName || !user.phone)) ? 'INACTIVE' : 'ACTIVE';
+      const defaultStatus =
+        (user.role === "STUDIO" || user.role === "TEMP_STUDIO") &&
+        (!user.studioName || !user.phone)
+          ? "INACTIVE"
+          : "ACTIVE";
       user = await prisma.user.update({
         where: { id: user.id },
         data: { status: defaultStatus },
@@ -2009,7 +2414,7 @@ router.get('/me', async (req, res) => {
     }
 
     let enrichedUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       enrichedUser = await enrichStudioUser(user);
     }
 
@@ -2019,30 +2424,37 @@ router.get('/me', async (req, res) => {
       hasPhone: Boolean(user.phone),
     });
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 });
 
 // POST /api/auth/refresh - Refresh Access Token (15m) using valid Refresh Token (15d) and DB validation
-router.post('/refresh', async (req, res) => {
+router.post("/refresh", async (req, res) => {
   try {
     let refreshToken = req.body?.refreshToken;
 
     // Check cookie if not in body
     if (!refreshToken && req.headers.cookie) {
       const match = req.headers.cookie
-        .split(';')
+        .split(";")
         .map((c) => c.trim())
-        .find((c) => c.startsWith('tg_refresh_token=') || c.startsWith('refreshToken='));
-      if (match) refreshToken = match.split('=')[1];
+        .find(
+          (c) =>
+            c.startsWith("tg_refresh_token=") || c.startsWith("refreshToken="),
+        );
+      if (match) refreshToken = match.split("=")[1];
     }
 
-    if (!refreshToken && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      refreshToken = req.headers.authorization.split(' ')[1];
+    if (
+      !refreshToken &&
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer ")
+    ) {
+      refreshToken = req.headers.authorization.split(" ")[1];
     }
 
     if (!refreshToken) {
-      return res.status(401).json({ error: 'Refresh token is required.' });
+      return res.status(401).json({ error: "Refresh token is required." });
     }
 
     let decoded = null;
@@ -2052,12 +2464,16 @@ router.post('/refresh', async (req, res) => {
       try {
         decoded = jwt.verify(refreshToken, JWT_SECRET);
       } catch (fallbackErr) {
-        return res.status(401).json({ error: 'Invalid or expired refresh token. Please sign in again.' });
+        return res
+          .status(401)
+          .json({
+            error: "Invalid or expired refresh token. Please sign in again.",
+          });
       }
     }
 
     if (!decoded || !decoded.id) {
-      return res.status(401).json({ error: 'Invalid refresh token payload.' });
+      return res.status(401).json({ error: "Invalid refresh token payload." });
     }
 
     const user = await prisma.user.findUnique({
@@ -2065,25 +2481,36 @@ router.post('/refresh', async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User account not found or has been deleted.' });
+      return res
+        .status(404)
+        .json({ error: "User account not found or has been deleted." });
     }
 
     // Encrypted token validation: verify hashed token matches PostgreSQL record
     const incomingHashed = hashRefreshToken(refreshToken);
     if (!user.refreshToken || user.refreshToken !== incomingHashed) {
-      return res.status(401).json({ error: 'Refresh token has been revoked, rotated, or invalidated. Please sign in again.' });
+      return res
+        .status(401)
+        .json({
+          error:
+            "Refresh token has been revoked, rotated, or invalidated. Please sign in again.",
+        });
     }
 
-    if (user.status === 'BANNED' || user.status === 'SUSPENDED') {
-      return res.status(403).json({ error: 'Your account has been suspended.' });
+    if (user.status === "BANNED" || user.status === "SUSPENDED") {
+      return res
+        .status(403)
+        .json({ error: "Your account has been suspended." });
     }
 
     if (await isUserExpiredTempStudio(user)) {
-      return res.status(401).json({ error: 'Temporary studio account expired.' });
+      return res
+        .status(401)
+        .json({ error: "Temporary studio account expired." });
     }
 
     let returnUser = user;
-    if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+    if (user.role === "STUDIO" || user.role === "TEMP_STUDIO") {
       returnUser = await enrichStudioUser(user);
     }
 
@@ -2099,40 +2526,43 @@ router.post('/refresh', async (req, res) => {
       user: returnUser,
     });
   } catch (err) {
-    console.error('Refresh Token Route Error:', err);
-    return res.status(500).json({ error: 'Failed to refresh token.' });
+    console.error("Refresh Token Route Error:", err);
+    return res.status(500).json({ error: "Failed to refresh token." });
   }
 });
 
 // POST /api/auth/logout
-router.post('/logout', async (req, res) => {
+router.post("/logout", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     let userId = null;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith("Bearer ")) {
       try {
-        const decoded = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
         userId = decoded.id;
-      } catch (_) { }
+      } catch (_) {}
     }
 
     let refreshToken = req.body?.refreshToken;
     if (!refreshToken && req.headers.cookie) {
       const match = req.headers.cookie
-        .split(';')
+        .split(";")
         .map((c) => c.trim())
-        .find((c) => c.startsWith('tg_refresh_token=') || c.startsWith('refreshToken='));
-      if (match) refreshToken = match.split('=')[1];
+        .find(
+          (c) =>
+            c.startsWith("tg_refresh_token=") || c.startsWith("refreshToken="),
+        );
+      if (match) refreshToken = match.split("=")[1];
     }
 
     if (!userId && req.headers.cookie) {
       const matchToken = req.headers.cookie
-        .split(';')
+        .split(";")
         .map((c) => c.trim())
-        .find((c) => c.startsWith('tg_token=') || c.startsWith('token='));
+        .find((c) => c.startsWith("tg_token=") || c.startsWith("token="));
       if (matchToken) {
         try {
-          const decoded = jwt.verify(matchToken.split('=')[1], JWT_SECRET);
+          const decoded = jwt.verify(matchToken.split("=")[1], JWT_SECRET);
           userId = decoded.id;
         } catch (_) {}
       }
@@ -2152,101 +2582,151 @@ router.post('/logout', async (req, res) => {
 
     // Invalidate refresh token in database on logout
     if (userId) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { refreshToken: null },
-      }).catch(() => { });
+      await prisma.user
+        .update({
+          where: { id: userId },
+          data: { refreshToken: null },
+        })
+        .catch(() => {});
     }
 
-    const expiredDate = 'Thu, 01 Jan 1970 00:00:00 GMT';
-    const isProd = process.env.NODE_ENV === 'production';
+    const expiredDate = "Thu, 01 Jan 1970 00:00:00 GMT";
+    const isProd = process.env.NODE_ENV === "production";
 
     // Clear cookies for BOTH specific host and root domain to wipe remnants
-    const domainsToClear = isProd ? ['.luxenart.in', 'studio.luxenart.in', 'luxenart.in', undefined] : [undefined];
-    const cookieNames = ['tg_token', 'tg_refresh_token', 'tg_user_role', 'tg_user', 'token', 'refreshToken', 'session', 'auth_token'];
+    const domainsToClear = isProd
+      ? [".luxenart.in", "studio.luxenart.in", "luxenart.in", undefined]
+      : [undefined];
+    const cookieNames = [
+      "tg_token",
+      "tg_refresh_token",
+      "tg_user_role",
+      "tg_user",
+      "token",
+      "refreshToken",
+      "session",
+      "auth_token",
+    ];
 
-    cookieNames.forEach(name => {
-      domainsToClear.forEach(dom => {
+    cookieNames.forEach((name) => {
+      domainsToClear.forEach((dom) => {
         try {
-          res.clearCookie(name, { path: '/', domain: dom });
-          res.clearCookie(name, { path: '/', domain: dom, httpOnly: true, sameSite: 'lax', secure: isProd });
-          res.clearCookie(name, { path: '/', domain: dom, httpOnly: false, sameSite: 'lax', secure: isProd });
-        } catch (_) { }
+          res.clearCookie(name, { path: "/", domain: dom });
+          res.clearCookie(name, {
+            path: "/",
+            domain: dom,
+            httpOnly: true,
+            sameSite: "lax",
+            secure: isProd,
+          });
+          res.clearCookie(name, {
+            path: "/",
+            domain: dom,
+            httpOnly: false,
+            sameSite: "lax",
+            secure: isProd,
+          });
+        } catch (_) {}
       });
     });
 
     // Explicit Set-Cookie response headers targeting specific domain
     const setCookieHeaders = [];
-    domainsToClear.forEach(dom => {
-      const domainAttr = dom ? `; Domain=${dom}` : '';
-      const secureAttr = isProd ? '; Secure' : '';
-      cookieNames.forEach(name => {
-        setCookieHeaders.push(`${name}=; Path=/${domainAttr}; Expires=${expiredDate}; Max-Age=0; SameSite=Lax${secureAttr}`);
+    domainsToClear.forEach((dom) => {
+      const domainAttr = dom ? `; Domain=${dom}` : "";
+      const secureAttr = isProd ? "; Secure" : "";
+      cookieNames.forEach((name) => {
+        setCookieHeaders.push(
+          `${name}=; Path=/${domainAttr}; Expires=${expiredDate}; Max-Age=0; SameSite=Lax${secureAttr}`,
+        );
       });
     });
 
-    res.setHeader('Set-Cookie', setCookieHeaders);
+    res.setHeader("Set-Cookie", setCookieHeaders);
 
-    return res.json({ success: true, message: 'Logged out successfully' });
+    return res.json({ success: true, message: "Logged out successfully" });
   } catch (err) {
-    console.error('Logout error:', err);
-    return res.status(500).json({ error: 'Failed to log out' });
+    console.error("Logout error:", err);
+    return res.status(500).json({ error: "Failed to log out" });
   }
 });
 
 // POST /api/auth/oauth/code - Generate single-use auth code for current authenticated user
-router.post('/oauth/code', (req, res) => {
+router.post("/oauth/code", (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized: Missing token.' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "Unauthorized: Missing token." });
     }
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     const decoded = jwt.verify(token, JWT_SECRET);
     const { targetRole } = req.body || {};
-    const effectiveRole = targetRole || (decoded.role === 'CUSTOMER' ? 'TEMP_STUDIO' : decoded.role);
-    const code = createAuthCode({ ...decoded, role: effectiveRole }, token, effectiveRole);
+    const effectiveRole =
+      targetRole ||
+      (decoded.role === "CUSTOMER" ? "TEMP_STUDIO" : decoded.role);
+    const code = createAuthCode(
+      { ...decoded, role: effectiveRole },
+      token,
+      effectiveRole,
+    );
     return res.json({ success: true, code, expiresIn: 60 });
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token.' });
+    return res.status(401).json({ error: "Invalid or expired token." });
   }
 });
 
 // POST /api/auth/oauth/exchange - One-time auth code exchange (Option A)
-router.post('/oauth/exchange', async (req, res) => {
+router.post("/oauth/exchange", async (req, res) => {
   try {
     const { code } = req.body;
     if (!code) {
-      return res.status(400).json({ error: 'Authorization code is required.' });
+      return res.status(400).json({ error: "Authorization code is required." });
     }
 
     const item = authCodeStore.get(code);
     if (!item) {
-      return res.status(400).json({ error: 'Invalid or already consumed authorization code.' });
+      return res
+        .status(400)
+        .json({ error: "Invalid or already consumed authorization code." });
     }
 
     // Immediately consume & delete the code to guarantee single-use!
     authCodeStore.delete(code);
 
     if (Date.now() > item.expiresAt) {
-      return res.status(400).json({ error: 'Authorization code has expired. Please sign in again.' });
+      return res
+        .status(400)
+        .json({
+          error: "Authorization code has expired. Please sign in again.",
+        });
     }
 
     let returnUser = item.user;
     if (returnUser?.id) {
-      const freshUser = await prisma.user.findUnique({ where: { id: returnUser.id } }).catch(() => null);
+      const freshUser = await prisma.user
+        .findUnique({ where: { id: returnUser.id } })
+        .catch(() => null);
       if (freshUser) returnUser = freshUser;
     }
 
     // If exchange is for studio and returnUser was customer, upgrade to TEMP_STUDIO
-    if ((item.role === 'STUDIO' || item.role === 'TEMP_STUDIO' || !item.role) && returnUser && returnUser.role === 'CUSTOMER') {
-      returnUser = await prisma.user.update({
-        where: { id: returnUser.id },
-        data: { role: 'TEMP_STUDIO' },
-      }).catch(() => ({ ...returnUser, role: 'TEMP_STUDIO' }));
+    if (
+      (item.role === "STUDIO" || item.role === "TEMP_STUDIO" || !item.role) &&
+      returnUser &&
+      returnUser.role === "CUSTOMER"
+    ) {
+      returnUser = await prisma.user
+        .update({
+          where: { id: returnUser.id },
+          data: { role: "TEMP_STUDIO" },
+        })
+        .catch(() => ({ ...returnUser, role: "TEMP_STUDIO" }));
     }
 
-    if (returnUser && (returnUser.role === 'STUDIO' || returnUser.role === 'TEMP_STUDIO')) {
+    if (
+      returnUser &&
+      (returnUser.role === "STUDIO" || returnUser.role === "TEMP_STUDIO")
+    ) {
       returnUser = await enrichStudioUser(returnUser);
     }
 
@@ -2262,11 +2742,11 @@ router.post('/oauth/exchange', async (req, res) => {
       role: returnUser.role || item.role,
     });
   } catch (err) {
-    console.error('OAuth exchange error:', err);
-    return res.status(500).json({ error: 'Failed to exchange authorization code.' });
+    console.error("OAuth exchange error:", err);
+    return res
+      .status(500)
+      .json({ error: "Failed to exchange authorization code." });
   }
 });
 
 module.exports = router;
-
-

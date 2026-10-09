@@ -427,7 +427,8 @@ function buildWelcomeEmailHtml({
   phone = "",
   portalUrl = "",
   loginUrl = "",
-  handshakeImgSrc = process.env.WELCOME_GIF_URL || "https://files.catbox.moe/soev3d.gif",
+  handshakeImgSrc = process.env.WELCOME_GIF_URL ||
+    "https://files.catbox.moe/soev3d.gif",
 }) {
   const isStudio = role === "STUDIO" || role === "TEMP_STUDIO";
   const defaultCustomerUrl =
@@ -463,7 +464,7 @@ function buildWelcomeEmailHtml({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome!</title>
+  <title>Welcome to Darzi</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@700&display=swap');
   </style>
@@ -479,20 +480,11 @@ function buildWelcomeEmailHtml({
           
           <!-- Top Dark Navy/Slate Header Section (#373C52) -->
           <tr>
-            <td align="center" style="background-color: #373C52; padding: 38px 24px 34px 24px; text-align: center;">
+            <td align="center" style="background-color: #373C52; padding: 22px 20px; text-align: center;">
               
-              <!-- Animated Business Handshake GIF -->
-              <table role="presentation" cellspacing="0" cellpadding="0" align="center" style="margin: 0 auto 18px auto; border-collapse: separate;">
-                <tr>
-                  <td align="center" valign="middle" style="text-align: center; line-height: 0;">
-                    <img src="${handshakeImgSrc}" width="140" height="100" alt="🤝 Business Handshake" style="display: block; width: 140px; height: auto; max-height: 100px; margin: 0 auto; border-radius: 12px; border: 0; outline: none; text-decoration: none; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);" />
-                  </td>
-                </tr>
-              </table>
-
-              <!-- "Welcome!" Script / Cursive Title -->
-              <h1 style="margin: 0; padding: 0; font-family: 'Dancing Script', 'Caveat', 'Brush Script MT', 'Snell Roundhand', 'Segoe Script', cursive; font-size: 42px; font-weight: 500; font-style: italic; color: #FFFFFF; letter-spacing: 0.5px; line-height: 1.1;">
-                Welcome!
+              <!-- "Welcome to Darzi" Title -->
+              <h1 style="margin: 0; padding: 0; font-family: 'Dancing Script', 'Caveat', 'Brush Script MT', 'Snell Roundhand', 'Segoe Script', cursive; font-size: 34px; font-weight: 600; font-style: italic; color: #FFFFFF; letter-spacing: 0.5px; line-height: 1.2;">
+                Welcome to Darzi
               </h1>
 
             </td>
@@ -620,8 +612,14 @@ async function sendWelcomeEmail({
   const lastSentTime = welcomeEmailCooldownMap.get(dedupKey);
 
   // Debounce check: prevent duplicate dispatches within 2 minutes (e.g., rapid auth steps)
-  if (!force && lastSentTime && (now - lastSentTime < WELCOME_EMAIL_COOLDOWN_MS)) {
-    const remainingSec = Math.ceil((WELCOME_EMAIL_COOLDOWN_MS - (now - lastSentTime)) / 1000);
+  if (
+    !force &&
+    lastSentTime &&
+    now - lastSentTime < WELCOME_EMAIL_COOLDOWN_MS
+  ) {
+    const remainingSec = Math.ceil(
+      (WELCOME_EMAIL_COOLDOWN_MS - (now - lastSentTime)) / 1000,
+    );
     console.log(
       `[WELCOME EMAIL COOLDOWN] Welcome email recently dispatched to ${cleanEmail} as ${role} (${remainingSec}s cooldown remaining). Skipping duplicate.`,
     );
