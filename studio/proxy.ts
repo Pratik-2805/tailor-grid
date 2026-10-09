@@ -38,9 +38,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. Allow super-admin routes
+  // 2. Redirect /admin requests to dedicated Admin Portal (port 3002)
   if (pathname.startsWith('/admin')) {
-    return NextResponse.next()
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002'
+    return NextResponse.redirect(new URL(pathname, adminUrl))
   }
 
   // 3. Allow OAuth exchange callback route

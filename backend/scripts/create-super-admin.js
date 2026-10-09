@@ -106,8 +106,8 @@ async function main() {
   console.log(`   Password   : ${cleanPassword}`);
   console.log(`   Role       : ${adminUser.role}`);
   console.log(`   Status     : ${adminUser.status}`);
-  console.log('--------------------------------------------------------');
-  console.log('👉 Login now at: http://localhost:3001/admin');
+  const adminBaseUrl = process.env.ADMIN_URL || (process.env.ADMIN_PORT ? `http://localhost:${process.env.ADMIN_PORT}` : 'http://localhost:3002');
+  console.log(`👉 Login now at: ${adminBaseUrl}/admin`);
   console.log('========================================================\n');
 }
 

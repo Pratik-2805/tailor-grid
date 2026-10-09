@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   Activity,
   AlertCircle,
@@ -60,12 +61,21 @@ import {
   checkSuperAdminSession,
   getAdminToken,
   logoutSuperAdmin,
-  CUSTOMER_SITE_URL,
 } from '@/lib/api'
+import { OverviewTab } from '@/components/overview-tab'
+import { CustomersTab } from '@/components/customers-tab'
+import { StudiosTab } from '@/components/studios-tab'
+import { OrdersTab } from '@/components/orders-tab'
 
-type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
+export type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
 
-export default function SuperAdminPage() {
+interface SuperAdminPageProps {
+  initialTab?: AdminTab
+}
+
+export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPageProps) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   // Authentication states - initialize authChecking consistently to prevent SSR hydration mismatch
   const [adminUser, setAdminUser] = useState<any | null>(null)
@@ -79,7 +89,24 @@ export default function SuperAdminPage() {
   const [loginError, setLoginError] = useState<string | null>(null)
 
   // Data states
-  const [activeTab, setActiveTab] = useState<AdminTab>('overview')
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab)
+
+  const handleTabSwitch = (tab: AdminTab) => {
+    setActiveTab(tab)
+    const targetPath = tab === 'overview' ? '/' : `/${tab}`
+    if (pathname !== targetPath) {
+      router.push(targetPath)
+    }
+  }
+
+  // Sync activeTab when navigating via browser back/forward buttons
+  useEffect(() => {
+    if (pathname === '/customers') setActiveTab('customers')
+    else if (pathname === '/studios') setActiveTab('studios')
+    else if (pathname === '/orders') setActiveTab('orders')
+    else if (pathname === '/') setActiveTab('overview')
+  }, [pathname])
+
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -150,11 +177,17 @@ export default function SuperAdminPage() {
     const token = getAdminToken()
     if (!token) {
       setAuthChecking(false)
+      if (pathname !== '/') {
+        router.replace('/')
+      }
       return
     }
 
     const safetyTimer = setTimeout(() => {
-      if (isMounted) setAuthChecking(false)
+      if (isMounted) {
+        setAuthChecking(false)
+        if (pathname !== '/') router.replace('/')
+      }
     }, 2000)
 
     async function initSession() {
@@ -163,9 +196,12 @@ export default function SuperAdminPage() {
         if (isMounted && user && user.role === 'ADMIN') {
           setAdminUser(user)
           loadAllData(true)
+        } else if (isMounted) {
+          if (pathname !== '/') router.replace('/')
         }
       } catch (err) {
         console.warn('Session check notice:', err)
+        if (isMounted && pathname !== '/') router.replace('/')
       } finally {
         if (isMounted) {
           setAuthChecking(false)
@@ -235,6 +271,10 @@ export default function SuperAdminPage() {
     setAdminUser(null)
     setLoginId('')
     setLoginPassword('')
+    setActiveTab('overview')
+    if (pathname !== '/') {
+      router.replace('/')
+    }
     toast.info('Super Admin session ended')
   }
 
@@ -339,10 +379,18 @@ export default function SuperAdminPage() {
         measurements: editingCustomer.measurements,
       })
 
-      if (res.success) {
+      if (res.success && res.customer) {
         toast.success(`Customer profile updated successfully`)
+        // 1. Immediately update state in-memory so changes reflect instantly without refresh
+        setCustomers((prev) =>
+          prev.map((c) => (c.id === editingCustomer.id ? { ...c, ...res.customer } : c))
+        )
         setEditingCustomer(null)
-        loadAllData(true)
+
+        // 2. Refresh customer list quietly in background for full relations
+        fetchAdminCustomers(customerSearch, customerStatusFilter, 'CUSTOMER').then((list) => {
+          if (list && list.length > 0) setCustomers(list)
+        })
       } else {
         toast.error(res.error || 'Failed to update customer')
       }
@@ -366,10 +414,28 @@ export default function SuperAdminPage() {
     }
 
     const res = await createAdminCustomer(payload)
-    if (res.success) {
+    if (res.success && res.customer) {
       toast.success('New customer profile registered successfully')
       setShowAddCustomerModal(false)
-      loadAllData(true)
+
+      // 1. Immediately insert new customer at the top of the list
+      const newCust = {
+        ...res.customer,
+        orders: [],
+        ordersCount: 0,
+        activeOrdersCount: 0,
+        totalSpend: 0,
+      }
+      setCustomers((prev) => [newCust, ...prev.filter((c) => c.id !== res.customer.id)])
+
+      // 2. Quietly update overview counts without freezing UI
+      fetchAdminOverview().then((ov) => {
+        if (ov) setOverview(ov)
+      })
+      // 3. Sync customer list in background to ensure any server-computed fields match
+      fetchAdminCustomers('', 'ALL', 'CUSTOMER').then((list) => {
+        if (list && list.length > 0) setCustomers(list)
+      })
     } else {
       toast.error(res.error || 'Failed to create customer')
     }
@@ -383,7 +449,11 @@ export default function SuperAdminPage() {
     const ok = await deleteAdminCustomer(id)
     if (ok) {
       toast.success('Customer removed from records')
-      loadAllData(true)
+      // Immediately remove from state
+      setCustomers((prev) => prev.filter((c) => c.id !== id))
+      fetchAdminOverview().then((ov) => {
+        if (ov) setOverview(ov)
+      })
     } else {
       toast.error('Failed to remove customer')
     }
@@ -412,10 +482,18 @@ export default function SuperAdminPage() {
         specialties: editingStudio.specialties,
       })
 
-      if (res.success) {
+      if (res.success && res.studio) {
         toast.success(`Studio "${editingStudio.name}" updated successfully`)
+        // 1. Immediately update state
+        setStudios((prev) =>
+          prev.map((s) => (s.id === editingStudio.id ? { ...s, ...res.studio } : s))
+        )
         setEditingStudio(null)
-        loadAllData(true)
+
+        // 2. Sync studios list quietly in background
+        fetchAdminStudios(studioSearch, studioAreaFilter).then((list) => {
+          if (list && list.length > 0) setStudios(list)
+        })
       } else {
         toast.error(res.error || 'Failed to update studio')
       }
@@ -444,10 +522,30 @@ export default function SuperAdminPage() {
     }
 
     const res = await createAdminStudio(payload)
-    if (res.success) {
+    if (res.success && res.studio) {
       toast.success('New partner studio onboarded successfully')
       setShowAddStudioModal(false)
-      loadAllData(true)
+
+      // 1. Immediately add studio to local state
+      const newStudio = {
+        ...res.studio,
+        orders: [],
+        activeOrdersCount: 0,
+        completedOrdersCount: 0,
+        totalOrdersCount: 0,
+        totalPayoutEarned: 0,
+        utilization: 0,
+      }
+      setStudios((prev) => [newStudio, ...prev.filter((s) => s.id !== res.studio.id)])
+
+      // 2. Quietly update overview counts
+      fetchAdminOverview().then((ov) => {
+        if (ov) setOverview(ov)
+      })
+      // 3. Sync studios in background
+      fetchAdminStudios().then((list) => {
+        if (list && list.length > 0) setStudios(list)
+      })
     } else {
       toast.error(res.error || 'Failed to onboard studio')
     }
@@ -461,7 +559,11 @@ export default function SuperAdminPage() {
     const ok = await deleteAdminStudio(id)
     if (ok) {
       toast.success('Studio partner removed')
-      loadAllData(true)
+      // Immediately remove studio from local state
+      setStudios((prev) => prev.filter((s) => s.id !== id))
+      fetchAdminOverview().then((ov) => {
+        if (ov) setOverview(ov)
+      })
     } else {
       toast.error('Failed to remove studio')
     }
@@ -490,10 +592,18 @@ export default function SuperAdminPage() {
         sewingNotes: editingOrder.sewingNotes,
       })
 
-      if (res.success) {
+      if (res.success && res.order) {
         toast.success(`Order ${editingOrder.id} updated and dispatched`)
+        // 1. Immediately update order in local state
+        setOrders((prev) =>
+          prev.map((o) => (o.id === editingOrder.id ? { ...o, ...res.order } : o))
+        )
         setEditingOrder(null)
-        loadAllData(true)
+
+        // 2. Quietly update overview metrics without fetching all other datasets
+        fetchAdminOverview().then((ov) => {
+          if (ov) setOverview(ov)
+        })
       } else {
         toast.error(res.error || 'Failed to update order')
       }
@@ -535,14 +645,6 @@ export default function SuperAdminPage() {
               </span>
             </div>
           </div>
-
-          <a
-            href="/"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-[#1E2229] hover:text-[#9E593B] bg-white border border-[#E8E1D5] hover:border-[#9E593B]/40 shadow-2xs transition-colors"
-          >
-            <ArrowLeft size={13} className="text-[#9E593B]" />
-            <span>Studio Workbench</span>
-          </a>
         </div>
 
         {/* Center Light Login Card */}
@@ -830,14 +932,6 @@ export default function SuperAdminPage() {
               <span className="font-semibold text-[#1E2229]">{adminUser.email}</span>
             </div>
 
-            <a
-              href="/"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#1E2229] hover:text-black rounded-lg hover:bg-[#F3EFEA] border border-[#E8E1D5] transition-colors"
-            >
-              <Scissors size={13} className="text-[#9E593B]" />
-              <span className="hidden sm:inline">Workbench</span>
-            </a>
-
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:text-rose-900 rounded-lg hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
@@ -852,7 +946,7 @@ export default function SuperAdminPage() {
         {/* Navigation Tabs (Light Atelier) */}
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1.5 overflow-x-auto border-t border-[#E8E1D5] bg-[#FAF8F5]/80 text-xs font-semibold py-1.5">
           <button
-            onClick={() => setActiveTab('overview')}
+            onClick={() => handleTabSwitch('overview')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-[#9E593B] text-white shadow-xs font-bold'
@@ -864,7 +958,7 @@ export default function SuperAdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('customers')}
+            onClick={() => handleTabSwitch('customers')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
               activeTab === 'customers'
                 ? 'bg-[#9E593B] text-white shadow-xs font-bold'
@@ -881,7 +975,7 @@ export default function SuperAdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('studios')}
+            onClick={() => handleTabSwitch('studios')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
               activeTab === 'studios'
                 ? 'bg-[#9E593B] text-white shadow-xs font-bold'
@@ -898,7 +992,7 @@ export default function SuperAdminPage() {
           </button>
 
           <button
-            onClick={() => setActiveTab('orders')}
+            onClick={() => handleTabSwitch('orders')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
               activeTab === 'orders'
                 ? 'bg-[#9E593B] text-white shadow-xs font-bold'
@@ -920,757 +1014,64 @@ export default function SuperAdminPage() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
         {/* ── TAB 1: OVERVIEW & ANALYTICS ── */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Top Stat Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Total Customers</span>
-                  <Users size={16} className="text-[#9E593B]" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    {overview?.kpis?.totalCustomers ?? customers.length}
-                  </span>
-                  <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
-                    {overview?.kpis?.activeCustomers ?? customers.length} Active Customers
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Partner Studios</span>
-                  <Store size={16} className="text-blue-600" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    {overview?.kpis?.totalStudios ?? studios.length}
-                  </span>
-                  <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
-                    {overview?.kpis?.totalCapacity ?? 125} items/day capacity
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Total Orders</span>
-                  <Layers size={16} className="text-purple-600" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    {overview?.kpis?.totalOrders ?? orders.length}
-                  </span>
-                  <p className="text-[11px] text-purple-700 font-semibold mt-0.5">
-                    {overview?.kpis?.activeOrders ?? 0} active orders
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Earnings</span>
-                  <Scissors size={16} className="text-[#9E593B]" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    ${(overview?.kpis?.totalEarnings ?? overview?.kpis?.totalPayouts ?? orders.filter(o => ['Work in Progress', 'Ready', 'Collected', 'Closed'].includes(o.status)).reduce((sum, o) => sum + (o.price || 0), 0)).toLocaleString()}
-                  </span>
-                  <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    From Work in Progress & onwards
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
-                <div className="flex items-center justify-between text-[#78716C] mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Studio Capacity</span>
-                  <Activity size={16} className="text-rose-600" />
-                </div>
-                <div>
-                  <span className="text-2xl font-black text-[#1E2229]">
-                    {overview?.kpis?.fleetUtilization ?? 0}%
-                  </span>
-                  <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-                    Used today
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Pipeline Status Breakdown */}
-            <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
-              <h2 className="text-sm font-bold text-[#1E2229] uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Activity size={16} className="text-[#9E593B]" />
-                Orders by Status
-              </h2>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
-                {[
-                  { label: 'Allocated', count: overview?.statusCounts?.['Allocated'] ?? 0, color: 'border-slate-200 text-slate-700 bg-slate-50' },
-                  { label: 'Accepted', count: overview?.statusCounts?.['Accepted'] ?? 0, color: 'border-blue-200 text-blue-700 bg-blue-50' },
-                  { label: 'Customer Arrived', count: overview?.statusCounts?.['Customer Arrived'] ?? 0, color: 'border-amber-200 text-amber-800 bg-amber-50' },
-                  { label: 'Fitting Completed', count: overview?.statusCounts?.['Fitting Completed'] ?? 0, color: 'border-indigo-200 text-indigo-700 bg-indigo-50' },
-                  { label: 'Work in Progress', count: overview?.statusCounts?.['Work in Progress'] ?? 0, color: 'border-orange-200 text-orange-700 bg-orange-50' },
-                  { label: 'Ready', count: overview?.statusCounts?.['Ready'] ?? 0, color: 'border-emerald-200 text-emerald-700 bg-emerald-50' },
-                  { label: 'Collected', count: overview?.statusCounts?.['Collected'] ?? 0, color: 'border-teal-200 text-teal-700 bg-teal-50' },
-                  { label: 'Closed', count: overview?.statusCounts?.['Closed'] ?? 0, color: 'border-[#E8E1D5] text-[#78716C] bg-[#FAF8F5]' },
-                  { label: 'Cancelled', count: overview?.statusCounts?.['Cancelled'] ?? 0, color: 'border-rose-200 text-rose-700 bg-rose-50' },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    onClick={() => {
-                      setOrderStatusFilter(s.label)
-                      setActiveTab('orders')
-                    }}
-                    className={`p-3 rounded-xl border ${s.color} cursor-pointer hover:shadow-sm transition-all`}
-                  >
-                    <span className="text-[10px] font-bold block uppercase tracking-wider truncate">
-                      {s.label}
-                    </span>
-                    <span className="text-xl font-extrabold mt-1 block">
-                      {s.count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Quick Actions & Live Recent Orders */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left 2 Cols: Recent Orders */}
-              <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-sm font-bold text-[#1E2229] tracking-tight flex items-center gap-2">
-                    <Clock size={16} className="text-[#9E593B]" />
-                    Recent Orders
-                  </h2>
-                  <button
-                    onClick={() => setActiveTab('orders')}
-                    className="text-xs font-semibold text-[#9E593B] hover:underline"
-                  >
-                    View all {orders.length} orders &rarr;
-                  </button>
-                </div>
-
-                <div className="divide-y divide-[#E8E1D5] overflow-x-auto">
-                  {orders.slice(0, 7).map((o) => (
-                    <div
-                      key={o.id}
-                      className="py-3 flex items-center justify-between gap-4 hover:bg-[#FAF8F5] px-2 rounded-xl transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="size-9 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] grid place-items-center text-[#1E2229] font-mono font-bold text-xs">
-                          {o.hangTagNo || 'TG'}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono font-bold text-[#1E2229]">{o.id}</span>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF8F5] text-[#78716C] border border-[#E8E1D5]">
-                              {o.serviceName}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-[#78716C]">
-                            Customer: <strong className="text-[#1E2229]">{o.customerName}</strong> • Store: <strong className="text-[#1E2229]">{o.storeName}</strong>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-[#1E2229]">${o.price}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          o.status === 'Ready' ? 'bg-emerald-100 text-emerald-800' :
-                          o.status === 'Work in Progress' ? 'bg-orange-100 text-orange-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {o.status}
-                        </span>
-                        <button
-                          onClick={() => setEditingOrder(o)}
-                          className="p-1.5 text-[#78716C] hover:text-[#1E2229] rounded-md hover:bg-[#F3EFEA]"
-                          title="Manage Order"
-                        >
-                          <Edit2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Right Col: Admin Quick Shortcuts & Health */}
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-                    Quick Actions
-                  </span>
-                  <h3 className="text-base font-bold text-[#1E2229] mt-1 mb-4">Manage Platform</h3>
-
-                  <div className="space-y-2.5">
-                    <button
-                      onClick={() => setShowAddCustomerModal(true)}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-                    >
-                      <span className="flex items-center gap-2">
-                        <UserPlus size={15} className="text-[#9E593B]" />
-                        Add New Customer
-                      </span>
-                      <Plus size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => setShowAddStudioModal(true)}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Store size={15} className="text-blue-600" />
-                        Add Partner Studio
-                      </span>
-                      <Plus size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setOrderStatusFilter('Allocated')
-                        setActiveTab('orders')
-                      }}
-                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-                    >
-                      <span className="flex items-center gap-2">
-                        <Scissors size={15} className="text-[#9E593B]" />
-                        Review Pending Orders
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
-                        {overview?.statusCounts?.['Allocated'] ?? 0} Pending
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Fleet Health Card */}
-                <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
-                  <h4 className="text-xs font-bold text-[#1E2229] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Shield size={14} className="text-emerald-700" />
-                    System Status
-                  </h4>
-                  <p className="text-xs text-[#78716C] mb-3">
-                    All {studios.length} partner studios are running normally.
-                  </p>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex items-center justify-between py-1 border-b border-[#E8E1D5]">
-                      <span className="text-[#78716C]">Active Studios</span>
-                      <strong className="text-emerald-700">{studios.length} Online</strong>
-                    </div>
-                    <div className="flex items-center justify-between py-1 border-b border-[#E8E1D5]">
-                      <span className="text-[#78716C]">Total Daily Capacity</span>
-                      <strong className="text-[#1E2229]">{overview?.kpis?.totalCapacity || 125} items</strong>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[#78716C]">Database Connection</span>
-                      <strong className="text-emerald-700 flex items-center gap-1">
-                        <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Connected
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <OverviewTab
+            overview={overview}
+            customers={customers}
+            studios={studios}
+            orders={orders}
+            onNavigateTab={handleTabSwitch}
+            onOpenAddCustomer={() => setShowAddCustomerModal(true)}
+            onOpenAddStudio={() => setShowAddStudioModal(true)}
+            onFilterOrderStatus={setOrderStatusFilter}
+            onEditOrder={setEditingOrder}
+          />
         )}
 
         {/* ── TAB 2: CUSTOMER MASTER MANAGEMENT ── */}
         {activeTab === 'customers' && (
-          <div className="space-y-4">
-            {/* Header / Filter Toolbar */}
-            <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute left-3 top-2.5 size-4 text-[#A8A29E]" />
-                  <input
-                    type="text"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    placeholder="Search by name, phone, email..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                  />
-                </div>
-
-                <select
-                  value={customerStatusFilter}
-                  onChange={(e) => setCustomerStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl text-[#1E2229] font-medium focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-xs text-[#78716C] font-semibold mr-1">
-                  Showing {filteredCustomers.length} Customers
-                </span>
-                <button
-                  onClick={() => setShowAddCustomerModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-[#9E593B] text-white text-xs font-bold rounded-xl hover:bg-[#8A4C32] transition-colors shadow-xs cursor-pointer"
-                >
-                  <UserPlus size={14} />
-                  <span>+ Add Customer</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Customers Data Table */}
-            <div className="bg-white rounded-2xl border border-[#E8E1D5] shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#78716C] font-bold uppercase tracking-wider text-[11px]">
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Contact Info</th>
-                      <th className="py-3 px-4">Postcode / City</th>
-                      <th className="py-3 px-4">Orders</th>
-                      <th className="py-3 px-4">Total Spent</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Joined Date</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E8E1D5]">
-                    {filteredCustomers.map((c) => (
-                      <tr key={c.id} className="hover:bg-[#FAF8F5] transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className="size-8 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE] grid place-items-center font-bold text-xs uppercase shrink-0">
-                              {c.name ? c.name[0] : 'U'}
-                            </div>
-                            <div>
-                              <strong className="text-[#1E2229] block font-semibold">{c.name}</strong>
-                              <span className="text-[10px] text-[#A8A29E] font-mono">ID: {c.id}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <div className="text-[#1E2229]">
-                            <p className="font-medium">{c.email || '—'}</p>
-                            <p className="text-[11px] text-[#78716C] font-mono">{c.phone || '—'}</p>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <div>
-                            <span className="font-mono font-medium text-[#1E2229] block">
-                              {c.postcode || '—'}
-                            </span>
-                            {c.address && (
-                              <span className="text-[10px] text-[#78716C] line-clamp-1 block max-w-[200px]" title={c.address}>
-                                {c.address}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <button
-                            type="button"
-                            onClick={() => setViewingCustomerOrders(c)}
-                            className="text-left group cursor-pointer"
-                            title="Click to view all purchased services & retail items"
-                          >
-                            <span className="font-bold text-[#1E2229] group-hover:text-[#9E593B] group-hover:underline flex items-center gap-1">
-                              {c.ordersCount ?? 0} orders
-                              <ExternalLink size={11} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9E593B]" />
-                            </span>
-                            {c.activeOrdersCount > 0 && (
-                              <span className="text-[10px] text-amber-700 font-semibold block">
-                                ({c.activeOrdersCount} active)
-                              </span>
-                            )}
-                          </button>
-                        </td>
-
-                        <td className="py-3 px-4 font-bold text-[#1E2229]">
-                          ${c.totalSpend ?? 0}
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                            c.status === 'ACTIVE'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                              : 'bg-rose-100 text-rose-800 border border-rose-200'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4 text-[#78716C] font-mono text-[11px]">
-                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setViewingCustomerOrders(c)}
-                              className="p-1.5 text-[#78716C] hover:text-[#9E593B] hover:bg-[#FAF3ED] rounded-lg transition-colors cursor-pointer"
-                              title="View Customer Purchases & History"
-                            >
-                              <ShoppingBag size={14} />
-                            </button>
-                            <button
-                              onClick={() => setEditingCustomer(c)}
-                              className="p-1.5 text-[#78716C] hover:text-[#9E593B] hover:bg-[#FAF3ED] rounded-lg transition-colors cursor-pointer"
-                              title="Edit Customer"
-                            >
-                              <Edit2 size={14} />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteCustomer(c.id, c.name)}
-                              className="p-1.5 text-[#A8A29E] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete Customer"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {filteredCustomers.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-[#78716C] text-xs">
-                          No customer profiles match your search criteria.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <CustomersTab
+            customers={customers}
+            customerSearch={customerSearch}
+            setCustomerSearch={setCustomerSearch}
+            customerStatusFilter={customerStatusFilter}
+            setCustomerStatusFilter={setCustomerStatusFilter}
+            onOpenAddCustomer={() => setShowAddCustomerModal(true)}
+            onEditCustomer={setEditingCustomer}
+            onDeleteCustomer={handleDeleteCustomer}
+            onViewCustomerOrders={setViewingCustomerOrders}
+          />
         )}
 
         {/* ── TAB 3: STUDIO FLEET MANAGEMENT ── */}
         {activeTab === 'studios' && (
-          <div className="space-y-4">
-            {/* Header Toolbar */}
-            <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-72">
-                  <Search className="absolute left-3 top-2.5 size-4 text-[#A8A29E]" />
-                  <input
-                    type="text"
-                    value={studioSearch}
-                    onChange={(e) => setStudioSearch(e.target.value)}
-                    placeholder="Search by studio name, postcode, lead..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                  />
-                </div>
-
-                <select
-                  value={studioAreaFilter}
-                  onChange={(e) => setStudioAreaFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl text-[#1E2229] font-medium focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                >
-                  <option value="ALL">All Areas</option>
-                  {availableAreas.map((area) => (
-                    <option key={area} value={area}>{area}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                <span className="text-xs text-[#78716C] font-semibold mr-1">
-                  {filteredStudios.length} Partner Studios
-                </span>
-                <button
-                  onClick={() => setShowAddStudioModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-[#9E593B] text-white text-xs font-bold rounded-xl hover:bg-[#8A4C32] transition-colors shadow-xs cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>+ Add Studio</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Studios Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredStudios.map((s) => (
-                <div
-                  key={s.id}
-                  className="bg-white rounded-2xl border border-[#E8E1D5] p-5 shadow-xs hover:border-[#9E593B]/40 hover:shadow-md transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Top Row: Name & Edit button */}
-                    <div className="flex items-start justify-between gap-2 mb-3">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#9E593B] bg-[#FAF3ED] px-2 py-0.5 rounded-full border border-[#EADBCE]">
-                          {s.area || 'Studio Partner'}
-                        </span>
-                        <h3 className="text-sm font-bold text-[#1E2229] mt-1.5 line-clamp-1">
-                          {s.name}
-                        </h3>
-                        <p className="text-[11px] text-[#78716C] line-clamp-1 mt-0.5">
-                          {s.address} • {s.postcode}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setEditingStudio(s)}
-                          className="p-1.5 text-[#78716C] hover:text-[#1E2229] hover:bg-[#FAF8F5] rounded-lg transition-colors cursor-pointer"
-                          title="Edit Studio"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteStudio(s.id, s.name)}
-                          className="p-1.5 text-[#A8A29E] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Studio"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Capacity & Load Bar */}
-                    <div className="bg-[#FAF8F5] p-3 rounded-xl border border-[#E8E1D5] mb-3 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-[#78716C]">Active Orders:</span>
-                        <span className="text-[#1E2229]">
-                          <strong>{s.activeOrdersCount ?? 0}</strong> / {s.dailyCapacity} max
-                        </span>
-                      </div>
-                      <div className="w-full bg-[#E8E1D5] h-2 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            (s.utilization ?? 0) > 85 ? 'bg-rose-500' :
-                            (s.utilization ?? 0) > 50 ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`}
-                          style={{ width: `${Math.min(100, s.utilization ?? 0)}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Quick Specs */}
-                    <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
-                      <div className="bg-[#FAF8F5] border border-[#E8E1D5] p-2 rounded-xl">
-                        <span className="text-[10px] text-[#78716C] block font-semibold">Machines</span>
-                        <strong className="text-[#1E2229] font-bold">{s.machines || 4}</strong>
-                      </div>
-                      <div className="bg-[#FAF8F5] border border-[#E8E1D5] p-2 rounded-xl">
-                        <span className="text-[10px] text-[#78716C] block font-semibold">Workers</span>
-                        <strong className="text-[#1E2229] font-bold">{s.workers || 3}</strong>
-                      </div>
-                      <div className="bg-[#FAF8F5] border border-[#E8E1D5] p-2 rounded-xl">
-                        <span className="text-[10px] text-[#78716C] block font-semibold">Rating</span>
-                        <strong className="text-amber-700 font-bold">★ {s.rating || 4.9}</strong>
-                      </div>
-                    </div>
-
-                    <div className="text-[11px] text-[#78716C] space-y-1 mb-2">
-                      <p className="flex items-center justify-between">
-                        <span>Lead Tailor:</span>
-                        <strong className="text-[#1E2229] font-semibold">{s.leadTailor || 'Master Tailor'}</strong>
-                      </p>
-                      <p className="flex items-center justify-between">
-                        <span>Phone:</span>
-                        <strong className="text-[#1E2229] font-mono font-semibold">{s.phone || '—'}</strong>
-                      </p>
-                      <p className="flex items-center justify-between">
-                        <span>Email:</span>
-                        <strong className="text-[#1E2229] font-medium truncate max-w-[190px]" title={s.email}>{s.email || '—'}</strong>
-                      </p>
-                      <p className="flex items-center justify-between">
-                        <span>Hours:</span>
-                        <strong className="text-[#1E2229]">{s.openingHours || '09:00 - 19:00'}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Specialties Pills */}
-                  {s.specialties && s.specialties.length > 0 && (
-                    <div className="pt-2 border-t border-[#E8E1D5] flex flex-wrap gap-1">
-                      {s.specialties.slice(0, 3).map((spec: string) => (
-                        <span
-                          key={spec}
-                          className="text-[9px] font-semibold bg-[#FAF8F5] text-[#78716C] border border-[#E8E1D5] px-2 py-0.5 rounded-md"
-                        >
-                          {spec}
-                        </span>
-                      ))}
-                      {s.specialties.length > 3 && (
-                        <span className="text-[9px] text-[#A8A29E] font-semibold px-1">
-                          +{s.specialties.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+          <StudiosTab
+            studios={studios}
+            studioSearch={studioSearch}
+            setStudioSearch={setStudioSearch}
+            studioAreaFilter={studioAreaFilter}
+            setStudioAreaFilter={setStudioAreaFilter}
+            availableAreas={availableAreas}
+            onOpenAddStudio={() => setShowAddStudioModal(true)}
+            onEditStudio={setEditingStudio}
+            onDeleteStudio={handleDeleteStudio}
+          />
         )}
 
         {/* ── TAB 4: ORDERS & DISPATCH CONSOLE ── */}
         {activeTab === 'orders' && (
-          <div className="space-y-4">
-            {/* Filter Toolbar */}
-            <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-2.5 size-4 text-[#A8A29E]" />
-                  <input
-                    type="text"
-                    value={orderSearch}
-                    onChange={(e) => setOrderSearch(e.target.value)}
-                    placeholder="Search Order ID, Hang Tag, Customer..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                  />
-                </div>
-
-                <select
-                  value={orderStatusFilter}
-                  onChange={(e) => setOrderStatusFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl text-[#1E2229] font-medium focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="Allocated">Allocated</option>
-                  <option value="Accepted">Accepted</option>
-                  <option value="Customer Arrived">Customer Arrived</option>
-                  <option value="Fitting Completed">Fitting Completed</option>
-                  <option value="Work in Progress">Work in Progress</option>
-                  <option value="Ready">Ready</option>
-                  <option value="Collected">Collected</option>
-                  <option value="Closed">Closed</option>
-                  <option value="Cancelled">Cancelled</option>
-                </select>
-
-                <select
-                  value={orderStoreFilter}
-                  onChange={(e) => setOrderStoreFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl text-[#1E2229] font-medium focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                >
-                  <option value="ALL">All Stores</option>
-                  {studios.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={orderRetailFilter}
-                  onChange={(e) => setOrderRetailFilter(e.target.value)}
-                  className="px-3 py-1.5 text-xs bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl text-[#1E2229] font-medium focus:outline-none focus:ring-2 focus:ring-[#9E593B]"
-                >
-                  <option value="ALL">All Products</option>
-                  <option value="RETAIL_ONLY">🛍️ Retail Purchased</option>
-                  <option value="ALTERATION_ONLY">✂️ Alterations Only</option>
-                </select>
-              </div>
-
-              <div className="text-xs text-[#78716C] font-semibold">
-                Showing {filteredOrders.length} of {orders.length} Orders
-              </div>
-            </div>
-
-            {/* Orders Table */}
-            <div className="bg-white rounded-2xl border border-[#E8E1D5] shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#78716C] font-bold uppercase tracking-wider text-[11px]">
-                      <th className="py-3 px-4">Order ID & Tag</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Service & Garment</th>
-                      <th className="py-3 px-4">Assigned Studio</th>
-                      <th className="py-3 px-4">Price</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Date / Slot</th>
-                      <th className="py-3 px-4 text-right">Dispatch Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E8E1D5]">
-                    {filteredOrders.map((o) => (
-                      <tr key={o.id} className="hover:bg-[#FAF8F5] transition-colors">
-                        <td className="py-3 px-4">
-                          <span className="font-mono font-bold text-[#1E2229] block">{o.id}</span>
-                          <span className="text-[10px] font-semibold text-[#78716C] bg-[#FAF8F5] border border-[#E8E1D5] px-1.5 py-0.5 rounded">
-                            Tag: {o.hangTagNo || 'UNTAGGED'}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <strong className="text-[#1E2229] font-semibold block">{o.customerName}</strong>
-                          <span className="text-[11px] text-[#78716C]">{o.customerPhone || o.customerEmail || '—'}</span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span className="font-bold text-[#1E2229] block">{o.serviceName}</span>
-                          <span className="text-[11px] text-[#78716C]">{o.garmentName || 'Standard Item'}</span>
-                          {o.retailSold ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded mt-1">
-                              🛍️ Purchased: {o.retailCategory || 'Retail Item'} (+${o.retailValue || 15})
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-[#A8A29E] block mt-0.5">
-                              No retail product
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <strong className="text-[#1E2229] font-semibold block">{o.storeName}</strong>
-                          <span className="text-[10px] text-[#A8A29E] font-mono">ID: {o.storeId || 'None'}</span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span className="font-bold text-[#1E2229] text-sm block">${o.price}</span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                            o.status === 'Ready' ? 'bg-emerald-100 text-emerald-800' :
-                            o.status === 'Work in Progress' ? 'bg-orange-100 text-orange-800' :
-                            o.status === 'Fitting Completed' ? 'bg-indigo-100 text-indigo-800' :
-                            o.status === 'Collected' ? 'bg-teal-100 text-teal-800' :
-                            o.status === 'Cancelled' ? 'bg-rose-100 text-rose-800' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
-                            {o.status}
-                          </span>
-                        </td>
-
-                        <td className="py-3 px-4 text-[#78716C]">
-                          <span className="text-[#1E2229] font-medium">{o.date}</span>
-                          <span className="text-[10px] text-[#A8A29E] block">{o.timeSlot}</span>
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setEditingOrder(o)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Scissors size={12} />
-                            <span>Reassign / Edit</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {filteredOrders.length === 0 && (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center text-[#78716C] text-xs">
-                          No orders match the selected filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <OrdersTab
+            orders={orders}
+            studios={studios}
+            orderSearch={orderSearch}
+            setOrderSearch={setOrderSearch}
+            orderStatusFilter={orderStatusFilter}
+            setOrderStatusFilter={setOrderStatusFilter}
+            orderStoreFilter={orderStoreFilter}
+            setOrderStoreFilter={setOrderStoreFilter}
+            orderRetailFilter={orderRetailFilter}
+            setOrderRetailFilter={setOrderRetailFilter}
+            onEditOrder={setEditingOrder}
+          />
         )}
       </main>
 

@@ -1,0 +1,481 @@
+@import 'tailwindcss';
+
+
+@theme {
+  --font-serif: var(--font-serif), 'Playfair Display', Georgia, serif;
+  --font-sans: var(--font-sans), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  --bg-main: #FAF8F5;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #F3EFEA;
+  --border-light: #E8E1D5;
+  --border-subtle: #EFEAE2;
+  --obsidian: #0F1115;
+  --charcoal: #1E2229;
+  --muted: #6B7280;
+  --terra: #9E593B;
+  --terra-light: #FFF7F2;
+  --amber-accent: #F59E0B;
+  --green-accent: #10B981;
+
+  /* Sidebar layout */
+  --sidebar-w: 248px;
+  --sidebar-collapsed: 64px;
+  --topbar-h: 56px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--obsidian);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.025em;
+}
+
+::selection {
+  background-color: rgba(158, 89, 59, 0.15);
+  color: #9E593B;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D6D1CA;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9E593B;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Sidebar Animations ── */
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleUp {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseGlow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s ease-out forwards;
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ── Sidebar Transitions ── */
+.sidebar-transition {
+  transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Glass Morphism Utilities ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.glass-dark {
+  background: rgba(15, 17, 21, 0.85);
+  backdrop-filter: blur(16px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Subtle Card Hover ── */
+.card-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Focus Ring ── */
+.focus-ring:focus-visible {
+  outline: 2px solid #9E593B;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ── Toast Enter ── */
+.toast-enter {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Remove native clock icon from time inputs ── */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-inner-spin-button,
+input[type="time"]::-webkit-clear-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* UIVERSE & US ATELIER SAAS ENHANCEMENTS                                     */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Uiverse Stat Card: Floating with top micro-accent highlight */
+.uiverse-stat-card {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 1rem;
+  padding: 1.25rem 1.35rem;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.uiverse-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.07), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  border-color: #CBD5E1;
+}
+
+.uiverse-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0.85;
+}
+
+.uiverse-stat-emerald::before {
+  background: linear-gradient(90deg, #10B981, #059669);
+}
+
+.uiverse-stat-amber::before {
+  background: linear-gradient(90deg, #F59E0B, #D97706);
+}
+
+.uiverse-stat-sky::before {
+  background: linear-gradient(90deg, #0284C7, #0369A1);
+}
+
+.uiverse-stat-purple::before {
+  background: linear-gradient(90deg, #8B5CF6, #6D28D9);
+}
+
+/* Uiverse Tactile PIN Slot */
+.uiverse-pin-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.875rem;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  box-shadow: inset 0 2px 4px 0 rgba(15, 23, 42, 0.03);
+  transition: all 0.15s ease-out;
+}
+
+.uiverse-pin-slot.active {
+  border-color: #9E593B;
+  box-shadow: 0 0 0 4px rgba(158, 89, 59, 0.12), inset 0 1px 2px 0 rgba(158, 89, 59, 0.05);
+  background: #FFFFFF;
+}
+
+.uiverse-pin-slot.filled {
+  border-color: #0F172A;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+}
+
+/* Uiverse Keypad Button */
+.uiverse-keypad-btn {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  color: #0F172A;
+  font-family: var(--font-sans), monospace;
+  font-weight: 700;
+  font-size: 1.125rem;
+  padding: 0.875rem;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.uiverse-keypad-btn:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  transform: translateY(-1px);
+}
+
+.uiverse-keypad-btn:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: inset 0 2px 4px 0 rgba(15, 23, 42, 0.08);
+  background: #F1F5F9;
+}
+
+/* Uiverse Radar Beacon */
+@keyframes radarPing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  70% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.radar-ping {
+  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Uiverse Clean Badge */
+.uiverse-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+/* Card Depth Morphing Animations (Back Card Comes Forward) */
+@keyframes cardMorphForward {
+  0% {
+    transform: translateY(24px) scale(0.96);
+    filter: blur(2px) brightness(0.9);
+    opacity: 0.85;
+  }
+
+  60% {
+    transform: translateY(-3px) scale(1.008);
+    filter: blur(0px) brightness(1.02);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    filter: blur(0px) brightness(1);
+    opacity: 1;
+  }
+}
+
+@keyframes cardMorphRecede {
+  0% {
+    transform: translateY(-12px) scale(1.02);
+    opacity: 0.95;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-card-morph-forward {
+  animation: cardMorphForward 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, filter, opacity;
+}
+
+.animate-card-morph-recede {
+  animation: cardMorphRecede 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Site Normal Animated Loader (From Uiverse.io by Subaashbala) */
+.uiverse-loader {
+  --ANIMATION-DELAY-MULTIPLIER: 70ms;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  height: 3.5rem;
+}
+
+.uiverse-loader span {
+  padding: 0;
+  margin: 0;
+  letter-spacing: -5rem;
+  animation-delay: 0s;
+  transform: translateY(4rem);
+  animation: hideAndSeek 1s alternate infinite cubic-bezier(0.86, 0, 0.07, 1);
+  display: flex;
+  align-items: center;
+}
+
+.uiverse-loader .l {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 0);
+}
+
+.uiverse-loader .o {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 1);
+}
+
+.uiverse-loader .a {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 2);
+}
+
+.uiverse-loader .d {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 3);
+}
+
+.uiverse-loader .ispan {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 4);
+}
+
+.uiverse-loader .n {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 5);
+}
+
+.uiverse-loader .g {
+  animation-delay: calc(var(--ANIMATION-DELAY-MULTIPLIER) * 6);
+}
+
+.uiverse-loader .letter {
+  width: fit-content;
+  height: 3rem;
+}
+
+.uiverse-loader .i {
+  margin-inline: 5px;
+}
+
+@keyframes hideAndSeek {
+  0% {
+    transform: translateY(4rem);
+  }
+  100% {
+    transform: translateY(0rem);
+  }
+}
