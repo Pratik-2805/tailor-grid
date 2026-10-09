@@ -15,6 +15,7 @@ import {
   getStorageCookie,
   setStorageCookie,
   removeStorageCookie,
+  decodeJwtPayload,
 } from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
 
@@ -268,10 +269,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const handleAuthSuccess = (loggedUser: User) => {
-    if (loggedUser.role === 'STUDIO' || loggedUser.role === 'TEMP_STUDIO') {
+    const rt = getRefreshToken()
+    const rtPayload = decodeJwtPayload(rt)
+    const tokenRole = rtPayload?.role
+    const effectiveRole = tokenRole || loggedUser.role || 'CUSTOMER'
+
+    if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
       setIsAuthOpen(false)
-      const rt = getRefreshToken() || getAuthToken()
-      window.location.replace(getStudioUrl('/auth/callback', rt))
+      const rtVal = getRefreshToken() || getAuthToken()
+      window.location.replace(getStudioUrl('/auth/callback', rtVal))
       return
     }
 
@@ -286,19 +292,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    setUser(loggedUser)
+    const updatedUser = { ...loggedUser, role: effectiveRole as any }
+    setUser(updatedUser)
     setIsAuthOpen(false)
-    const effectiveRole: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER'
-    setAuthRole(effectiveRole)
-    setCookieAuthRole(loggedUser.role || effectiveRole)
-    setAuthUser(loggedUser)
+    setAuthRole(effectiveRole === 'STUDIO' ? 'STUDIO' : 'CUSTOMER')
+    setCookieAuthRole(effectiveRole)
+    setAuthUser(updatedUser)
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
       position: 'top-center',
       autoClose: 3000,
     })
 
-    if (loggedUser.role === 'CUSTOMER') {
+    if (effectiveRole === 'CUSTOMER') {
       router.push('/book')
     } else {
       router.push('/')
@@ -400,7 +406,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (screenOrPath === 'home' || screenOrPath === '/') {
-      if (user && user.role === 'CUSTOMER') {
+      const currentRole = user?.role || getAuthRole()
+      if (currentRole === 'CUSTOMER') {
         router.push('/book')
         return
       }
@@ -416,7 +423,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       screenOrPath.startsWith('/partner/') ||
       screenOrPath.startsWith('/for-partners/')
     ) {
-      if (user && user.role === 'CUSTOMER') {
+      const currentRole = user?.role || getAuthRole()
+      if (currentRole === 'CUSTOMER') {
         router.push('/book')
         return
       }

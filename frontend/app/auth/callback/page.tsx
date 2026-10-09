@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getStudioUrl } from '@/lib/api'
-import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
+import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 import { AlertCircle } from 'lucide-react'
 import { NormalLoader } from '@/components/normal-loader'
 
@@ -21,7 +21,7 @@ function CustomerAuthCallbackInner() {
       const refreshToken = searchParams.get('refreshToken') || searchParams.get('refresh_token')
       const code = searchParams.get('code')
       const token = searchParams.get('token')
-      const redirectPath = searchParams.get('redirect') || '/'
+      const redirectPath = searchParams.get('redirect') || '/book'
       const existingRt = getRefreshToken()
 
       if (!refreshToken && !code && !token && !existingRt) {
@@ -63,8 +63,12 @@ function CustomerAuthCallbackInner() {
           return
         }
 
+        const effectiveRt = refreshToken || getRefreshToken()
+        const tokenRole = effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null
+        const effectiveRole = tokenRole || user.role || 'CUSTOMER'
+
         // If user is actually a STUDIO / TEMP_STUDIO, route to Studio Portal
-        if (user.role === 'STUDIO' || user.role === 'TEMP_STUDIO') {
+        if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
           const rt = refreshToken || getRefreshToken()
           window.location.replace(getStudioUrl('/auth/callback', rt))
           return
@@ -72,7 +76,8 @@ function CustomerAuthCallbackInner() {
 
         setAuthRole('CUSTOMER')
         setAuthUser(user)
-        window.location.replace(redirectPath)
+        const targetRedirect = redirectPath && redirectPath !== '/' ? redirectPath : '/book'
+        window.location.replace(targetRedirect)
       } catch (err: any) {
         setError(err.message || 'Failed to authenticate session.')
       }

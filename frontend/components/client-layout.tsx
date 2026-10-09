@@ -54,10 +54,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
   const hideFooter = currentScreen === 'partner' || isBookScreen
 
-  // Route Guard: Logged-in customers must never access partner or studio routes via URL
+  // Route Guard: Logged-in customers must never access '/' (home) or partner/studio routes via URL or back navigation
   React.useEffect(() => {
     if (isAuthLoading) return
-    if (user && user.role === 'CUSTOMER') {
+    const role = user?.role || getAuthRole()
+    if (role === 'CUSTOMER') {
+      if (pathname === '/') {
+        navigate('/book')
+        return
+      }
       const clean = pathname ? pathname.replace(/^\//, '').split('/')[0] : ''
       if (clean === 'for-partners' || clean === 'partner') {
         navigate('/book')

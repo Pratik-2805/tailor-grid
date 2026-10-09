@@ -113,7 +113,8 @@ export function SignUpModal({
       setAuthToken(effectiveToken)
     }
 
-    const effectiveRole = user.role || role || (effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null) || 'CUSTOMER'
+    const tokenRole = effectiveRt ? decodeJwtPayload(effectiveRt)?.role : null
+    const effectiveRole = tokenRole || user.role || role || 'CUSTOMER'
 
     if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
       setAuthRole(effectiveRole)

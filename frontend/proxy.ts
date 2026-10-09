@@ -38,14 +38,33 @@ export function proxy(request: NextRequest) {
       return NextResponse.next()
     }
 
-    const token = request.cookies.get('tg_token')?.value
-    const refreshToken = request.cookies.get('tg_refresh_token')?.value
+    const token = request.cookies.get('tg_token')?.value || request.cookies.get('token')?.value
+    const refreshToken = request.cookies.get('tg_refresh_token')?.value || request.cookies.get('refreshToken')?.value
     const hasAnyToken = Boolean(token || refreshToken)
 
     // 2. Prevent infinite redirect loops on auth pages
     const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/auth')
     if (isAuthPage && hasAnyToken) {
       return NextResponse.next()
+    }
+
+    // 3. Extract role directly from token payload (Refresh Token primary)
+    const tokenPayload = decodeJwtPayload(refreshToken) || decodeJwtPayload(token)
+    const role = tokenPayload?.role || request.cookies.get('tg_user_role')?.value
+
+    // 4. If authenticated user has role CUSTOMER, deny access to '/' and partner pages, redirecting directly to /book
+    if (role === 'CUSTOMER') {
+      if (pathname === '/') {
+        return NextResponse.redirect(new URL('/book', request.url))
+      }
+      if (
+        pathname === '/for-partners' ||
+        pathname.startsWith('/for-partners/') ||
+        pathname === '/partner' ||
+        pathname.startsWith('/partner/')
+      ) {
+        return NextResponse.redirect(new URL('/book', request.url))
+      }
     }
 
     const isCustomerProtected =
@@ -58,7 +77,7 @@ export function proxy(request: NextRequest) {
       pathname === '/profile' ||
       pathname.startsWith('/profile/')
 
-    // 3. Redirect unauthenticated guests attempting to visit protected customer routes
+    // 5. Redirect unauthenticated guests attempting to visit protected customer routes
     if (isCustomerProtected && !hasAnyToken) {
       return NextResponse.redirect(new URL('/?auth=required', request.nextUrl.origin))
     }
