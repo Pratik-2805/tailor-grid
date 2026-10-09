@@ -4,18 +4,25 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import {
   ArrowLeft,
-  Check,
+  Briefcase,
   ChevronRight,
   Edit2,
-  Headphones,
-  Lock,
-  ShieldCheck,
+  Home,
+  MapPin,
+  Plus,
+  Trash2,
   User as UserIcon,
 } from 'lucide-react'
-import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
+import { toast } from 'react-toastify'
 import type { FittingBooking, Screen, User as UserType } from './data'
 import { fetchOrders, updateUserProfile } from '@/lib/api'
-import { getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { setStorageCookie } from '@/lib/cookies'
+import { setStoredCity } from './use-city-location'
+import {
+  getSavedAddresses,
+  removeSavedAddress,
+  type SavedAddressItem,
+} from '@/lib/saved-addresses'
 
 interface ProfileViewProps {
   go: (s: Screen | string) => void
@@ -29,127 +36,64 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
 
-  const isLegacyAddress = (addr?: string | null) => !addr || addr === '18 Kensington Church St'
-  const isLegacyPin = (pin?: string | null) => !pin || pin === 'W8 4EP'
-
-  // Edit Mode toggle for Personal Details & Bespoke Fit Vault
+  // Edit Mode toggle for Personal Details
   const [isEditingPersonal, setIsEditingPersonal] = useState(false)
 
   // Profile Form States
   const [name, setName] = useState(user?.name || '')
-  const [address, setAddress] = useState(isLegacyAddress(user?.address) ? '' : user!.address!)
-  const [postcode, setPostcode] = useState(isLegacyPin(user?.postcode) ? '' : user!.postcode!)
-  const [isLocating, setIsLocating] = useState(false)
 
-  const handleDetectLiveLocation = async () => {
-    if (typeof window === 'undefined' || !navigator.geolocation) return
-    setIsLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        try {
-          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
-          if (apiKey && typeof window !== 'undefined') {
-            const w = window as any
-            if (!w.__googleMapsOptionsConfiguredCustomerProfile) {
-              try {
-                setOptions({ key: apiKey, v: 'weekly' })
-                w.__googleMapsOptionsConfiguredCustomerProfile = true
-              } catch { }
-            }
-          }
+  // Saved Addresses list state
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>([])
 
-          const { Geocoder } = (await importLibrary('geocoding')) as any
-          const geocoder = new Geocoder()
-          const res = await geocoder.geocode({ location: { lat: latitude, lng: longitude } })
+  useEffect(() => {
+    setSavedAddresses(getSavedAddresses(user?.id))
+  }, [user?.id])
 
-          if (res.results && res.results.length > 0) {
-            const best = res.results[0]
-            let streetNumber = ''
-            let route = ''
-            let sublocality = ''
-            let city = ''
-            let postalCode = ''
+  useEffect(() => {
+    const handleSync = () => {
+      setSavedAddresses(getSavedAddresses(user?.id))
+    }
+    window.addEventListener('tg_saved_addresses_changed', handleSync)
+    return () => window.removeEventListener('tg_saved_addresses_changed', handleSync)
+  }, [user?.id])
 
-            for (const comp of best.address_components) {
-              const types = comp.types
-              if (types.includes('street_number')) streetNumber = comp.long_name
-              if (types.includes('route')) route = comp.long_name
-              if (types.includes('sublocality_level_1') || types.includes('sublocality')) sublocality = comp.long_name
-              if (types.includes('locality') && !city) city = comp.long_name
-              if (types.includes('postal_code') && !postalCode) postalCode = comp.long_name
-            }
-
-            const street = [streetNumber, route].filter(Boolean).join(' ') || sublocality || city
-            const fullAddr = [street, city || sublocality].filter(Boolean).join(', ') || best.formatted_address.split(',').slice(0, 2).join(',')
-
-            if (fullAddr) setAddress(fullAddr)
-            if (postalCode) setPostcode(postalCode)
-          }
-        } catch (err) {
-          console.warn('Google Maps Geocoding failed:', err)
-        } finally {
-          setIsLocating(false)
-        }
-      },
-      (err) => {
-        console.warn('Geolocation failed:', err)
-        setIsLocating(false)
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    )
+  const handleDeleteSavedAddress = (id: string) => {
+    const updated = removeSavedAddress(id, user?.id)
+    setSavedAddresses(updated)
+    toast.success('Address removed.', { position: 'top-center' })
   }
 
-  // Measurements
-  const [fitPreference, setFitPreference] = useState<'Slim' | 'Tailored' | 'Regular' | 'Relaxed'>('Tailored')
-  const [waist, setWaist] = useState('')
-  const [inseam, setInseam] = useState('')
-  const [chest, setChest] = useState('')
-  const [sleeve, setSleeve] = useState('')
+  const handleSelectSavedAddress = (item: SavedAddressItem) => {
+    const cityName = item.city || item.locality || item.address.split(',')[0]
+    setStoredCity(cityName, { lat: item.lat, lng: item.lng })
+    if (typeof window !== 'undefined') {
+      try {
+        const payload = {
+          city: cityName,
+          coords: { lat: item.lat, lng: item.lng },
+          isLiveLocation: false,
+          isLocationSaved: true,
+          isCardFlipped: false,
+          addressDetails: {
+            houseNo: item.details?.houseNo || '',
+            apartment: item.details?.apartment || (item.title && item.title !== 'Saved Address' ? item.title : '') || '',
+            locality: item.details?.locality || item.locality || '',
+            city: item.details?.city || item.city || cityName,
+            landmark: item.details?.landmark || '',
+          },
+        }
+        sessionStorage.setItem('tg_book_session', JSON.stringify(payload))
+      } catch { }
+    }
+    go('book')
+  }
 
   // Feedback states
   const [isSaving, setIsSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     if (user) {
       setName(user.name || '')
-      const validAddr = isLegacyAddress(user.address) ? '' : user.address!
-      const validPin = isLegacyPin(user.postcode) ? '' : user.postcode!
-      setAddress(validAddr)
-      setPostcode(validPin)
-
-      if (!validAddr || !validPin) {
-        handleDetectLiveLocation()
-      }
-
-      if (typeof window !== 'undefined') {
-        const candidateKeys = [
-          user.id ? `tg_measurements_${user.id}` : null,
-          user.email ? `tg_measurements_${user.email}` : null,
-          `tg_measurements_${user.id || user.email || 'guest'}`,
-          'tg_measurements_guest',
-        ].filter(Boolean) as string[]
-
-        let loaded = false
-        for (const k of candidateKeys) {
-          const savedMeasure = getStorageCookie(k) || (typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null)
-          if (savedMeasure) {
-            try {
-              const parsed = JSON.parse(savedMeasure)
-              if (parsed && typeof parsed === 'object') {
-                if (parsed.fit) setFitPreference(parsed.fit)
-                if (parsed.waist) setWaist(parsed.waist)
-                if (parsed.inseam) setInseam(parsed.inseam)
-                if (parsed.chest) setChest(parsed.chest)
-                if (parsed.sleeve) setSleeve(parsed.sleeve)
-                break
-              }
-            } catch { }
-          }
-        }
-      }
 
       const contactQuery = user.email || user.phone || user.contact
       if (contactQuery) {
@@ -158,53 +102,6 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           .then((ords) => {
             if (ords) {
               setOrders(ords)
-              // Auto-sync profile measurements from user's orders if vault is empty
-              const profileKey = `tg_measurements_${user.id || user.email || 'guest'}`
-              const savedMeasure = getStorageCookie(profileKey) || (typeof localStorage !== 'undefined' ? localStorage.getItem(profileKey) : null)
-              let currentVault: Record<string, string> = {}
-              try {
-                if (savedMeasure) currentVault = JSON.parse(savedMeasure)
-              } catch { }
-
-              let updatedVault = { ...currentVault }
-              ords.forEach((order) => {
-                const meas = order.measurements || order.pinnedAdjustment
-                if (meas) {
-                  let measObj: Record<string, string> = {}
-                  if (typeof meas === 'object') measObj = meas
-                  else if (typeof meas === 'string' && meas.startsWith('{')) {
-                    try { measObj = JSON.parse(meas) } catch { }
-                  }
-                  Object.entries(measObj).forEach(([k, v]) => {
-                    if (v && v !== 'To be Measured by Tailor') {
-                      const str = String(v).trim()
-                      const matchNum = str.match(/(\d+(?:\.\d+)?)/)
-                      if (k.toLowerCase().includes('waist') && matchNum && !updatedVault.waist) {
-                        updatedVault.waist = matchNum[1]
-                      }
-                      if (k.toLowerCase().includes('inseam') && matchNum && !updatedVault.inseam) {
-                        updatedVault.inseam = matchNum[1]
-                      }
-                      if ((k.toLowerCase().includes('chest') || k.toLowerCase().includes('bust')) && matchNum && !updatedVault.chest) {
-                        updatedVault.chest = matchNum[1]
-                      }
-                      if (k.toLowerCase().includes('sleeve') && matchNum && !updatedVault.sleeve) {
-                        updatedVault.sleeve = matchNum[1]
-                      }
-                    }
-                  })
-                }
-              })
-
-              if (updatedVault.waist) setWaist((prev) => prev || updatedVault.waist)
-              if (updatedVault.inseam) setInseam((prev) => prev || updatedVault.inseam)
-              if (updatedVault.chest) setChest((prev) => prev || updatedVault.chest)
-              if (updatedVault.sleeve) setSleeve((prev) => prev || updatedVault.sleeve)
-
-              if (Object.keys(updatedVault).length > 0) {
-                setStorageCookie(profileKey, JSON.stringify(updatedVault))
-                try { localStorage.setItem(profileKey, JSON.stringify(updatedVault)) } catch { }
-              }
             }
           })
           .catch(() => { })
@@ -217,75 +114,32 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
     if (e) e.preventDefault()
     if (!user) return
 
-    const cleanPin = postcode.trim().replace(/\D/g, '')
-    if (cleanPin.length < 5 || cleanPin.length > 10) {
-      setSaveError('Please enter a valid postal / ZIP code.')
-      return
-    }
-
     setIsSaving(true)
-    setSaveError('')
-    setSaveSuccess(false)
 
     try {
-      const measObj = {
-        fit: fitPreference,
-        waist,
-        inseam,
-        chest,
-        sleeve,
-      }
-
       const res = await updateUserProfile({
         name: name.trim(),
-        address: address.trim(),
-        postcode: cleanPin,
-        measurements: JSON.stringify(measObj),
-      } as any)
-
-      if (typeof window !== 'undefined') {
-        const payload = JSON.stringify(measObj)
-        const keys = [
-          user.id ? `tg_measurements_${user.id}` : null,
-          user.email ? `tg_measurements_${user.email}` : null,
-          `tg_measurements_${user.id || user.email || 'guest'}`,
-          'tg_measurements_guest',
-        ].filter(Boolean) as string[]
-
-        keys.forEach((k) => {
-          setStorageCookie(k, payload)
-          try {
-            localStorage.setItem(k, payload)
-          } catch { }
-        })
-      }
+      })
 
       setIsSaving(false)
-      setSaveSuccess(true)
       setIsEditingPersonal(false)
+      toast.success('Profile saved successfully.', { position: 'top-center' })
       if (res?.user) {
         onUpdateUser(res.user)
       } else {
-        onUpdateUser({ ...user, name, address, postcode })
+        onUpdateUser({ ...user, name: name.trim() })
       }
-
-      setTimeout(() => {
-        setSaveSuccess(false)
-      }, 3000)
     } catch (err: any) {
       setIsSaving(false)
-      setSaveError(err.message || 'Failed to update profile.')
+      toast.error(err.message || 'Failed to update profile.', { position: 'top-center' })
     }
   }
 
   const handleCancelEdit = () => {
     if (user) {
       setName(user.name || '')
-      setAddress(isLegacyAddress(user.address) ? '' : user.address!)
-      setPostcode(isLegacyPin(user.postcode) ? '' : user.postcode!)
     }
     setIsEditingPersonal(false)
-    setSaveError('')
   }
 
   // Guest State
@@ -333,28 +187,30 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const initial = (user.name || 'U')[0].toUpperCase()
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] py-10 sm:py-16 px-4 sm:px-6">
-      <div className="max-w-[620px] mx-auto space-y-10">
+    <div className="min-h-screen bg-[#FAF8F5] py-10 sm:py-14 px-4 sm:px-6 lg:px-10">
+      <div className="max-w-[1100px] w-full mx-auto space-y-10">
 
         {/* Back link */}
-        <button
-          onClick={() => go('home')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
-        >
-          <ArrowLeft size={13} />
-          <span>Atelier Grid</span>
-        </button>
+        <div>
+          <button
+            onClick={() => go('home')}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+          >
+            <ArrowLeft size={13} />
+            <span>Atelier Grid</span>
+          </button>
+        </div>
 
         {/* Minimal Identity Bar */}
         <div className="flex items-center justify-between pb-8 border-b border-[#E8E1D5]">
-          <div className="flex items-center gap-4">
-            <div className="size-14 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white font-serif text-lg font-bold grid place-items-center">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="size-14 sm:size-16 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white font-serif text-xl sm:text-2xl font-bold grid place-items-center">
               {user.avatar ? (
                 <Image
                   src={user.avatar}
                   alt={user.name}
-                  width={56}
-                  height={56}
+                  width={64}
+                  height={64}
                   referrerPolicy="no-referrer"
                   crossOrigin="anonymous"
                   className="size-full object-cover"
@@ -365,8 +221,8 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
             </div>
 
             <div>
-              <h1 className="font-serif text-2xl font-bold text-[#18191B] leading-tight">{user.name}</h1>
-              <p className="text-xs text-[#7A7E85] mt-0.5">{user.email || user.contact}</p>
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#18191B] leading-tight">{user.name}</h1>
+              <p className="text-xs sm:text-sm text-[#7A7E85] mt-0.5">{user.email || user.contact}</p>
             </div>
           </div>
 
@@ -378,64 +234,28 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           </button>
         </div>
 
-        {/* Toast Alerts */}
-        {saveSuccess && (
-          <div className="rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/60 px-4 py-2.5 text-xs font-medium flex items-center gap-2 animate-in fade-in">
-            <Check size={14} className="text-emerald-600 shrink-0" />
-            <span>Profile saved successfully.</span>
-          </div>
-        )}
-
-        {saveError && (
-          <div className="rounded-xl bg-red-50 text-red-700 border border-red-200 px-4 py-2.5 text-xs font-medium animate-in fade-in">
-            {saveError}
-          </div>
-        )}
-
         {/* Main Form */}
         <form onSubmit={handleSaveProfile} className="space-y-10">
 
-          {/* Section 1: Personal Details (Name + Address together with Edit button in front) */}
-          <div className="space-y-4">
+          {/* Section 1: Personal Details */}
+          <div className="space-y-5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Personal Details</h2>
 
-              <div className="flex items-center gap-3">
-
-                {!isEditingPersonal ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingPersonal(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
-                  >
-                    <Edit2 size={12} />
-                    <span>Edit</span>
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleCancelEdit}
-                      className="text-xs font-semibold text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveProfile()}
-                      disabled={isSaving}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-[#065F46] bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors cursor-pointer"
-                    >
-                      <Check size={12} />
-                      <span>{isSaving ? 'Saving...' : 'Save'}</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {!isEditingPersonal && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPersonal(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer"
+                >
+                  <Edit2 size={12} />
+                  <span>Edit</span>
+                </button>
+              )}
             </div>
 
-            {/* Full Name & Address grouped together */}
-            <div className="space-y-3 pt-1">
+            {/* Fields layout */}
+            <div className="space-y-4 pt-1">
               <div>
                 <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Full Name</label>
                 {isEditingPersonal ? (
@@ -444,54 +264,64 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-[#18191B] py-1.5 text-sm text-[#18191B] outline-none transition-colors"
+                    className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-[#18191B] py-2 text-sm sm:text-base text-[#18191B] outline-none transition-colors"
                   />
                 ) : (
-                  <p className="py-1.5 text-sm font-semibold text-[#18191B] border-b border-transparent">{name}</p>
+                  <p className="py-2 text-sm sm:text-base font-semibold text-[#18191B] border-b border-transparent">{name}</p>
                 )}
               </div>
 
               {/* Email & Mobile Meta */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Email</label>
-                  <p className="py-1.5 text-xs sm:text-sm text-[#5A5D64] truncate border-b border-[#E8E1D5]">{user.email || user.contact}</p>
+                  <p className="py-2 text-xs sm:text-sm text-[#5A5D64] truncate border-b border-[#E8E1D5]">{user.email || user.contact}</p>
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-[#7A7E85] mb-1">Verified Mobile</label>
-                  <p className="py-1.5 text-xs sm:text-sm text-[#5A5D64] truncate border-b border-[#E8E1D5]">{user.phone || 'None'}</p>
+                  <p className="py-2 text-xs sm:text-sm text-[#5A5D64] truncate border-b border-[#E8E1D5]">{user.phone || 'None'}</p>
                 </div>
               </div>
+
+              {/* Save / Cancel buttons inside Personal Details when editing */}
+              {isEditingPersonal && (
+                <div className="pt-3 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50 shadow-xs active:scale-[0.99]"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Profile'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="rounded-full border border-[#D5CDC2] hover:border-[#18191B] text-[#7A7E85] hover:text-[#18191B] px-5 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-
-
-          {/* Submit Action */}
-          <div className="pt-4 flex items-center justify-between border-t border-[#E8E1D5]">
+          {/* View Order History Link */}
+          <div className="pt-2 border-t border-[#E8E1D5]">
             <button
               type="button"
               onClick={() => go('orders')}
-              className="text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors inline-flex items-center gap-1 cursor-pointer"
+              className="text-xs sm:text-sm font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors inline-flex items-center gap-1 cursor-pointer"
             >
               <span>View Order History ({orders.length})</span>
-              <ChevronRight size={13} />
-            </button>
-
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white px-6 py-2.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save Profile'}
+              <ChevronRight size={14} />
             </button>
           </div>
 
         </form>
 
-        {/* Section 3: Recent Alterations (Minimal List) */}
+        {/* Section 2: Recent Alterations (Minimal List) */}
         {orders.length > 0 && (
-          <div className="pt-6 border-t border-[#E8E1D5] space-y-3">
+          <div className="pt-6 border-t border-[#E8E1D5] space-y-4">
             <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Recent Alterations</h2>
 
             <div className="space-y-1 divide-y divide-[#EAE6DF]">
@@ -507,20 +337,20 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
                     }
                     go(`/order/${order.id}`)
                   }}
-                  className="py-3 flex items-center justify-between cursor-pointer group"
+                  className="py-3.5 flex items-center justify-between cursor-pointer group"
                 >
                   <div>
-                    <p className="text-xs font-bold text-[#18191B] group-hover:text-[#9E593B] transition-colors">
+                    <p className="text-xs sm:text-sm font-bold text-[#18191B] group-hover:text-[#9E593B] transition-colors">
                       {order.garmentName} &middot; <span className="font-normal text-[#7A7E85]">{order.serviceName}</span>
                     </p>
-                    <p className="text-[11px] text-[#7A7E85]">#{order.id} &middot; {order.date}</p>
+                    <p className="text-[11px] text-[#7A7E85] mt-0.5">#{order.id} &middot; {order.date}</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#18191B]">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs sm:text-sm font-bold text-[#18191B]">
                       {(order as any).currencySymbol || '$'}{((order.price || 0) + ((order as any).priceAdjustment || 0)).toFixed(2)}
                     </span>
                     <span className="text-[10px] font-semibold text-[#9E593B]">{order.status || 'Active'}</span>
-                    <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
+                    <ChevronRight size={14} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </div>
               ))}
@@ -528,56 +358,80 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
           </div>
         )}
 
-        {/* Section 4: Concierge, Support & Legal Policies */}
-        <div className="pt-6 border-t border-[#E8E1D5] space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">Client Concierge &amp; Legal</h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* Section 3: View Saved Addresses */}
+        <div className="pt-6 border-t border-[#E8E1D5] space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[#9E593B]">
+              Saved Addresses {savedAddresses.length > 0 && `(${savedAddresses.length})`}
+            </h2>
             <button
               type="button"
-              onClick={() => go('contact')}
-              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#9E593B] text-left transition-all group cursor-pointer shadow-2xs"
+              onClick={() => go('book')}
+              className="text-xs font-semibold text-[#18191B] hover:text-[#9E593B] transition-colors cursor-pointer inline-flex items-center gap-1"
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="size-7 rounded-lg bg-[#FAF8F5] text-[#9E593B] grid place-items-center group-hover:scale-110 transition-transform">
-                  <Headphones size={14} />
-                </span>
-                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-              </div>
-              <p className="text-xs font-bold text-[#18191B]">Contact Concierge</p>
-              <p className="text-[10px] text-[#7A7E85]">Fitting advice &amp; studio inquiries</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => go('support')}
-              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#10B981] text-left transition-all group cursor-pointer shadow-2xs"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="size-7 rounded-lg bg-[#ECFDF5] text-[#10B981] grid place-items-center group-hover:scale-110 transition-transform">
-                  <ShieldCheck size={14} />
-                </span>
-                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-              </div>
-              <p className="text-xs font-bold text-[#18191B]">100% Fit Guarantee</p>
-              <p className="text-[10px] text-[#7A7E85]">Help center &amp; drop-off FAQs</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => go('privacy')}
-              className="p-3.5 rounded-2xl bg-white border border-[#EBE6DF] hover:border-[#3B82F6] text-left transition-all group cursor-pointer shadow-2xs"
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="size-7 rounded-lg bg-[#EFF6FF] text-[#3B82F6] grid place-items-center group-hover:scale-110 transition-transform">
-                  <Lock size={14} />
-                </span>
-                <ChevronRight size={13} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-              </div>
-              <p className="text-xs font-bold text-[#18191B]">Privacy Policy</p>
-              <p className="text-[10px] text-[#7A7E85]">Measurement vault &amp; data rights</p>
+              <Plus size={12} />
+              <span>Add New Address</span>
             </button>
           </div>
+
+          {savedAddresses.length > 0 ? (
+            <div className="divide-y divide-[#EAE6DF]">
+              {savedAddresses.map((item) => {
+                const tagLower = item.title?.toLowerCase() || ''
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleSelectSavedAddress(item)}
+                    className="py-3.5 flex items-start justify-between gap-4 group cursor-pointer hover:bg-neutral-100/50 -mx-2 px-2 rounded-xl transition-colors"
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                      <span className="text-[#18191B] mt-0.5 shrink-0">
+                        {tagLower.includes('home') ? (
+                          <Home size={16} />
+                        ) : tagLower.includes('work') || tagLower.includes('office') ? (
+                          <Briefcase size={16} />
+                        ) : (
+                          <MapPin size={16} />
+                        )}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs sm:text-sm font-bold text-[#18191B] group-hover:text-[#9E593B] transition-colors flex items-center gap-2">
+                          <span>{item.title}</span>
+                          {item.locality && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#9E593B] px-1.5 py-0.5 rounded-sm bg-[#FAF3ED]">
+                              {item.locality}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-[#7A7E85] mt-0.5 line-clamp-2">
+                          {item.address}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteSavedAddress(item.id)
+                      }}
+                      className="text-xs font-semibold text-[#A1A4AB] hover:text-red-600 transition-colors p-1 cursor-pointer shrink-0"
+                      title="Remove address"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="py-6 text-left space-y-1">
+              <p className="text-xs sm:text-sm font-semibold text-[#18191B]">No saved addresses yet</p>
+              <p className="text-xs text-[#7A7E85]">
+                Addresses you save during booking or from the map search will be stored here for easy access.
+              </p>
+            </div>
+          )}
         </div>
 
       </div>

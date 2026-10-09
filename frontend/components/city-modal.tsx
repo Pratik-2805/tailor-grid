@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Navigation, Loader2, Building2, MapPin, X, Home, Store, Compass } from 'lucide-react'
+import { Navigation, Loader2, Building2, MapPin, X, Home, Store, Compass, Briefcase } from 'lucide-react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
 import { setStoredCity, getCityCoordinates, getSessionCoordinates, formatLocationDisplay } from './use-city-location'
 import {
@@ -35,7 +35,14 @@ export interface CityModalProps {
     formattedCity: string,
     coords?: { lat: number; lng: number },
     isLiveGps?: boolean,
-    placeInfo?: { title?: string; fullName?: string; subtitle?: string; placeId?: string }
+    placeInfo?: {
+      title?: string
+      fullName?: string
+      subtitle?: string
+      placeId?: string
+      isSavedAddress?: boolean
+      savedAddressItem?: SavedAddressItem
+    }
   ) => void
 }
 
@@ -415,7 +422,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   }
 
   const handleSelectSavedAddress = (saved: SavedAddressItem) => {
-    const targetCity = saved.city || saved.address.split(',').slice(-2)[0]?.trim() || selectedCity
+    const targetCity = saved.city || saved.details?.city || saved.address.split(',').slice(-2)[0]?.trim() || selectedCity
     const coords = { lat: saved.lat, lng: saved.lng }
     setStoredCity(targetCity, coords)
     onSelectCity(targetCity, coords, false, {
@@ -423,6 +430,8 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       fullName: saved.address,
       subtitle: saved.locality,
       placeId: saved.id,
+      isSavedAddress: true,
+      savedAddressItem: saved,
     })
     setSearch('')
     setPlaceResults([])
@@ -665,7 +674,13 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                       >
                         <div className="flex items-start gap-3.5 min-w-0 flex-1 pr-2">
                           <div className="size-8 rounded-full bg-[#F3F3F3] text-black flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#276EF1]/10 group-hover:text-[#276EF1] transition-colors">
-                            <MapPin size={16} />
+                            {saved.title?.toLowerCase() === 'home' ? (
+                              <Home size={16} />
+                            ) : saved.title?.toLowerCase() === 'work' ? (
+                              <Briefcase size={16} />
+                            ) : (
+                              <MapPin size={16} />
+                            )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-[15px] font-bold text-black truncate group-hover:text-[#276EF1] transition-colors">
