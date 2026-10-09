@@ -427,8 +427,6 @@ function buildWelcomeEmailHtml({
   phone = "",
   portalUrl = "",
   loginUrl = "",
-  handshakeImgSrc = process.env.WELCOME_GIF_URL ||
-    "https://files.catbox.moe/soev3d.gif",
 }) {
   const isStudio = role === "STUDIO" || role === "TEMP_STUDIO";
   const defaultCustomerUrl =
