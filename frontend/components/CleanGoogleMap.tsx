@@ -90,6 +90,8 @@ type Props = {
   onStoresFound?: (stores: StoreOption[]) => void
   onPinLocationChange?: (coords: { lat: number; lng: number }) => void
   onConfirmPinLocation?: (coords: { lat: number; lng: number }, address?: string) => void
+  searchQuery?: string
+  onSearchTextChange?: (text: string) => void
 }
 
 export function generateCurvedPoints(
@@ -207,6 +209,8 @@ export default function CleanGoogleMap({
   onStoresFound,
   onPinLocationChange,
   onConfirmPinLocation,
+  searchQuery,
+  onSearchTextChange,
   isChoosing: isChoosingProp,
 }: Props & { isChoosing?: boolean }) {
   const mapRef = useRef<HTMLDivElement>(null)
@@ -221,7 +225,7 @@ export default function CleanGoogleMap({
   const [isReady, setIsReady] = useState(false)
 
   // Map Search Bar State in Choosing Mode
-  const [mapSearchText, setMapSearchText] = useState('')
+  const [mapSearchText, setMapSearchText] = useState(searchQuery || '')
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
   const [searchResults, setSearchResults] = useState<
     Array<{
@@ -234,6 +238,13 @@ export default function CleanGoogleMap({
   >([])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMapDragging, setIsMapDragging] = useState(false)
+
+  // Sync external searchQuery (e.g. from CityModal selection, reverse geocode, or parent)
+  useEffect(() => {
+    if (typeof searchQuery === 'string') {
+      setMapSearchText(searchQuery)
+    }
+  }, [searchQuery])
 
   const isChoosing = typeof isChoosingProp === 'boolean' ? isChoosingProp : (!isLiveLocation && !isLocationSaved)
 
@@ -879,7 +890,9 @@ export default function CleanGoogleMap({
   }, [])
 
   const handleSelectSearchResult = (result: { title: string; fullName: string; placeId?: string }) => {
-    setMapSearchText(result.title)
+    const text = result.title || result.fullName
+    setMapSearchText(text)
+    if (onSearchTextChange) onSearchTextChange(text)
     setIsSearchOpen(false)
 
     // Check cached place details first
@@ -1004,7 +1017,10 @@ export default function CleanGoogleMap({
             <input
               type="text"
               value={mapSearchText}
-              onChange={(e) => setMapSearchText(e.target.value)}
+              onChange={(e) => {
+                setMapSearchText(e.target.value)
+                if (onSearchTextChange) onSearchTextChange(e.target.value)
+              }}
               onFocus={() => {
                 if (searchResults.length > 0) setIsSearchOpen(true)
               }}
@@ -1016,6 +1032,7 @@ export default function CleanGoogleMap({
                 type="button"
                 onClick={() => {
                   setMapSearchText('')
+                  if (onSearchTextChange) onSearchTextChange('')
                   setSearchResults([])
                   setIsSearchOpen(false)
                 }}
