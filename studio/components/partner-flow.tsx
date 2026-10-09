@@ -701,11 +701,22 @@ export function PartnerFlow({
           setStudioCurrency(data.currency)
           setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
         }
-        // If price catalog is not yet configured, show Welcome Aboard modal over dashboard after 1s
-        if (!data.hasFilledCatalog) {
-          setTimeout(() => {
-            if (isMounted) setShowWelcomeModal(true)
-          }, 1000)
+        // Show Welcome Aboard modal only once after fresh sign up, after 3.5 seconds on the dashboard
+        if (typeof window !== 'undefined') {
+          const justSignedUp = sessionStorage.getItem('tg_just_signed_up') === 'true'
+          const alreadySeen = localStorage.getItem(`tg_welcome_seen_${studioIdToVerify}`) === 'true'
+
+          if (justSignedUp && !alreadySeen && !data.hasFilledCatalog) {
+            setTimeout(() => {
+              if (isMounted) {
+                setShowWelcomeModal(true)
+                try {
+                  localStorage.setItem(`tg_welcome_seen_${studioIdToVerify}`, 'true')
+                  sessionStorage.removeItem('tg_just_signed_up')
+                } catch {}
+              }
+            }, 3500)
+          }
         }
       })
       .catch((err) => {
