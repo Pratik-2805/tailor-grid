@@ -31,7 +31,12 @@ export interface CityModalProps {
   isOpen: boolean
   onClose: () => void
   selectedCity: string
-  onSelectCity: (formattedCity: string, coords?: { lat: number; lng: number }, isLiveGps?: boolean) => void
+  onSelectCity: (
+    formattedCity: string,
+    coords?: { lat: number; lng: number },
+    isLiveGps?: boolean,
+    placeInfo?: { title?: string; fullName?: string; subtitle?: string; placeId?: string }
+  ) => void
 }
 
 export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityModalProps) {
@@ -388,10 +393,20 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
     if (coords && (coords.lat !== 0 || coords.lng !== 0)) {
       setStoredCity(place.fullName, coords)
-      onSelectCity(place.fullName, coords, false)
+      onSelectCity(place.fullName, coords, false, {
+        title: place.title,
+        fullName: place.fullName,
+        subtitle: place.subtitle,
+        placeId: place.placeId,
+      })
     } else {
       setStoredCity(place.fullName)
-      onSelectCity(place.fullName, undefined, false)
+      onSelectCity(place.fullName, undefined, false, {
+        title: place.title,
+        fullName: place.fullName,
+        subtitle: place.subtitle,
+        placeId: place.placeId,
+      })
     }
 
     setSearch('')
@@ -403,7 +418,12 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     const targetCity = saved.city || saved.address.split(',').slice(-2)[0]?.trim() || selectedCity
     const coords = { lat: saved.lat, lng: saved.lng }
     setStoredCity(targetCity, coords)
-    onSelectCity(targetCity, coords, false)
+    onSelectCity(targetCity, coords, false, {
+      title: saved.title || saved.locality || saved.address.split(',')[0],
+      fullName: saved.address,
+      subtitle: saved.locality,
+      placeId: saved.id,
+    })
     setSearch('')
     setPlaceResults([])
     onClose()
@@ -449,7 +469,10 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
               }
 
               setStoredCity(resolvedCity, liveCoords)
-              onSelectCity(resolvedCity, liveCoords, true)
+              onSelectCity(resolvedCity, liveCoords, true, {
+                title: 'Current Location',
+                fullName: resolvedCity,
+              })
               setSearch('')
               setPlaceResults([])
               setIsLocating(false)
@@ -458,7 +481,10 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           )
         } else {
           setStoredCity('Current Location', liveCoords)
-          onSelectCity(selectedCity || 'Current Location', liveCoords, true)
+          onSelectCity(selectedCity || 'Current Location', liveCoords, true, {
+            title: 'Current Location',
+            fullName: selectedCity || 'Current Location',
+          })
           setSearch('')
           setPlaceResults([])
           setIsLocating(false)

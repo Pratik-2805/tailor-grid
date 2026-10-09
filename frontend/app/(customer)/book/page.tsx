@@ -227,6 +227,9 @@ export default function BookPage() {
     }
   })
 
+  // Synchronized search text for map search bar
+  const [mapSearchQuery, setMapSearchQuery] = useState('')
+
   const handleAddressFieldChange = (field: keyof CustomerAddressDetails, value: string) => {
     setAddressDetails((prev) => {
       const updated = { ...prev, [field]: value }
@@ -1291,13 +1294,6 @@ export default function BookPage() {
                   />
                 </div>
 
-                {/* 4.5 Atelier Pricing Notice */}
-                <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3 text-[11px] text-gray-600 flex items-start gap-2">
-                  <Sparkles size={14} className="text-[#9E593B] shrink-0 mt-0.5" />
-                  <p>
-                    <strong className="text-black font-semibold">Workshop Pricing Guarantee:</strong> Alteration rates are confirmed by your matched local atelier based on their workshop price catalog upon order acceptance. Counter payment at pickup.
-                  </p>
-                </div>
 
                 {/* 5. Action Buttons Row */}
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
@@ -1461,6 +1457,8 @@ export default function BookPage() {
                 userPinLabel={isLiveLocation ? 'You' : (selectedCity.split(',')[0] || 'Pinned Location')}
                 stores={nearbyStores}
                 selectedStoreId={selectedStore?.id}
+                searchQuery={mapSearchQuery}
+                onSearchTextChange={setMapSearchQuery}
                 onMapClick={() => {
                   if (!isCardFlipped) {
                     savedLocationRef.current = {
@@ -1511,6 +1509,7 @@ export default function BookPage() {
                       ...newDetails,
                     }))
                     setSelectedCity(geo.cityStateFormatted)
+                    setMapSearchQuery(geo.locality || geo.displayLocality?.split(',')[0]?.trim() || geo.cityStateFormatted || '')
                   } catch (err) {
                     console.warn('Pin location reverse geocode error:', err)
                   }
@@ -1527,11 +1526,18 @@ export default function BookPage() {
         isOpen={isCityModalOpen}
         onClose={() => setIsCityModalOpen(false)}
         selectedCity={selectedCity}
-        onSelectCity={async (c, coords, isGps) => {
+        onSelectCity={async (c, coords, isGps, placeInfo) => {
           const targetCoords = coords || getCityCoordinates(c)
           setUserGpsCoords(targetCoords)
           setIsLiveLocation(isGps === true)
           setIsLocationSaved(isGps === true)
+
+          const searchTitle = placeInfo?.title || placeInfo?.fullName || c
+          if (isGps === true) {
+            setMapSearchQuery('')
+          } else {
+            setMapSearchQuery(searchTitle)
+          }
 
           if (isGps === true) {
             liveGpsCoordsRef.current = targetCoords
