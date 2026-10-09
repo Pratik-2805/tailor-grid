@@ -207,7 +207,8 @@ export default function CleanGoogleMap({
   onStoresFound,
   onPinLocationChange,
   onConfirmPinLocation,
-}: Props) {
+  isChoosing: isChoosingProp,
+}: Props & { isChoosing?: boolean }) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<any[]>([])
@@ -234,7 +235,7 @@ export default function CleanGoogleMap({
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMapDragging, setIsMapDragging] = useState(false)
 
-  const isChoosing = !isLiveLocation && !isLocationSaved
+  const isChoosing = typeof isChoosingProp === 'boolean' ? isChoosingProp : (!isLiveLocation && !isLocationSaved)
 
   // 1. Initial Google Maps Engine Mount (RUNS ONCE ONLY - prevents unneeded re-renders)
   useEffect(() => {
@@ -349,9 +350,9 @@ export default function CleanGoogleMap({
     })
 
     if (!isChoosing && !showCurvedConnection) {
-      const halfMiles = fixedBoxMiles / 2.0
-      const deltaLat = halfMiles / 69.0
-      const deltaLng = halfMiles / (69.0 * Math.cos((lat * Math.PI) / 180))
+      const radius = radiusMiles || fixedBoxMiles || 5.0
+      const deltaLat = radius / 69.0
+      const deltaLng = radius / (69.0 * Math.max(0.01, Math.cos((lat * Math.PI) / 180)))
 
       const boundsBox = new google.maps.LatLngBounds(
         new google.maps.LatLng(lat - deltaLat, lng - deltaLng),
@@ -360,7 +361,7 @@ export default function CleanGoogleMap({
       map.fitBounds(boundsBox, 0)
       map.setCenter({ lat, lng })
     }
-  }, [isChoosing, isReady, lat, lng, fixedBoxMiles, showCurvedConnection])
+  }, [isChoosing, isReady, lat, lng, fixedBoxMiles, radiusMiles, showCurvedConnection])
 
   // Move the map or click on map to fine-tune/select actual desired location drop pin when in choosing mode
   useEffect(() => {
@@ -723,6 +724,9 @@ export default function CleanGoogleMap({
   useEffect(() => {
     if (!isChoosing) {
       setIsSearchOpen(false)
+      setMapSearchText('')
+      setSearchResults([])
+      setIsSearchingPlaces(false)
       return
     }
 

@@ -556,6 +556,9 @@ export function PartnerOnboarding({
       }
 
       setCreatedUser(finalUser)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('tg_just_signed_up', 'true')
+      }
       if (onComplete) {
         onComplete(finalUser)
       } else if (typeof window !== 'undefined') {

@@ -1,24 +1,20 @@
 'use client'
 
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { Navigation, Loader2, Building2, MapPin } from 'lucide-react'
+import { Navigation, Loader2, Building2, MapPin, X, Home, Store, Compass } from 'lucide-react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
-import { setStoredCity, getCityCoordinates, getSessionCoordinates } from './use-city-location'
+import { setStoredCity, getCityCoordinates, getSessionCoordinates, formatLocationDisplay } from './use-city-location'
 import {
   getCachedPlaceDetails,
   setCachedPlaceDetails,
   getOrCreatePlacesSessionToken,
   resetPlacesSessionToken,
 } from '@/lib/geocode-cache'
-
-export interface CityItem {
-  name: string
-  fullName: string
-  state: string
-  code: string
-  countryCode: string
-  popular?: boolean
-}
+import {
+  getSavedAddresses,
+  removeSavedAddress,
+  type SavedAddressItem,
+} from '@/lib/saved-addresses'
 
 export interface PlaceResult {
   id: string
@@ -30,55 +26,6 @@ export interface PlaceResult {
   placeId?: string
   type?: 'apartment' | 'building' | 'street' | 'city' | 'poi'
 }
-
-export const US_CITIES_LIST: CityItem[] = [
-  // Popular Regions & Metros
-  { name: 'Vasai', fullName: 'Vasai, IN-MH', state: 'Maharashtra', code: 'MH', countryCode: 'in', popular: true },
-  { name: 'Mumbai', fullName: 'Mumbai, IN', state: 'Maharashtra', code: 'MH', countryCode: 'in', popular: true },
-  { name: 'Delhi NCR', fullName: 'Delhi NCR, IN', state: 'Delhi', code: 'DL', countryCode: 'in', popular: true },
-  { name: 'Bengaluru', fullName: 'Bengaluru, IN', state: 'Karnataka', code: 'KA', countryCode: 'in', popular: true },
-  { name: 'London', fullName: 'London, UK', state: 'Greater London', code: 'UK', countryCode: 'gb', popular: true },
-  { name: 'New York City', fullName: 'New York City, NY', state: 'New York', code: 'NY', countryCode: 'us', popular: true },
-  { name: 'Los Angeles', fullName: 'Los Angeles, CA', state: 'California', code: 'CA', countryCode: 'us', popular: true },
-  { name: 'Chicago', fullName: 'Chicago, IL', state: 'Illinois', code: 'IL', countryCode: 'us', popular: true },
-  { name: 'Houston', fullName: 'Houston, TX', state: 'Texas', code: 'TX', countryCode: 'us', popular: true },
-  { name: 'Miami', fullName: 'Miami, FL', state: 'Florida', code: 'FL', countryCode: 'us', popular: true },
-  { name: 'San Francisco', fullName: 'San Francisco, CA', state: 'California', code: 'CA', countryCode: 'us', popular: true },
-  { name: 'Dallas-Fort Worth', fullName: 'Dallas-Fort Worth, TX', state: 'Texas', code: 'TX', countryCode: 'us', popular: true },
-  { name: 'Seattle', fullName: 'Seattle, WA', state: 'Washington', code: 'WA', countryCode: 'us', popular: true },
-  { name: 'Washington D.C.', fullName: 'Washington D.C.', state: 'District of Columbia', code: 'DC', countryCode: 'us', popular: true },
-  { name: 'Boston', fullName: 'Boston, MA', state: 'Massachusetts', code: 'MA', countryCode: 'us', popular: true },
-  { name: 'Austin', fullName: 'Austin, TX', state: 'Texas', code: 'TX', countryCode: 'us', popular: true },
-  { name: 'Las Vegas', fullName: 'Las Vegas, NV', state: 'Nevada', code: 'NV', countryCode: 'us', popular: true },
-
-  // Additional Metropolitan Cities
-  { name: 'Atlanta', fullName: 'Atlanta, GA', state: 'Georgia', code: 'GA', countryCode: 'us' },
-  { name: 'Baltimore', fullName: 'Baltimore, MD', state: 'Maryland', code: 'MD', countryCode: 'us' },
-  { name: 'Charlotte', fullName: 'Charlotte, NC', state: 'North Carolina', code: 'NC', countryCode: 'us' },
-  { name: 'Columbus', fullName: 'Columbus, OH', state: 'Ohio', code: 'OH', countryCode: 'us' },
-  { name: 'Denver', fullName: 'Denver, CO', state: 'Colorado', code: 'CO', countryCode: 'us' },
-  { name: 'Detroit', fullName: 'Detroit, MI', state: 'Michigan', code: 'MI', countryCode: 'us' },
-  { name: 'Indianapolis', fullName: 'Indianapolis, IN', state: 'Indiana', code: 'IN', countryCode: 'us' },
-  { name: 'Jacksonville', fullName: 'Jacksonville, FL', state: 'Florida', code: 'FL', countryCode: 'us' },
-  { name: 'Kansas City', fullName: 'Kansas City, MO', state: 'Missouri', code: 'MO', countryCode: 'us' },
-  { name: 'Memphis', fullName: 'Memphis, TN', state: 'Tennessee', code: 'TN', countryCode: 'us' },
-  { name: 'Minneapolis', fullName: 'Minneapolis, MN', state: 'Minnesota', code: 'MN', countryCode: 'us' },
-  { name: 'Nashville', fullName: 'Nashville, TN', state: 'Tennessee', code: 'TN', countryCode: 'us' },
-  { name: 'New Orleans', fullName: 'New Orleans, LA', state: 'Louisiana', code: 'LA', countryCode: 'us' },
-  { name: 'Orlando', fullName: 'Orlando, FL', state: 'Florida', code: 'FL', countryCode: 'us' },
-  { name: 'Philadelphia', fullName: 'Philadelphia, PA', state: 'Pennsylvania', code: 'PA', countryCode: 'us' },
-  { name: 'Phoenix', fullName: 'Phoenix, AZ', state: 'Arizona', code: 'AZ', countryCode: 'us' },
-  { name: 'Pittsburgh', fullName: 'Pittsburgh, PA', state: 'Pennsylvania', code: 'PA', countryCode: 'us' },
-  { name: 'Portland', fullName: 'Portland, OR', state: 'Oregon', code: 'OR', countryCode: 'us' },
-  { name: 'Raleigh', fullName: 'Raleigh, NC', state: 'North Carolina', code: 'NC', countryCode: 'us' },
-  { name: 'Sacramento', fullName: 'Sacramento, CA', state: 'California', code: 'CA', countryCode: 'us' },
-  { name: 'Salt Lake City', fullName: 'Salt Lake City, UT', state: 'Utah', code: 'UT', countryCode: 'us' },
-  { name: 'San Antonio', fullName: 'San Antonio, TX', state: 'Texas', code: 'TX', countryCode: 'us' },
-  { name: 'San Diego', fullName: 'San Diego, CA', state: 'California', code: 'CA', countryCode: 'us' },
-  { name: 'San Jose', fullName: 'San Jose, CA', state: 'California', code: 'CA', countryCode: 'us' },
-  { name: 'St. Louis', fullName: 'St. Louis, MO', state: 'Missouri', code: 'MO', countryCode: 'us' },
-  { name: 'Tampa', fullName: 'Tampa, FL', state: 'Florida', code: 'FL', countryCode: 'us' },
-]
 
 export interface CityModalProps {
   isOpen: boolean
@@ -92,28 +39,33 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
   const [isLocating, setIsLocating] = useState(false)
   const [placeResults, setPlaceResults] = useState<PlaceResult[]>([])
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false)
-  const abortControllerRef = useRef<AbortController | null>(null)
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddressItem[]>([])
   const googlePlacesServiceRef = useRef<any>(null)
+  const googlePlacesDetailsRef = useRef<any>(null)
   const googleGeocoderRef = useRef<any>(null)
 
-  const currentCityDisplayName = useMemo(() => {
-    if (!selectedCity) return 'Vasai'
-    const match = US_CITIES_LIST.find(
-      (c) => c.fullName === selectedCity || selectedCity.startsWith(c.name)
-    )
-    if (match) return match.name
-    return selectedCity.split(',')[0]
+  // Load saved addresses when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSavedAddresses(getSavedAddresses())
+    }
+  }, [isOpen])
+
+  // Listen to saved address updates
+  useEffect(() => {
+    const handleSync = () => {
+      setSavedAddresses(getSavedAddresses())
+    }
+    window.addEventListener('tg_saved_addresses_changed', handleSync)
+    return () => window.removeEventListener('tg_saved_addresses_changed', handleSync)
+  }, [])
+
+  const currentDisplayName = useMemo(() => {
+    if (!selectedCity) return 'Your Location'
+    return formatLocationDisplay(selectedCity) || selectedCity.split(',')[0]
   }, [selectedCity])
 
-  const popularCities = useMemo(() => {
-    return US_CITIES_LIST.filter((c) => c.popular)
-  }, [])
-
-  const otherCities = useMemo(() => {
-    return US_CITIES_LIST.filter((c) => !c.popular)
-  }, [])
-
-  // Lazy initialize Google Maps Services only when modal is opened
+  // Lazy initialize full Google Maps Places & Geocoding Services
   useEffect(() => {
     if (!isOpen) return
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''
@@ -130,32 +82,32 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             } catch {}
           }
         }
+
+        // 1. Geocoder Library
         if (!googleGeocoderRef.current) {
           const { Geocoder } = (await importLibrary('geocoding')) as any
           googleGeocoderRef.current = new Geocoder()
         }
+
+        // 2. Places Library (AutocompleteService & PlacesService Details)
+        await importLibrary('places')
+        if (typeof google !== 'undefined' && google.maps?.places) {
+          if (!googlePlacesServiceRef.current && google.maps.places.AutocompleteService) {
+            googlePlacesServiceRef.current = new google.maps.places.AutocompleteService()
+          }
+          if (!googlePlacesDetailsRef.current && google.maps.places.PlacesService) {
+            googlePlacesDetailsRef.current = new google.maps.places.PlacesService(document.createElement('div'))
+          }
+        }
       } catch (err) {
-        console.warn('Google Places library load skipped, using proximity geocoding:', err)
+        console.warn('Google Places library load error:', err)
       }
     }
 
     loadGoogleServices()
   }, [isOpen])
 
-  // Haversine distance calculator in kilometers
-  const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371 // Earth's radius in km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180
-    const dLon = ((lon2 - lon1) * Math.PI) / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
-  }
-
-  // Live place, apartment, society, and address search powered EXCLUSIVELY by Google Maps Places Autocomplete
+  // Comprehensive Google Maps Places Autocomplete search
   useEffect(() => {
     const trimmed = search.trim()
     if (trimmed.length < 2) {
@@ -166,59 +118,11 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
     setIsSearchingPlaces(true)
 
-    // Center coordinates for Google Maps proximity biasing
     const centerCoords = getSessionCoordinates() || getCityCoordinates(selectedCity)
-    const isIndia = centerCoords.lat > 8 && centerCoords.lat < 36 && centerCoords.lng > 68 && centerCoords.lng < 98
-    const isUS = centerCoords.lat > 24 && centerCoords.lat < 50 && centerCoords.lng > -125 && centerCoords.lng < -66
-    const isUK = centerCoords.lat > 49 && centerCoords.lat < 60 && centerCoords.lng > -8 && centerCoords.lng < 2
-
     const timeoutId = setTimeout(async () => {
       const sessionToken = getOrCreatePlacesSessionToken()
 
-      // 1. Modern Google Maps Places AutocompleteSuggestion API (New Places API v3.56+)
-      if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
-        try {
-          const regionCodes = isIndia ? ['in'] : isUS ? ['us'] : isUK ? ['gb'] : undefined
-          const req: any = {
-            input: trimmed,
-            locationBias: {
-              center: { lat: centerCoords.lat, lng: centerCoords.lng },
-              radius: 50000,
-            },
-            includedRegionCodes: regionCodes,
-          }
-          if (sessionToken) req.sessionToken = sessionToken
-
-          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req)
-
-          if (suggestions && suggestions.length > 0) {
-            const mapped: PlaceResult[] = suggestions.map((s: any, idx: number) => {
-              const p = s.placePrediction
-              const mainText = p.mainText?.text || p.text?.text?.split(',')[0] || ''
-              const secondaryText = p.secondaryText?.text || p.text?.text || ''
-              const fullName = p.text?.text || `${mainText}, ${secondaryText}`
-              const types = p.types || []
-
-              return {
-                id: `gplace-sugg-${p.placeId || idx}`,
-                title: mainText,
-                subtitle: secondaryText,
-                fullName: fullName,
-                placeId: p.placeId,
-                type: types.includes('route') ? 'street' : types.includes('locality') ? 'city' : 'building',
-              }
-            })
-
-            setPlaceResults(mapped)
-            setIsSearchingPlaces(false)
-            return
-          }
-        } catch (err) {
-          console.warn('Google AutocompleteSuggestion API call failed, falling back to service:', err)
-        }
-      }
-
-      // 2. Google Maps Places AutocompleteService (using non-deprecated locationBias Circle)
+      // 1. Check Google Maps Places AutocompleteService
       let service = googlePlacesServiceRef.current
       if (!service && typeof google !== 'undefined' && google.maps?.places?.AutocompleteService) {
         try {
@@ -226,25 +130,19 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           googlePlacesServiceRef.current = service
         } catch {}
       }
-      
+
       if (service && typeof google !== 'undefined' && google.maps) {
         try {
           const req: any = {
             input: trimmed,
-            locationBias: new google.maps.Circle({
+          }
+          if (centerCoords && centerCoords.lat && centerCoords.lng) {
+            req.locationBias = new google.maps.Circle({
               center: new google.maps.LatLng(centerCoords.lat, centerCoords.lng),
-              radius: 50000,
-            }),
+              radius: 40000,
+            })
           }
           if (sessionToken) req.sessionToken = sessionToken
-
-          if (isIndia) {
-            req.componentRestrictions = { country: 'in' }
-          } else if (isUS) {
-            req.componentRestrictions = { country: 'us' }
-          } else if (isUK) {
-            req.componentRestrictions = { country: 'gb' }
-          }
 
           const predictions: google.maps.places.AutocompletePrediction[] = await new Promise((resolve) => {
             service.getPlacePredictions(
@@ -259,15 +157,31 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             )
           })
 
-          if (predictions.length > 0) {
-            const mapped: PlaceResult[] = predictions.map((p, idx) => ({
-              id: `gplace-${p.place_id || idx}`,
-              title: p.structured_formatting?.main_text || p.description.split(',')[0],
-              subtitle: p.structured_formatting?.secondary_text || p.description,
-              fullName: p.description,
-              placeId: p.place_id,
-              type: p.types?.includes('route') ? 'street' : p.types?.includes('locality') ? 'city' : 'building',
-            }))
+          if (predictions && predictions.length > 0) {
+            const mapped: PlaceResult[] = predictions.map((p, idx) => {
+              const types = p.types || []
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+
+              if (types.some(t => ['locality', 'sublocality', 'sublocality_level_1', 'sublocality_level_2', 'administrative_area_level_1', 'administrative_area_level_2', 'country', 'postal_code'].includes(t))) {
+                category = 'city'
+              } else if (types.some(t => ['route', 'street_address', 'intersection', 'transit_station'].includes(t))) {
+                category = 'street'
+              } else if (types.some(t => ['store', 'shopping_mall', 'restaurant', 'cafe', 'point_of_interest', 'establishment', 'food'].includes(t))) {
+                category = 'poi'
+              } else if (types.some(t => ['apartment', 'residential', 'subpremise', 'premise', 'housing_complex'].includes(t))) {
+                category = 'apartment'
+              }
+
+              return {
+                id: `gplace-${p.place_id || idx}`,
+                title: p.structured_formatting?.main_text || p.description.split(',')[0],
+                subtitle: p.structured_formatting?.secondary_text || p.description,
+                fullName: p.description,
+                placeId: p.place_id,
+                type: category,
+              }
+            })
+
             setPlaceResults(mapped)
             setIsSearchingPlaces(false)
             return
@@ -277,16 +191,63 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         }
       }
 
-      // 2. Google Maps Geocoder as secondary Google direct resolver
+      // 2. Modern Google Maps Places AutocompleteSuggestion API fallback
+      if (typeof google !== 'undefined' && (google.maps as any)?.places?.AutocompleteSuggestion) {
+        try {
+          const req: any = {
+            input: trimmed,
+            locationBias: {
+              center: { lat: centerCoords.lat, lng: centerCoords.lng },
+              radius: 50000,
+            },
+          }
+          if (sessionToken) req.sessionToken = sessionToken
+
+          const { suggestions } = await (google.maps as any).places.AutocompleteSuggestion.fetchAutocompleteSuggestions(req)
+
+          if (suggestions && suggestions.length > 0) {
+            const mapped: PlaceResult[] = suggestions.map((s: any, idx: number) => {
+              const p = s.placePrediction
+              const mainText = p.mainText?.text || p.text?.text?.split(',')[0] || ''
+              const secondaryText = p.secondaryText?.text || p.text?.text || ''
+              const fullName = p.text?.text || `${mainText}, ${secondaryText}`
+              const types = p.types || []
+
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+              if (types.some((t: string) => ['locality', 'sublocality', 'administrative_area_level_1', 'administrative_area_level_2', 'country'].includes(t))) {
+                category = 'city'
+              } else if (types.some((t: string) => ['route', 'street_address'].includes(t))) {
+                category = 'street'
+              } else if (types.some((t: string) => ['store', 'restaurant', 'point_of_interest'].includes(t))) {
+                category = 'poi'
+              }
+
+              return {
+                id: `gplace-sugg-${p.placeId || idx}`,
+                title: mainText,
+                subtitle: secondaryText,
+                fullName: fullName,
+                placeId: p.placeId,
+                type: category,
+              }
+            })
+
+            setPlaceResults(mapped)
+            setIsSearchingPlaces(false)
+            return
+          }
+        } catch (err) {
+          console.warn('Google AutocompleteSuggestion API fallback:', err)
+        }
+      }
+
+      // 3. Google Maps Geocoder as full global resolver
       const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
       if (geocoder && typeof google !== 'undefined' && google.maps) {
         try {
           const geoResults: google.maps.GeocoderResult[] = await new Promise((resolve) => {
             geocoder.geocode(
-              {
-                address: trimmed,
-                componentRestrictions: isIndia ? { country: 'in' } : isUS ? { country: 'us' } : undefined,
-              },
+              { address: trimmed },
               (results: any, status: any) => {
                 if (status === 'OK' && Array.isArray(results)) {
                   resolve(results)
@@ -297,9 +258,17 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             )
           })
 
-          if (geoResults.length > 0) {
-            const mapped: PlaceResult[] = geoResults.slice(0, 8).map((gr, idx) => {
+          if (geoResults && geoResults.length > 0) {
+            const mapped: PlaceResult[] = geoResults.slice(0, 10).map((gr, idx) => {
               const loc = gr.geometry.location
+              const types = gr.types || []
+              let category: 'apartment' | 'building' | 'street' | 'city' | 'poi' = 'building'
+              if (types.some(t => ['locality', 'sublocality', 'administrative_area_level_1', 'administrative_area_level_2', 'country', 'postal_code'].includes(t))) {
+                category = 'city'
+              } else if (types.some(t => ['route', 'street_address'].includes(t))) {
+                category = 'street'
+              }
+
               return {
                 id: `geocoder-${gr.place_id || idx}`,
                 title: gr.formatted_address.split(',')[0],
@@ -308,7 +277,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                 lat: loc.lat(),
                 lng: loc.lng(),
                 placeId: gr.place_id,
-                type: gr.types?.includes('route') ? 'street' : gr.types?.includes('locality') ? 'city' : 'building',
+                type: category,
               }
             })
             setPlaceResults(mapped)
@@ -320,32 +289,10 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         }
       }
 
-      // 3. Fallback to predefined cities catalogue if offline/typing city name
-      const localMatches = US_CITIES_LIST.filter(
-        (c) =>
-          c.name.toLowerCase().includes(trimmed.toLowerCase()) ||
-          c.state.toLowerCase().includes(trimmed.toLowerCase()) ||
-          c.code.toLowerCase() === trimmed.toLowerCase()
-      ).map((c) => {
-        const coords = getCityCoordinates(c.fullName)
-        return {
-          id: `local-${c.fullName}`,
-          title: c.name,
-          subtitle: `${c.state}, ${c.countryCode === 'in' ? 'India' : c.countryCode === 'gb' ? 'United Kingdom' : 'United States'}`,
-          fullName: c.fullName,
-          lat: coords.lat,
-          lng: coords.lng,
-          type: 'city' as const,
-        }
-      })
-
-      setPlaceResults(localMatches)
       setIsSearchingPlaces(false)
-    }, 200)
+    }, 180)
 
-    return () => {
-      clearTimeout(timeoutId)
-    }
+    return () => clearTimeout(timeoutId)
   }, [search, selectedCity])
 
   // Clear search input whenever modal opens or closes
@@ -358,56 +305,10 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
 
   if (!isOpen) return null
 
-  const handleSelect = async (c: CityItem) => {
-    let resolvedCoords: { lat: number; lng: number } | null = null
-
-    // Geocode the selected city dynamically to get its actual coordinates
-    const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
-    if (geocoder) {
-      try {
-        const query = `${c.name}, ${c.state || c.code || ''}, ${c.countryCode?.toUpperCase() || ''}`.trim()
-        const geoRes = await new Promise<any[]>((resolve) => {
-          geocoder.geocode({ address: query }, (results: any, status: any) => {
-            if (status === 'OK' && Array.isArray(results) && results[0]?.geometry?.location) {
-              resolve(results)
-            } else {
-              resolve([])
-            }
-          })
-        })
-        if (geoRes && geoRes.length > 0 && geoRes[0]?.geometry?.location) {
-          const loc = geoRes[0].geometry.location
-          resolvedCoords = {
-            lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
-            lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng,
-          }
-        }
-      } catch (err) {
-        console.warn('Error geocoding city:', err)
-      }
-    }
-
-    if (!resolvedCoords) {
-      resolvedCoords = getCityCoordinates(c.fullName)
-    }
-
-    if (resolvedCoords && (resolvedCoords.lat !== 0 || resolvedCoords.lng !== 0)) {
-      setStoredCity(c.fullName, resolvedCoords)
-      onSelectCity(c.fullName, resolvedCoords, false)
-    } else {
-      setStoredCity(c.fullName)
-      onSelectCity(c.fullName, undefined, false)
-    }
-
-    setSearch('')
-    setPlaceResults([])
-    onClose()
-  }
-
   const handleSelectPlace = async (place: PlaceResult) => {
     let coords = place.lat && place.lng ? { lat: place.lat, lng: place.lng } : null
 
-    // Check cache first to avoid redundant API call
+    // 1. Check cached details
     if (!coords && place.placeId) {
       const cached = getCachedPlaceDetails(place.placeId)
       if (cached) {
@@ -415,7 +316,46 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       }
     }
 
-    // Resolve exact Google Maps Lat/Lng via Google Geocoder if not cached
+    // 2. Fetch full place details via PlacesService
+    const placesDetails = googlePlacesDetailsRef.current
+    if (!coords && place.placeId && placesDetails) {
+      try {
+        const detailsRes: any = await new Promise((resolve) => {
+          placesDetails.getDetails(
+            {
+              placeId: place.placeId,
+              fields: ['geometry', 'formatted_address', 'name', 'address_components'],
+            },
+            (result: any, status: any) => {
+              if (status === google.maps.places.PlacesServiceStatus.OK && result?.geometry?.location) {
+                resolve(result)
+              } else {
+                resolve(null)
+              }
+            }
+          )
+        })
+
+        if (detailsRes?.geometry?.location) {
+          const loc = detailsRes.geometry.location
+          coords = {
+            lat: typeof loc.lat === 'function' ? loc.lat() : loc.lat,
+            lng: typeof loc.lng === 'function' ? loc.lng() : loc.lng,
+          }
+          if (place.placeId) {
+            setCachedPlaceDetails(place.placeId, {
+              lat: coords.lat,
+              lng: coords.lng,
+              formattedAddress: detailsRes.formatted_address || place.fullName,
+            })
+          }
+        }
+      } catch (err) {
+        console.warn('Google Places getDetails resolution failed:', err)
+      }
+    }
+
+    // 3. Fallback: Resolve via Google Geocoder
     const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
     if (!coords && (place.placeId || place.fullName) && geocoder) {
       try {
@@ -440,7 +380,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           }
         }
       } catch (err) {
-        console.warn('Error resolving Google Place coordinates:', err)
+        console.warn('Error resolving Google Place coordinates via geocoder:', err)
       }
     }
 
@@ -459,8 +399,19 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
     onClose()
   }
 
-  const isSelected = (c: CityItem) => {
-    return selectedCity === c.fullName || selectedCity.startsWith(c.name)
+  const handleSelectSavedAddress = (saved: SavedAddressItem) => {
+    const targetCity = saved.city || saved.address.split(',').slice(-2)[0]?.trim() || selectedCity
+    const coords = { lat: saved.lat, lng: saved.lng }
+    setStoredCity(targetCity, coords)
+    onSelectCity(targetCity, coords, false)
+    setSearch('')
+    setPlaceResults([])
+    onClose()
+  }
+
+  const handleDeleteSavedAddress = (id: string) => {
+    const updated = removeSavedAddress(id)
+    setSavedAddresses(updated)
   }
 
   const handleDetectLocation = () => {
@@ -478,12 +429,12 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
         const liveCoords = { lat: latitude, lng: longitude }
 
         const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
-        
+
         if (geocoder) {
           geocoder.geocode(
             { location: { lat: latitude, lng: longitude } },
             (results: any, status: any) => {
-              let resolvedCity = selectedCity || 'Vasai, IN-MH'
+              let resolvedCity = selectedCity || 'Current Location'
               if (status === 'OK' && Array.isArray(results) && results.length > 0) {
                 const comps = results[0]?.address_components || []
                 const locality = comps.find((c: any) => c.types.includes('locality'))
@@ -492,7 +443,7 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                 const state = comps.find((c: any) => c.types.includes('administrative_area_level_1'))
                 const country = comps.find((c: any) => c.types.includes('country'))
 
-                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || 'Vasai'
+                const cityName = locality?.long_name || sublocality?.long_name || admin2?.long_name || state?.long_name || 'Current Location'
                 const stateCode = state?.short_name || country?.short_name || ''
                 resolvedCity = stateCode ? `${cityName}, ${stateCode}` : cityName
               }
@@ -532,13 +483,13 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
       data-testid="city-selector-modal"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-in fade-in duration-150"
     >
-      {/* Modal Card Container: Exact Uber BaseWeb 520px width & 32px padding */}
-      <div className="relative w-full max-w-[520px] rounded-[16px] bg-white p-6 sm:p-8 shadow-[0_12px_48px_rgba(0,0,0,0.2)] overflow-hidden max-h-[88vh] flex flex-col font-sans">
-        
+      {/* Modal Card Container with exact size */}
+      <div className="relative w-full max-w-[480px] h-[670px] max-h-[90vh] rounded-[24px] bg-white p-6 sm:p-7 shadow-[0_12px_48px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col font-sans">
+
         {/* Top Header Row */}
-        <div className="flex items-start justify-between gap-6 mb-4">
-          <div data-testid="city-selector-headline" className="text-[30px] sm:text-[34px] font-bold tracking-tight text-black leading-[1.12]">
-            You are currently in {currentCityDisplayName}
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div data-testid="city-selector-headline" className="text-[26px] sm:text-[30px] font-bold tracking-tight text-black leading-[1.12]">
+            You are currently in {currentDisplayName}
           </div>
           <button
             data-testid="city-selector-close"
@@ -552,20 +503,8 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           </button>
         </div>
 
-        {/* CTA Button */}
-        <div className="mb-6">
-          <button
-            data-testid="city-selector-cta"
-            onClick={onClose}
-            aria-label="Explore city"
-            className="px-5 py-3 rounded-[8px] bg-black text-white text-[15px] font-bold hover:bg-neutral-800 transition-colors cursor-pointer"
-          >
-            Explore city
-          </button>
-        </div>
-
         {/* Search Bar Input */}
-        <div data-testid="city-search-input" className="relative mb-6">
+        <div data-testid="city-search-input" className="relative mb-4">
           <div className="w-full h-[56px] rounded-full bg-[#F3F3F3] flex items-center px-5 text-black">
             <div className="shrink-0 text-black flex items-center">
               {isSearchingPlaces ? (
@@ -596,10 +535,10 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
           </div>
         </div>
 
-        {/* Scrollable City & Place List: Hidden scrollbar track */}
-        <div className="overflow-y-auto flex-1 space-y-5 max-h-[480px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          
-          {/* If user searched an apartment / address / city */}
+        {/* Scrollable Content */}
+        <div className="overflow-y-auto flex-1 flex flex-col space-y-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+
+          {/* If user is actively typing a search query */}
           {search.trim().length >= 2 ? (
             <div>
               <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1 flex items-center justify-between">
@@ -614,17 +553,23 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                       key={`${place.id}-${idx}`}
                       type="button"
                       onClick={() => handleSelectPlace(place)}
-                      className="w-full text-left py-3.5 px-1 transition-colors flex items-start gap-3.5 group cursor-pointer hover:bg-[#F9FAFB] rounded-xl"
+                      className="w-full text-left py-3.5 px-2 transition-colors flex items-start gap-3.5 group cursor-pointer hover:bg-[#F9FAFB] rounded-xl"
                     >
                       <div className="size-8 rounded-full bg-[#F3F3F3] text-black flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#276EF1]/10 group-hover:text-[#276EF1] transition-colors">
                         {place.type === 'city' ? (
                           <MapPin size={16} />
+                        ) : place.type === 'street' ? (
+                          <Compass size={16} />
+                        ) : place.type === 'poi' ? (
+                          <Store size={16} />
+                        ) : place.type === 'apartment' ? (
+                          <Home size={16} />
                         ) : (
                           <Building2 size={16} />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[16px] font-medium text-black group-hover:text-[#276EF1] transition-colors truncate">
+                        <p className="text-[15px] font-semibold text-black group-hover:text-[#276EF1] transition-colors truncate">
                           {place.title}
                         </p>
                         {place.subtitle && (
@@ -635,6 +580,11 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
                       </div>
                     </button>
                   ))}
+
+                  {/* Google Maps Attribution */}
+                  <div className="pt-3 pb-1 text-right text-[11px] font-medium text-gray-400 select-none">
+                    powered by <span className="font-bold text-gray-500">Google</span>
+                  </div>
                 </div>
               ) : !isSearchingPlaces ? (
                 <div className="py-8 text-center text-[#5E5E5E] text-[15px]">
@@ -644,110 +594,87 @@ export function CityModal({ isOpen, onClose, selectedCity, onSelectCity }: CityM
             </div>
           ) : (
             <>
-              {/* Fetch Current Location Row (Placed right BEFORE Popular section) */}
+              {/* Option 1: Use Current Location Row */}
               <button
                 type="button"
                 onClick={handleDetectLocation}
                 disabled={isLocating}
-                className="w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer border-b border-gray-100 hover:text-[#276EF1]"
+                className="w-full text-left h-[54px] px-2 transition-colors flex items-center justify-between group cursor-pointer hover:bg-[#F9FAFB] rounded-xl shrink-0"
               >
                 <div className="flex items-center gap-3.5">
-                  <div className="w-7 h-7 rounded-full bg-[#F3F7FE] text-[#276EF1] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#F3F7FE] text-[#276EF1] flex items-center justify-center shrink-0">
                     {isLocating ? (
                       <Loader2 size={16} className="animate-spin text-[#276EF1]" />
                     ) : (
-                      <Navigation size={15} className="text-[#276EF1]" />
+                      <Navigation size={16} className="text-[#276EF1]" />
                     )}
                   </div>
-                  <span className="text-[16px] font-semibold text-[#276EF1]">
+                  <span className="text-[16px] font-bold text-[#276EF1]">
                     {isLocating ? 'Detecting your location…' : 'Use current location'}
                   </span>
                 </div>
               </button>
 
-              {/* Popular Cities Section */}
-              {popularCities.length > 0 && (
-                <div>
-                  <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">Popular</div>
-                  <div className="divide-y divide-gray-100">
-                    {popularCities.map((c) => {
-                      const active = isSelected(c)
-                      return (
-                        <button
-                          key={c.fullName}
-                          type="button"
-                          data-testid="city-row-button"
-                          onClick={() => handleSelect(c)}
-                          className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
-                            active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5">
-                            <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
-                              <img
-                                src={c.countryCode === 'in' ? 'https://flagcdn.com/w40/in.png' : c.countryCode === 'gb' ? 'https://flagcdn.com/w40/gb.png' : 'https://flagcdn.com/w40/us.png'}
-                                srcSet={c.countryCode === 'in' ? 'https://flagcdn.com/w80/in.png 2x' : c.countryCode === 'gb' ? 'https://flagcdn.com/w80/gb.png 2x' : 'https://flagcdn.com/w80/us.png 2x'}
-                                alt={c.countryCode.toUpperCase()}
-                                width="24px"
-                                data-iso={c.countryCode.toUpperCase()}
-                                className="w-[24px] h-auto rounded-[2px]"
-                              />
-                            </span>
-                            <span className="text-[16px] font-medium">{c.name}</span>
-                          </div>
-                          {active && (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
-                              <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Divider with OR */}
+              <div className="relative my-2 flex items-center justify-center shrink-0">
+                <div className="w-full border-t border-gray-200" />
+                <span className="absolute bg-white px-3 text-[11px] font-black uppercase tracking-wider text-gray-400">
+                  or
+                </span>
+              </div>
 
-              {/* United States Section */}
-              {otherCities.length > 0 && (
-                <div>
-                  <div className="text-[14px] font-bold text-[#5E5E5E] mb-2 py-1">United States</div>
-                  <div className="divide-y divide-gray-100">
-                    {otherCities.map((c) => {
-                      const active = isSelected(c)
-                      return (
-                        <button
-                          key={c.fullName}
-                          type="button"
-                          data-testid="city-row-button"
-                          onClick={() => handleSelect(c)}
-                          className={`w-full text-left h-[56px] px-1 transition-colors flex items-center justify-between group cursor-pointer ${
-                            active ? 'font-bold text-black' : 'text-[#000000] hover:text-[#276EF1]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3.5">
-                            <span data-testid="city-row-flag" className="inline-flex items-center shrink-0">
-                              <img
-                                src="https://flagcdn.com/w40/us.png"
-                                srcSet="https://flagcdn.com/w80/us.png 2x"
-                                alt="US"
-                                width="24px"
-                                data-iso="US"
-                                className="w-[24px] h-auto rounded-[2px]"
-                              />
-                            </span>
-                            <span className="text-[16px] font-medium">{c.name}</span>
-                          </div>
-                          {active && (
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-black shrink-0">
-                              <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
+              {/* Option 2: Saved Addresses Section */}
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="text-[13px] font-black uppercase tracking-wider text-gray-500 mb-2 px-1 shrink-0">
+                  Saved Addresses
                 </div>
-              )}
+
+                {savedAddresses.length > 0 ? (
+                  <div className="divide-y divide-gray-100 overflow-y-auto">
+                    {savedAddresses.map((saved) => (
+                      <div
+                        key={saved.id}
+                        className="w-full flex items-center justify-between py-3 px-2 hover:bg-[#F9FAFB] rounded-xl transition-colors group cursor-pointer"
+                        onClick={() => handleSelectSavedAddress(saved)}
+                      >
+                        <div className="flex items-start gap-3.5 min-w-0 flex-1 pr-2">
+                          <div className="size-8 rounded-full bg-[#F3F3F3] text-black flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-[#276EF1]/10 group-hover:text-[#276EF1] transition-colors">
+                            <MapPin size={16} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[15px] font-bold text-black truncate group-hover:text-[#276EF1] transition-colors">
+                              {saved.title || saved.locality || saved.address.split(',')[0]}
+                            </p>
+                            <p className="text-[12px] text-gray-500 truncate mt-0.5">
+                              {saved.address}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteSavedAddress(saved.id)
+                          }}
+                          className="opacity-0 group-hover:opacity-100 size-7 rounded-full hover:bg-gray-200 text-gray-400 hover:text-red-500 flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                          title="Delete saved address"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center py-8 text-center px-4">
+                    <MapPin className="size-8 text-gray-300 mb-2.5" />
+                    <p className="text-[15px] font-semibold text-neutral-800">No saved addresses found</p>
+                    <p className="text-[13px] text-gray-400 mt-1 max-w-[280px]">
+                      Search a place above or pin an address on the map to save it to your profile.
+                    </p>
+                  </div>
+                )}
+              </div>
             </>
           )}
 
