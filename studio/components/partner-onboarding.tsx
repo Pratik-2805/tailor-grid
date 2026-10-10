@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Clock,
   Lock,
   Mail,
   MapPin,
@@ -62,6 +63,42 @@ const LANGUAGES = [
   'मराठी (Marathi)',
   'தமிழ் (Tamil)',
   'తెలుగు (Telugu)',
+]
+
+const TIME_OPTIONS = [
+  { value: '07:00', label: '07:00 AM' },
+  { value: '07:30', label: '07:30 AM' },
+  { value: '08:00', label: '08:00 AM' },
+  { value: '08:30', label: '08:30 AM' },
+  { value: '09:00', label: '09:00 AM' },
+  { value: '09:30', label: '09:30 AM' },
+  { value: '10:00', label: '10:00 AM' },
+  { value: '10:30', label: '10:30 AM' },
+  { value: '11:00', label: '11:00 AM' },
+  { value: '11:30', label: '11:30 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '12:30', label: '12:30 PM' },
+  { value: '13:00', label: '01:00 PM' },
+  { value: '13:30', label: '01:30 PM' },
+  { value: '14:00', label: '02:00 PM' },
+  { value: '14:30', label: '02:30 PM' },
+  { value: '15:00', label: '03:00 PM' },
+  { value: '15:30', label: '03:30 PM' },
+  { value: '16:00', label: '04:00 PM' },
+  { value: '16:30', label: '04:30 PM' },
+  { value: '17:00', label: '05:00 PM' },
+  { value: '17:30', label: '05:30 PM' },
+  { value: '18:00', label: '06:00 PM' },
+  { value: '18:30', label: '06:30 PM' },
+  { value: '19:00', label: '07:00 PM' },
+  { value: '19:30', label: '07:30 PM' },
+  { value: '20:00', label: '08:00 PM' },
+  { value: '20:30', label: '08:30 PM' },
+  { value: '21:00', label: '09:00 PM' },
+  { value: '21:30', label: '09:30 PM' },
+  { value: '22:00', label: '10:00 PM' },
+  { value: '22:30', label: '10:30 PM' },
+  { value: '23:00', label: '11:00 PM' },
 ]
 
 export function PartnerOnboarding({
@@ -837,58 +874,34 @@ export function PartnerOnboarding({
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                                Operating Hours *
+                              <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                                <Clock size={13} className="text-[#9E593B]" />
+                                <span>Operating Hours *</span>
                               </label>
-                              <div className="flex items-center gap-1.5">
-                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
-                                  <input
-                                    type="text"
-                                    value={parseTime12(openTime).time12}
-                                    onChange={(e) => {
-                                      const { period } = parseTime12(openTime)
-                                      setOpenTime(to24Hour(e.target.value, period))
-                                    }}
-                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
-                                    placeholder="10:00"
-                                    title="Opening Time"
+                              <div className="grid grid-cols-2 gap-2 items-center">
+                                <div>
+                                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                    Opens
+                                  </span>
+                                  <CustomSelect
+                                    value={openTime}
+                                    onChange={(val) => setOpenTime(val)}
+                                    placeholder="Open time"
+                                    buttonClassName="bg-gray-100 border-transparent py-2.5 text-xs font-semibold focus:bg-white"
+                                    options={TIME_OPTIONS}
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const { time12, period } = parseTime12(openTime)
-                                      setOpenTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
-                                    }}
-                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
-                                    title="Click or touch to toggle AM/PM"
-                                  >
-                                    {parseTime12(openTime).period}
-                                  </button>
                                 </div>
-                                <span className="text-[11px] text-gray-400 font-bold shrink-0">to</span>
-                                <div className="relative flex-1 flex items-center justify-center bg-gray-100 rounded-lg py-3.5 px-2 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0F1115] transition-all cursor-text">
-                                  <input
-                                    type="text"
-                                    value={parseTime12(closeTime).time12}
-                                    onChange={(e) => {
-                                      const { period } = parseTime12(closeTime)
-                                      setCloseTime(to24Hour(e.target.value, period))
-                                    }}
-                                    className="w-[44px] bg-transparent border-none text-xs font-medium text-[#0F1115] outline-none text-right tracking-tight p-0"
-                                    placeholder="08:00"
-                                    title="Closing Time"
+                                <div>
+                                  <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                    Closes
+                                  </span>
+                                  <CustomSelect
+                                    value={closeTime}
+                                    onChange={(val) => setCloseTime(val)}
+                                    placeholder="Close time"
+                                    buttonClassName="bg-gray-100 border-transparent py-2.5 text-xs font-semibold focus:bg-white"
+                                    options={TIME_OPTIONS}
                                   />
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const { time12, period } = parseTime12(closeTime)
-                                      setCloseTime(to24Hour(time12, period === 'AM' ? 'PM' : 'AM'))
-                                    }}
-                                    className="ml-1 text-xs font-semibold text-[#0F1115] hover:text-[#9E593B] cursor-pointer select-none transition-colors p-0"
-                                    title="Click or touch to toggle AM/PM"
-                                  >
-                                    {parseTime12(closeTime).period}
-                                  </button>
                                 </div>
                               </div>
                             </div>

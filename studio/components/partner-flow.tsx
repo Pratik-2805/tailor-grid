@@ -2699,15 +2699,6 @@ export function PartnerFlow({
                   <div className="space-y-1">
                     <button
                       type="button"
-                      onClick={() => setShowWelcomeModal(true)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-[#9E593B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
-                    >
-                      <Sparkles size={13} className="text-[#9E593B]" />
-                      <span>Welcome Card</span>
-                    </button>
-
-                    <button
-                      type="button"
                       onClick={() => setActiveTab('profile')}
                       className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-medium text-slate-700 hover:text-[#9E593B] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
                     >
