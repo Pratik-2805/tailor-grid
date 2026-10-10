@@ -23,6 +23,11 @@ export function clearAuthCookies() {
   clearAllAuth()
 }
 
+export function getAuthHeader(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
