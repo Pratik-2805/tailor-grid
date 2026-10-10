@@ -633,17 +633,14 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         {/* Top Minimal Bar */}
         <div className="max-w-7xl w-full mx-auto p-6 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7B3F26] flex items-center justify-center font-bold text-white text-sm shadow-xs">
-              TG
-            </div>
-            <div>
-              <span className="font-bold text-base tracking-tight text-[#1E2229] block leading-tight">
-                TailorGrid
-              </span>
-              <span className="text-[10px] text-[#78716C] font-semibold">
-                Super Admin Portal
-              </span>
-            </div>
+            <img
+              src="/bg_logo.png"
+              alt="Darzi Logo"
+              className="h-10 sm:h-11 w-auto object-contain"
+            />
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B] px-2.5 py-1 rounded-lg bg-[#FAF3ED] border border-[#EADBCE]">
+              Super Admin
+            </span>
           </div>
         </div>
 
@@ -660,9 +657,6 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               <h1 className="text-2xl font-bold tracking-tight text-[#1E2229]">
                 Super Admin Login
               </h1>
-              <p className="text-xs text-[#78716C] max-w-sm mx-auto leading-relaxed">
-                Enter your admin ID and password to access the dashboard.
-              </p>
             </div>
 
             {loginError && (
@@ -746,7 +740,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
 
         {/* Bottom Minimal Footer */}
         <div className="p-6 text-center text-xs text-[#78716C] relative z-10">
-          TailorGrid Super Admin • Secure Admin Session
+          Darzi Super Admin • Secure Admin Session
         </div>
 
         <ToastContainer position="top-right" autoClose={3000} theme="light" />
@@ -762,20 +756,14 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Super Admin badge */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="size-9 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7B3F26] flex items-center justify-center text-white font-bold tracking-wider text-sm shadow-xs">
-              TG
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold tracking-tight text-[#1E2229] text-base">TailorGrid</span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE]">
-                  Super Admin
-                </span>
-              </div>
-              <p className="text-[11px] text-[#78716C] hidden sm:block">
-                Manage customers, studios, and orders
-              </p>
-            </div>
+            <img
+              src="/bg_logo.png"
+              alt="Darzi Logo"
+              className="h-9 sm:h-10 w-auto object-contain"
+            />
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE]">
+              Super Admin
+            </span>
           </div>
 
           {/* Omnichannel Global Search */}
@@ -1474,7 +1462,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
             </button>
 
             <h3 className="text-base font-bold text-[#1E2229] mb-1">Onboard New Partner Atelier</h3>
-            <p className="text-xs text-[#78716C] mb-4">Register a partner studio workshop into TailorGrid fleet.</p>
+            <p className="text-xs text-[#78716C] mb-4">Register a partner studio workshop into Darzi fleet.</p>
 
             <form onSubmit={handleCreateStudio} className="space-y-3.5 text-xs">
               <div>
