@@ -587,10 +587,6 @@ export function SignUpModal({
   }
 
   const goBack = () => {
-    if (mode === 'studio-options' && isStudioEmailOpen) {
-      setIsStudioEmailOpen(false)
-      return
-    }
     if (mode === 'customer-signup' || mode === 'studio-options' || mode === 'link-phone') {
       setMode('role-select')
       setPendingUser(null)
@@ -1048,68 +1044,8 @@ export function SignUpModal({
             </div>
           )}
 
-          {/* ── STUDIO PARTNER OPTIONS ── */}
-          {mode === 'studio-options' && !isStudioEmailOpen && (
-            <div className="space-y-3">
-              <div>
-                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
-                  Sign Up as Studio
-                </h2>
-                <p className="text-xs text-[#7A7E85] mt-1">
-                  List yourself on Raffu
-                </p>
-              </div>
-
-              <div className="space-y-2.5 pt-1">
-                <GoogleButton
-                  label="Continue with Google"
-                  loading={loading}
-                  onClick={() => triggerGoogle('STUDIO')}
-                  bordered
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setIsStudioEmailOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer"
-                >
-                  <Mail size={14} className="text-[#9E593B]" />
-                  <span>Sign up with Email</span>
-                </button>
-              </div>
-
-              <div className="pt-0.5 text-center">
-                <span className="text-xs text-[#7A7E85]">Looking to book alterations? </span>
-                <button
-                  type="button"
-                  onClick={() => setMode('customer-signup')}
-                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer"
-                >
-                  Join as Customer
-                </button>
-              </div>
-
-              <p className="text-center text-[10px] text-[#9CA3AF] pt-0.5">
-                By continuing you agree with our terms and condition thing.
-              </p>
-
-              <div className="text-center pt-0.5">
-                <span className="text-xs text-[#7A7E85]">Already have an account? </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onSwitchToLogin) onSwitchToLogin()
-                  }}
-                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
-                >
-                  Log In
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── STUDIO PARTNER EMAIL SIGN UP FORM ── */}
-          {mode === 'studio-options' && isStudioEmailOpen && (
+          {/* ── STUDIO SIGN UP FORM ── */}
+          {mode === 'studio-options' && (
             <div className="space-y-3">
               <div>
                 <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
