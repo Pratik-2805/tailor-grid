@@ -262,10 +262,10 @@ export default function BookPage() {
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
 
-  // Garment Quantity state
+  // Garment Quantity state (Max limit: 4)
   const [garmentQuantity, setGarmentQuantity] = useState<number>(() => {
     const s = getSessionBookingData()
-    return typeof s?.quantity === 'number' && s.quantity > 0 ? s.quantity : 1
+    return typeof s?.quantity === 'number' && s.quantity > 0 ? Math.min(4, s.quantity) : 1
   })
 
   // Image Upload state
@@ -1264,10 +1264,10 @@ export default function BookPage() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setGarmentQuantity((q) => Math.min(10, q + 1))}
-                      disabled={garmentQuantity >= 10}
+                      onClick={() => setGarmentQuantity((q) => Math.min(4, q + 1))}
+                      disabled={garmentQuantity >= 4}
                       className="size-6 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
-                      title="Increase quantity"
+                      title="Increase quantity (Max 4)"
                     >
                       <Plus size={11} strokeWidth={2.5} />
                     </button>
