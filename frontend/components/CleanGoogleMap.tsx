@@ -983,8 +983,9 @@ export default function CleanGoogleMap({
   return (
     <div
       onClick={!disableNavigation && onMapClick ? onMapClick : undefined}
-      className={`w-full h-full relative overflow-hidden rounded-[28px] ${disableNavigation ? 'cursor-default' : 'cursor-pointer'
-        } ${className}`}
+      className={`w-full h-full relative overflow-hidden rounded-[28px] ${
+        disableNavigation || !onMapClick ? 'cursor-default' : 'cursor-pointer'
+      } ${className}`}
     >
       {/* Fallback Embed or Dynamic Map Instance */}
       {loadError ? (
