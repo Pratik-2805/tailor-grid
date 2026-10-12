@@ -56,7 +56,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
     {
       num: '2',
       title: 'Matching customer and master atelier',
-      desc: 'Darzi instantly matches your order to the best-rated certified master atelier within 1–3 miles, verified to have the exact specialist industrial machinery (OEM blindstitch, heavy denim chainstitch, overlock) your fabric requires.',
+      desc: 'Raffu instantly matches your order to the best-rated certified master atelier within 1–3 miles, verified to have the exact specialist industrial machinery (OEM blindstitch, heavy denim chainstitch, overlock) your fabric requires.',
       tips: ['Vetted master artisans', 'Accurate neighborhood walking distance'],
       Illustration: Step2Illustration,
     },
@@ -147,11 +147,11 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
             </span>
 
             <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0F1115] leading-[1.1]">
-              How Darzi works
+              How Raffu works
             </h1>
 
             <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[540px]">
-              Understanding how Darzi connects you with certified master ateliers and alteration studios can enhance your experience. Explore the step-by-step journey below to see how easy precision tailoring can be.
+              Understanding how Raffu connects you with certified master ateliers and alteration studios can enhance your experience. Explore the step-by-step journey below to see how easy precision tailoring can be.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#7A7E85] pt-2">
@@ -183,10 +183,10 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
           
           <div className="max-w-[760px] mb-16">
             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#0F1115]">
-              A quick guide to Darzi
+              A quick guide to Raffu
             </h2>
             <p className="mt-3 text-base sm:text-lg text-[#5A5D64]">
-              Here&apos;s how the Darzi app and web platform connect master artisans with customers on demand, step by step:
+              Here&apos;s how the Raffu app and web platform connect master artisans with customers on demand, step by step:
             </p>
           </div>
 
@@ -319,7 +319,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
               </h2>
 
               <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[500px]">
-                You can find verified master ateliers and book fitting appointments online without needing to download an app. Simply head to the Darzi web booking tool, and you&apos;re ready to enjoy the convenience of precision alterations from your computer, tablet, or phone.
+                You can find verified master ateliers and book fitting appointments online without needing to download an app. Simply head to the Raffu web booking tool, and you&apos;re ready to enjoy the convenience of precision alterations from your computer, tablet, or phone.
               </p>
 
               <div className="pt-2">
@@ -345,13 +345,13 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
         </section>
 
         {/* ========================================================================= */}
-        {/* "IT'S EASIER WITH DARZI" FEATURE CARDS (Screenshot 4 Bottom) */}
+        {/* "IT'S EASIER WITH RAFFU" FEATURE CARDS (Screenshot 4 Bottom) */}
         {/* ========================================================================= */}
         <section className="py-16 sm:py-24 border-b border-[#EBE6DF]">
           
           <div className="max-w-[760px] mb-12">
             <h2 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0F1115]">
-              It&apos;s easier with Darzi
+              It&apos;s easier with Raffu
             </h2>
             <p className="mt-2 text-base text-[#5A5D64]">
               Built from the ground up for transparent craftsmanship and effortless garment care.

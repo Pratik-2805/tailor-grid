@@ -22,7 +22,7 @@ const FAQS: FaqItem[] = [
   {
     category: 'guarantee',
     q: 'How does the 100% Fit Guarantee work?',
-    a: 'Every alteration booked through Darzi is fully guaranteed. Once your tailored garment is completed and collected at the partner atelier, you are invited to try it on in our private fitting room. If anything is not completely true to your booked measurements or silhouette expectations, the studio performs complimentary micro-adjustments within 24–48 hours at zero additional cost.',
+    a: 'Every alteration booked through Raffu is fully guaranteed. Once your tailored garment is completed and collected at the partner atelier, you are invited to try it on in our private fitting room. If anything is not completely true to your booked measurements or silhouette expectations, the studio performs complimentary micro-adjustments within 24–48 hours at zero additional cost.',
   },
   {
     category: 'guarantee',
@@ -46,7 +46,7 @@ const FAQS: FaqItem[] = [
   },
   {
     category: 'pricing',
-    q: 'How does workshop pricing work on Darzi?',
+    q: 'How does workshop pricing work on Raffu?',
     a: 'Prices displayed during browsing are estimated starting rates. Once you submit a fitting request, your matched local atelier calculates and confirms the exact price based on their workshop catalog upon accepting the order. If delicate fabrics or intricate beading require critical hand finishing, any transparent surcharge is agreed upon and itemized at garment drop-off before work begins.',
   },
   {

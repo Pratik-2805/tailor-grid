@@ -182,7 +182,7 @@ function buildOtpEmailHtml({
           <tr>
             <td align="center" style="padding-top: 4px;">
               <p style="margin: 0; font-size: 11px; color: #9CA3AF;">
-                Darzi &bull; On-Demand Bespoke Alterations
+                Raffu &bull; On-Demand Bespoke Alterations
               </p>
             </td>
           </tr>
@@ -254,8 +254,8 @@ async function sendOrderOtpEmail({
   }
 
   const subject = isPickup
-    ? `Your Darzi Order #${orderId} is Ready for Pickup! PIN: ${otp}`
-    : `Your Darzi Order #${orderId} Drop-Off PIN: ${otp}`;
+    ? `Your Raffu Order #${orderId} is Ready for Pickup! PIN: ${otp}`
+    : `Your Raffu Order #${orderId} Drop-Off PIN: ${otp}`;
 
   const title = isPickup
     ? "Your Garment is Ready for Pickup!"
@@ -291,7 +291,7 @@ async function sendOrderOtpEmail({
   });
 
   const text = `
-Darzi - On-Demand Alterations
+Raffu - On-Demand Alterations
 ${isPickup ? "YOUR ORDER IS READY FOR PICKUP!" : `ORDER #${orderId} CONFIRMATION PIN`}
 
 Hello ${customerName},
@@ -345,7 +345,7 @@ ${importantNote}
 /**
  * Sends an Authentication Verification Code OTP email.
  */
-async function sendAuthOtpEmail({ toEmail, otp, customerName = "Darzi User" }) {
+async function sendAuthOtpEmail({ toEmail, otp, customerName = "Raffu User" }) {
   if (!toEmail || !toEmail.includes("@")) {
     return { success: false, reason: "Invalid email address" };
   }
@@ -355,7 +355,7 @@ async function sendAuthOtpEmail({ toEmail, otp, customerName = "Darzi User" }) {
     return { success: false, reason: "RESEND_API_KEY missing" };
   }
 
-  const subject = `Your Darzi Verification Code: ${otp}`;
+  const subject = `Your Raffu Verification Code: ${otp}`;
 
   const details = [
     { label: "Purpose", value: "Account Sign-In Verification" },
@@ -366,14 +366,14 @@ async function sendAuthOtpEmail({ toEmail, otp, customerName = "Darzi User" }) {
     greeting: customerName ? `HELLO ${customerName.toUpperCase()},` : "HELLO,",
     title: "Verify Your Email Address",
     subtitle:
-      "Please use the 4-digit verification code below to complete your sign-in to Darzi.",
+      "Please use the 4-digit verification code below to complete your sign-in to Raffu.",
     otp,
     details,
     importantNote:
       "This code is valid for 10 minutes. Do not share this code with anyone.",
   });
 
-  const text = `Your Darzi verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
+  const text = `Your Raffu verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
 
   try {
     const fromAddress = getFromEmail();
@@ -415,13 +415,13 @@ async function sendAuthOtpEmail({ toEmail, otp, customerName = "Darzi User" }) {
  *   - Elegant cursive "Welcome!" script heading in white
  *   - Crisp white body with exact paragraph layout and line spacing
  *   - "By the way," note
- *   - Vibrant grass-green button (#76BC43) "Head to your Darzi" / "Head to your Darzi Studio"
- *   - "Team Darzi" sign-off
+ *   - Vibrant grass-green button (#76BC43) "Head to your Raffu" / "Head to your Raffu Studio"
+ *   - "Team Raffu" sign-off
  * - Centered muted grey logo and copyright footer below card
  */
 function buildWelcomeEmailHtml({
   name = "Valued Member",
-  email = "member@darzi.com",
+  email = "member@raffu.com",
   role = "CUSTOMER", // 'CUSTOMER' | 'STUDIO'
   studioName = "",
   phone = "",
@@ -444,9 +444,9 @@ function buildWelcomeEmailHtml({
 
   const contactUrl = `${effectivePortalUrl.replace(/\/$/, "")}/contact`;
   const buttonText = isStudio
-    ? "Head to your Darzi Studio"
-    : "Head to your Darzi";
-  const teamText = isStudio ? "Team Darzi Studio" : "Team Darzi";
+    ? "Head to your Raffu Studio"
+    : "Head to your Raffu";
+  const teamText = isStudio ? "Team Raffu Studio" : "Team Raffu";
 
   const paragraph1 = isStudio
     ? "Woo! Your studio is active - your atelier is now onboarded with us and, we will be sending you bite-sized tips in your email over the coming weeks to help you grow your bespoke alteration business too."
@@ -462,7 +462,7 @@ function buildWelcomeEmailHtml({
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Darzi</title>
+  <title>Welcome to Raffu</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@700&display=swap');
   </style>
@@ -480,9 +480,9 @@ function buildWelcomeEmailHtml({
           <tr>
             <td align="center" style="background-color: #373C52; padding: 22px 20px; text-align: center;">
               
-              <!-- "Welcome to Darzi" Title -->
+              <!-- "Welcome to Raffu" Title -->
               <h1 style="margin: 0; padding: 0; font-family: 'Dancing Script', 'Caveat', 'Brush Script MT', 'Snell Roundhand', 'Segoe Script', cursive; font-size: 34px; font-weight: 600; font-style: italic; color: #FFFFFF; letter-spacing: 0.5px; line-height: 1.2;">
-                Welcome to Darzi
+                Welcome to Raffu
               </h1>
 
             </td>
@@ -550,7 +550,7 @@ function buildWelcomeEmailHtml({
                 <tr>
                   <td align="center" valign="middle">
                     <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 26px; font-weight: 800; color: #9E9E9E; letter-spacing: -0.5px; text-decoration: none;">
-                      darzi
+                      raffu
                     </span>
                     <span style="display: inline-block; margin-left: 4px; vertical-align: middle; background-color: #BDBDBD; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 3px; letter-spacing: 0.5px;">
                       APP
@@ -561,7 +561,7 @@ function buildWelcomeEmailHtml({
 
               <!-- Copyright -->
               <p style="margin: 0; font-size: 11px; color: #B0B0B0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                &copy; Copyright Darzi Technologies Ltd, 2026
+                &copy; Copyright Raffu Technologies Ltd, 2026
               </p>
 
             </td>
@@ -677,13 +677,13 @@ ${
 
 By the way,
 
-${isStudio ? "Head to your Darzi Studio" : "Head to your Darzi"}: ${loginUrl || portalUrl || "https://darzi.com"}
+${isStudio ? "Head to your Raffu Studio" : "Head to your Raffu"}: ${loginUrl || portalUrl || "https://raffu.com"}
 
-${isStudio ? "Team Darzi Studio" : "Team Darzi"}
+${isStudio ? "Team Raffu Studio" : "Team Raffu"}
 
 Have questions or need assistance? Visit our Contact Page: ${contactUrl}
 
-© Copyright Darzi Technologies Ltd, 2026
+© Copyright Raffu Technologies Ltd, 2026
   `.trim();
 
   // Prepare CID attachment for welcome handshake image

@@ -143,7 +143,7 @@ const MH_CITIES = [
 
 const STUDIO_NAME_PREFIXES = [
   'Royal', 'Master', 'Heritage', 'Apex', 'Imperial', 'Classic', 'Elite', 'Prime',
-  'Prestige', 'Golden', 'Darzi', 'Signature', 'Vogue', 'Artisan', 'Urban', 'Velvet',
+  'Prestige', 'Golden', 'Raffu', 'Signature', 'Vogue', 'Artisan', 'Urban', 'Velvet',
   'Craftsman', 'Nova', 'Crown', 'Silver Needle'
 ];
 
@@ -208,7 +208,7 @@ async function seed500MaharashtraStudios() {
       studios.push({
         id,
         name,
-        email: `studio.${studioCounter}@darzitest.maharashtra.in`,
+        email: `studio.${studioCounter}@raffutest.maharashtra.in`,
         phone: `+91 98${Math.floor(10000000 + Math.random() * 89999999)}`,
         area: `${area}, ${cityConfig.city}`,
         address: `Shop ${Math.floor(1 + Math.random() * 45)}, ${area} Commercial Complex, ${cityConfig.city}`,

@@ -92,7 +92,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                 </a>
 
                 <a
-                  href="mailto:concierge@darzi.com"
+                  href="mailto:concierge@raffu.com"
                   className="flex items-start gap-3.5 p-3.5 rounded-2xl hover:bg-[#FAF8F5] transition-colors group"
                 >
                   <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
@@ -100,7 +100,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Email Support</p>
-                    <p className="text-sm font-bold text-[#0F1115]">concierge@darzi.com</p>
+                    <p className="text-sm font-bold text-[#0F1115]">concierge@raffu.com</p>
                     <p className="text-xs text-[#5A5D64]">Replies within 2 hours during atelier hours</p>
                   </div>
                 </a>
@@ -133,7 +133,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                 <ShieldCheck size={20} className="text-[#10B981] shrink-0 mt-0.5" />
                 <div className="text-xs text-[#065F46]">
                   <span className="font-bold block text-sm mb-0.5">100% Fit Guarantee Active</span>
-                  Every garment alteration booked via Darzi includes free micro-adjustments within 48 hours of trial.
+                  Every garment alteration booked via Raffu includes free micro-adjustments within 48 hours of trial.
                 </div>
               </div>
             </div>

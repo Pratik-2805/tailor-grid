@@ -147,7 +147,7 @@ function isSlotPassedInCity(selectedDate: Date, slotStr: string, city: string) {
   return slotMinutes <= currentCityMinutes
 }
 
-function CustomDarziCalendar({
+function CustomRaffuCalendar({
   selectedDate,
   onSelectDate,
   selectedCity,
@@ -253,7 +253,7 @@ function CustomDarziCalendar({
   )
 }
 
-const DARZI_TIME_SLOTS = [
+const RAFFU_TIME_SLOTS = [
   '09:00 AM',
   '10:30 AM',
   '12:00 PM',
@@ -700,7 +700,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
         </div>
       </div>
 
-      {/* Custom Darzi Theme Schedule Modal */}
+      {/* Custom Raffu Theme Schedule Modal */}
       {isScheduleModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150">
@@ -724,20 +724,20 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
               </button>
             </div>
 
-            {/* 1. Custom Darzi Theme Calendar */}
+            {/* 1. Custom Raffu Theme Calendar */}
             <div className="space-y-1.5">
               <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                 <Calendar size={13} className="text-black" />
                 <span>1. Select Visit Date</span>
               </label>
-              <CustomDarziCalendar
+              <CustomRaffuCalendar
                 selectedDate={scheduleDateObj}
                 onSelectDate={(d) => setScheduleDateObj(d)}
                 selectedCity={selectedCity}
               />
             </div>
 
-            {/* 2. Custom Darzi Theme Time Slot Grid */}
+            {/* 2. Custom Raffu Theme Time Slot Grid */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
@@ -749,7 +749,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
-                {DARZI_TIME_SLOTS.map((t) => {
+                {RAFFU_TIME_SLOTS.map((t) => {
                   const passed = isSlotPassedInCity(scheduleDateObj, t, selectedCity)
                   const isSelected = selectedTime === t
 

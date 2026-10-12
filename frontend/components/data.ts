@@ -178,7 +178,7 @@ export function getClosestStoreForLocation(location?: string, customStores?: Sto
 export const TESTIMONIALS = [
   {
     quote:
-      'I dropped off three pairs of selvedge denim at Atelier SoHo through Darzi. The original chainstitch hem match was immaculate and ready in 48 hours.',
+      'I dropped off three pairs of selvedge denim at Atelier SoHo through Raffu. The original chainstitch hem match was immaculate and ready in 48 hours.',
     author: 'Camilla Harrington',
     role: 'Fashion Director, New York',
     garment: '3x Selvedge Denim',
@@ -187,7 +187,7 @@ export const TESTIMONIALS = [
   },
   {
     quote:
-      'Finding a tailor you actually trust with luxury garments used to be stressful. Darzi matched me with a master seamstress 5 minutes away. Incredible 24-hour turnaround on my blazer.',
+      'Finding a tailor you actually trust with luxury garments used to be stressful. Raffu matched me with a master seamstress 5 minutes away. Incredible 24-hour turnaround on my blazer.',
     author: 'Julian Sterling',
     role: 'Architect, Los Angeles',
     garment: 'Loro Piana Wool Blazer',
@@ -207,7 +207,7 @@ export const TESTIMONIALS = [
 
 export const FAQS = [
   {
-    q: 'How does Darzi work?',
+    q: 'How does Raffu work?',
     a: 'Simply choose your garment type and required alteration, enter your location, and our platform instantly matches you with a certified master tailor studio nearby. You get transparent upfront pricing, book a fitting or drop-off time, and receive your digital fitting pass with direct studio directions.',
   },
   {
@@ -216,15 +216,15 @@ export const FAQS = [
   },
   {
     q: 'What if the fit is not 100% right upon collection?',
-    a: 'Every single order through Darzi is protected by our 100% Fit Guarantee. When you collect your item at the studio, you can try it on right there. If any minor tweak is needed, the partner studio will adjust it complimentary within 24 hours.',
+    a: 'Every single order through Raffu is protected by our 100% Fit Guarantee. When you collect your item at the studio, you can try it on right there. If any minor tweak is needed, the partner studio will adjust it complimentary within 24 hours.',
   },
   {
     q: 'How are partner studios vetted and selected?',
-    a: 'Every studio in the Darzi network undergoes rigorous in-person auditing. We check machine calibration (including specialist industrial blind-stitch, overlock, and chainstitch machines), artisan craftsmanship portfolio, turnaround reliability, and customer service standards.',
+    a: 'Every studio in the Raffu network undergoes rigorous in-person auditing. We check machine calibration (including specialist industrial blind-stitch, overlock, and chainstitch machines), artisan craftsmanship portfolio, turnaround reliability, and customer service standards.',
   },
   {
     q: 'How does pricing work?',
-    a: 'All prices on Darzi are standardized to real-world workshop rates in US Dollars ($). You pay the standard rate directly to the partner studio at pickup, with zero platform fees and zero markups.',
+    a: 'All prices on Raffu are standardized to real-world workshop rates in US Dollars ($). You pay the standard rate directly to the partner studio at pickup, with zero platform fees and zero markups.',
   },
 ]
 

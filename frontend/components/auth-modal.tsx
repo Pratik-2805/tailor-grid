@@ -405,7 +405,7 @@ export function AuthModal({
     setLoading(true)
     try {
       const result = await signUpUser({
-        name: cName || 'Darzi Member',
+        name: cName || 'Raffu Member',
         email: cEmail.trim(),
         phone: cPhone.trim(),
         postcode: cPostcode.trim(),
@@ -579,8 +579,8 @@ export function AuthModal({
         {/* Header Logo */}
         <div className="flex items-center justify-center px-6 pt-7 pb-3">
           <img
-            src="/bg_logo.png"
-            alt="Darzi Logo"
+            src="/removed_bg_logo.png"
+            alt="Raffu Logo"
             className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
           />
         </div>
@@ -596,7 +596,7 @@ export function AuthModal({
                   How are you joining?
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  Choose your role to get started with Darzi.
+                  Choose your role to get started with Raffu.
                 </p>
               </div>
 
@@ -698,7 +698,7 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Welcome to Darzi Studio
+                  Welcome to Raffu Studio
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
                   Sign in or register your atelier with Google to get started.
@@ -888,7 +888,7 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Login to Darzi
+                  Login to Raffu
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
                   Access your bespoke fitting passes, saved sizes, and orders.
@@ -1086,7 +1086,7 @@ export function AuthModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Welcome to Darzi Studio
+                  Welcome to Raffu Studio
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
                   Access live orders, workbench controls, and atelier payouts.
@@ -1127,7 +1127,7 @@ export function AuthModal({
               <div>
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">Partner Portal</p>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] mt-0.5">Register your Studio</h2>
-                <p className="text-xs text-[#7A7E85] mt-0.5">Join Darzi as a certified partner atelier.</p>
+                <p className="text-xs text-[#7A7E85] mt-0.5">Join Raffu as a certified partner atelier.</p>
               </div>
 
               <div className="space-y-2.5 pt-1">
@@ -1549,7 +1549,7 @@ function StudioIllustration() {
       <rect x="98" y="78" width="16" height="3" rx="1.5" fill="url(#steelChrome)" />
       {/* Atelier Gold Emblem */}
       <rect x="80" y="44" width="18" height="8" rx="2" fill="#131822" stroke="url(#goldAccent)" strokeWidth="0.8" />
-      <text x="89" y="50" fontSize="5" fontWeight="bold" fill="#FCD34D" textAnchor="middle" letterSpacing="0.5">DARZI</text>
+      <text x="89" y="50" fontSize="5" fontWeight="bold" fill="#FCD34D" textAnchor="middle" letterSpacing="0.5">RAFFU</text>
 
       {/* Atelier atmosphere sparkles */}
       <text x="30" y="42" fontSize="12" fill="#FCD34D" fillOpacity="0.85">✦</text>

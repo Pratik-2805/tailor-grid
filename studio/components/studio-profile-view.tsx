@@ -81,7 +81,7 @@ const ATELIER_PRESETS = [
 
 // Helper to split raw stored address into manual Shop No. and map-detected street address
 function parseAddressParts(rawAddress: string, userId?: string) {
-  let stored = typeof window !== 'undefined' && userId ? localStorage.getItem(`darzi_studio_shop_no_${userId}`) : null
+  let stored = typeof window !== 'undefined' && userId ? (localStorage.getItem(`raffu_studio_shop_no_${userId}`) || localStorage.getItem(`darzi_studio_shop_no_${userId}`)) : null
   let sNo = (stored || '').trim()
   let street = (rawAddress || '').trim()
 
@@ -210,7 +210,7 @@ export function StudioProfileView({
   const handleShopNoChange = (val: string) => {
     setShopNo(val)
     if (user?.id && typeof window !== 'undefined') {
-      localStorage.setItem(`darzi_studio_shop_no_${user.id}`, val)
+      localStorage.setItem(`raffu_studio_shop_no_${user.id}`, val)
     }
   }
 
@@ -670,7 +670,7 @@ export function StudioProfileView({
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2 animate-in fade-in">
           <Check size={16} className="text-emerald-600 shrink-0" />
           <span className="font-semibold">
-            Atelier profile successfully saved to database! Updates are live across the Darzi Grid.
+            Atelier profile successfully saved to database! Updates are live across the Raffu Grid.
           </span>
         </div>
       )}
@@ -1273,7 +1273,7 @@ export function StudioProfileView({
                   />
                 </div>
                 <p className="text-[11px] text-[#6B7280]">
-                  Catchment zone for Darzi courier allocation and customer radius matching (5-mile radius).
+                  Catchment zone for Raffu courier allocation and customer radius matching (5-mile radius).
                 </p>
               </div>
             </div>

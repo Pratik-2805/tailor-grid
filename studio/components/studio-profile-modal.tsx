@@ -623,7 +623,7 @@ export function StudioProfileModal({
                     placeholder="e.g. SoHo & Lower Manhattan"
                     className="w-full rounded-xl border border-[#E0D8CB] bg-[#FAF8F5] px-3.5 py-2.5 text-xs text-[#18191B] font-semibold focus:border-[#9E593B] focus:bg-white focus:outline-none"
                   />
-                  <p className="text-[10.5px] text-[#8C8275]">Used for customer distance matching on the Darzi Grid.</p>
+                  <p className="text-[10.5px] text-[#8C8275]">Used for customer distance matching on the Raffu Grid.</p>
                 </div>
 
                 {/* Certified Machine Specialties */}

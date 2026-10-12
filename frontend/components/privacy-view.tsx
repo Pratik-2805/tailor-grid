@@ -26,7 +26,7 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             Customer Privacy Policy
           </h1>
           <p className="text-xs sm:text-sm text-[#5A5D64]">
-            Effective Date: October 2026 &middot; Applicable to all Darzi Client Users &amp; Digital Fit Passports
+            Effective Date: October 2026 &middot; Applicable to all Raffu Client Users &amp; Digital Fit Passports
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
               <span>Information We Collect as a Customer</span>
             </h2>
             <p>
-              When you use Darzi to book clothing alterations, we collect only the information necessary to fulfill your garment tailoring:
+              When you use Raffu to book clothing alterations, we collect only the information necessary to fulfill your garment tailoring:
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-[#5A5D64]">
               <li><strong className="text-[#18191B]">Contact Details:</strong> Your name, verified mobile phone number, and email address for order status SMS alerts, PIN verification, and receipts.</li>
@@ -91,7 +91,7 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
               <span>Payment &amp; Transaction Security</span>
             </h2>
             <p>
-              All customer payments are processed through PCI-DSS Level 1 certified payment infrastructure (such as Stripe and authorized banking gateways). Darzi does not store raw credit/debit card numbers or CVVs on our backend servers.
+              All customer payments are processed through PCI-DSS Level 1 certified payment infrastructure (such as Stripe and authorized banking gateways). Raffu does not store raw credit/debit card numbers or CVVs on our backend servers.
             </p>
           </section>
 
@@ -106,7 +106,7 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-[#5A5D64]">
               <li><strong className="text-[#18191B]">Right to Rectify:</strong> You can edit your personal details, home address, and stored measurements at any time directly in your Customer Profile.</li>
-              <li><strong className="text-[#18191B]">Right to Erase:</strong> You may request complete erasure of your account, order archives, and Fit Passport by emailing <code className="px-1.5 py-0.5 rounded bg-[#FAF8F5] border border-[#EBE6DF] text-[#0F1115]">privacy@darzi.com</code>.</li>
+              <li><strong className="text-[#18191B]">Right to Erase:</strong> You may request complete erasure of your account, order archives, and Fit Passport by emailing <code className="px-1.5 py-0.5 rounded bg-[#FAF8F5] border border-[#EBE6DF] text-[#0F1115]">privacy@raffu.com</code>.</li>
             </ul>
           </section>
 
@@ -120,8 +120,8 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
               If you have any questions regarding your data privacy, fit passport storage, or wish to exercise your data rights, contact:
             </p>
             <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#EBE6DF] text-xs space-y-1">
-              <p className="font-bold text-[#0F1115]">Darzi Technologies Ltd. &middot; Privacy &amp; Compliance Office</p>
-              <p className="text-[#5A5D64]">Email: privacy@darzi.com &middot; concierge@darzi.com</p>
+              <p className="font-bold text-[#0F1115]">Raffu Technologies Ltd. &middot; Privacy &amp; Compliance Office</p>
+              <p className="text-[#5A5D64]">Email: privacy@raffu.com &middot; concierge@raffu.com</p>
               <p className="text-[#5A5D64]">Support Hotline: +91 98450 95969 / +44 20 7946 0912</p>
             </div>
           </section>
@@ -133,7 +133,7 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             onClick={() => go('home')}
             className="px-6 py-2.5 rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
           >
-            Return to Darzi Home
+            Return to Raffu Home
           </button>
         </div>
       </div>

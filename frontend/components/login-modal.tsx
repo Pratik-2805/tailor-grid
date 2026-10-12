@@ -435,9 +435,9 @@ export function LoginModal({
         {/* Header Logo */}
         <div className="flex items-center justify-center px-5 pt-5 pb-1">
           <img
-            src="/bg_logo.png"
-            alt="Darzi Logo"
-            className="h-10 w-auto object-contain transition-all duration-200"
+            src="/removed_bg_logo.png"
+            alt="Raffu Logo"
+            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
           />
         </div>
 
@@ -446,8 +446,8 @@ export function LoginModal({
           {mode === 'login' && (
             <div className="space-y-3">
               <div>
-                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
-                  Login to Darzi
+                <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
+                  Login to Raffu
                 </h2>
               </div>
 

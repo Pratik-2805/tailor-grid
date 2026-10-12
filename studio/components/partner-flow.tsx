@@ -568,7 +568,7 @@ export function PartnerFlow({
       ? rawStudioName
       : (user?.name && user.name.length > 2 && user.name.toLowerCase() !== 'x')
         ? `${user.name}'s Atelier`
-        : 'Darzi Atelier · Soho Flagship'
+        : 'Raffu Atelier · Soho Flagship'
   const tailorName =
     (user?.name && user.name.length > 1 && user.name.toLowerCase() !== 'x')
       ? user.name

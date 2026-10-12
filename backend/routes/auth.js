@@ -238,7 +238,7 @@ async function findOrLinkUser({
 }) {
   const normEmail = email ? email.trim().toLowerCase() : null;
   const normPhone = phone ? phone.trim() : null;
-  const contactStr = normEmail || normPhone || "member@darzi.com";
+  const contactStr = normEmail || normPhone || "member@raffu.com";
 
   let user = null;
 
@@ -447,10 +447,10 @@ async function findOrLinkUser({
         name &&
         name !== "Master Tailor" &&
         name !== "Google User" &&
-        name !== "Darzi Member" &&
+        name !== "Raffu Member" &&
         name !== "Mobile Member"
           ? name
-          : user.name || name || "Darzi Member",
+          : user.name || name || "Raffu Member",
       avatar:
         user.avatar && !user.avatar.includes("dicebear")
           ? user.avatar
@@ -549,10 +549,10 @@ async function findOrLinkUser({
       name:
         name ||
         (normEmail
-          ? "Darzi User"
+          ? "Raffu User"
           : normPhone
             ? "Mobile Member"
-            : "Darzi Member"),
+            : "Raffu Member"),
       email: normEmail,
       phone: normPhone,
       contact: contactStr,
@@ -676,7 +676,7 @@ router.post("/send-otp", async (req, res) => {
           let targetEmail = req.body.email
             ? String(req.body.email).trim().toLowerCase()
             : null;
-          let customerName = "Darzi User";
+          let customerName = "Raffu User";
           if (!targetEmail) {
             const user = await prisma.user.findFirst({
               where: {
@@ -1554,7 +1554,7 @@ router.post("/signup", async (req, res) => {
       }
       finalPhone = phoneValidation.formatted;
     }
-    const finalName = name || cachedGoogleData?.name || "Darzi Member";
+    const finalName = name || cachedGoogleData?.name || "Raffu Member";
     const finalAvatar = cachedGoogleData?.avatar;
     const finalMethod = tempSignupId || cachedGoogleData ? "google" : "email";
 
@@ -2095,7 +2095,7 @@ router.post("/update-profile", async (req, res) => {
             studioName ||
             user.studioName ||
             user.name ||
-            "Darzi Partner Studio"
+            "Raffu Partner Studio"
           ).trim();
           const storeArea = (area || user.postcode || "Mumbai").trim();
           const storeAddress = (

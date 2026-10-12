@@ -153,7 +153,7 @@ router.post('/dispatch/start', async (req, res) => {
       postcode: postcode || 'W8 4EP',
       garmentId: garmentId || 'trousers',
       garmentName: garmentName || 'Trousers & Jeans',
-      quantity: req.body.quantity ? Math.max(1, parseInt(req.body.quantity, 10)) : (quantity ? Math.max(1, parseInt(quantity, 10)) : 1),
+      quantity: req.body.quantity ? Math.min(4, Math.max(1, parseInt(req.body.quantity, 10))) : (quantity ? Math.min(4, Math.max(1, parseInt(quantity, 10))) : 1),
       serviceId: serviceId || 'trouser-hem',
       serviceName: serviceName || 'Standard Hemming',
       date: date || new Date().toISOString().split('T')[0],

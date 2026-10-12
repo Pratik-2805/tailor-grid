@@ -52,11 +52,11 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
           <button
             onClick={() => nav('home')}
             className="flex items-center gap-3 group text-left shrink-0 py-1"
-            aria-label="Darzi home"
+            aria-label="Raffu home"
           >
             <img
-              src="/bg_logo.png"
-              alt="Darzi"
+              src="/removed_bg_logo.png"
+              alt="Raffu"
               className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
             />
             <div className="hidden sm:flex flex-col justify-center">

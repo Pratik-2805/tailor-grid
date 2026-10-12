@@ -51,7 +51,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
     },
     {
       q: 'Do I have to do any marketing or payment processing?',
-      a: 'No marketing required. Darzi handles customer acquisition, SEO, and appointment bookings, sending qualified local alteration clients straight to your studio door. You simply provide the fitting and tailoring service, and collect payment directly from the customer.',
+      a: 'No marketing required. Raffu handles customer acquisition, SEO, and appointment bookings, sending qualified local alteration clients straight to your studio door. You simply provide the fitting and tailoring service, and collect payment directly from the customer.',
     },
     {
       q: 'How does the in-studio walk-in fitting process work?',
@@ -63,7 +63,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
     },
     {
       q: 'Can I sell in-store retail merchandise and additional services?',
-      a: 'Yes. Every Darzi booking drives physical footfall into your store. Any retail items you sell—such as fabrics, bespoke suiting, accessories, or dry cleaning—are 100% yours, paid directly by the customer to your shop.',
+      a: 'Yes. Every Raffu booking drives physical footfall into your store. Any retail items you sell—such as fabrics, bespoke suiting, accessories, or dry cleaning—are 100% yours, paid directly by the customer to your shop.',
     },
   ]
 
@@ -437,7 +437,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
             Ready to partner your studio?
           </h2>
           <p className="mt-3 text-sm sm:text-base text-[#5A5D64] max-w-[540px] mx-auto leading-relaxed">
-            Join Darzi&apos;s network of master tailors. Register your atelier in minutes or sign in to your workbench.
+            Join Raffu&apos;s network of master tailors. Register your atelier in minutes or sign in to your workbench.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">

@@ -73,7 +73,7 @@ async function fetchEligible5MilePool(lat, lng) {
         if (dist <= 5.0) {
           pool.push({
             tailorId: store.id,
-            name: store.name || 'Darzi Partner Atelier',
+            name: store.name || 'Raffu Partner Atelier',
             area: store.area || 'Neighborhood Studio',
             address: store.address || '',
             postcode: store.postcode || '',

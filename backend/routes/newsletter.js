@@ -36,7 +36,7 @@ router.post('/subscribe', async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: 'Thank you for subscribing to Darzi offers and updates!',
+      message: 'Thank you for subscribing to Raffu offers and updates!',
       subscription: {
         id: subscription.id,
         email: subscription.email,

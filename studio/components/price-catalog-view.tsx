@@ -158,7 +158,7 @@ export function PriceCatalogView({
           }
           setCustomCategories(customs)
         } else {
-          // Do not prefetch default prices until tailor explicitly requests them via "Use Darzi Rates"
+          // Do not prefetch default prices until tailor explicitly requests them via "Use Raffu Rates"
           const initialItems: StudioCatalogItemData[] = []
           for (const cat of data.baseCategories || []) {
             for (const svc of cat.services) {
@@ -501,7 +501,7 @@ export function PriceCatalogView({
             type="button"
             className="py-1.5 px-3 rounded-xl border border-[#9E593B]/40 bg-[#FFF9F5] hover:bg-[#FBECE3] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
           >
-            <span>⚡ Use Darzi Rates</span>
+            <span>⚡ Use Raffu Rates</span>
           </button>
 
           {/* Add Category */}
@@ -540,7 +540,7 @@ export function PriceCatalogView({
               Your studio is currently offline until your price catalog is configured and saved.
             </p>
             <p className="text-[#92400E] mt-0.5">
-              Enter your tailor prices below or click <strong>&quot;⚡ Use Darzi Rates&quot;</strong> above to auto-fill with standard market prices, then click <strong>&quot;Save Price Catalog&quot;</strong>.
+              Enter your tailor prices below or click <strong>&quot;⚡ Use Raffu Rates&quot;</strong> above to auto-fill with standard market prices, then click <strong>&quot;Save Price Catalog&quot;</strong>.
             </p>
           </div>
         </div>

@@ -73,7 +73,7 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps = {}) {
         {/* Section Header */}
         <div className="mb-6 sm:mb-8 text-left">
           <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-[#0F1115] tracking-tight">
-            Explore what you can do with Darzi
+            Explore what you can do with Raffu
           </h2>
           <p className="mt-2 text-sm sm:text-base text-[#5A5D64] max-w-2xl">
             Standardized alteration services across all garments with guaranteed 24h &amp; 48h turnaround speeds.

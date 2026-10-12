@@ -60,6 +60,7 @@ import {
   loginSuperAdmin,
   checkSuperAdminSession,
   getAdminToken,
+  getAdminUser,
   logoutSuperAdmin,
 } from '@/lib/api'
 import { OverviewTab } from '@/components/overview-tab'
@@ -110,10 +111,43 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [overview, setOverview] = useState<any>(null)
-  const [customers, setCustomers] = useState<any[]>([])
-  const [studios, setStudios] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
+  // Shared in-memory cache to prevent layout fluctuation when switching routes
+  const [overview, setOverview] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_overview')
+        return cached ? JSON.parse(cached) : null
+      } catch { return null }
+    }
+    return null
+  })
+  const [customers, setCustomers] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_customers')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
+  const [studios, setStudios] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_studios')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
+  const [orders, setOrders] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_orders')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
 
   // Search & Filter states
   const [globalSearchQuery, setGlobalSearchQuery] = useState('')
@@ -157,10 +191,22 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         fetchAdminOrders(),
       ])
 
-      if (overviewData) setOverview(overviewData)
-      if (customersData) setCustomers(customersData)
-      if (studiosData) setStudios(studiosData)
-      if (ordersData) setOrders(ordersData)
+      if (overviewData) {
+        setOverview(overviewData)
+        try { sessionStorage.setItem('admin_cache_overview', JSON.stringify(overviewData)) } catch {}
+      }
+      if (customersData) {
+        setCustomers(customersData)
+        try { sessionStorage.setItem('admin_cache_customers', JSON.stringify(customersData)) } catch {}
+      }
+      if (studiosData) {
+        setStudios(studiosData)
+        try { sessionStorage.setItem('admin_cache_studios', JSON.stringify(studiosData)) } catch {}
+      }
+      if (ordersData) {
+        setOrders(ordersData)
+        try { sessionStorage.setItem('admin_cache_orders', JSON.stringify(ordersData)) } catch {}
+      }
     } catch (err) {
       console.error('Failed to load admin data:', err)
       toast.error('Failed to connect to backend service.')
@@ -183,10 +229,17 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       return
     }
 
+    // Instant local hydration to avoid flashing the "Verifying Super Admin session" screen on route transitions
+    const cachedUser = getAdminUser()
+    if (cachedUser && cachedUser.role === 'ADMIN') {
+      setAdminUser(cachedUser)
+      setAuthChecking(false)
+    }
+
     const safetyTimer = setTimeout(() => {
       if (isMounted) {
         setAuthChecking(false)
-        if (pathname !== '/') router.replace('/')
+        if (!getAdminToken() && pathname !== '/') router.replace('/')
       }
     }, 2000)
 
@@ -195,6 +248,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         const user = await checkSuperAdminSession()
         if (isMounted && user && user.role === 'ADMIN') {
           setAdminUser(user)
+          // Always load foundational data silently in background
           loadAllData(true)
         } else if (isMounted) {
           if (pathname !== '/') router.replace('/')
@@ -634,8 +688,8 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         <div className="max-w-7xl w-full mx-auto p-6 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
             <img
-              src="/bg_logo.png"
-              alt="Darzi Logo"
+              src="/removed_bg_logo.png"
+              alt="Raffu Logo"
               className="h-10 sm:h-11 w-auto object-contain"
             />
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B] px-2.5 py-1 rounded-lg bg-[#FAF3ED] border border-[#EADBCE]">
@@ -740,7 +794,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
 
         {/* Bottom Minimal Footer */}
         <div className="p-6 text-center text-xs text-[#78716C] relative z-10">
-          Darzi Super Admin • Secure Admin Session
+          Raffu Super Admin • Secure Admin Session
         </div>
 
         <ToastContainer position="top-right" autoClose={3000} theme="light" />
@@ -757,8 +811,8 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
           {/* Logo & Super Admin badge */}
           <div className="flex items-center gap-3 shrink-0">
             <img
-              src="/bg_logo.png"
-              alt="Darzi Logo"
+              src="/removed_bg_logo.png"
+              alt="Raffu Logo"
               className="h-9 sm:h-10 w-auto object-contain"
             />
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE]">
@@ -1384,7 +1438,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
                   type="email"
                   value={editingStudio.email || ''}
                   onChange={(e) => setEditingStudio({ ...editingStudio, email: e.target.value })}
-                  placeholder="e.g. atelier@darzi.com"
+                  placeholder="e.g. atelier@raffu.com"
                   className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
                 />
               </div>
@@ -1462,7 +1516,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
             </button>
 
             <h3 className="text-base font-bold text-[#1E2229] mb-1">Onboard New Partner Atelier</h3>
-            <p className="text-xs text-[#78716C] mb-4">Register a partner studio workshop into Darzi fleet.</p>
+            <p className="text-xs text-[#78716C] mb-4">Register a partner studio workshop into Raffu fleet.</p>
 
             <form onSubmit={handleCreateStudio} className="space-y-3.5 text-xs">
               <div>
@@ -1529,7 +1583,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
                 <input
                   name="email"
                   type="email"
-                  placeholder="e.g. atelier@darzi.com"
+                  placeholder="e.g. atelier@raffu.com"
                   className="w-full p-2.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl focus:ring-2 focus:ring-[#9E593B] focus:outline-none"
                 />
               </div>

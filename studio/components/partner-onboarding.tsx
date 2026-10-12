@@ -574,8 +574,8 @@ export function PartnerOnboarding({
       const finalUser: User = res?.user || {
         id: user?.id || `usr_${Date.now()}`,
         name: tailorName.trim(),
-        contact: effectivePhone || emailToSubmit || 'partner@darzi.com',
-        email: emailToSubmit || 'partner@darzi.com',
+        contact: effectivePhone || emailToSubmit || 'partner@raffu.com',
+        email: emailToSubmit || 'partner@raffu.com',
         phone: effectivePhone || '',
         method: 'email',
         role: 'STUDIO',
@@ -683,7 +683,7 @@ export function PartnerOnboarding({
               </button>
             )}
             <div className="flex items-center gap-2">
-              <span className="font-serif text-xl font-bold tracking-tight text-[#0F1115]">Darzi</span>
+              <span className="font-serif text-xl font-bold tracking-tight text-[#0F1115]">Raffu</span>
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#9E593B] bg-[#9E593B]/10 px-2 py-0.5 rounded-md">
                 Studio
               </span>
@@ -707,10 +707,10 @@ export function PartnerOnboarding({
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 text-xs z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="font-bold text-[#0F1115]">{user?.name || 'Partner Account'}</p>
-                    <p className="text-[11px] text-gray-500 truncate">{user?.email || 'partner@darzi.com'}</p>
+                    <p className="text-[11px] text-gray-500 truncate">{user?.email || 'partner@raffu.com'}</p>
                   </div>
                   <a
-                    href="mailto:support@darzi.com"
+                    href="mailto:support@raffu.com"
                     className="block px-4 py-2 hover:bg-gray-50 text-gray-700"
                   >
                     Contact Support
@@ -794,13 +794,13 @@ export function PartnerOnboarding({
 
               {/* ── ONBOARDING FORM (Strictly Step 1, Step 2, Step 3) ── */}
               <div className="flex-1 flex flex-col justify-between pt-1">
-                  {/* Step 1: "Earn with Darzi" */}
+                  {/* Step 1: "Earn with Raffu" */}
                   {currentStep === 'location' && (
                     <div className="flex-1 flex flex-col justify-between animate-in fade-in duration-200">
                       <div className="space-y-4">
                         <div>
                           <h1 className="text-3xl font-extrabold tracking-tight text-[#0F1115]">
-                            Earn with Darzi
+                            Earn with Raffu
                           </h1>
                         </div>
 

@@ -67,7 +67,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             {/* Brand Col */}
             <div className="lg:col-span-4">
               <div className="flex items-center gap-3 mb-4">
-                <img src="/landscape_logo.jpeg" alt="Darzi Logo" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
+                <img src="/landscape_logo.jpeg" alt="Raffu Logo" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
               </div>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
                 Professional clothing alterations and tailoring. Guaranteed perfect fit, upfront clear prices, and easy local service.
@@ -149,7 +149,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             <div className="lg:col-span-3 sm:col-span-4">
               <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
               <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
-                <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Darzi</button></li>
+                <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Raffu</button></li>
                 <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
                 <li><button onClick={() => isCustomer ? nav('book') : nav('for-partners')} className="hover:text-white transition-colors">{isCustomer ? 'Book Alterations' : 'Partner With Us'}</button></li>
                 <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Saved Fit Profile</button></li>
@@ -193,7 +193,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
         {/* Bottom */}
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
           <div className="flex items-center gap-2 flex-wrap">
-            <span>© {new Date().getFullYear()} Darzi Technologies Ltd.</span>
+            <span>© {new Date().getFullYear()} Raffu Technologies Ltd.</span>
             <span>·</span>
             <button onClick={() => nav('privacy')} className="hover:text-white transition-colors cursor-pointer">
               Privacy Policy
@@ -244,7 +244,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   100% Fit Guarantee Policy
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  Every order booked through Darzi is protected by our zero-risk Fit Guarantee. When you collect your tailored garment at the partner studio, you are invited to try it on in the private fitting room.
+                  Every order booked through Raffu is protected by our zero-risk Fit Guarantee. When you collect your tailored garment at the partner studio, you are invited to try it on in the private fitting room.
                 </p>
                 <div className="rounded-xl bg-white border border-[#EBE6DF] p-4 text-xs space-y-2">
                   <p className="font-bold text-[#0F1115]">What is covered:</p>
@@ -270,7 +270,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Privacy & Data Policy
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  Darzi Technologies Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
+                  Raffu Technologies Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
                 </p>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
                   Your payment information is encrypted end-to-end and never stored in plain text. We do not sell personal data to third parties.
@@ -291,7 +291,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Terms of Service
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  By using the Darzi platform and partner atelier network, you agree to our standardized craft guidelines, transparent fixed fee structure, and studio fitting room safety protocols.
+                  By using the Raffu platform and partner atelier network, you agree to our standardized craft guidelines, transparent fixed fee structure, and studio fitting room safety protocols.
                 </p>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
                   Alterations are completed within the agreed 48–72 hour turnaround timeline barring specialist luxury fabrics with prior customer notice.
@@ -317,11 +317,11 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                 <div className="space-y-3 pt-2">
                   <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
                     <Mail size={16} className="text-[#9E593B]" />
-                    <span>support@darzi.com</span>
+                    <span>support@raffu.com</span>
                   </div>
                   <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
                     <Phone size={16} className="text-[#10B981]" />
-                    <span>+1 (800) 555-DARZI / +44 (20) 7946 0912</span>
+                    <span>+1 (800) 555-RAFFU / +44 (20) 7946 0912</span>
                   </div>
                 </div>
                 <button

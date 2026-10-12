@@ -48,7 +48,7 @@ export function StudioPrivacyView() {
             Atelier Partner Commercial Privacy Policy
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Effective Date: October 2026 &middot; Binding Agreement for All Certified Darzi Tailor Studios
+            Effective Date: October 2026 &middot; Binding Agreement for All Certified Raffu Tailor Studios
           </p>
         </div>
 
@@ -77,10 +77,10 @@ export function StudioPrivacyView() {
           <section className="space-y-3">
             <h2 className="font-serif text-lg font-bold text-white flex items-center gap-2">
               <span className="size-6 rounded-full bg-slate-900 border border-slate-700 text-xs grid place-items-center text-[#D88D70]">1</span>
-              <span>Information Darzi Collects from Partner Studios</span>
+              <span>Information Raffu Collects from Partner Studios</span>
             </h2>
             <p>
-              To certify and connect your workshop to the 5-mile live dispatch grid, Darzi collects:
+              To certify and connect your workshop to the 5-mile live dispatch grid, Raffu collects:
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-slate-400">
               <li><strong className="text-white">Facility Telemetry:</strong> Physical workshop address, precise GPS coordinates (lat/lng), opening hours, daily capacity, machine equipment counts, and master craftsman credentials.</li>
@@ -96,7 +96,7 @@ export function StudioPrivacyView() {
               <span>Customer Data Custody &amp; Strict Non-Solicitation</span>
             </h2>
             <p>
-              As a certified Darzi atelier partner, you receive customer fit information (measurements, pinned adjustments, garment notes, and 4-digit drop-off PINs) solely to execute alterations.
+              As a certified Raffu atelier partner, you receive customer fit information (measurements, pinned adjustments, garment notes, and 4-digit drop-off PINs) solely to execute alterations.
             </p>
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1.5">
               <p className="font-bold text-white">Strict Customer Protection Clause:</p>
@@ -146,8 +146,8 @@ export function StudioPrivacyView() {
               For legal inquiries, NDA clarifications, or partner data requests:
             </p>
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-              <p className="font-bold text-white">Darzi Technologies Ltd. &middot; Partner Legal &amp; Compliance</p>
-              <p className="text-slate-400">Partner Desk Email: partners@darzi.com &middot; legal@darzi.com</p>
+              <p className="font-bold text-white">Raffu Technologies Ltd. &middot; Partner Legal &amp; Compliance</p>
+              <p className="text-slate-400">Partner Desk Email: partners@raffu.com &middot; legal@raffu.com</p>
               <p className="text-slate-400">Partner Escalations Hotline: +91 98450 95969 / +44 20 7946 0912</p>
             </div>
           </section>

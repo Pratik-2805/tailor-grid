@@ -1,4 +1,4 @@
-// Prisma Schema for Darzi Backend
+// Prisma Schema for Raffu Backend
 // Database: PostgreSQL
 
 generator client {

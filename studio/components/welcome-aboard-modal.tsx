@@ -26,7 +26,7 @@ export function WelcomeAboardModal({
 
   const rawName = user?.name?.trim() || ''
   const tailorName = rawName || 'Master Tailor'
-  const studioName = user?.studioName?.trim() || user?.area?.trim() || 'Darzi Workshop'
+  const studioName = user?.studioName?.trim() || user?.area?.trim() || 'Raffu Workshop'
   const userCurrency = (user as any)?.currency || 'GBP'
 
   return (
@@ -56,21 +56,21 @@ export function WelcomeAboardModal({
           <div className="relative">
             <img
               src="/removed_bg_logo.png"
-              alt="Darzi"
+              alt="Raffu"
               className="h-10 sm:h-12 w-auto object-contain mx-auto"
               onError={(e) => {
                 const target = e.currentTarget
                 target.style.display = 'none'
-                const fallback = document.getElementById('darzi-fallback-badge-sm')
+                const fallback = document.getElementById('raffu-fallback-badge-sm')
                 if (fallback) fallback.style.display = 'flex'
               }}
             />
             <div
-              id="darzi-fallback-badge-sm"
+              id="raffu-fallback-badge-sm"
               style={{ display: 'none' }}
               className="h-10 px-3 items-center justify-center rounded-lg bg-[#FAF8F5] border border-[#EBE7DF] text-[#713f12] text-xs font-semibold"
             >
-              DARZI
+              RAFFU
             </div>
           </div>
         </div>

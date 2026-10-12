@@ -1398,7 +1398,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 <span className="text-gray-600">
                   <strong className="text-black font-bold">NOTE:</strong> {isReady ? 'Give this PIN to the tailor for collecting your completed garment.' : 'Give this PIN to the tailor for confirming the order.'}
                 </span>
-                <span className="font-bold text-black">Darzi</span>
+                <span className="font-bold text-black">Raffu</span>
               </div>
             )}
 

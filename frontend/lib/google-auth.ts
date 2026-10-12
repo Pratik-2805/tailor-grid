@@ -82,7 +82,7 @@ export function triggerStudioGoogleAuth(options?: {
             setAuthRole('STUDIO')
             setAuthUser(result.user)
 
-            toast.success(`Welcome to Darzi Studio, ${result.user.name || 'Studio Partner'}! Redirecting...`, {
+            toast.success(`Welcome to Raffu Studio, ${result.user.name || 'Studio Partner'}! Redirecting...`, {
               position: 'top-center',
             })
 

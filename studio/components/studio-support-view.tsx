@@ -41,12 +41,12 @@ const STUDIO_FAQS: StudioFaqItem[] = [
   {
     category: 'disputes',
     q: 'What should the atelier do if the customer’s garment measurements look incorrect before cutting?',
-    a: 'Before applying shears or chalk, always cross-reference the customer’s pinned adjustment with standard anatomical proportions. If you identify a significant error (e.g. inseam shortened by 6+ inches unexpectedly), do NOT cut. Immediately message the customer through the Workbench or call our Partner Escalations Desk. Darzi will verify customer intent to protect your atelier from liability.',
+    a: 'Before applying shears or chalk, always cross-reference the customer’s pinned adjustment with standard anatomical proportions. If you identify a significant error (e.g. inseam shortened by 6+ inches unexpectedly), do NOT cut. Immediately message the customer through the Workbench or call our Partner Escalations Desk. Raffu will verify customer intent to protect your atelier from liability.',
   },
   {
     category: 'disputes',
     q: 'Who covers the cost if a customer claims a fit adjustment under the 100% Fit Guarantee?',
-    a: 'If your atelier followed the exact pinned measurements recorded in the order, and the customer simply requests a secondary styling preference, Darzi provides compensatory micro-adjustment reimbursement. If the alteration deviated from the agreed order specifications, the studio must perform the complimentary minor correction within 24–48 hours.',
+    a: 'If your atelier followed the exact pinned measurements recorded in the order, and the customer simply requests a secondary styling preference, Raffu provides compensatory micro-adjustment reimbursement. If the alteration deviated from the agreed order specifications, the studio must perform the complimentary minor correction within 24–48 hours.',
   },
   {
     category: 'payouts',
