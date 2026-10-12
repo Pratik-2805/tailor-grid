@@ -1,7 +1,7 @@
 {
-  "name": "Darzi-backend",
+  "name": "Raffu-backend",
   "version": "1.0.0",
-  "description": "Backend API service for Darzi on-demand alterations",
+  "description": "Backend API service for Raffu on-demand alterations",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

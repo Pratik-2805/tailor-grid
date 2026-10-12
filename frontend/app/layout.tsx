@@ -15,9 +15,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Darzi — The Neighborhood Alteration Network',
+  title: 'Raffu — The Neighborhood Alteration Network',
   description: 'Book verified local master tailors, get upfront fixed pricing, and schedule studio fittings in minutes.',
-  generator: 'Darzi',
+  generator: 'Raffu',
   icons: {
     icon: [
       {

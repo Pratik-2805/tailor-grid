@@ -106,7 +106,7 @@ export function StudioContactView({ user }: { user?: any }) {
                 </a>
 
                 <a
-                  href="mailto:partners@darzi.com"
+                  href="mailto:partners@raffu.com"
                   className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-[#9E593B]/50 transition-colors group"
                 >
                   <div className="size-10 rounded-xl bg-blue-500/20 text-blue-400 grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
@@ -114,7 +114,7 @@ export function StudioContactView({ user }: { user?: any }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Partner Operations Desk</p>
-                    <p className="text-sm font-bold text-white">partners@darzi.com</p>
+                    <p className="text-sm font-bold text-white">partners@raffu.com</p>
                     <p className="text-[11px] text-slate-400">Settlements, GST invoicing &amp; capacity updates</p>
                   </div>
                 </a>

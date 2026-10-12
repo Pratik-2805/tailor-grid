@@ -68,7 +68,7 @@ async function locateTailorsWithinRange({ lat, lng, radiusMiles = 5.0, query = '
           if (distanceMiles <= maxRadius) {
             results.push({
               id: store.id,
-              name: store.name || 'Darzi Partner Atelier',
+              name: store.name || 'Raffu Partner Atelier',
               email: store.email || null,
               phone: store.phone || null,
               area: store.area || query || 'Neighborhood Studio',

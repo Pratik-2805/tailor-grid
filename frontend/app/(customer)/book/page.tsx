@@ -107,7 +107,7 @@ function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId:
   }
 }
 
-const DARZI_TIME_SLOTS = [
+const RAFFU_TIME_SLOTS = [
   '10:00 AM',
   '11:30 AM',
   '01:00 PM',
@@ -1562,7 +1562,7 @@ export default function BookPage() {
               <CleanGoogleMap
                 lat={mapCoordinates.lat}
                 lng={mapCoordinates.lng}
-                storeName={selectedStore?.name || `Darzi Master Atelier — ${selectedCity.split(',')[0]}`}
+                storeName={selectedStore?.name || `Raffu Master Atelier — ${selectedCity.split(',')[0]}`}
                 storeAddress={selectedStore?.address || `Central Workshop, ${selectedCity}`}
                 origin={selectedCity}
                 className="w-full h-full"
@@ -1830,7 +1830,7 @@ export default function BookPage() {
               </div>
 
               <div className="grid grid-cols-4 gap-2">
-                {DARZI_TIME_SLOTS.map((t) => {
+                {RAFFU_TIME_SLOTS.map((t) => {
                   const isSelected = selectedTime === t
                   return (
                     <button

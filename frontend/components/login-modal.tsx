@@ -420,8 +420,8 @@ export function LoginModal({
         {/* Header Logo */}
         <div className="flex items-center justify-center px-6 pt-7 pb-3">
           <img
-            src="/bg_logo.png"
-            alt="Darzi Logo"
+            src="/removed_bg_logo.png"
+            alt="Raffu Logo"
             className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
           />
         </div>
@@ -432,7 +432,7 @@ export function LoginModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Login to Darzi
+                  Login to Raffu
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
                   Access your bespoke fitting passes, saved sizes, and orders.

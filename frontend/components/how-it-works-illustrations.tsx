@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * High-end, bespoke vector illustrations crafted in pure SVG with the exact Darzi palette:
+ * High-end, bespoke vector illustrations crafted in pure SVG with the exact Raffu palette:
  * Obsidian (#0F1115), Charcoal (#1E2229), Terracotta (#9E593B), Warm Sand (#FAF8F5),
  * Cream Border (#EBE6DF), Gold Accent (#F59E0B), and Emerald (#10B981).
  * Completely crisp, lightweight, legible, and directly communicates each tailoring milestone.
@@ -17,7 +17,7 @@ export function HeroTailoringIllustration({ className = 'w-full h-auto' }: { cla
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-label="Darzi In-Studio Fitting & Digital Pass"
+      aria-label="Raffu In-Studio Fitting & Digital Pass"
     >
       <defs>
         <linearGradient id="heroBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -106,7 +106,7 @@ export function HeroTailoringIllustration({ className = 'w-full h-auto' }: { cla
 
         {/* App Top Bar */}
         <g transform="translate(18, 36)">
-          <text x="0" y="12" fill="#0F1115" fontSize="11" fontWeight="800" fontFamily="sans-serif">DARZI</text>
+          <text x="0" y="12" fill="#0F1115" fontSize="11" fontWeight="800" fontFamily="sans-serif">RAFFU</text>
           <rect x="150" y="2" width="34" height="14" rx="7" fill="#ECFDF5" />
           <circle cx="157" cy="9" r="2.5" fill="#10B981" />
           <text x="163" y="12" fill="#10B981" fontSize="7.5" fontWeight="700" fontFamily="sans-serif">LIVE</text>
@@ -450,7 +450,7 @@ export function OnlineBookingIllustration({ className = 'w-full h-auto' }: { cla
         <circle cx="30" cy="19" r="3.5" fill="#F59E0B" />
         <circle cx="40" cy="19" r="3.5" fill="#10B981" />
         <rect x="65" y="13" width="180" height="12" rx="6" fill="#E8E2D8" />
-        <text x="85" y="22" fill="#7A7E85" fontSize="7" fontWeight="600" fontFamily="sans-serif">darzi.com/book-tailoring</text>
+        <text x="85" y="22" fill="#7A7E85" fontSize="7" fontWeight="600" fontFamily="sans-serif">raffu.com/book-tailoring</text>
 
         {/* Left Side: Services List */}
         <rect x="18" y="44" width="115" height="138" rx="8" fill="#FAF8F5" stroke="#EBE6DF" strokeWidth="1" />

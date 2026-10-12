@@ -270,7 +270,7 @@ async function sendVerificationSms(toPhone, otpCode) {
   }
 
   const formattedTo = validation.formatted;
-  const messageBody = `Your Darzi verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
+  const messageBody = `Your Raffu verification code is: ${otpCode}. Valid for 10 minutes. Do not share this code with anyone.`;
 
   const client = getSnsClient();
 
@@ -327,7 +327,7 @@ async function sendOrderUpdateSms(toPhone, orderId, statusText) {
   if (!validation.isValid) return null;
 
   try {
-    const body = `Darzi Update: Your order ${orderId} is now ${statusText}. Track your bespoke alterations in your Darzi portal.`;
+    const body = `Raffu Update: Your order ${orderId} is now ${statusText}. Track your bespoke alterations in your Raffu portal.`;
     const result = await sendSms(validation.formatted, body);
     return result.messageId;
   } catch (err) {

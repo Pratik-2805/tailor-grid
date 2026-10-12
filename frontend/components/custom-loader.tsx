@@ -91,7 +91,7 @@ export function CustomLoader({
             width: sizeConfig.iconSize * 1.8,
             height: sizeConfig.iconSize * 1.8,
             filter: 'blur(16px)',
-            animation: 'darzi-pulse-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite',
+            animation: 'raffu-pulse-glow 3s cubic-bezier(0.4, 0, 0.2, 1) infinite',
           }}
         />
 
@@ -135,14 +135,14 @@ export function CustomLoader({
         <div className="mt-6 flex items-center gap-1.5 opacity-60">
           <div className="size-1.5 rounded-full bg-[#9E593B] animate-ping" />
           <span className="text-[10px] uppercase font-bold tracking-widest text-[#9E593B]">
-            Darzi Atelier Engine
+            Raffu Atelier Engine
           </span>
         </div>
       )}
 
       {/* Inline Embedded Keyframes for zero-config portability */}
       <style jsx>{`
-        @keyframes darzi-pulse-glow {
+        @keyframes raffu-pulse-glow {
           0%, 100% {
             transform: scale(0.9);
             opacity: 0.5;
@@ -152,7 +152,7 @@ export function CustomLoader({
             opacity: 0.9;
           }
         }
-        @keyframes darzi-spin-slow {
+        @keyframes raffu-spin-slow {
           from {
             transform: rotate(0deg);
           }
@@ -160,7 +160,7 @@ export function CustomLoader({
             transform: rotate(360deg);
           }
         }
-        @keyframes darzi-spin-reverse {
+        @keyframes raffu-spin-reverse {
           from {
             transform: rotate(360deg);
           }
@@ -168,7 +168,7 @@ export function CustomLoader({
             transform: rotate(0deg);
           }
         }
-        @keyframes darzi-stitch-flow {
+        @keyframes raffu-stitch-flow {
           0% {
             stroke-dashoffset: 0;
           }
@@ -176,7 +176,7 @@ export function CustomLoader({
             stroke-dashoffset: -48;
           }
         }
-        @keyframes darzi-needle-float {
+        @keyframes raffu-needle-float {
           0%, 100% {
             transform: translateY(0px) rotate(0deg);
           }
@@ -184,7 +184,7 @@ export function CustomLoader({
             transform: translateY(-3px) rotate(4deg);
           }
         }
-        @keyframes darzi-thread-wave {
+        @keyframes raffu-thread-wave {
           0%, 100% {
             stroke-dashoffset: 0;
           }
@@ -228,7 +228,7 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
       className="overflow-visible"
     >
       {/* Outer Measuring Wheel Ring (slow clockwise spin) */}
-      <g style={{ transformOrigin: '50% 50%', animation: 'darzi-spin-slow 16s linear infinite' }}>
+      <g style={{ transformOrigin: '50% 50%', animation: 'raffu-spin-slow 16s linear infinite' }}>
         <circle
           cx="50"
           cy="50"
@@ -259,7 +259,7 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
       </g>
 
       {/* Middle Animated Running Stitch Track (Counter-clockwise flow) */}
-      <g style={{ transformOrigin: '50% 50%', animation: 'darzi-spin-reverse 10s linear infinite' }}>
+      <g style={{ transformOrigin: '50% 50%', animation: 'raffu-spin-reverse 10s linear infinite' }}>
         <circle
           cx="50"
           cy="50"
@@ -268,7 +268,7 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
           strokeWidth="2.2"
           strokeDasharray="4 6"
           strokeLinecap="round"
-          style={{ animation: 'darzi-stitch-flow 2s linear infinite' }}
+          style={{ animation: 'raffu-stitch-flow 2s linear infinite' }}
         />
       </g>
 
@@ -286,7 +286,7 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
       <g
         style={{
           transformOrigin: '50% 50%',
-          animation: 'darzi-needle-float 3s ease-in-out infinite',
+          animation: 'raffu-needle-float 3s ease-in-out infinite',
         }}
       >
         {/* Needle Blade */}
@@ -318,7 +318,7 @@ function AtelierBespokeAnimation({ size, dark }: { size: number; dark: boolean }
           strokeLinecap="round"
           fill="none"
           strokeDasharray="16 4"
-          style={{ animation: 'darzi-thread-wave 2.5s ease-in-out infinite' }}
+          style={{ animation: 'raffu-thread-wave 2.5s ease-in-out infinite' }}
         />
 
         {/* Left Scissors Loop */}
@@ -372,7 +372,7 @@ function NeedleStitchAnimation({ size, dark }: { size: number; dark: boolean }) 
         strokeLinecap="round"
         fill="none"
         style={{
-          animation: 'darzi-stitch-flow 2.5s linear infinite',
+          animation: 'raffu-stitch-flow 2.5s linear infinite',
         }}
       />
 
@@ -380,7 +380,7 @@ function NeedleStitchAnimation({ size, dark }: { size: number; dark: boolean }) 
       <g
         style={{
           transformOrigin: '50% 50%',
-          animation: 'darzi-needle-float 2.2s ease-in-out infinite',
+          animation: 'raffu-needle-float 2.2s ease-in-out infinite',
         }}
       >
         <line

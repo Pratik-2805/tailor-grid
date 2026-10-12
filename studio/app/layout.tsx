@@ -18,7 +18,7 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Darzi Studio Atelier — Partner Workshop Portal',
+  title: 'Raffu Studio Atelier — Partner Workshop Portal',
   description: 'Master Tailor order intake, live alteration pipeline, queue management, and daily payouts for partner ateliers.',
 }
 

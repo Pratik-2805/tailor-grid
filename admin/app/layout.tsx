@@ -16,7 +16,7 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Darzi Platform — Master Admin Console',
+  title: 'Raffu Platform — Master Admin Console',
   description: 'Enterprise administrative console for managing customers, tailor studios, global orders, and system metrics.',
 }
 

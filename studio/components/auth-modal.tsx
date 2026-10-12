@@ -527,8 +527,8 @@ export function AuthModal({
 
           <div className="flex items-center gap-3">
             <img
-              src="/bg_logo.png"
-              alt="Darzi Logo"
+              src="/removed_bg_logo.png"
+              alt="Raffu Logo"
               className="h-12 sm:h-14 w-auto object-contain transition-all duration-200"
             />
             <div>
@@ -589,7 +589,7 @@ export function AuthModal({
                 How are you joining?
               </h2>
               <p className="text-xs text-[#6B7280] mt-1">
-                Choose your role to get started with Darzi.
+                Choose your role to get started with Raffu.
               </p>
             </div>
 
@@ -703,7 +703,7 @@ export function AuthModal({
             <div>
               <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#9E593B]">Partner Network</p>
               <h2 className="font-serif text-[24px] font-bold text-[#0F1115] mt-0.5 leading-tight">Register Your Atelier</h2>
-              <p className="text-xs text-[#6B7280] mt-1">Join Darzi as a certified partner atelier to receive pre-pinned alteration jobs.</p>
+              <p className="text-xs text-[#6B7280] mt-1">Join Raffu as a certified partner atelier to receive pre-pinned alteration jobs.</p>
             </div>
 
             <div className="space-y-2.5">

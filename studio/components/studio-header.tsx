@@ -33,12 +33,12 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
           <a
             href={user ? '/' : customerSiteUrl}
             className="flex items-center gap-3 group text-left shrink-0 py-1 cursor-pointer hover:opacity-90 transition-opacity"
-            aria-label={user ? 'Darzi Studio Workbench' : 'Darzi Home'}
-            title={user ? 'Darzi Studio Workbench' : 'Return to Darzi Home'}
+            aria-label={user ? 'Raffu Studio Workbench' : 'Raffu Home'}
+            title={user ? 'Raffu Studio Workbench' : 'Return to Raffu Home'}
           >
             <img
-              src="/bg_logo.png"
-              alt="Darzi"
+              src="/removed_bg_logo.png"
+              alt="Raffu"
               className="h-9 sm:h-10 w-auto object-contain"
               onError={(e) => {
                 const target = e.currentTarget
@@ -47,7 +47,7 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
             />
             <div className="hidden sm:flex flex-col justify-center border-l border-[#E8E1D5] pl-3">
               <span className="text-[11px] font-bold tracking-wider uppercase text-[#1E2229] leading-tight">
-                Darzi Atelier
+                Raffu Atelier
               </span>
               <span className="text-[10px] text-[#9E593B] font-semibold">
                 Workbench Node

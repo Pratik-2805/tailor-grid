@@ -101,7 +101,7 @@ function CustomerAuthCallbackInner() {
             }}
             className="w-full py-3 px-4 bg-[#18191B] hover:bg-black text-white text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm"
           >
-            Return to Darzi Home
+            Return to Raffu Home
           </button>
         </div>
       </div>

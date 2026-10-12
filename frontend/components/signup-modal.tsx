@@ -420,8 +420,8 @@ export function SignUpModal({
         {/* Header Logo */}
         <div className="flex items-center justify-center px-6 pt-7 pb-3">
           <img
-            src="/bg_logo.png"
-            alt="Darzi Logo"
+            src="/removed_bg_logo.png"
+            alt="Raffu Logo"
             className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
           />
         </div>
@@ -435,7 +435,7 @@ export function SignUpModal({
                   How are you joining?
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  Choose your role to get started with Darzi.
+                  Choose your role to get started with Raffu.
                 </p>
               </div>
 
@@ -536,7 +536,7 @@ export function SignUpModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Join Darzi
+                  Join Raffu
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
                   Create your account for bespoke alterations & fittings.
@@ -666,7 +666,7 @@ export function SignUpModal({
                   Sign up with Email
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Create your Darzi account with your email address.
+                  Create your Raffu account with your email address.
                 </p>
               </div>
 
@@ -728,7 +728,7 @@ export function SignUpModal({
             <div className="space-y-4">
               <div>
                 <h2 className="font-serif text-[26px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Welcome to Darzi Studio
+                  Welcome to Raffu Studio
                 </h2>
                 <p className="text-[13px] text-[#7A7E85] mt-1.5 leading-relaxed">
                   Access live orders, workbench controls, and atelier payouts.
