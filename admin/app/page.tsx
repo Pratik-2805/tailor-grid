@@ -60,6 +60,7 @@ import {
   loginSuperAdmin,
   checkSuperAdminSession,
   getAdminToken,
+  getAdminUser,
   logoutSuperAdmin,
 } from '@/lib/api'
 import { OverviewTab } from '@/components/overview-tab'
@@ -110,10 +111,43 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  const [overview, setOverview] = useState<any>(null)
-  const [customers, setCustomers] = useState<any[]>([])
-  const [studios, setStudios] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
+  // Shared in-memory cache to prevent layout fluctuation when switching routes
+  const [overview, setOverview] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_overview')
+        return cached ? JSON.parse(cached) : null
+      } catch { return null }
+    }
+    return null
+  })
+  const [customers, setCustomers] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_customers')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
+  const [studios, setStudios] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_studios')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
+  const [orders, setOrders] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_orders')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
 
   // Search & Filter states
   const [globalSearchQuery, setGlobalSearchQuery] = useState('')
@@ -157,10 +191,22 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         fetchAdminOrders(),
       ])
 
-      if (overviewData) setOverview(overviewData)
-      if (customersData) setCustomers(customersData)
-      if (studiosData) setStudios(studiosData)
-      if (ordersData) setOrders(ordersData)
+      if (overviewData) {
+        setOverview(overviewData)
+        try { sessionStorage.setItem('admin_cache_overview', JSON.stringify(overviewData)) } catch {}
+      }
+      if (customersData) {
+        setCustomers(customersData)
+        try { sessionStorage.setItem('admin_cache_customers', JSON.stringify(customersData)) } catch {}
+      }
+      if (studiosData) {
+        setStudios(studiosData)
+        try { sessionStorage.setItem('admin_cache_studios', JSON.stringify(studiosData)) } catch {}
+      }
+      if (ordersData) {
+        setOrders(ordersData)
+        try { sessionStorage.setItem('admin_cache_orders', JSON.stringify(ordersData)) } catch {}
+      }
     } catch (err) {
       console.error('Failed to load admin data:', err)
       toast.error('Failed to connect to backend service.')
@@ -183,10 +229,17 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       return
     }
 
+    // Instant local hydration to avoid flashing the "Verifying Super Admin session" screen on route transitions
+    const cachedUser = getAdminUser()
+    if (cachedUser && cachedUser.role === 'ADMIN') {
+      setAdminUser(cachedUser)
+      setAuthChecking(false)
+    }
+
     const safetyTimer = setTimeout(() => {
       if (isMounted) {
         setAuthChecking(false)
-        if (pathname !== '/') router.replace('/')
+        if (!getAdminToken() && pathname !== '/') router.replace('/')
       }
     }, 2000)
 
@@ -195,6 +248,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         const user = await checkSuperAdminSession()
         if (isMounted && user && user.role === 'ADMIN') {
           setAdminUser(user)
+          // Always load foundational data silently in background
           loadAllData(true)
         } else if (isMounted) {
           if (pathname !== '/') router.replace('/')
