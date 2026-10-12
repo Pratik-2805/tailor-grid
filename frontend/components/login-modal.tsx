@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, LogOut, Mail, Phone, X } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Lock, LogOut, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, verifyOtp, checkPhoneExists } from '@/lib/api'
 import { setAuthUser, setAuthRole, setAuthToken, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 
-type LoginMode = 'options' | 'email' | 'mobile' | 'link-phone'
+type LoginMode = 'login' | 'mobile' | 'link-phone'
 
 export interface LoginModalProps {
   isOpen: boolean
@@ -36,7 +36,7 @@ export function LoginModal({
   mandatoryPhoneRequired = false,
 }: LoginModalProps) {
   const isMissingPhone = Boolean(mandatoryPhoneRequired || (currentUser && !currentUser.phone))
-  const [mode, setMode] = useState<LoginMode>(isMissingPhone ? 'link-phone' : 'options')
+  const [mode, setMode] = useState<LoginMode>(isMissingPhone ? 'link-phone' : 'login')
   const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState('')
 
@@ -59,6 +59,8 @@ export function LoginModal({
 
   // Login inputs
   const [cEmail, setCEmail] = useState('')
+  const [cPassword, setCPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [cPhone, setCPhone] = useState('')
   const [cOtpSent, setCOtpSent] = useState(false)
   const [cOtp, setCOtp] = useState('')
@@ -75,14 +77,19 @@ export function LoginModal({
       setMode('link-phone')
       setPendingUser(currentUser || null)
     } else {
-      setMode('options')
+      setMode('login')
       setPendingUser(null)
     }
     setNotice('')
     setLoading(false)
     setAvatarError(false)
+    setCEmail('')
+    setCPassword('')
+    setShowPassword(false)
+    setCPhone('')
     setCOtpSent(false)
     setCOtp('')
+    setLinkPhoneVal('')
     setLinkOtpSent(false)
     setLinkOtp('')
   }, [isOpen, targetRole, currentUser, mandatoryPhoneRequired])
@@ -287,25 +294,35 @@ export function LoginModal({
     }
   }
 
-  // Handle Email Login
+  // Handle Email & Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    const cleanEmail = cEmail.trim()
+    const cleanEmail = cEmail.trim().toLowerCase()
+    const cleanPassword = cPassword.trim()
     if (!cleanEmail) {
       toast.error('Please enter your email address.', { position: 'top-center' })
+      return
+    }
+    if (!cleanPassword) {
+      toast.error('Please enter your password.', { position: 'top-center' })
       return
     }
 
     setLoading(true)
     try {
-      const result = await loginUser({ identifier: cleanEmail })
+      const result = await loginUser({
+        identifier: cleanEmail,
+        email: cleanEmail,
+        password: cleanPassword,
+        role: targetRole,
+      })
       setLoading(false)
       if (result?.user) {
         finalizeAuth(result.user, result.user.role || targetRole, result.token, result.authCode, result.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
-      toast.error(err.message || 'No account found with this email.', { position: 'top-center' })
+      toast.error(err.message || 'Login failed. Please check your credentials.', { position: 'top-center' })
     }
   }
 
@@ -370,20 +387,18 @@ export function LoginModal({
   }
 
   const goBack = () => {
-    if (mode === 'mobile' || mode === 'email') {
-      setMode('options')
-    } else if (mode === 'link-phone') {
-      setMode('options')
+    if (mode === 'mobile' || mode === 'link-phone') {
+      setMode('login')
       setPendingUser(null)
     } else {
-      setMode('options')
+      setMode('login')
     }
     setNotice('')
   }
 
   if (!isOpen) return null
 
-  const isSubPage = mode !== 'options'
+  const isSubPage = mode !== 'login'
   const activeUser = pendingUser || currentUser
   const userInitial = (activeUser?.name || 'U')[0].toUpperCase()
 
@@ -396,99 +411,139 @@ export function LoginModal({
         }
       }}
     >
-      <div className="relative w-full max-w-[420px] rounded-3xl bg-white shadow-2xl border border-[#E8E1D5] overflow-hidden transition-all duration-200">
+      <div className="relative w-full max-w-[390px] rounded-2xl bg-white shadow-xl border border-[#E8E1D5] overflow-hidden transition-all duration-200">
 
         {/* Top Controls: Back button & Close Button */}
         {isSubPage && (
           <button
             onClick={goBack}
-            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
+            className="absolute top-3.5 left-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
             aria-label="Back"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={13} />
           </button>
         )}
 
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+          className="absolute top-3.5 right-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
           aria-label="Close"
         >
-          <X size={14} />
+          <X size={13} />
         </button>
 
         {/* Header Logo */}
-        <div className="flex items-center justify-center px-6 pt-7 pb-3">
+        <div className="flex items-center justify-center px-5 pt-5 pb-1">
           <img
             src="/bg_logo.png"
             alt="Darzi Logo"
-            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
+            className="h-10 w-auto object-contain transition-all duration-200"
           />
         </div>
 
-        <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* ── ROOT LOGIN OPTIONS ── */}
-          {mode === 'options' && (
-            <div className="space-y-4">
+        <div className="px-6 pb-5 pt-1 space-y-3.5">
+          {/* ── EMAIL & PASSWORD LOGIN ── */}
+          {mode === 'login' && (
+            <div className="space-y-3">
               <div>
-                <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
+                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
                   Login to Darzi
                 </h2>
-                <p className="text-xs text-[#7A7E85] mt-1">
-                  Access your bespoke fitting passes, saved sizes, and orders.
-                </p>
               </div>
 
-              <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Login with Google" loading={loading} onClick={() => triggerGoogle(targetRole)} bordered />
+              <form onSubmit={handleEmailLogin} className="space-y-3">
+                {/* 1. Input area for email ID */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={cEmail}
+                    onChange={(e) => setCEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                  />
+                </div>
 
+                {/* 2. Input area for password */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      value={cPassword}
+                      onChange={(e) => setCPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-3 pr-9 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF] hover:text-[#18191B] transition-colors cursor-pointer"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Log In submit button */}
                 <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setMode('mobile')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer mt-0.5"
                 >
-                  <Phone size={14} className="text-[#9E593B]" />
-                  <span>Login with Mobile Number</span>
+                  {loading ? 'Logging in…' : 'Log In'}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setMode('email')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
-                >
-                  <Mail size={14} className="text-[#9E593B]" />
-                  <span>Login with Email</span>
-                </button>
-              </div>
-
-              {/* OR Divider & Switch to Sign Up */}
-              <div className="pt-2 space-y-2.5">
-                <Divider />
-                <div className="text-center">
-                  <span className="text-xs text-[#7A7E85]">Don't have an account? </span>
+                {/* Sign in with mobile - aligned to left with underline */}
+                <div className="text-left pt-0.5">
                   <button
                     type="button"
                     onClick={() => {
-                      if (onSwitchToSignUp) {
-                        onSwitchToSignUp()
-                      }
+                      setNotice('')
+                      setMode('mobile')
                     }}
-                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                    className="text-xs text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer"
                   >
-                    Sign Up →
+                    Sign in with mobile
                   </button>
                 </div>
+              </form>
+
+              {/* Divider & Google Sign-In */}
+              <div>
+                <Divider />
+                <GoogleButton
+                  label="Sign in with Google"
+                  loading={loading}
+                  onClick={() => triggerGoogle(targetRole)}
+                  bordered
+                />
               </div>
 
-              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
-                By continuing you agree to our Terms &amp; Privacy Policy.
-              </p>
+              {/* Don't have an account? Sign Up */}
+              <div className="text-center pt-0.5">
+                <span className="text-xs text-[#7A7E85]">Don't have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSwitchToSignUp) {
+                      onSwitchToSignUp()
+                    }
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Sign Up
+                </button>
+              </div>
             </div>
           )}
 
@@ -559,44 +614,6 @@ export function LoginModal({
                     </button>
                   </div>
                 )}
-              </form>
-            </div>
-          )}
-
-          {/* ── EMAIL LOGIN ── */}
-          {mode === 'email' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  Login with Email
-                </h2>
-                <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Enter your registered email address to access your account.
-                </p>
-              </div>
-
-              <form onSubmit={handleEmailLogin} className="space-y-4 pt-1">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={cEmail}
-                    onChange={(e) => setCEmail(e.target.value)}
-                    placeholder="sarah@example.com"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2.5 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
-                >
-                  {loading ? 'Logging in…' : 'Log In'}
-                </button>
               </form>
             </div>
           )}
@@ -735,7 +752,7 @@ export function LoginModal({
                     type="button"
                     onClick={() => {
                       onSignOut()
-                      setMode('options')
+                      setMode('login')
                       setPendingUser(null)
                     }}
                     className="inline-flex items-center gap-1.5 text-xs text-[#7A7E85] hover:text-red-600 transition-colors cursor-pointer"
@@ -755,12 +772,12 @@ export function LoginModal({
 
 function Divider() {
   return (
-    <div className="relative my-2">
+    <div className="relative my-1">
       <div className="absolute inset-0 flex items-center">
         <div className="w-full border-t border-[#E8E1D5]" />
       </div>
       <div className="relative flex justify-center text-[10px] uppercase">
-        <span className="bg-white px-3 text-[#9CA3AF] font-bold tracking-wider">or</span>
+        <span className="bg-white px-2.5 text-[#9CA3AF] font-bold tracking-wider">or</span>
       </div>
     </div>
   )
@@ -782,7 +799,7 @@ function GoogleButton({
       type="button"
       disabled={loading}
       onClick={onClick}
-      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3 px-4 text-[13.5px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
+      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2.5 px-4 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
         bordered
           ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B] shadow-2xs'
           : 'bg-[#0F1115] hover:bg-[#1e2229] text-white shadow-xs'

@@ -231,6 +231,60 @@ export async function sendOtp(phone: string, forceResend: boolean = false): Prom
   }
 }
 
+// Send OTP to email address (valid for 10 minutes)
+export async function sendEmailOtp(email: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/send-email-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Failed to send email verification code')
+    }
+    return await res.json()
+  } catch (err: any) {
+    throw err
+  }
+}
+
+// Verify Email OTP
+export async function verifyEmailOtp(email: string, otp: string): Promise<{ success: boolean; verified: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/verify-email-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Invalid or expired verification code')
+    }
+    return await res.json()
+  } catch (err: any) {
+    throw err
+  }
+}
+
+// Pre-signup pure phone OTP verification
+export async function verifyPhoneOtp(phone: string, otp: string): Promise<{ success: boolean; verified: boolean; message: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/verify-phone-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Invalid or expired verification code')
+    }
+    return await res.json()
+  } catch (err: any) {
+    throw err
+  }
+}
+
 // Verify OTP and sign in / register
 export async function verifyOtp(params: {
   phone: string
@@ -384,9 +438,10 @@ export async function checkEmailExists(email: string, role: string = 'STUDIO'): 
 
 export async function signUpUser(data: {
   tempSignupId?: string
-  name: string
+  name?: string
   email?: string
   phone?: string
+  password?: string
   address?: string
   postcode?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
@@ -434,6 +489,7 @@ export async function loginUser(data: {
   email?: string
   phone?: string
   identifier?: string
+  password?: string
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
 }): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {

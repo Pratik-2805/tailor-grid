@@ -2,19 +2,31 @@
 
 import { useEffect, useState, useRef } from 'react'
 import Image from 'next/image'
-import { ArrowLeft, LogOut, Mail, Phone, X } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, LogOut, Mail, Phone, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
-import { getStudioUrl, linkPhone, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
-import { setAuthUser, setAuthRole, setAuthToken, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
+import {
+  getStudioUrl,
+  linkPhone,
+  loginWithGoogle,
+  sendOtp,
+  sendEmailOtp,
+  verifyEmailOtp,
+  verifyPhoneOtp,
+  signUpUser,
+  checkPhoneExists,
+} from '@/lib/api'
+import {
+  setAuthUser,
+  setAuthRole,
+  setAuthToken,
+  getAuthToken,
+  setRefreshToken,
+  getRefreshToken,
+  decodeJwtPayload,
+} from '@/lib/cookies'
 
-type SignUpMode =
-  | 'role-select'
-  | 'customer-options'
-  | 'customer-email'
-  | 'customer-mobile'
-  | 'studio-options'
-  | 'link-phone'
+type SignUpMode = 'role-select' | 'customer-signup' | 'studio-options' | 'link-phone'
 
 export interface SignUpModalProps {
   isOpen: boolean
@@ -42,48 +54,73 @@ export function SignUpModal({
   mandatoryPhoneRequired = false,
 }: SignUpModalProps) {
   const isMissingPhone = Boolean(mandatoryPhoneRequired || (currentUser && !currentUser.phone))
-  const initialMode = (): SignUpMode => {
-    if (isMissingPhone) return 'link-phone'
-    if (targetRole === 'STUDIO') return 'studio-options'
-    return 'role-select'
-  }
-
-  const [mode, setMode] = useState<SignUpMode>(initialMode)
-  const [selectedRole, setSelectedRole] = useState<'CUSTOMER' | 'STUDIO'>(targetRole)
+  const [mode, setMode] = useState<SignUpMode>(
+    isMissingPhone ? 'link-phone' : targetRole === 'STUDIO' ? 'studio-options' : 'role-select'
+  )
   const [loading, setLoading] = useState(false)
-  const [notice, setNotice] = useState('')
 
-  const isSendingOtpRef = useRef(false)
-  const isSendingLinkOtpRef = useRef(false)
-  const [isSendingOtp, setIsSendingOtp] = useState(false)
-  const [resendCountdown, setResendCountdown] = useState(0)
-
-  useEffect(() => {
-    if (resendCountdown <= 0) return
-    const interval = setInterval(() => {
-      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0))
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [resendCountdown])
-
+  // Pending user for linking
   const [pendingUser, setPendingUser] = useState<UserType | null>(currentUser || null)
   const [avatarError, setAvatarError] = useState(false)
 
-  // Customer Signup fields
+  // Customer Signup form fields
   const [cName, setCName] = useState('')
   const [cEmail, setCEmail] = useState('')
+  const [isEmailOtpOpen, setIsEmailOtpOpen] = useState(false)
+  const [emailOtp, setEmailOtp] = useState('')
+  const [isEmailVerified, setIsEmailVerified] = useState(false)
+  const [isSendingEmailOtp, setIsSendingEmailOtp] = useState(false)
+  const [isVerifyingEmailOtp, setIsVerifyingEmailOtp] = useState(false)
+  const [emailCountdown, setEmailCountdown] = useState(0)
+
   const [cPhone, setCPhone] = useState('')
-  const [cOtpSent, setCOtpSent] = useState(false)
-  const [cOtp, setCOtp] = useState('')
+  const [isPhoneOtpOpen, setIsPhoneOtpOpen] = useState(false)
+  const [phoneOtp, setPhoneOtp] = useState('')
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [isSendingPhoneOtp, setIsSendingPhoneOtp] = useState(false)
+  const [isVerifyingPhoneOtp, setIsVerifyingPhoneOtp] = useState(false)
+  const [phoneCountdown, setPhoneCountdown] = useState(0)
+
+  const [cPassword, setCPassword] = useState('')
+  const [cConfirmPassword, setCConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // Mandatory Mobile Link fields
   const [linkPhoneVal, setLinkPhoneVal] = useState('')
   const [linkOtpSent, setLinkOtpSent] = useState(false)
   const [linkOtp, setLinkOtp] = useState('')
+  const [linkCountdown, setLinkCountdown] = useState(0)
+  const isSendingLinkOtpRef = useRef(false)
+
+  // Countdowns
+  useEffect(() => {
+    if (emailCountdown <= 0) return
+    const interval = setInterval(() => {
+      setEmailCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [emailCountdown])
 
   useEffect(() => {
+    if (phoneCountdown <= 0) return
+    const interval = setInterval(() => {
+      setPhoneCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [phoneCountdown])
+
+  useEffect(() => {
+    if (linkCountdown <= 0) return
+    const interval = setInterval(() => {
+      setLinkCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [linkCountdown])
+
+  // Reset fields on open / role change
+  useEffect(() => {
     const missing = Boolean(mandatoryPhoneRequired || (currentUser && !currentUser.phone))
-    setSelectedRole(targetRole)
     if (missing) {
       setMode('link-phone')
       setPendingUser(currentUser || null)
@@ -94,16 +131,33 @@ export function SignUpModal({
       setMode('role-select')
       setPendingUser(null)
     }
-    setNotice('')
     setLoading(false)
     setAvatarError(false)
-    setCOtpSent(false)
-    setCOtp('')
+    setCName('')
+    setCEmail('')
+    setIsEmailOtpOpen(false)
+    setEmailOtp('')
+    setIsEmailVerified(false)
+    setCPhone('')
+    setIsPhoneOtpOpen(false)
+    setPhoneOtp('')
+    setIsPhoneVerified(false)
+    setCPassword('')
+    setCConfirmPassword('')
+    setShowPassword(false)
+    setShowConfirmPassword(false)
+    setLinkPhoneVal('')
     setLinkOtpSent(false)
     setLinkOtp('')
   }, [isOpen, targetRole, currentUser, mandatoryPhoneRequired])
 
-  const finalizeAuth = (user: UserType, role?: UserType['role'], token?: string, authCode?: string, refreshToken?: string) => {
+  const finalizeAuth = (
+    user: UserType,
+    role?: UserType['role'],
+    token?: string,
+    authCode?: string,
+    refreshToken?: string
+  ) => {
     const effectiveRt = refreshToken || getRefreshToken()
     if (effectiveRt) {
       setRefreshToken(effectiveRt)
@@ -119,7 +173,10 @@ export function SignUpModal({
     if (effectiveRole === 'STUDIO' || effectiveRole === 'TEMP_STUDIO') {
       setAuthRole(effectiveRole)
       setAuthUser({ ...user, role: effectiveRole })
-      toast.success(`Welcome ${effectiveRole === 'TEMP_STUDIO' ? '' : 'back, '}${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`, { position: 'top-center' })
+      toast.success(
+        `Welcome ${effectiveRole === 'TEMP_STUDIO' ? '' : 'back, '}${user.name || 'Studio Partner'}! Redirecting to Studio Portal...`,
+        { position: 'top-center' }
+      )
       onClose()
 
       const targetParam = effectiveRt || authCode || effectiveToken
@@ -136,7 +193,6 @@ export function SignUpModal({
     if (!user.phone) {
       setPendingUser(user)
       setMode('link-phone')
-      setNotice('')
       return
     }
     onSuccess(user)
@@ -151,9 +207,9 @@ export function SignUpModal({
     }
   }, [])
 
-  const triggerGoogle = (roleToUse: 'CUSTOMER' | 'STUDIO' = selectedRole) => {
+  // Google OAuth Signup
+  const triggerGoogle = (roleToUse: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER') => {
     setLoading(true)
-    setNotice('')
 
     if (typeof window === 'undefined' || !(window as any).google?.accounts?.oauth2) {
       setLoading(false)
@@ -216,76 +272,124 @@ export function SignUpModal({
     }
   }
 
-  // Customer Mobile OTP Signup
-  const handleSendMobileOtp = async (e?: React.FormEvent, isResend = false) => {
-    if (e) e.preventDefault()
+  // --- Email OTP Handlers ---
+  const handleSendEmailOtp = async (isResend = false) => {
+    const cleanEmail = cEmail.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Please enter a valid email address.', { position: 'top-center' })
+      return
+    }
+    setIsSendingEmailOtp(true)
+    try {
+      const res = await sendEmailOtp(cleanEmail)
+      setIsEmailOtpOpen(true)
+      setEmailCountdown(60)
+      toast.success(res.message || 'Verification code sent to your email! Valid for 10 minutes.', { position: 'top-center' })
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email verification code.', { position: 'top-center' })
+    } finally {
+      setIsSendingEmailOtp(false)
+    }
+  }
+
+  const handleVerifyEmailOtp = async () => {
+    const cleanEmail = cEmail.trim().toLowerCase()
+    const cleanOtp = emailOtp.trim()
+    if (cleanOtp.length !== 4) {
+      toast.error('Please enter the 4-digit code.', { position: 'top-center' })
+      return
+    }
+    setIsVerifyingEmailOtp(true)
+    try {
+      await verifyEmailOtp(cleanEmail, cleanOtp)
+      setIsEmailVerified(true)
+      setIsEmailOtpOpen(false)
+      setEmailOtp('')
+      toast.success('Email verified successfully!', { position: 'top-center' })
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid or expired verification code.', { position: 'top-center' })
+    } finally {
+      setIsVerifyingEmailOtp(false)
+    }
+  }
+
+  // --- Phone OTP Handlers ---
+  const handleSendPhoneOtp = async (isResend = false) => {
     const cleanPhone = cPhone.replace(/[^\d+]/g, '').trim()
     if (!cleanPhone || cleanPhone.length < 7) {
-      toast.error('Please enter a valid phone number with country code.', { position: 'top-center' })
+      toast.error('Please enter a valid mobile number with country code.', { position: 'top-center' })
       return
     }
-
-    if (isSendingOtpRef.current) return
-    isSendingOtpRef.current = true
-    setIsSendingOtp(true)
-    setLoading(true)
-
+    setIsSendingPhoneOtp(true)
     try {
-      await sendOtp(cleanPhone, isResend)
-      setCOtpSent(true)
-      setResendCountdown(30)
-      setNotice(`Verification code sent to ${cleanPhone}`)
-      toast.success('Verification code sent!', { position: 'top-center' })
+      const res = await sendOtp(cleanPhone, isResend)
+      setIsPhoneOtpOpen(true)
+      setPhoneCountdown(60)
+      toast.success(res.message || 'Verification code sent! Valid for 10 minutes.', { position: 'top-center' })
     } catch (err: any) {
-      toast.error(err.message || 'Failed to send verification code.', { position: 'top-center' })
+      toast.error(err.message || 'Failed to send mobile verification code.', { position: 'top-center' })
     } finally {
-      setLoading(false)
-      setIsSendingOtp(false)
-      isSendingOtpRef.current = false
+      setIsSendingPhoneOtp(false)
     }
   }
 
-  const handleVerifyMobileOtp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!cOtpSent) {
-      await handleSendMobileOtp(e)
-      return
-    }
-
+  const handleVerifyPhoneOtp = async () => {
     const cleanPhone = cPhone.replace(/[^\d+]/g, '').trim()
-    const cleanOtp = cOtp.trim()
+    const cleanOtp = phoneOtp.trim()
     if (cleanOtp.length !== 4) {
-      toast.error('Please enter the complete 4-digit code.', { position: 'top-center' })
+      toast.error('Please enter the 4-digit code.', { position: 'top-center' })
       return
     }
-
-    setLoading(true)
+    setIsVerifyingPhoneOtp(true)
     try {
-      const result = await verifyOtp({
-        phone: cleanPhone,
-        otp: cleanOtp,
-        role: selectedRole,
-        name: cName.trim() || undefined,
-      })
-      setLoading(false)
-      if (result?.user) {
-        finalizeAuth(result.user, result.user.role || selectedRole, result.token, result.authCode, result.refreshToken)
-      }
+      await verifyPhoneOtp(cleanPhone, cleanOtp)
+      setIsPhoneVerified(true)
+      setIsPhoneOtpOpen(false)
+      setPhoneOtp('')
+      toast.success('Mobile number verified successfully!', { position: 'top-center' })
     } catch (err: any) {
-      setLoading(false)
-      toast.error(err.message || 'Invalid or expired OTP code.', { position: 'top-center' })
+      toast.error(err.message || 'Invalid or expired verification code.', { position: 'top-center' })
+    } finally {
+      setIsVerifyingPhoneOtp(false)
     }
   }
 
-  // Customer Email Sign Up
-  const handleEmailSignUp = async (e: React.FormEvent) => {
+  // --- Customer Final Sign Up ---
+  const handleCustomerSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const cleanEmail = cEmail.trim()
     const cleanName = cName.trim()
-    const cleanPhone = cPhone.trim()
+    const cleanEmail = cEmail.trim().toLowerCase()
+    const cleanPhone = cPhone.replace(/[^\d+]/g, '').trim()
 
-    if (!cleanEmail || !cleanName) {
-      toast.error('Please provide your name and email.', { position: 'top-center' })
+    if (!cleanName) {
+      toast.error('Please enter your full name.', { position: 'top-center' })
+      return
+    }
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Please enter a valid email address.', { position: 'top-center' })
+      return
+    }
+    if (!isEmailVerified) {
+      toast.error('Please verify your email address before creating an account.', { position: 'top-center' })
+      return
+    }
+
+    if (!cleanPhone || cleanPhone.length < 7) {
+      toast.error('Please enter a valid mobile number.', { position: 'top-center' })
+      return
+    }
+    if (!isPhoneVerified) {
+      toast.error('Please verify your mobile number before creating an account.', { position: 'top-center' })
+      return
+    }
+
+    if (!cPassword || cPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long.', { position: 'top-center' })
+      return
+    }
+    if (cPassword !== cConfirmPassword) {
+      toast.error('Passwords do not match.', { position: 'top-center' })
       return
     }
 
@@ -294,20 +398,21 @@ export function SignUpModal({
       const result = await signUpUser({
         name: cleanName,
         email: cleanEmail,
-        phone: cleanPhone || undefined,
-        role: selectedRole,
+        phone: cleanPhone,
+        password: cPassword.trim(),
+        role: 'CUSTOMER',
       })
       setLoading(false)
       if (result?.user) {
-        finalizeAuth(result.user, result.user.role || selectedRole, result.token, result.authCode, result.refreshToken)
+        finalizeAuth(result.user, 'CUSTOMER', result.token, result.authCode, result.refreshToken)
       }
     } catch (err: any) {
       setLoading(false)
-      toast.error(err.message || 'Sign up failed. Please try again.', { position: 'top-center' })
+      toast.error(err.message || 'Account creation failed. Please try again.', { position: 'top-center' })
     }
   }
 
-  // Mandatory Phone Linking OTP
+  // Mandatory Phone Linking OTP Handlers
   const handleSendLinkOtp = async (e?: React.FormEvent, isResend = false) => {
     if (e) e.preventDefault()
     const clean = linkPhoneVal.replace(/[^\d+]/g, '').trim()
@@ -333,8 +438,8 @@ export function SignUpModal({
 
       await sendOtp(clean, isResend)
       setLinkOtpSent(true)
-      setResendCountdown(30)
-      toast.success('Verification code sent!', { position: 'top-center' })
+      setLinkCountdown(30)
+      toast.success('Verification code sent! Valid for 10 minutes.', { position: 'top-center' })
     } catch (err: any) {
       toast.error(err.message || 'Failed to send verification code.', { position: 'top-center' })
     } finally {
@@ -368,17 +473,12 @@ export function SignUpModal({
   }
 
   const goBack = () => {
-    if (mode === 'customer-mobile' || mode === 'customer-email') {
-      setMode(selectedRole === 'STUDIO' ? 'studio-options' : 'customer-options')
-    } else if (mode === 'customer-options' || mode === 'studio-options') {
-      setMode('role-select')
-    } else if (mode === 'link-phone') {
+    if (mode === 'customer-signup' || mode === 'studio-options' || mode === 'link-phone') {
       setMode('role-select')
       setPendingUser(null)
     } else {
       setMode('role-select')
     }
-    setNotice('')
   }
 
   if (!isOpen) return null
@@ -396,42 +496,41 @@ export function SignUpModal({
         }
       }}
     >
-      <div className="relative w-full max-w-[420px] rounded-3xl bg-white shadow-2xl border border-[#E8E1D5] overflow-hidden transition-all duration-200">
-
+      <div className="relative w-full max-w-[400px] rounded-2xl bg-white shadow-xl border border-[#E8E1D5] overflow-hidden transition-all duration-200">
         {/* Top Controls: Back button & Close Button */}
         {isSubPage && (
           <button
             onClick={goBack}
-            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
+            className="absolute top-3.5 left-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
             aria-label="Back"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={13} />
           </button>
         )}
 
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+          className="absolute top-3.5 right-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
           aria-label="Close"
         >
-          <X size={14} />
+          <X size={13} />
         </button>
 
         {/* Header Logo */}
-        <div className="flex items-center justify-center px-6 pt-7 pb-3">
+        <div className="flex items-center justify-center px-5 pt-5 pb-1">
           <img
             src="/bg_logo.png"
             alt="Darzi Logo"
-            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
+            className="h-10 w-auto object-contain transition-all duration-200"
           />
         </div>
 
-        <div className="px-6 pb-6 pt-1 space-y-5">
-          {/* ── ROLE SELECTION (SIGN UP ROOT) ── */}
+        <div className="px-6 pb-5 pt-1 space-y-3">
+          {/* ── ROLE SELECTION SCREEN ── */}
           {mode === 'role-select' && (
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               <div className="text-center">
-                <h2 className="font-serif text-[22px] font-bold text-[#18191B] tracking-tight leading-tight">
+                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight leading-tight">
                   How are you joining?
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
@@ -439,19 +538,17 @@ export function SignUpModal({
                 </p>
               </div>
 
-              {/* Cards Row */}
+              {/* Cards Grid */}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 {/* Customer Card */}
                 <button
                   type="button"
                   onClick={() => {
-                    setNotice('')
-                    setSelectedRole('CUSTOMER')
-                    setMode('customer-options')
+                    setMode('customer-signup')
                   }}
-                  className="group relative flex flex-col items-center gap-3 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#9E593B] hover:bg-white p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 text-left cursor-pointer"
+                  className="group relative flex flex-col items-center gap-2.5 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#9E593B] hover:bg-white p-3 transition-all duration-200 hover:shadow-md text-left cursor-pointer"
                 >
-                  <div className="w-full h-[148px] rounded-2xl overflow-hidden bg-[#FAF6F0] flex items-center justify-center relative border border-[#E8E1D5]/60 shadow-inner">
+                  <div className="w-full h-[120px] rounded-xl overflow-hidden bg-[#FAF6F0] flex items-center justify-center relative border border-[#E8E1D5]/60 shadow-inner">
                     <img
                       src="/role-customer.jpg"
                       alt="Customer"
@@ -459,17 +556,12 @@ export function SignUpModal({
                     />
                   </div>
                   <div className="w-full">
-                    <p className="text-[14px] font-bold text-[#18191B] group-hover:text-[#9E593B] transition-colors">
+                    <p className="text-[13px] font-bold text-[#18191B] group-hover:text-[#9E593B] transition-colors">
                       I'm a Customer
                     </p>
-                    <p className="text-[11px] text-[#7A7E85] mt-0.5 leading-snug">
+                    <p className="text-[10px] text-[#7A7E85] mt-0.5 leading-snug">
                       Book alterations & fittings
                     </p>
-                  </div>
-                  <div className="absolute top-3 right-3 size-5 rounded-full border-2 border-[#E8E1D5] group-hover:border-[#9E593B] group-hover:bg-[#9E593B] transition-all flex items-center justify-center">
-                    <svg className="size-2.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 10 8">
-                      <path d="M1 4l2.5 2.5L9 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
                   </div>
                 </button>
 
@@ -477,13 +569,11 @@ export function SignUpModal({
                 <button
                   type="button"
                   onClick={() => {
-                    setNotice('')
-                    setSelectedRole('STUDIO')
                     setMode('studio-options')
                   }}
-                  className="group relative flex flex-col items-center gap-3 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#0F1115] hover:bg-white p-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 text-left cursor-pointer"
+                  className="group relative flex flex-col items-center gap-2.5 rounded-2xl border-2 border-[#E8E1D5] bg-[#FAF8F5] hover:border-[#0F1115] hover:bg-white p-3 transition-all duration-200 hover:shadow-md text-left cursor-pointer"
                 >
-                  <div className="w-full h-[148px] rounded-2xl overflow-hidden bg-[#FAF6F0] flex items-center justify-center relative border border-[#E8E1D5]/60 shadow-inner">
+                  <div className="w-full h-[120px] rounded-xl overflow-hidden bg-[#FAF6F0] flex items-center justify-center relative border border-[#E8E1D5]/60 shadow-inner">
                     <img
                       src="/role-studio.jpg"
                       alt="Studio Partner"
@@ -491,310 +581,415 @@ export function SignUpModal({
                     />
                   </div>
                   <div className="w-full">
-                    <p className="text-[14px] font-bold text-[#18191B] group-hover:text-[#0F1115] transition-colors">
+                    <p className="text-[13px] font-bold text-[#18191B] group-hover:text-[#0F1115] transition-colors">
                       Studio Partner
                     </p>
-                    <p className="text-[11px] text-[#7A7E85] mt-0.5 leading-snug">
-                      List your atelier & earn
+                    <p className="text-[10px] text-[#7A7E85] mt-0.5 leading-snug">
+                      List atelier & workbench
                     </p>
-                  </div>
-                  <div className="absolute top-3 right-3 size-5 rounded-full border-2 border-[#E8E1D5] group-hover:border-[#0F1115] group-hover:bg-[#0F1115] transition-all flex items-center justify-center">
-                    <svg className="size-2.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 10 8">
-                      <path d="M1 4l2.5 2.5L9 1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
                   </div>
                 </button>
               </div>
 
-              {/* OR Divider & Switch to Login */}
-              <div className="pt-2 space-y-2.5">
-                <Divider />
-                <div className="text-center">
-                  <span className="text-xs text-[#7A7E85]">Already have an account? </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onSwitchToLogin) {
-                        onSwitchToLogin()
-                      }
-                    }}
-                    className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
-                  >
-                    Log In →
-                  </button>
-                </div>
+              {/* Already have an account? Log In */}
+              <div className="pt-1 text-center">
+                <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSwitchToLogin) onSwitchToLogin()
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Log In
+                </button>
               </div>
 
               <p className="text-center text-[10px] text-[#9CA3AF]">
-                By continuing you agree to our Terms &amp; Privacy Policy.
+                By continuing you agree with our terms and condition thing.
               </p>
             </div>
           )}
 
-          {/* ── CUSTOMER SIGN UP OPTIONS ── */}
-          {mode === 'customer-options' && (
-            <div className="space-y-4">
+          {/* ── CUSTOMER SIGN UP FORM ── */}
+          {mode === 'customer-signup' && (
+            <div className="space-y-3">
               <div>
-                <h2 className="font-serif text-[24px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Join Darzi
+                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
+                  Sign Up to Darzi
                 </h2>
-                <p className="text-xs text-[#7A7E85] mt-1">
-                  Create your account for bespoke alterations & fittings.
-                </p>
               </div>
 
-              <div className="space-y-2.5 pt-1">
-                <GoogleButton label="Sign up with Google" loading={loading} onClick={() => triggerGoogle('CUSTOMER')} bordered />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setMode('customer-mobile')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
-                >
-                  <Phone size={14} className="text-[#9E593B]" />
-                  <span>Sign up with Mobile Number</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setMode('customer-email')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
-                >
-                  <Mail size={14} className="text-[#9E593B]" />
-                  <span>Sign up with Email</span>
-                </button>
-              </div>
-
-              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
-                By continuing you agree to our Terms &amp; Privacy Policy.
-              </p>
-            </div>
-          )}
-
-          {/* ── CUSTOMER MOBILE SIGNUP ── */}
-          {mode === 'customer-mobile' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  Sign up with Mobile
-                </h2>
-                <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Enter your mobile number to receive a verification OTP.
-                </p>
-              </div>
-
-              <form onSubmit={handleVerifyMobileOtp} className="space-y-4 pt-1">
+              <form onSubmit={handleCustomerSignUp} className="space-y-2.5">
+                {/* 1. Full Name Input Area */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Your Name
+                    Full Name
                   </label>
                   <input
                     type="text"
+                    required
+                    autoComplete="name"
                     value={cName}
                     onChange={(e) => setCName(e.target.value)}
-                    placeholder="Sarah Jenkins"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2.5 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors mb-3"
-                  />
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Mobile Phone Number *
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={cPhone}
-                    onChange={(e) => setCPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
-                    placeholder="+91 98765 43210"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2.5 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                    placeholder="Enter your full name"
+                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                   />
                 </div>
 
-                {cOtpSent && (
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                      Enter 4-digit code
-                    </label>
+                {/* 2. Email Address Input Area with In-Place Flip */}
+                <div>
+                  {!isEmailOtpOpen ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Email Address
+                        </label>
+                        {isEmailVerified && (
+                          <span className="text-[11px] font-semibold text-emerald-600">✓ Verified</span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={cEmail}
+                        disabled={isEmailVerified}
+                        onChange={(e) => {
+                          setCEmail(e.target.value)
+                          if (isEmailVerified) setIsEmailVerified(false)
+                        }}
+                        placeholder="Enter your email"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors disabled:bg-[#FAF8F5] disabled:text-[#5A5D64]"
+                      />
+                      {!isEmailVerified && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            disabled={isSendingEmailOtp}
+                            onClick={() => handleSendEmailOtp(false)}
+                            className="text-xs text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-50"
+                          >
+                            {isSendingEmailOtp ? 'Sending code…' : 'Send OTP'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Verify Email Address
+                        </label>
+                        <span className="text-[10px] text-[#7A7E85]">Valid for 10 minutes</span>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        autoFocus
+                        value={emailOtp}
+                        onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter email otp for verification"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (emailOtp.length === 4) handleVerifyEmailOtp()
+                          }
+                        }}
+                      />
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEmailOtpOpen(false)
+                            setEmailOtp('')
+                          }}
+                          className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <div className="flex items-center gap-3">
+                          {emailCountdown > 0 ? (
+                            <span className="text-xs text-[#9CA3AF]">Resend in {emailCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSendingEmailOtp}
+                              onClick={() => handleSendEmailOtp(true)}
+                              className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                            >
+                              Resend
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isVerifyingEmailOtp || emailOtp.length !== 4}
+                            onClick={handleVerifyEmailOtp}
+                            className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-40"
+                          >
+                            {isVerifyingEmailOtp ? 'Verifying…' : 'Verify'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Mobile Number Input Area with In-Place Flip */}
+                <div>
+                  {!isPhoneOtpOpen ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Mobile Number
+                        </label>
+                        {isPhoneVerified && (
+                          <span className="text-[11px] font-semibold text-emerald-600">✓ Verified</span>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        value={cPhone}
+                        disabled={isPhoneVerified}
+                        onChange={(e) => {
+                          setCPhone(e.target.value.replace(/[^\d+ ]/g, ''))
+                          if (isPhoneVerified) setIsPhoneVerified(false)
+                        }}
+                        placeholder="+91 98765 43210"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors disabled:bg-[#FAF8F5] disabled:text-[#5A5D64]"
+                      />
+                      {!isPhoneVerified && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            disabled={isSendingPhoneOtp}
+                            onClick={() => handleSendPhoneOtp(false)}
+                            className="text-xs text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-50"
+                          >
+                            {isSendingPhoneOtp ? 'Sending code…' : 'Send OTP'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Verify Mobile Number
+                        </label>
+                        <span className="text-[10px] text-[#7A7E85]">Valid for 10 minutes</span>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        autoFocus
+                        value={phoneOtp}
+                        onChange={(e) => setPhoneOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter mobile otp for verification"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (phoneOtp.length === 4) handleVerifyPhoneOtp()
+                          }
+                        }}
+                      />
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsPhoneOtpOpen(false)
+                            setPhoneOtp('')
+                          }}
+                          className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <div className="flex items-center gap-3">
+                          {phoneCountdown > 0 ? (
+                            <span className="text-xs text-[#9CA3AF]">Resend in {phoneCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSendingPhoneOtp}
+                              onClick={() => handleSendPhoneOtp(true)}
+                              className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                            >
+                              Resend
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isVerifyingPhoneOtp || phoneOtp.length !== 4}
+                            onClick={handleVerifyPhoneOtp}
+                            className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-40"
+                          >
+                            {isVerifyingPhoneOtp ? 'Verifying…' : 'Verify'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Password Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={4}
+                      type={showPassword ? 'text' : 'password'}
                       required
-                      autoFocus
-                      value={cOtp}
-                      onChange={(e) => setCOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="• • • •"
-                      className="w-full text-center text-xl font-mono font-bold tracking-[0.3em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none"
+                      value={cPassword}
+                      onChange={(e) => setCPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-3 pr-9 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                     />
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || isSendingOtp}
-                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
-                >
-                  {loading ? 'Verifying…' : cOtpSent ? 'Verify & Sign Up' : 'Send Verification Code'}
-                </button>
-
-                {cOtpSent && (
-                  <div className="text-center pt-1">
                     <button
                       type="button"
-                      disabled={loading || resendCountdown > 0}
-                      onClick={() => handleSendMobileOtp(undefined, true)}
-                      className="text-xs text-[#9E593B] font-semibold hover:underline disabled:opacity-50 cursor-pointer"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF] hover:text-[#18191B] transition-colors cursor-pointer"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
-                      {resendCountdown > 0 ? `Resend code in ${resendCountdown}s` : 'Resend code'}
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
                   </div>
-                )}
-              </form>
-            </div>
-          )}
-
-          {/* ── CUSTOMER EMAIL SIGNUP ── */}
-          {mode === 'customer-email' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="font-serif text-[22px] font-bold text-[#18191B]">
-                  Sign up with Email
-                </h2>
-                <p className="text-xs text-[#7A7E85] mt-0.5">
-                  Create your Darzi account with your email address.
-                </p>
-              </div>
-
-              <form onSubmit={handleEmailSignUp} className="space-y-3.5 pt-1">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={cName}
-                    onChange={(e) => setCName(e.target.value)}
-                    placeholder="Sarah Jenkins"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
-                  />
                 </div>
 
+                {/* 5. Confirm Password Input Area */}
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Email Address *
+                    Confirm Password
                   </label>
-                  <input
-                    type="email"
-                    required
-                    value={cEmail}
-                    onChange={(e) => setCEmail(e.target.value)}
-                    placeholder="sarah@example.com"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={cConfirmPassword}
+                      onChange={(e) => setCConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-3 pr-9 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF] hover:text-[#18191B] transition-colors cursor-pointer"
+                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
-                    Mobile Phone (Optional)
-                  </label>
-                  <input
-                    type="tel"
-                    value={cPhone}
-                    onChange={(e) => setCPhone(e.target.value.replace(/[^\d+ ]/g, ''))}
-                    placeholder="+91 98765 43210"
-                    className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
-                  />
-                </div>
-
+                {/* 6. Create Account / Sign Up Button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer mt-2"
+                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer mt-1"
                 >
-                  {loading ? 'Creating account…' : 'Create Account'}
+                  {loading ? 'Creating Account…' : 'Sign Up'}
                 </button>
               </form>
+
+              {/* 7. OR Divider & Sign up with Google */}
+              <div>
+                <Divider />
+                <GoogleButton
+                  label="Sign up with Google"
+                  loading={loading}
+                  onClick={() => triggerGoogle('CUSTOMER')}
+                  bordered
+                />
+              </div>
+
+              {/* 8. Terms & Conditions disclaimer */}
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-0.5">
+                By continuing you agree with our terms and condition thing.
+              </p>
+
+              {/* 9. Switch to Log In */}
+              <div className="text-center pt-0.5">
+                <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSwitchToLogin) onSwitchToLogin()
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Log In
+                </button>
+              </div>
             </div>
           )}
 
           {/* ── STUDIO PARTNER OPTIONS ── */}
           {mode === 'studio-options' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <h2 className="font-serif text-[26px] font-bold text-[#18191B] tracking-tight leading-tight">
-                  Welcome to Darzi Studio
+                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
+                  Studio Partner
                 </h2>
-                <p className="text-[13px] text-[#7A7E85] mt-1.5 leading-relaxed">
-                  Access live orders, workbench controls, and atelier payouts.
+                <p className="text-xs text-[#7A7E85] mt-1">
+                  List your atelier & workbench on Darzi.
                 </p>
               </div>
 
-              <div className="space-y-3 pt-1">
-                <GoogleButton label="Continue with Google" loading={loading} onClick={() => triggerGoogle('STUDIO')} bordered />
+              <div className="space-y-2.5 pt-1">
+                <GoogleButton
+                  label="Continue with Google"
+                  loading={loading}
+                  onClick={() => triggerGoogle('STUDIO')}
+                  bordered
+                />
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setSelectedRole('STUDIO')
-                    setMode('customer-mobile')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3 px-4 text-[13.5px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
+                  onClick={() => setMode('customer-signup')}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer"
                 >
-                  <Phone size={15} className="text-[#9E593B]" />
-                  <span>Continue with Mobile</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNotice('')
-                    setSelectedRole('STUDIO')
-                    setMode('customer-email')
-                  }}
-                  className="w-full flex items-center justify-center gap-2.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-3 px-4 text-[13.5px] font-semibold text-[#18191B] transition-colors cursor-pointer active:scale-[0.99]"
-                >
-                  <Mail size={15} className="text-[#9E593B]" />
-                  <span>Continue with Email</span>
+                  <Mail size={14} className="text-[#9E593B]" />
+                  <span>Join as Customer instead</span>
                 </button>
               </div>
 
-              <p className="text-center text-[11px] text-[#9CA3AF] pt-2">
-                By continuing you agree to our Terms &amp; Privacy Policy.
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
+                By continuing you agree with our terms and condition thing.
               </p>
             </div>
           )}
 
           {/* ── MANDATORY PHONE LINK ── */}
           {mode === 'link-phone' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {!linkOtpSent ? (
                 <>
                   <div>
-                    <h2 className="font-serif text-[23px] font-bold text-[#18191B] tracking-tight leading-tight">
-                      Link your mobile number
+                    <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
+                      Link mobile number
                     </h2>
-                    <p className="text-xs text-[#7A7E85] mt-1 leading-relaxed">
-                      Required for studio admission passes and live alteration status.
+                    <p className="text-xs text-[#7A7E85] mt-1">
+                      Required for alteration booking updates and notifications.
                     </p>
                   </div>
 
                   {activeUser && (
-                    <div className="flex items-center justify-between p-2.5 rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5]">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="size-8 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white text-xs font-bold grid place-items-center border border-[#E8E1D5] relative">
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="size-7 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white text-xs font-bold grid place-items-center border border-[#E8E1D5]">
                           {activeUser.avatar && !avatarError ? (
                             <Image
                               src={activeUser.avatar}
                               alt={activeUser.name || 'User avatar'}
-                              width={32}
-                              height={32}
+                              width={28}
+                              height={28}
                               referrerPolicy="no-referrer"
                               crossOrigin="anonymous"
                               className="size-full object-cover"
@@ -815,9 +1010,9 @@ export function SignUpModal({
                     </div>
                   )}
 
-                  <form onSubmit={handleSendLinkOtp} className="space-y-3.5 pt-1">
+                  <form onSubmit={handleSendLinkOtp} className="space-y-3 pt-1">
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1.5">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
                         Mobile Number
                       </label>
                       <input
@@ -828,13 +1023,13 @@ export function SignUpModal({
                         value={linkPhoneVal}
                         onChange={(e) => setLinkPhoneVal(e.target.value.replace(/[^\d+ ]/g, ''))}
                         placeholder="+91 98765 43210"
-                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3.5 py-2.5 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
+                      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
                     >
                       {loading ? 'Sending code…' : 'Send Verification Code'}
                     </button>
@@ -843,27 +1038,26 @@ export function SignUpModal({
               ) : (
                 <>
                   <div>
-                    <h2 className="font-serif text-[23px] font-bold text-[#18191B] tracking-tight leading-tight">
-                      Enter your code
+                    <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
+                      Enter verification code
                     </h2>
                     <div className="flex items-center gap-1.5 mt-1 text-xs text-[#7A7E85]">
                       <span>Sent to <strong className="text-[#18191B] font-semibold">{linkPhoneVal}</strong></span>
-                      <span>•</span>
+                      <span>(valid 10 mins)</span>
                       <button
                         type="button"
                         onClick={() => {
                           setLinkOtpSent(false)
                           setLinkOtp('')
-                          setNotice('')
                         }}
-                        className="text-[#9E593B] font-semibold hover:underline cursor-pointer"
+                        className="text-[#9E593B] font-semibold hover:underline cursor-pointer ml-auto"
                       >
                         Change
                       </button>
                     </div>
                   </div>
 
-                  <form onSubmit={handleVerifyLinkPhone} className="space-y-3.5 pt-1">
+                  <form onSubmit={handleVerifyLinkPhone} className="space-y-3 pt-1">
                     <div>
                       <input
                         type="text"
@@ -875,24 +1069,24 @@ export function SignUpModal({
                         value={linkOtp}
                         onChange={(e) => setLinkOtp(e.target.value.replace(/\D/g, ''))}
                         placeholder="• • • •"
-                        className="w-full text-center text-2xl font-mono font-bold tracking-[0.4em] rounded-xl border border-[#DDD6CB] bg-white py-3 focus:border-[#9E593B] focus:outline-none placeholder:text-gray-300 placeholder:tracking-[0.3em]"
+                        className="w-full text-center text-xl font-mono font-bold tracking-[0.3em] rounded-xl border border-[#DDD6CB] bg-white py-2.5 focus:border-[#9E593B] focus:outline-none"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-3 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
+                      className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer"
                     >
                       {loading ? 'Verifying…' : 'Verify & Continue'}
                     </button>
-                    <div className="text-center pt-1">
+                    <div className="text-center pt-0.5">
                       <button
                         type="button"
-                        disabled={loading || resendCountdown > 0}
+                        disabled={loading || linkCountdown > 0}
                         onClick={() => handleSendLinkOtp(undefined, true)}
                         className="text-xs text-[#9E593B] font-semibold hover:underline disabled:opacity-50 cursor-pointer"
                       >
-                        {resendCountdown > 0 ? `Resend (${resendCountdown}s)` : 'Resend code'}
+                        {linkCountdown > 0 ? `Resend (${linkCountdown}s)` : 'Resend code'}
                       </button>
                     </div>
                   </form>
@@ -925,7 +1119,7 @@ export function SignUpModal({
 
 function Divider() {
   return (
-    <div className="relative my-2">
+    <div className="relative my-2.5">
       <div className="absolute inset-0 flex items-center">
         <div className="w-full border-t border-[#E8E1D5]" />
       </div>
@@ -952,9 +1146,9 @@ function GoogleButton({
       type="button"
       disabled={loading}
       onClick={onClick}
-      className={`w-full flex items-center justify-center gap-3 rounded-2xl py-3 px-4 text-[13.5px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
+      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2 px-3.5 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
         bordered
-          ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B] shadow-2xs'
+          ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B]'
           : 'bg-[#0F1115] hover:bg-[#1e2229] text-white shadow-xs'
       }`}
     >
