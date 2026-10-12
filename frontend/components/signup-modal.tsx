@@ -1053,10 +1053,10 @@ export function SignUpModal({
             <div className="space-y-3">
               <div>
                 <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
-                  Studio Partner
+                  Sign Up as Studio
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  List your atelier & workbench on Raffu.
+                  List yourself on Raffu
                 </p>
               </div>
 
@@ -1067,12 +1067,6 @@ export function SignUpModal({
                   onClick={() => triggerGoogle('STUDIO')}
                   bordered
                 />
-
-                <div className="flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[#E8E1D5]" />
-                  <span className="text-[11px] uppercase tracking-wider text-[#9CA3AF] font-medium">or</span>
-                  <div className="h-px flex-1 bg-[#E8E1D5]" />
-                </div>
 
                 <button
                   type="button"
@@ -1119,10 +1113,10 @@ export function SignUpModal({
             <div className="space-y-3">
               <div>
                 <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
-                  Studio Partner Sign Up
+                  Sign Up as Studio
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  Register your atelier with email and password.
+                  List yourself on Raffu
                 </p>
               </div>
 
