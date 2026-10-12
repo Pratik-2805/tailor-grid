@@ -10,6 +10,7 @@ const {
   verifyOtp,
 } = require("../lib/sms");
 const { sendAuthOtpEmail, sendWelcomeEmail } = require("../lib/email");
+const { hashPassword } = require("../lib/password");
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "Darzi_jwt_secret_key_2026";
@@ -222,6 +223,7 @@ async function findOrLinkUser({
   email,
   phone,
   name,
+  password,
   avatar,
   address,
   postcode,
@@ -440,6 +442,7 @@ async function findOrLinkUser({
 
     const updatedFields = {
       email: normEmail || user.email,
+      ...(password ? { password } : {}),
       role: user.role || role,
       status: resolvedStatus,
       phone: updatedPhone,
@@ -555,6 +558,7 @@ async function findOrLinkUser({
             : "Raffu Member"),
       email: normEmail,
       phone: normPhone,
+      password: password || null,
       contact: contactStr,
       avatar:
         avatar ||
@@ -737,6 +741,122 @@ router.post("/send-otp", async (req, res) => {
     return res
       .status(500)
       .json({ error: err.message || "Failed to send verification code." });
+  }
+});
+
+// POST /api/auth/send-email-otp
+router.post("/send-email-otp", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !String(email).trim().includes("@")) {
+      return res.status(400).json({ error: "A valid email address is required." });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const code = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Persist OTP code for 10 minutes
+    await saveOtp(cleanEmail, code, 10);
+    console.log(`[AUTH-EMAIL-OTP] Generated & saved OTP for ${cleanEmail}: ${code}`);
+
+    // Dispatch via Resend
+    try {
+      const emailRes = await sendAuthOtpEmail({
+        toEmail: cleanEmail,
+        otp: code,
+        customerName: "Raffu Member",
+      });
+      if (emailRes.success) {
+        console.log(`[AUTH-EMAIL-OTP] Sent email to ${cleanEmail}`);
+      } else {
+        console.warn("[AUTH-EMAIL-OTP] Resend notice:", emailRes.error || emailRes.reason);
+      }
+    } catch (eErr) {
+      console.warn("[AUTH-EMAIL-OTP] Email dispatch error:", eErr.message);
+    }
+
+    return res.json({
+      success: true,
+      message: "Verification code sent to your email! Valid for 10 minutes.",
+    });
+  } catch (err) {
+    console.error("Send Email OTP Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to send email verification code." });
+  }
+});
+
+// POST /api/auth/verify-email-otp
+router.post("/verify-email-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res
+        .status(400)
+        .json({ error: "Email address and verification code are required." });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = String(otp).trim();
+
+    const isValid = await verifyOtp(cleanEmail, cleanOtp);
+    if (!isValid) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification code." });
+    }
+
+    console.log(`[AUTH-EMAIL-OTP] Verified OTP successfully for ${cleanEmail}`);
+    return res.json({
+      success: true,
+      verified: true,
+      message: "Email verified successfully!",
+    });
+  } catch (err) {
+    console.error("Verify Email OTP Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to verify email code." });
+  }
+});
+
+// POST /api/auth/verify-phone-otp
+router.post("/verify-phone-otp", async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    if (!phone || !otp) {
+      return res
+        .status(400)
+        .json({ error: "Mobile number and verification code are required." });
+    }
+
+    const phoneValidation = validateAndFormatPhone(phone);
+    if (!phoneValidation.isValid) {
+      return res.status(400).json({ error: phoneValidation.error });
+    }
+
+    const cleanPhone = phoneValidation.formatted;
+    const cleanOtp = String(otp).trim();
+
+    const isValid = await verifyOtp(cleanPhone, cleanOtp);
+    if (!isValid) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification code." });
+    }
+
+    console.log(`[AUTH-PHONE-OTP] Verified phone OTP successfully for ${cleanPhone}`);
+    return res.json({
+      success: true,
+      verified: true,
+      message: "Mobile number verified successfully!",
+    });
+  } catch (err) {
+    console.error("Verify Phone OTP Error:", err);
+    return res
+      .status(500)
+      .json({ error: err.message || "Failed to verify mobile code." });
   }
 });
 
@@ -1520,6 +1640,7 @@ router.post("/signup", async (req, res) => {
       name,
       email,
       phone,
+      password,
       address,
       postcode,
       role = "CUSTOMER",
@@ -1640,6 +1761,7 @@ router.post("/signup", async (req, res) => {
       name: finalName,
       email: finalEmail || undefined,
       phone: finalPhone || undefined,
+      password: password ? hashPassword(password.trim()) : undefined,
       avatar: finalAvatar,
       method: finalMethod,
       address,

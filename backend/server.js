@@ -112,6 +112,7 @@ const sensitiveLimiter = rateLimit({
 app.use("/api", globalApiLimiter);
 app.use("/api/newsletter/subscribe", sensitiveLimiter);
 app.use("/api/auth/send-otp", sensitiveLimiter);
+app.use("/api/auth/send-email-otp", sensitiveLimiter);
 app.use("/api/auth/login", sensitiveLimiter);
 app.use("/api/admin/login", sensitiveLimiter);
 
@@ -149,7 +150,7 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
-  res.status(500).json({ error: "Internal server error" });
+  res.status(500).json({ error: err.message || "Internal server error" });
 });
 
 app.listen(PORT, async () => {

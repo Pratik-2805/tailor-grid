@@ -86,6 +86,21 @@ export function SignUpModal({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
+  // Studio Email Signup form fields
+  const [isStudioEmailOpen, setIsStudioEmailOpen] = useState(false)
+  const [sEmail, setSEmail] = useState('')
+  const [isSEmailOtpOpen, setIsSEmailOtpOpen] = useState(false)
+  const [sEmailOtp, setSEmailOtp] = useState('')
+  const [isSEmailVerified, setIsSEmailVerified] = useState(false)
+  const [isSendingSEmailOtp, setIsSendingSEmailOtp] = useState(false)
+  const [isVerifyingSEmailOtp, setIsVerifyingSEmailOtp] = useState(false)
+  const [sEmailCountdown, setSEmailCountdown] = useState(0)
+
+  const [sPassword, setSPassword] = useState('')
+  const [sConfirmPassword, setSConfirmPassword] = useState('')
+  const [showSPassword, setShowSPassword] = useState(false)
+  const [showSConfirmPassword, setShowSConfirmPassword] = useState(false)
+
   // Mandatory Mobile Link fields
   const [linkPhoneVal, setLinkPhoneVal] = useState('')
   const [linkOtpSent, setLinkOtpSent] = useState(false)
@@ -109,6 +124,14 @@ export function SignUpModal({
     }, 1000)
     return () => clearInterval(interval)
   }, [phoneCountdown])
+
+  useEffect(() => {
+    if (sEmailCountdown <= 0) return
+    const interval = setInterval(() => {
+      setSEmailCountdown((prev) => (prev > 0 ? prev - 1 : 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [sEmailCountdown])
 
   useEffect(() => {
     if (linkCountdown <= 0) return
@@ -146,6 +169,16 @@ export function SignUpModal({
     setCConfirmPassword('')
     setShowPassword(false)
     setShowConfirmPassword(false)
+    setIsStudioEmailOpen(false)
+    setSEmail('')
+    setIsSEmailOtpOpen(false)
+    setSEmailOtp('')
+    setIsSEmailVerified(false)
+    setSPassword('')
+    setSConfirmPassword('')
+    setShowSPassword(false)
+    setShowSConfirmPassword(false)
+    setSEmailCountdown(0)
     setLinkPhoneVal('')
     setLinkOtpSent(false)
     setLinkOtp('')
@@ -412,6 +445,87 @@ export function SignUpModal({
     }
   }
 
+  // --- Studio Email OTP Handlers ---
+  const handleSendStudioEmailOtp = async (isResend = false) => {
+    const cleanEmail = sEmail.trim().toLowerCase()
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Please enter a valid email address.', { position: 'top-center' })
+      return
+    }
+    setIsSendingSEmailOtp(true)
+    try {
+      const res = await sendEmailOtp(cleanEmail)
+      setIsSEmailOtpOpen(true)
+      setSEmailCountdown(60)
+      toast.success(res.message || 'Verification code sent to your email! Valid for 10 minutes.', { position: 'top-center' })
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send email verification code.', { position: 'top-center' })
+    } finally {
+      setIsSendingSEmailOtp(false)
+    }
+  }
+
+  const handleVerifyStudioEmailOtp = async () => {
+    const cleanEmail = sEmail.trim().toLowerCase()
+    const cleanOtp = sEmailOtp.trim()
+    if (cleanOtp.length !== 4) {
+      toast.error('Please enter the 4-digit code.', { position: 'top-center' })
+      return
+    }
+    setIsVerifyingSEmailOtp(true)
+    try {
+      await verifyEmailOtp(cleanEmail, cleanOtp)
+      setIsSEmailVerified(true)
+      setIsSEmailOtpOpen(false)
+      setSEmailOtp('')
+      toast.success('Email verified successfully!', { position: 'top-center' })
+    } catch (err: any) {
+      toast.error(err.message || 'Invalid or expired verification code.', { position: 'top-center' })
+    } finally {
+      setIsVerifyingSEmailOtp(false)
+    }
+  }
+
+  // --- Studio Final Sign Up ---
+  const handleStudioSignUp = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const cleanEmail = sEmail.trim().toLowerCase()
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      toast.error('Please enter a valid email address.', { position: 'top-center' })
+      return
+    }
+    if (!isSEmailVerified) {
+      toast.error('Please verify your email address before creating an account.', { position: 'top-center' })
+      return
+    }
+
+    if (!sPassword || sPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long.', { position: 'top-center' })
+      return
+    }
+    if (sPassword !== sConfirmPassword) {
+      toast.error('Passwords do not match.', { position: 'top-center' })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const result = await signUpUser({
+        email: cleanEmail,
+        password: sPassword.trim(),
+        role: 'STUDIO',
+      })
+      setLoading(false)
+      if (result?.user) {
+        finalizeAuth(result.user, result.user.role || 'STUDIO', result.token, result.authCode, result.refreshToken)
+      }
+    } catch (err: any) {
+      setLoading(false)
+      toast.error(err.message || 'Studio account creation failed. Please try again.', { position: 'top-center' })
+    }
+  }
+
   // Mandatory Phone Linking OTP Handlers
   const handleSendLinkOtp = async (e?: React.FormEvent, isResend = false) => {
     if (e) e.preventDefault()
@@ -473,6 +587,10 @@ export function SignUpModal({
   }
 
   const goBack = () => {
+    if (mode === 'studio-options' && isStudioEmailOpen) {
+      setIsStudioEmailOpen(false)
+      return
+    }
     if (mode === 'customer-signup' || mode === 'studio-options' || mode === 'link-phone') {
       setMode('role-select')
       setPendingUser(null)
@@ -616,7 +734,7 @@ export function SignUpModal({
             <div className="space-y-3">
               <div>
                 <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
-                  Sign Up to Darzi
+                  Sign Up to Raffu
                 </h2>
               </div>
 
@@ -931,14 +1049,14 @@ export function SignUpModal({
           )}
 
           {/* ── STUDIO PARTNER OPTIONS ── */}
-          {mode === 'studio-options' && (
+          {mode === 'studio-options' && !isStudioEmailOpen && (
             <div className="space-y-3">
               <div>
                 <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
                   Studio Partner
                 </h2>
                 <p className="text-xs text-[#7A7E85] mt-1">
-                  List your atelier & workbench on Darzi.
+                  List your atelier & workbench on Raffu.
                 </p>
               </div>
 
@@ -950,19 +1068,255 @@ export function SignUpModal({
                   bordered
                 />
 
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[#E8E1D5]" />
+                  <span className="text-[11px] uppercase tracking-wider text-[#9CA3AF] font-medium">or</span>
+                  <div className="h-px flex-1 bg-[#E8E1D5]" />
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setMode('customer-signup')}
+                  onClick={() => setIsStudioEmailOpen(true)}
                   className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] py-2.5 text-[13px] font-semibold text-[#18191B] transition-colors cursor-pointer"
                 >
                   <Mail size={14} className="text-[#9E593B]" />
-                  <span>Join as Customer instead</span>
+                  <span>Sign up with Email</span>
                 </button>
               </div>
 
-              <p className="text-center text-[10px] text-[#9CA3AF] pt-1">
+              <div className="pt-0.5 text-center">
+                <span className="text-xs text-[#7A7E85]">Looking to book alterations? </span>
+                <button
+                  type="button"
+                  onClick={() => setMode('customer-signup')}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer"
+                >
+                  Join as Customer
+                </button>
+              </div>
+
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-0.5">
                 By continuing you agree with our terms and condition thing.
               </p>
+
+              <div className="text-center pt-0.5">
+                <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSwitchToLogin) onSwitchToLogin()
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Log In
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STUDIO PARTNER EMAIL SIGN UP FORM ── */}
+          {mode === 'studio-options' && isStudioEmailOpen && (
+            <div className="space-y-3">
+              <div>
+                <h2 className="font-serif text-[20px] font-bold text-[#18191B] tracking-tight">
+                  Studio Partner Sign Up
+                </h2>
+                <p className="text-xs text-[#7A7E85] mt-1">
+                  Register your atelier with email and password.
+                </p>
+              </div>
+
+              <form onSubmit={handleStudioSignUp} className="space-y-2.5">
+                {/* 1. Email Address Input Area with In-Place Flip */}
+                <div>
+                  {!isSEmailOtpOpen ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Email Address
+                        </label>
+                        {isSEmailVerified && (
+                          <span className="text-[11px] font-semibold text-emerald-600">✓ Verified</span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={sEmail}
+                        disabled={isSEmailVerified}
+                        onChange={(e) => {
+                          setSEmail(e.target.value)
+                          if (isSEmailVerified) setIsSEmailVerified(false)
+                        }}
+                        placeholder="Enter studio email"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors disabled:bg-[#FAF8F5] disabled:text-[#5A5D64]"
+                      />
+                      {!isSEmailVerified && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            disabled={isSendingSEmailOtp}
+                            onClick={() => handleSendStudioEmailOtp(false)}
+                            className="text-xs text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-50"
+                          >
+                            {isSendingSEmailOtp ? 'Sending code…' : 'Send OTP'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64]">
+                          Verify Email Address
+                        </label>
+                        <span className="text-[10px] text-[#7A7E85]">Valid for 10 minutes</span>
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={4}
+                        autoFocus
+                        value={sEmailOtp}
+                        onChange={(e) => setSEmailOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter email otp for verification"
+                        className="w-full rounded-xl border border-[#DDD6CB] bg-white px-3 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (sEmailOtp.length === 4) handleVerifyStudioEmailOtp()
+                          }
+                        }}
+                      />
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSEmailOtpOpen(false)
+                            setSEmailOtp('')
+                          }}
+                          className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <div className="flex items-center gap-3">
+                          {sEmailCountdown > 0 ? (
+                            <span className="text-xs text-[#9CA3AF]">Resend in {sEmailCountdown}s</span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isSendingSEmailOtp}
+                              onClick={() => handleSendStudioEmailOtp(true)}
+                              className="text-xs text-[#7A7E85] hover:text-[#18191B] underline cursor-pointer"
+                            >
+                              Resend
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isVerifyingSEmailOtp || sEmailOtp.length !== 4}
+                            onClick={handleVerifyStudioEmailOtp}
+                            className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] underline cursor-pointer disabled:opacity-40"
+                          >
+                            {isVerifyingSEmailOtp ? 'Verifying…' : 'Verify'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Password Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSPassword ? 'text' : 'password'}
+                      required
+                      value={sPassword}
+                      onChange={(e) => setSPassword(e.target.value)}
+                      placeholder="Enter password (min. 6 characters)"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-3 pr-9 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSPassword(!showSPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF] hover:text-[#18191B] transition-colors cursor-pointer"
+                      aria-label={showSPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Confirm Password Input Area */}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#5A5D64] mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showSConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={sConfirmPassword}
+                      onChange={(e) => setSConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="w-full rounded-xl border border-[#DDD6CB] bg-white pl-3 pr-9 py-2 text-[13px] text-[#18191B] placeholder:text-[#9CA3AF] focus:border-[#9E593B] focus:outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSConfirmPassword(!showSConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#9CA3AF] hover:text-[#18191B] transition-colors cursor-pointer"
+                      aria-label={showSConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showSConfirmPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full rounded-xl bg-[#0F1115] hover:bg-[#9E593B] py-2.5 text-[13px] font-bold text-white transition-all active:scale-[0.99] disabled:opacity-60 shadow-sm cursor-pointer mt-1"
+                >
+                  {loading ? 'Creating Studio Account…' : 'Sign Up'}
+                </button>
+              </form>
+
+              {/* 5. OR Divider & Sign up with Google */}
+              <div>
+                <Divider />
+                <GoogleButton
+                  label="Sign up with Google"
+                  loading={loading}
+                  onClick={() => triggerGoogle('STUDIO')}
+                  bordered
+                />
+              </div>
+
+              {/* 6. Terms & Conditions disclaimer */}
+              <p className="text-center text-[10px] text-[#9CA3AF] pt-0.5">
+                By continuing you agree with our terms and condition thing.
+              </p>
+
+              {/* 7. Switch to Log In */}
+              <div className="text-center pt-0.5">
+                <span className="text-xs text-[#7A7E85]">Already have an account? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onSwitchToLogin) onSwitchToLogin()
+                  }}
+                  className="text-xs font-bold text-[#9E593B] hover:text-[#7A4027] hover:underline cursor-pointer ml-1"
+                >
+                  Log In
+                </button>
+              </div>
             </div>
           )}
 
@@ -1146,11 +1500,10 @@ function GoogleButton({
       type="button"
       disabled={loading}
       onClick={onClick}
-      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2 px-3.5 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${
-        bordered
+      className={`w-full flex items-center justify-center gap-2.5 rounded-xl py-2 px-3.5 text-[13px] font-semibold transition-all cursor-pointer disabled:opacity-60 active:scale-[0.99] ${bordered
           ? 'bg-white hover:bg-[#FAF8F5] border border-[#E8E1D5] text-[#18191B]'
           : 'bg-[#0F1115] hover:bg-[#1e2229] text-white shadow-xs'
-      }`}
+        }`}
     >
       <svg className="size-4 shrink-0" viewBox="0 0 24 24">
         <path
