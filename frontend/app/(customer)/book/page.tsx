@@ -1567,7 +1567,7 @@ export default function BookPage() {
                 origin={selectedCity}
                 className="w-full h-full"
                 showZoomControls={false}
-                disableNavigation={false}
+                disableNavigation={true}
                 isChoosing={isCardFlipped}
                 isFixed={!isCardFlipped}
                 fixedBoxMiles={5.0}
@@ -1580,20 +1580,6 @@ export default function BookPage() {
                 selectedStoreId={selectedStore?.id}
                 searchQuery={mapSearchQuery}
                 onSearchTextChange={setMapSearchQuery}
-                onMapClick={() => {
-                  if (!isCardFlipped) {
-                    savedLocationRef.current = {
-                      coords: userGpsCoords,
-                      city: selectedCity,
-                      addressDetails: { ...addressDetails },
-                      isLiveLocation,
-                      isLocationSaved,
-                    }
-                    setIsCardFlipped(true)
-                    setIsLiveLocation(false)
-                    setIsLocationSaved(false)
-                  }
-                }}
                 onSelectStore={(st) => setSelectedStore(st)}
                 onStoresFound={(foundStores) => {
                   if (foundStores.length > 0 && (!selectedStore || !foundStores.some((s) => s.id === selectedStore.id))) {

@@ -23,6 +23,11 @@ export function clearAuthCookies() {
   clearAllAuth()
 }
 
+export function getAuthHeader(): Record<string, string> {
+  const token = getAuthToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 let isRefreshing = false
 let refreshPromise: Promise<string | null> | null = null
 
@@ -627,11 +632,10 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
 export async function sendOrderPinEmail(orderId: string, email?: string): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
   try {
     const cleanId = orderId ? encodeURIComponent(orderId.replace(/^#/, '').trim()) : ''
-    const res = await fetch(`${API_BASE}/orders/${cleanId}/send-otp-email`, {
+    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${cleanId}/send-otp-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(getAuthHeader() || {}),
       },
       body: JSON.stringify({ email }),
     })
