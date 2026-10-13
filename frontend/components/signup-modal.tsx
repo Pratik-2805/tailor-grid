@@ -25,6 +25,7 @@ import {
   getRefreshToken,
   decodeJwtPayload,
 } from '@/lib/cookies'
+import { RaffuLogo } from './raffu-logo'
 
 type SignUpMode = 'role-select' | 'customer-signup' | 'studio-options' | 'link-phone'
 
@@ -615,31 +616,22 @@ export function SignUpModal({
         {isSubPage && (
           <button
             onClick={goBack}
-            className="absolute top-3.5 left-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
+            className="absolute top-4 left-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#18191B] transition-colors cursor-pointer"
             aria-label="Back"
           >
-            <ArrowLeft size={13} />
+            <ArrowLeft size={14} />
           </button>
         )}
 
         <button
           onClick={onClose}
-          className="absolute top-3.5 right-3.5 z-20 size-7 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
+          className="absolute top-4 right-4 z-20 size-8 rounded-full bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] grid place-items-center text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer"
           aria-label="Close"
         >
-          <X size={13} />
+          <X size={14} />
         </button>
 
-        {/* Header Logo */}
-        <div className="flex items-center justify-center px-5 pt-5 pb-1">
-          <img
-            src="/removed_bg_logo.png"
-            alt="Raffu Logo"
-            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
-          />
-        </div>
-
-        <div className="px-6 pb-5 pt-1 space-y-3">
+        <div className="px-6 pb-6 pt-11 space-y-3.5">
           {/* ── ROLE SELECTION SCREEN ── */}
           {mode === 'role-select' && (
             <div className="space-y-3.5">

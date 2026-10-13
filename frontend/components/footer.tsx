@@ -14,6 +14,7 @@ import { type Screen } from './data'
 import { useApp } from './app-provider'
 import { getAuthRole } from '@/lib/cookies'
 import { subscribeNewsletter } from '@/lib/api'
+import { RaffuLogo } from './raffu-logo'
 
 export function Footer({ go }: { go: (s: Screen) => void }) {
   const { user } = useApp()
@@ -64,8 +65,8 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
 
             {/* Brand Col */}
             <div className="lg:col-span-4">
-              <div className="flex items-center gap-3 mb-4">
-                <img src="/landscape_logo.jpeg" alt="Raffu Logo" className="h-10 sm:h-12 w-auto object-contain rounded-lg" />
+              <div className="flex items-center gap-3 mb-5 cursor-pointer" onClick={() => nav('home')}>
+                <RaffuLogo theme="dark" subtitle="OWN YOUR FIT" size="md" />
               </div>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
                 Professional clothing alterations and tailoring. Guaranteed perfect fit, upfront clear prices, and easy local service.

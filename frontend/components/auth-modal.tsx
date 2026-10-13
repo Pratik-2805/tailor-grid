@@ -7,6 +7,7 @@ import { toast } from 'react-toastify'
 import type { User as UserType } from './data'
 import { getStudioUrl, linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, checkPhoneExists } from '@/lib/api'
 import { setAuthUser, setAuthRole, setAuthToken, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
+import { RaffuLogo } from './raffu-logo'
 
 type AuthMode =
   | 'role-select'
@@ -576,16 +577,7 @@ export function AuthModal({
           <X size={14} />
         </button>
 
-        {/* Header Logo */}
-        <div className="flex items-center justify-center px-6 pt-7 pb-3">
-          <img
-            src="/removed_bg_logo.png"
-            alt="Raffu Logo"
-            className="h-16 sm:h-20 max-h-24 w-auto object-contain transition-all duration-200"
-          />
-        </div>
-
-        <div className="px-6 pb-6 pt-1 space-y-5">
+        <div className="px-6 pt-11 pb-6 space-y-5">
           {/* ================================================================ */}
           {/* ROLE SELECTION – Customer vs Studio Partner                      */}
           {/* ================================================================ */}

@@ -20,6 +20,7 @@ import { linkPhone, loginUser, loginWithGoogle, sendOtp, signUpUser, verifyOtp, 
 import { setAuthRole, setAuthToken, setAuthUser, getAuthToken, setRefreshToken, getRefreshToken, decodeJwtPayload } from '@/lib/cookies'
 import { OtpVerificationCard } from './otp-input'
 import { CustomSelect } from './custom-select'
+import { RaffuLogo } from './raffu-logo'
 
 type AuthMode =
   | 'role-select'
@@ -526,12 +527,8 @@ export function AuthModal({
           )}
 
           <div className="flex items-center gap-3">
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu Logo"
-              className="h-12 sm:h-14 w-auto object-contain transition-all duration-200"
-            />
-            <div>
+            <RaffuLogo devanagariOnly size="md" />
+            <div className="border-l border-[#E8E1D5] pl-3">
               <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
                 Studio Portal
               </span>
