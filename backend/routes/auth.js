@@ -674,55 +674,12 @@ router.post("/send-otp", async (req, res) => {
         // Send real SMS via AWS SNS
         const smsResult = await sendVerificationSms(cleanPhone, code);
 
-        // If email is passed or associated with this user, also dispatch OTP via Resend
-        let emailSent = false;
-        try {
-          let targetEmail = req.body.email
-            ? String(req.body.email).trim().toLowerCase()
-            : null;
-          let customerName = "Raffu User";
-          if (!targetEmail) {
-            const user = await prisma.user.findFirst({
-              where: {
-                OR: [{ phone: cleanPhone }, { contact: cleanPhone }],
-              },
-            });
-            if (user?.email) {
-              targetEmail = user.email.trim().toLowerCase();
-              if (user.name) customerName = user.name;
-            }
-          }
-          if (
-            targetEmail &&
-            targetEmail.includes("@") &&
-            !targetEmail.includes("example.com")
-          ) {
-            const emailRes = await sendAuthOtpEmail({
-              toEmail: targetEmail,
-              otp: code,
-              customerName,
-            });
-            if (emailRes.success) {
-              emailSent = true;
-              console.log(
-                `[AUTH-OTP] Sent OTP code via Resend to ${targetEmail}`,
-              );
-            }
-          }
-        } catch (emailErr) {
-          console.warn(
-            "[AUTH-OTP] Non-blocking email dispatch warning:",
-            emailErr.message,
-          );
-        }
-
         const responsePayload = {
           success: true,
           phone: cleanPhone,
-          message: emailSent
-            ? `Verification code sent via SMS & Email to ${cleanPhone}`
-            : smsResult.message ||
-              `Verification code sent via SMS to ${cleanPhone}`,
+          message:
+            smsResult.message ||
+            `Verification code sent via SMS to ${cleanPhone}`,
         };
         resolveDispatch(responsePayload);
       } catch (dispatchErr) {

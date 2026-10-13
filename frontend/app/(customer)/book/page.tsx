@@ -1069,9 +1069,9 @@ export default function BookPage() {
 
   return (
     <div className="min-h-[calc(100vh-68px)] bg-[#FAF8F5] flex flex-col justify-start">
-      <div className="max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-7">
+      <div className="max-w-[1800px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 lg:py-7">
         {/* Uber Side-by-Side Placement Grid Layout */}
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-8 items-start">
 
           {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
           <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0 [perspective:1400px]">
@@ -1089,15 +1089,15 @@ export default function BookPage() {
                   backfaceVisibility: 'hidden',
                   WebkitBackfaceVisibility: 'hidden',
                 }}
-                className={`bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 space-y-6 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                className={`bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-7 space-y-4 sm:space-y-6 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
                   }`}
               >
 
                 {/* City & Locality Pill Header */}
-                <div className="flex items-center gap-2 text-sm text-[#0F1115] font-medium">
-                  <MapPin size={16} className="text-black shrink-0" />
+                <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-[#0F1115] font-medium">
+                  <MapPin size={15} className="text-black shrink-0" />
                   <span
-                    className="font-extrabold truncate max-w-[320px]"
+                    className="font-bold sm:font-extrabold truncate max-w-[190px] xs:max-w-[240px] sm:max-w-[320px]"
                     title={addressDetails.locality ? `${addressDetails.locality}, ${addressDetails.city || selectedCity}` : (addressDetails.city || selectedCity)}
                   >
                     {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality)}
@@ -1112,7 +1112,7 @@ export default function BookPage() {
                 </div>
 
                 {/* Heading */}
-                <h1 className="text-3xl sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                <h1 className="text-2xl sm:text-[32px] font-black tracking-tight text-[#0F1115] leading-tight sm:leading-[1.15]">
                   Request an alteration
                 </h1>
 
@@ -1124,17 +1124,17 @@ export default function BookPage() {
                       setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
                       setIsServiceDropdownOpen(false)
                     }}
-                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-4 text-white" />
+                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 leading-none mb-1">
                           CATEGORY OF CLOTHES
                         </p>
-                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                        <p className="text-sm sm:text-base font-bold sm:font-extrabold text-black truncate">
                           {currentCategory ? currentCategory.name : 'Loading categories...'}
                         </p>
                       </div>
@@ -1184,17 +1184,17 @@ export default function BookPage() {
                       setIsServiceDropdownOpen(!isServiceDropdownOpen)
                       setIsCategoryDropdownOpen(false)
                     }}
-                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-2xl p-3.5 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
                   >
-                    <div className="flex items-center gap-3.5 min-w-0">
-                      <div className="size-9 rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Scissors className="size-4 text-white" />
+                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Scissors className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 leading-none mb-1">
+                        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 leading-none mb-1">
                           WHAT NEEDS TO BE DONE?
                         </p>
-                        <p className="text-sm sm:text-base font-extrabold text-black truncate">
+                        <p className="text-sm sm:text-base font-bold sm:font-extrabold text-black truncate">
                           {currentService ? currentService.name : 'Select alteration'}
                         </p>
                       </div>
@@ -1239,12 +1239,12 @@ export default function BookPage() {
                 </div>
 
                 {/* 3. Minimal Garment Quantity Strip */}
-                <div className="flex items-center justify-between px-1.5 py-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                <div className="flex items-center justify-between px-1 py-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
                       Garment Quantity
                     </span>
-                    <span className="text-xs font-bold text-neutral-800">
+                    <span className="text-[11px] sm:text-xs font-bold text-neutral-800">
                       ({garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'})
                     </span>
                   </div>
@@ -1274,19 +1274,21 @@ export default function BookPage() {
                   </div>
                 </div>
 
-                {/* 4. Garment Photo / Reference Fit (Optional - Max 4) */}
+                {/* 4. Garment Photos (Optional - Max 4) */}
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 flex items-center gap-1">
-                      <span>GARMENT PHOTO / REFERENCE FIT</span>
-                      <span className="text-gray-400 font-normal">(OPTIONAL)</span>
-                    </p>
-                    <span className="text-[10px] font-bold text-gray-500">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 truncate">
+                        Garment Photos
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-normal shrink-0">(Optional)</span>
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-bold text-gray-500 shrink-0">
                       {uploadedImages.length}/4 Photos
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1300,19 +1302,19 @@ export default function BookPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="size-24 rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-2 text-center transition-all cursor-pointer group shrink-0"
+                        className="size-20 sm:size-24 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all cursor-pointer group shrink-0"
                       >
-                        <div className="size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                          <Camera size={14} className="text-white" />
+                        <div className="size-6 sm:size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                          <Camera size={13} className="text-white" />
                         </div>
-                        <span className="text-[11px] font-extrabold text-black">Add photo</span>
+                        <span className="text-[10px] sm:text-[11px] font-bold text-black">Add photo</span>
                         <span className="text-[9px] text-gray-400 font-medium">JPG | PNG</span>
                       </button>
                     )}
 
                     {/* Thumbnail List */}
                     {uploadedImages.map((imgUrl, idx) => (
-                      <div key={idx} className="relative size-24 rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
+                      <div key={idx} className="relative size-20 sm:size-24 rounded-xl sm:rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
                         <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
@@ -1327,29 +1329,29 @@ export default function BookPage() {
                   </div>
                 </div>
 
-                {/* 4. Fitting & Alteration Notes Section */}
-                <div className="pt-3.5 border-t border-gray-100 space-y-2">
-                  <label htmlFor="booking-notes" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-neutral-500">
-                    <Edit3 size={13} className="text-[#9E593B]" />
-                    <span>Fitting &amp; Alteration Notes / Instructions</span>
+                {/* 5. Fitting & Alteration Notes Section */}
+                <div className="pt-2.5 sm:pt-3.5 border-t border-gray-100 space-y-1.5 sm:space-y-2">
+                  <label htmlFor="booking-notes" className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                    <Edit3 size={12} className="text-[#9E593B]" />
+                    <span>Fitting &amp; Alteration Notes</span>
                   </label>
                   <textarea
                     id="booking-notes"
                     value={bookingNotes}
                     onChange={(e) => setBookingNotes(e.target.value)}
-                    placeholder="Add any specific fitting notes, style preferences, or alteration instructions for the tailor..."
+                    placeholder="Add specific fitting notes or instructions..."
                     rows={2}
-                    className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors resize-none"
+                    className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1 text-xs sm:text-sm font-medium text-black placeholder:text-neutral-400 outline-none transition-colors resize-none leading-relaxed"
                   />
                 </div>
 
 
-                {/* 5. Action Buttons Row */}
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 pt-3 border-t border-gray-100">
+                {/* 6. Action Buttons Row */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 pt-2.5 sm:pt-3 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={handleBookNow}
-                    className="flex-1 rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
+                    className="flex-1 rounded-xl sm:rounded-2xl bg-black hover:bg-neutral-800 text-white font-bold sm:font-extrabold px-5 sm:px-7 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
                   >
                     Book now
                   </button>
@@ -1357,9 +1359,9 @@ export default function BookPage() {
                   <button
                     type="button"
                     onClick={() => setIsScheduleModalOpen(true)}
-                    className="flex-1 sm:flex-initial rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-extrabold px-5 py-3.5 text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                    className="flex-1 sm:flex-initial rounded-xl sm:rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-bold sm:font-extrabold px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
                   >
-                    <Calendar size={18} className="text-black" />
+                    <Calendar size={16} className="text-black" />
                     <span>Schedule for later</span>
                   </button>
                 </div>
@@ -1373,35 +1375,35 @@ export default function BookPage() {
                   WebkitBackfaceVisibility: 'hidden',
                   transform: 'rotateY(180deg)',
                 }}
-                className={`absolute inset-0 bg-white rounded-[28px] border border-gray-200/90 shadow-sm p-6 sm:p-7 flex flex-col justify-between overflow-y-auto ${isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
+                className={`absolute inset-0 bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-7 flex flex-col justify-between overflow-y-auto ${isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
                   }`}
               >
-                <div className="space-y-4 sm:space-y-5">
+                <div className="space-y-3.5 sm:space-y-5">
                   {/* Top Bar: Back button */}
-                  <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                  <div className="flex items-center justify-between pb-2.5 sm:pb-3 border-b border-gray-100">
                     <button
                       type="button"
                       onClick={handleBackToRequest}
-                      className="inline-flex items-center gap-1.5 text-xs font-extrabold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
                     >
-                      <ArrowLeft size={14} className="text-black" />
+                      <ArrowLeft size={13} className="text-black" />
                       <span>Back to Request</span>
                     </button>
                   </div>
 
                   <div>
-                    <h2 className="text-2xl sm:text-[28px] font-black tracking-tight text-[#0F1115] leading-[1.15]">
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-[#0F1115] leading-tight">
                       Address Details
                     </h2>
-                    <p className="text-xs text-neutral-500 font-medium mt-1">
-                      Specify your flat number, apartment, and landmark for precision doorstep fitting.
+                    <p className="text-xs text-neutral-500 font-medium mt-0.5 sm:mt-1">
+                      Specify flat number, apartment, and landmark for precision doorstep fitting.
                     </p>
                   </div>
 
                   {/* Input Fields (Clean Bespoke Luxury Editorial Style) */}
-                  <div className="space-y-4">
+                  <div className="space-y-3.5 sm:space-y-4">
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
+                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
                         House No. / Flat No. <span className="text-red-500 font-bold">*</span>
                       </label>
                       <input
@@ -1409,12 +1411,12 @@ export default function BookPage() {
                         value={addressDetails.houseNo}
                         onChange={(e) => handleAddressFieldChange('houseNo', e.target.value)}
                         placeholder="e.g. Flat 402, B-Wing, 4th Floor"
-                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-2 text-sm sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
+                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 sm:py-2 text-xs sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
+                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
                         Apartment / Society / Building Name
                       </label>
                       <input
@@ -1422,12 +1424,12 @@ export default function BookPage() {
                         value={addressDetails.apartment}
                         onChange={(e) => handleAddressFieldChange('apartment', e.target.value)}
                         placeholder="e.g. Royal Palms Apartment / Green Valley"
-                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-2 text-sm sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
+                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 sm:py-2 text-xs sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
+                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
                         Locality / Street / Area
                       </label>
                       <input
@@ -1435,12 +1437,12 @@ export default function BookPage() {
                         value={addressDetails.locality}
                         onChange={(e) => handleAddressFieldChange('locality', e.target.value)}
                         placeholder="e.g. Bandra West, Hill Road"
-                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-2 text-sm sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
+                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 sm:py-2 text-xs sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
+                      <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
                         City / Region
                       </label>
                       <input
@@ -1448,12 +1450,12 @@ export default function BookPage() {
                         value={addressDetails.city}
                         onChange={(e) => handleAddressFieldChange('city', e.target.value)}
                         placeholder="e.g. Mumbai, MH"
-                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-2 text-sm sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
+                        className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 sm:py-2 text-xs sm:text-base font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
                       />
                     </div>
 
                     {/* Click to Save Address Option */}
-                    <div className="pt-2 border-t border-[#E8E1D5] mt-3">
+                    <div className="pt-2 border-t border-[#E8E1D5] mt-2 sm:mt-3">
                       {!isSaveAddressChecked ? (
                         <button
                           type="button"
@@ -1463,9 +1465,9 @@ export default function BookPage() {
                           <span>Click to Save Address</span>
                         </button>
                       ) : (
-                        <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2.5">
+                        <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2 sm:space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                            <label className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
                               Save your address as
                             </label>
                             <button
@@ -1480,7 +1482,7 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('home')}
-                              className={`flex-1 py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
                                 addressTag === 'home'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
@@ -1493,7 +1495,7 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('work')}
-                              className={`flex-1 py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
                                 addressTag === 'work'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
@@ -1506,7 +1508,7 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('other')}
-                              className={`flex-1 py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
                                 addressTag === 'other'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
@@ -1520,7 +1522,7 @@ export default function BookPage() {
                           {/* If Other is clicked, show "Please Specify" input */}
                           {addressTag === 'other' && (
                             <div className="pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
-                              <label className="block text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
+                              <label className="block text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 mb-0.5">
                                 Please Specify
                               </label>
                               <input
@@ -1528,7 +1530,7 @@ export default function BookPage() {
                                 value={customAddressTag}
                                 onChange={(e) => setCustomAddressTag(e.target.value)}
                                 placeholder="e.g. Friend's Home, Mom's Place, Atelier"
-                                className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-2 text-sm font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
+                                className="w-full bg-transparent border-b border-[#D5CDC2] focus:border-black py-1.5 text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 outline-none transition-colors"
                                 autoFocus
                               />
                             </div>
@@ -1540,14 +1542,14 @@ export default function BookPage() {
                 </div>
 
                 {/* Back Face Footer */}
-                <div className="pt-3 border-t border-gray-100 mt-3">
+                <div className="pt-2.5 sm:pt-3 border-t border-gray-100 mt-2 sm:mt-3">
                   <button
                     type="button"
                     onClick={handleSaveAddress}
-                    className="w-full rounded-2xl bg-black hover:bg-neutral-800 text-white font-extrabold px-7 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center flex items-center justify-center gap-2"
+                    className="w-full rounded-xl sm:rounded-2xl bg-black hover:bg-neutral-800 text-white font-bold sm:font-extrabold px-5 sm:px-7 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center flex items-center justify-center gap-2"
                   >
                     <span>Save & Continue to Order</span>
-                    <Check size={18} />
+                    <Check size={16} />
                   </button>
                 </div>
               </div>
