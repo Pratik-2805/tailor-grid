@@ -332,7 +332,7 @@ export function StudioProfileModal({
                         className="size-20 sm:size-24 rounded-2xl overflow-hidden bg-[#18191B] text-white grid place-items-center relative border border-[#E0D8CB] shadow-xs cursor-pointer group-hover:border-[#9E593B] transition-all"
                         title="Click to change photo"
                       >
-                        {avatar ? (
+                        {avatar && !avatar.includes('dicebear') ? (
                           <img
                             src={avatar}
                             alt={studioName}

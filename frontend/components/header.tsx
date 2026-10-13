@@ -1,8 +1,23 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
-import { Building2, LogOut, Menu, Package, Phone, User as UserIcon, X } from 'lucide-react'
+import {
+  Building2,
+  Info,
+  LifeBuoy,
+  LogOut,
+  Menu,
+  Package,
+  Phone,
+  Receipt,
+  Scissors,
+  Sparkles,
+  User as UserIcon,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { getStudioUrl } from '@/lib/api'
 import { getRefreshToken, getAuthToken } from '@/lib/cookies'
 import { type Screen, type User } from './data'
@@ -18,11 +33,39 @@ interface HeaderProps {
 
 export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onSignOut }: HeaderProps) {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [isPinned, setIsPinned] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const isDropdownOpen = isPinned || isHovered
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  // Close drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        setOpen(false)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -35,12 +78,35 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const nav = (s: Screen) => {
-    go(s)
+  // Whenever the active screen / route changes, close the drawer seamlessly
+  useEffect(() => {
     setOpen(false)
+  }, [currentScreen])
+
+  const nav = (s: Screen) => {
     setIsPinned(false)
     setIsHovered(false)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // If already on the requested screen, close drawer directly
+    if (s === currentScreen) {
+      setOpen(false)
+      return
+    }
+
+    // If guest tapping protected screens, close drawer so login modal shows
+    if (!user && (s === 'orders' || s === 'profile')) {
+      setOpen(false)
+      go(s)
+      return
+    }
+
+    // Trigger navigation to requested screen
+    go(s)
+
+    // Safety fallback: ensure drawer closes after transition
+    setTimeout(() => {
+      setOpen(false)
+    }, 500)
   }
 
   return (
@@ -54,18 +120,38 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
             className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Raffu home"
           >
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu"
-              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
-            />
-            <div className="hidden sm:flex flex-col justify-center">
-              <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
-                On-Demand
-              </span>
-              <span className="text-[9px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
-                Alterations
-              </span>
+            {/* Clean Linen Architectural Devanagari & Latin Lockup */}
+            <div className="flex items-center gap-3 sm:gap-3.5 select-none">
+              {/* Devanagari Wordmark with Red Tailor Stitch Line */}
+              <div className="relative flex items-baseline leading-none">
+                <div className="relative inline-flex items-baseline">
+                  <span className="text-[26px] sm:text-[29px] font-black text-[#0F1115] tracking-tight leading-none inline-flex items-baseline">
+                    रफू
+                  </span>
+                  {/* Crimson Tailor Stitch Seam across the shirorekha */}
+                  <div
+                    className="absolute top-[1.5px] left-0 right-0 h-[2px] pointer-events-none"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(90deg, #DC2626 0, #DC2626 3.5px, transparent 3.5px, transparent 6px)',
+                    }}
+                  />
+                </div>
+                {/* Modern Red End Dot */}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] ml-1.5 mb-0.5 inline-block shrink-0 shadow-xs" />
+              </div>
+
+              {/* Minimalist Divider */}
+              <div className="h-6 w-[1px] bg-[#E8E1D5]" />
+
+              {/* Roman Typographic Counterpart */}
+              <div className="flex flex-col justify-center">
+                <span className="text-[13px] sm:text-[14px] font-black tracking-[0.2em] uppercase text-[#0F1115] leading-none transition-colors group-hover:text-[#9E593B]">
+                  RAFFU
+                </span>
+                <span className="text-[7.5px] sm:text-[8px] font-semibold tracking-[0.22em] uppercase text-[#6B7280] mt-1 leading-none">
+                  CRAFT & TAILORING
+                </span>
+              </div>
             </div>
           </button>
         </div>
@@ -277,13 +363,13 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
           )}
         </div>
 
-        {/* Mobile Hamburger Toggle */}
+        {/* Mobile Hamburger & Profile Trigger */}
         <div className="flex md:hidden items-center gap-2">
           {user ? (
             <button
-              onClick={() => nav('profile')}
-              className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden"
-              aria-label="Profile"
+              onClick={() => setOpen(true)}
+              className="size-8 rounded-full border border-[#E8E1D5] overflow-hidden cursor-pointer active:scale-95 transition-transform"
+              aria-label="Account menu"
             >
               <UserAvatar src={user.avatar} name={user.name} />
             </button>
@@ -292,7 +378,7 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
           ) : null}
           <button
             onClick={() => setOpen(!open)}
-            className="size-9 rounded-full bg-white border border-[#E8E1D5] grid place-items-center text-[#18191B]"
+            className="size-9 rounded-full bg-white border border-[#E8E1D5] grid place-items-center text-[#18191B] cursor-pointer active:scale-95 transition-transform"
             aria-label="Toggle menu"
           >
             {open ? <X size={18} /> : <Menu size={18} />}
@@ -300,98 +386,264 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
         </div>
       </div>
 
-      {/* Mobile Menu */}
-      {open && (
-        <div className="md:hidden border-t border-[#E8E1D5] bg-[#FAF8F5] px-6 py-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-          {user ? (
-            <>
-              {user.role === 'STUDIO' && (
-                <button
-                  onClick={() => {
-                    setOpen(false)
-                    const token = getRefreshToken() || getAuthToken()
-                    window.location.href = getStudioUrl('/', token)
-                  }}
-                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Building2 size={16} className="text-[#9E593B]" />
-                    Studio Dashboard
-                  </span>
-                  <span className="text-[#9CA3AF]">→</span>
-                </button>
-              )}
-              {[
-                { label: 'Book Alterations', screen: 'book' as Screen },
-                { label: 'My Orders', screen: 'orders' as Screen },
-                { label: 'My Profile', screen: 'profile' as Screen },
-                { label: 'How it Works', screen: 'how-it-works' as Screen },
-                { label: 'About Us', screen: 'about' as Screen },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => nav(item.screen)}
-                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
-                >
-                  <span>{item.label}</span>
-                  <span className="text-[#9CA3AF]">→</span>
-                </button>
-              ))}
-            </>
-          ) : isAuthLoading ? (
-            <div className="py-6 flex justify-center items-center">
-              <div className="size-5 rounded-full border-2 border-[#9E593B] border-t-transparent animate-spin" />
+      {/* Mobile Drawer (Uber-style phone view account & navigation menu) */}
+      {open && mounted && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999] md:hidden bg-white flex flex-col justify-between overflow-y-auto animate-in fade-in duration-200 select-none">
+          <div className="px-6 pt-5 pb-6 flex-1 flex flex-col">
+            {/* Top Close Button */}
+            <div className="flex items-center justify-between pb-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-2 -ml-2 rounded-full text-[#111827] hover:bg-gray-100 active:bg-gray-200 transition-colors cursor-pointer"
+                aria-label="Close menu"
+              >
+                <X size={26} strokeWidth={2.4} />
+              </button>
             </div>
-          ) : (
-            <>
-              {[
-                { label: 'How it Works', screen: 'how-it-works' as Screen },
-                { label: 'About Us', screen: 'about' as Screen },
-                { label: 'For Studios & Partners', screen: 'for-partners' as Screen },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  onClick={() => {
-                    if (item.screen === 'orders' && !user && onOpenAuth) {
-                      setOpen(false)
-                      onOpenAuth('signin')
-                    } else {
-                      nav(item.screen)
-                    }
-                  }}
-                  className="flex items-center justify-between py-2.5 text-left text-[14.5px] font-medium text-[#1E2229] hover:text-[#9E593B] transition-colors"
-                >
-                  <span>{item.label}</span>
-                  <span className="text-[#9CA3AF]">→</span>
-                </button>
-              ))}
 
-              <div className="pt-3 mt-2 border-t border-[#E8E1D5]/70 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false)
-                    onOpenAuth?.('signin')
-                  }}
-                  className="w-full flex items-center justify-center gap-2 border border-[#E8E1D5] bg-white rounded-xl py-2.5 text-center text-xs font-semibold text-[#18191B] hover:bg-[#F3EFEA] transition-all cursor-pointer shadow-2xs"
-                >
-                  <UserIcon size={14} className="text-[#9E593B]" />
-                  <span>Log In</span>
-                </button>
+            {/* User Header: Name on left, Avatar on right */}
+            <div className="flex items-center justify-between mt-2 mb-6 gap-4">
+              <h2 className="text-[28px] sm:text-[32px] font-extrabold text-[#111827] tracking-tight leading-tight line-clamp-2">
+                {user ? (user.name || 'Member') : 'Welcome to Raffu'}
+              </h2>
+              <div className="size-14 sm:size-16 rounded-full bg-[#52525B] text-white flex items-center justify-center shrink-0 overflow-hidden shadow-sm border border-gray-200">
+                {user?.avatar ? (
+                  <Image
+                    src={user.avatar}
+                    alt={user.name || 'User'}
+                    width={64}
+                    height={64}
+                    referrerPolicy="no-referrer"
+                    crossOrigin="anonymous"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <UserIcon size={30} className="text-white" strokeWidth={2.2} />
+                )}
+              </div>
+            </div>
+
+            {/* 3 Quick Action Cards Row */}
+            {(() => {
+              const isOrdersScreen = currentScreen === 'orders' || currentScreen === 'order'
+              const isBookScreen = currentScreen === 'book'
+              const activeQuickCard: 'help' | 'book' | 'orders' = isBookScreen
+                ? 'book'
+                : isOrdersScreen
+                ? 'orders'
+                : 'help'
+
+              return (
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                  {/* Help Card */}
+                  <button
+                    type="button"
+                    onClick={() => nav('support')}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl bg-[#F6F6F6] hover:bg-[#EFEFEF] transition-all cursor-pointer text-center group active:scale-95 ${
+                      activeQuickCard === 'help'
+                        ? 'border-2 border-[#DE9920]'
+                        : 'border-2 border-transparent hover:border-[#DE9920]/40'
+                    }`}
+                  >
+                    <LifeBuoy size={24} strokeWidth={2.2} className="text-[#111827] group-hover:scale-105 transition-transform" />
+                    <span className="text-[13px] font-bold text-[#111827]">Help</span>
+                  </button>
+
+                  {/* Book Card */}
+                  <button
+                    type="button"
+                    onClick={() => nav('book')}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl bg-[#F6F6F6] hover:bg-[#EFEFEF] transition-all cursor-pointer text-center group active:scale-95 ${
+                      activeQuickCard === 'book'
+                        ? 'border-2 border-[#DE9920]'
+                        : 'border-2 border-transparent hover:border-[#DE9920]/40'
+                    }`}
+                  >
+                    <Scissors size={24} strokeWidth={2.2} className="text-[#111827] group-hover:scale-105 transition-transform" />
+                    <span className="text-[13px] font-bold text-[#111827]">Book</span>
+                  </button>
+
+                  {/* Orders Card */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (user) {
+                        nav('orders')
+                      } else {
+                        setOpen(false)
+                        onOpenAuth?.('signin')
+                      }
+                    }}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl bg-[#F6F6F6] hover:bg-[#EFEFEF] transition-all cursor-pointer text-center group active:scale-95 ${
+                      activeQuickCard === 'orders'
+                        ? 'border-2 border-[#DE9920]'
+                        : 'border-2 border-transparent hover:border-[#DE9920]/40'
+                    }`}
+                  >
+                    <Package size={24} strokeWidth={2.2} className="text-[#111827] group-hover:scale-105 transition-transform" />
+                    <span className="text-[13px] font-bold text-[#111827]">Orders</span>
+                  </button>
+                </div>
+              )
+            })()}
+
+            {/* Horizontal Divider (Edge to edge like reference) */}
+            <div className="-mx-6 border-b border-[#EEEEEE] mb-3" />
+
+            {/* Vertical Menu Navigation Items */}
+            <div className="space-y-1">
+              {user ? (
+                <>
+                  {/* Studio Dashboard (Only if Studio role) */}
+                  {user.role === 'STUDIO' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOpen(false)
+                        const token = getRefreshToken() || getAuthToken()
+                        window.location.href = getStudioUrl('/', token)
+                      }}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Building2 size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>Studio Dashboard</span>
+                    </button>
+                  )}
+
+                  {/* My Profile */}
+                  <button
+                    type="button"
+                    onClick={() => nav('profile')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <UserIcon size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>My Profile</span>
+                  </button>
+
+                  {/* Book Alterations */}
+                  <button
+                    type="button"
+                    onClick={() => nav('book')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>Book Alterations</span>
+                  </button>
+
+                  {/* My Orders */}
+                  <button
+                    type="button"
+                    onClick={() => nav('orders')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Package size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>My Orders</span>
+                  </button>
+
+                  {/* How it Works */}
+                  <button
+                    type="button"
+                    onClick={() => nav('how-it-works')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Sparkles size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>How it Works</span>
+                  </button>
+
+                  {/* About Us */}
+                  <button
+                    type="button"
+                    onClick={() => nav('about')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>About Us</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Guest Menu Items */}
+                  <button
+                    type="button"
+                    onClick={() => nav('book')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>Book Alterations</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => nav('how-it-works')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Sparkles size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>How it Works</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => nav('about')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>About Us</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => nav('for-partners')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Building2 size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>For Studios & Partners</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Bottom Footer Action */}
+          <div className="px-6 pb-8 pt-3 mt-auto">
+            {user ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  onSignOut?.()
+                }}
+                className="w-full py-4 rounded-2xl bg-[#F3F4F6] hover:bg-red-50 active:bg-red-100 text-[#DC2626] font-semibold text-[16px] text-center transition-colors cursor-pointer active:scale-[0.99]"
+              >
+                Sign out
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2.5">
                 <button
                   type="button"
                   onClick={() => {
                     setOpen(false)
                     onOpenAuth?.('signup')
                   }}
-                  className="w-full flex items-center justify-center gap-2 bg-[#0F1115] hover:bg-[#9E593B] rounded-xl py-2.5 text-center text-xs font-semibold text-white transition-all shadow-xs cursor-pointer active:scale-[0.99]"
+                  className="w-full py-3.5 rounded-2xl bg-[#0F1115] hover:bg-[#9E593B] text-white font-semibold text-[15px] text-center transition-all cursor-pointer shadow-sm active:scale-[0.99]"
                 >
-                  <span>Sign Up</span>
+                  Sign Up
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onOpenAuth?.('signin')
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111827] font-semibold text-[15px] text-center transition-colors cursor-pointer active:scale-[0.99]"
+                >
+                  Log In
                 </button>
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </header>
   )
@@ -401,7 +653,7 @@ function UserAvatar({ src, name }: { src?: string | null; name?: string }) {
   const [failed, setFailed] = useState(false)
   const initial = (name || 'U')[0].toUpperCase()
 
-  if (!src || failed) {
+  if (!src || src.includes('dicebear') || failed) {
     return (
       <div className="size-6 rounded-full bg-[#0F1115] text-white text-[10px] font-bold grid place-items-center shrink-0">
         {initial}

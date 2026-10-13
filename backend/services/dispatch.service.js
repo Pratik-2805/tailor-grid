@@ -32,9 +32,37 @@ function cleanupExpiredSessions() {
 setInterval(cleanupExpiredSessions, 30 * 1000);
 
 /**
+ * Helper to check if a studio catalog item matches the requested service
+ */
+function matchesServiceItem(item, requestedService = {}) {
+  const reqServiceId = requestedService.serviceId ? String(requestedService.serviceId).toLowerCase().trim() : '';
+  const reqServiceName = requestedService.serviceName ? String(requestedService.serviceName).toLowerCase().trim() : '';
+  const reqGarmentId = requestedService.garmentId ? String(requestedService.garmentId).toLowerCase().trim() : '';
+  const reqCategoryId = requestedService.categoryId ? String(requestedService.categoryId).toLowerCase().trim() : '';
+
+  const itemServiceId = item.serviceId ? String(item.serviceId).toLowerCase().trim() : '';
+  const itemName = item.name ? String(item.name).toLowerCase().trim() : '';
+  const itemCatId = item.categoryId ? String(item.categoryId).toLowerCase().trim() : '';
+
+  // 1. Direct serviceId match
+  if (reqServiceId && itemServiceId && reqServiceId === itemServiceId) {
+    return true;
+  }
+  // 2. Direct service name match
+  if (reqServiceName && itemName && reqServiceName === itemName) {
+    return true;
+  }
+  // 3. Category match fallback if serviceId/serviceName not specific or matching category
+  if ((reqGarmentId || reqCategoryId) && itemCatId && (reqGarmentId === itemCatId || reqCategoryId === itemCatId)) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Fetch eligible tailors within 5.0 miles ONCE from PostgreSQL
  */
-async function fetchEligible5MilePool(lat, lng) {
+async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const centerLat = parseFloat(lat);
   const centerLng = parseFloat(lng);
   if (isNaN(centerLat) || isNaN(centerLng)) {
@@ -45,29 +73,61 @@ async function fetchEligible5MilePool(lat, lng) {
     orderBy: { createdAt: 'desc' },
   });
 
-  // Only include studios that have completed price setup in StudioCatalogItem
-  const filledCatalogItems = await prisma.studioCatalogItem.findMany({
-    where: {
-      enabled: true,
-      price: { gt: 0 },
-    },
+  // Fetch all catalog items to evaluate both enabled and disabled status
+  const allCatalogItems = await prisma.studioCatalogItem.findMany({
     select: {
       studioId: true,
       userId: true,
+      serviceId: true,
+      name: true,
+      categoryId: true,
+      enabled: true,
+      price: true,
     },
   });
 
-  const activeStudioIds = new Set(
-    filledCatalogItems.flatMap((item) => [item.studioId, item.userId]).filter(Boolean)
-  );
+  // Group catalog items by studio identifiers (studioId and userId)
+  const studioItemsMap = new Map();
+  allCatalogItems.forEach((item) => {
+    const keys = [item.studioId, item.userId].filter(Boolean);
+    keys.forEach((k) => {
+      const lowerKey = String(k).toLowerCase();
+      if (!studioItemsMap.has(lowerKey)) {
+        studioItemsMap.set(lowerKey, []);
+      }
+      studioItemsMap.get(lowerKey).push(item);
+    });
+  });
 
   const pool = [];
   if (Array.isArray(stores)) {
     stores.forEach((store) => {
-      // Must have configured prices to receive dispatches
-      if (!activeStudioIds.has(store.id)) {
+      const storeKey = String(store.id).toLowerCase();
+      const userKey = store.userId ? String(store.userId).toLowerCase() : null;
+      const storeCatalog = [
+        ...(studioItemsMap.get(storeKey) || []),
+        ...(userKey ? studioItemsMap.get(userKey) || [] : []),
+      ];
+
+      // 1. Studio must have at least one active configured service
+      const hasAnyConfigured = storeCatalog.some((i) => i.enabled && Number(i.price) > 0);
+      if (!hasAnyConfigured) {
         return;
       }
+
+      // 2. Check if the specific requested service is explicitly disabled by this studio
+      if (requestedService && (requestedService.serviceId || requestedService.serviceName || requestedService.garmentId)) {
+        const matchingItems = storeCatalog.filter((item) => matchesServiceItem(item, requestedService));
+        if (matchingItems.length > 0) {
+          // If there are matching items, check if ANY are enabled with price > 0
+          const hasEnabledMatch = matchingItems.some((item) => item.enabled && Number(item.price) > 0);
+          if (!hasEnabledMatch) {
+            // All matches for this service are disabled (toggled off) -> EXCLUDE this studio!
+            return;
+          }
+        }
+      }
+
       if (typeof store.lat === 'number' && typeof store.lng === 'number') {
         const dist = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
         if (dist <= 5.0) {
@@ -113,8 +173,12 @@ async function startOrderDispatch(order) {
     if (existing.hardTimer) clearTimeout(existing.hardTimer);
   }
 
-  // Fetch 5-mile pool ONCE from DB
-  const tailorPool = await fetchEligible5MilePool(lat, lng);
+  // Fetch 5-mile pool ONCE from DB, filtering out studios that have disabled this service
+  const tailorPool = await fetchEligible5MilePool(lat, lng, {
+    serviceId: order.serviceId,
+    serviceName: order.serviceName,
+    garmentId: order.garmentId,
+  });
 
   const now = Date.now();
   const parsedPrice = order.price ? parseFloat(order.price) : 20;
@@ -382,16 +446,37 @@ async function recordTailorAccept(orderId, tailorId) {
       const oData = session?.orderData || {};
       const customerCoords = session?.customerCoords || { lat: 51.5074, lng: -0.1278 };
 
-      // Look up custom price from the accepting studio's catalog
-      const studioCatalogItems = await tx.studioCatalogItem.findMany({
+      // Look up all catalog items (both enabled and disabled) from the accepting studio
+      const allStudioCatalogItems = await tx.studioCatalogItem.findMany({
         where: {
           OR: [
             { studioId: store.id },
             ...(store.userId ? [{ userId: store.userId }] : []),
           ],
-          enabled: true,
         },
       });
+
+      // Verify studio has not disabled this requested service
+      if (allStudioCatalogItems.length > 0) {
+        const orderSvc = {
+          serviceId: oData.serviceId,
+          serviceName: oData.serviceName,
+          garmentId: oData.garmentId,
+        };
+        const matchingItems = allStudioCatalogItems.filter((item) => matchesServiceItem(item, orderSvc));
+        if (matchingItems.length > 0) {
+          const hasEnabledMatch = matchingItems.some((item) => item.enabled && Number(item.price) > 0);
+          if (!hasEnabledMatch) {
+            return {
+              success: false,
+              code: 'SERVICE_DISABLED',
+              message: 'You have disabled this alteration service in your Workshop Price Catalog.',
+            };
+          }
+        }
+      }
+
+      const studioCatalogItems = allStudioCatalogItems.filter((item) => item.enabled && Number(item.price) > 0);
 
       let calculatedPrice = oData.price ? parseFloat(oData.price) : 20;
       let calculatedPayout = oData.partnerPayout ? parseFloat(oData.partnerPayout) : calculatedPrice;
@@ -403,18 +488,11 @@ async function recordTailorAccept(orderId, tailorId) {
         if (studioCatalogItems[0].currencySymbol) studioCurrencySymbol = studioCatalogItems[0].currencySymbol;
 
         // Find match: by serviceId, or service name case-insensitive, or category
-        const matchedItem = studioCatalogItems.find((item) => {
-          if (oData.serviceId && item.serviceId && item.serviceId.toLowerCase() === oData.serviceId.toLowerCase()) {
-            return true;
-          }
-          if (oData.serviceName && item.name && item.name.toLowerCase().trim() === oData.serviceName.toLowerCase().trim()) {
-            return true;
-          }
-          if (oData.garmentId && item.categoryId && item.categoryId.toLowerCase().trim() === oData.garmentId.toLowerCase().trim()) {
-            return true;
-          }
-          return false;
-        });
+        const matchedItem = studioCatalogItems.find((item) => matchesServiceItem(item, {
+          serviceId: oData.serviceId,
+          serviceName: oData.serviceName,
+          garmentId: oData.garmentId,
+        }));
 
         if (matchedItem && Number(matchedItem.price) > 0) {
           calculatedPrice = Number(matchedItem.price);
@@ -595,11 +673,36 @@ async function cancelDispatch(orderId) {
 /**
  * Fetch active pending orders waiting for a specific tailor studio
  */
-function getPendingRequestsForTailor(tailorId) {
+async function getPendingRequestsForTailor(tailorId) {
   if (!tailorId) return [];
   const now = Date.now();
   const pending = [];
   const cleanTailorId = String(tailorId).trim().toLowerCase();
+
+  // Fetch this studio's catalog items to ensure disabled services are never served in pending requests
+  let disabledItems = [];
+  try {
+    const catalogItems = await prisma.studioCatalogItem.findMany({
+      where: {
+        OR: [
+          { studioId: tailorId },
+          { studioId: cleanTailorId },
+          { userId: tailorId },
+          { userId: cleanTailorId },
+        ],
+      },
+      select: {
+        serviceId: true,
+        name: true,
+        categoryId: true,
+        enabled: true,
+        price: true,
+      },
+    });
+    disabledItems = catalogItems.filter((i) => i.enabled === false || Number(i.price) <= 0);
+  } catch (err) {
+    console.warn('[Dispatch Engine] Warning querying studio catalog in getPendingRequestsForTailor:', err.message);
+  }
 
   for (const [orderId, session] of dispatchSessions.entries()) {
     if (session.status === 'SEARCHING') {
@@ -627,6 +730,19 @@ function getPendingRequestsForTailor(tailorId) {
       // 4. Double check that tailor is strictly within currentRadius
       if (typeof tailorInfo.distanceMiles === 'number' && tailorInfo.distanceMiles > session.currentRadius) {
         continue;
+      }
+
+      // 5. Fail-safe: Double check that tailor has NOT disabled this order's service
+      if (disabledItems.length > 0) {
+        const orderSvc = {
+          serviceId: session.orderData?.serviceId,
+          serviceName: session.orderData?.serviceName,
+          garmentId: session.orderData?.garmentId,
+        };
+        const isServiceDisabled = disabledItems.some((item) => matchesServiceItem(item, orderSvc));
+        if (isServiceDisabled) {
+          continue;
+        }
       }
 
       const stageSecondsRemaining = Math.max(0, Math.ceil((session.stageEndsAt - now) / 1000));
@@ -787,4 +903,5 @@ module.exports = {
   getPendingRequestsForTailor,
   getDispatchSessionStatus,
   scheduleOrderForLater,
+  matchesServiceItem,
 };

@@ -51,8 +51,23 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const currentScreen = getScreenFromPath()
   const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const isStudioScreen = !isCustomer && (currentScreen === 'for-partners' || currentScreen === 'partner')
-  const isBookScreen = pathname === '/book' || pathname?.startsWith('/book')
-  const hideFooter = currentScreen === 'partner' || isBookScreen
+
+  // In mobile view, remove footers from book, my orders, orders with id, and profile section for customer view
+  const isCustomerMobileNoFooterScreen =
+    currentScreen === 'book' ||
+    currentScreen === 'orders' ||
+    currentScreen === 'order' ||
+    currentScreen === 'profile' ||
+    pathname === '/book' ||
+    pathname?.startsWith('/book') ||
+    pathname === '/orders' ||
+    pathname?.startsWith('/orders') ||
+    pathname === '/order' ||
+    pathname?.startsWith('/order') ||
+    pathname === '/profile' ||
+    pathname?.startsWith('/profile')
+
+  const hideFooter = currentScreen === 'partner'
 
   // Route Guard: Logged-in customers must never access '/' (home) or partner/studio routes via URL or back navigation
   React.useEffect(() => {
@@ -154,7 +169,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Universal Footer */}
-      {!hideFooter && <Footer go={navigate} />}
+      {!hideFooter && (
+        <div className={isCustomerMobileNoFooterScreen ? 'hidden md:block' : undefined}>
+          <Footer go={navigate} />
+        </div>
+      )}
 
       {/* Dedicated Login Modal */}
       <LoginModal

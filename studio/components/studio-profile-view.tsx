@@ -144,50 +144,7 @@ export function StudioProfileView({
   const [customUrl, setCustomUrl] = useState('')
   const [isMapModalOpen, setIsMapModalOpen] = useState(false)
 
-  // Edit Atelier Identity Quick Modal State (Studio Name & Lead Craftsman)
-  const [isEditAtelierModalOpen, setIsEditAtelierModalOpen] = useState(false)
-  const [draftStudioName, setDraftStudioName] = useState('')
-  const [draftName, setDraftName] = useState('')
-  const [editAtelierSaving, setEditAtelierSaving] = useState(false)
 
-  const openEditAtelierModal = () => {
-    setDraftStudioName(studioName || '')
-    setDraftName(name || '')
-    setIsEditAtelierModalOpen(true)
-  }
-
-  const handleSaveEditAtelier = async () => {
-    const sName = draftStudioName.trim() || studioName
-    const cName = draftName.trim() || name
-
-    setStudioName(sName)
-    setName(cName)
-
-    const updates: Partial<UserType> = {
-      id: user.id,
-      email: user.email,
-      studioName: sName,
-      name: cName,
-    }
-
-    setEditAtelierSaving(true)
-    try {
-      const res = await updateUserProfile(updates)
-      if (onUpdateUser) {
-        onUpdateUser({
-          ...user,
-          ...updates,
-          ...(res?.user || {}),
-        })
-      }
-      toast.success('Atelier name & craftsman updated!', { position: 'top-center' })
-      setIsEditAtelierModalOpen(false)
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to update atelier profile', { position: 'top-center' })
-    } finally {
-      setEditAtelierSaving(false)
-    }
-  }
 
   const [specialties, setSpecialties] = useState<string[]>(() => {
     if (user.specialties && Array.isArray(user.specialties) && user.specialties.length > 0) {
@@ -790,15 +747,6 @@ export function StudioProfileView({
 
                 {/* Photo & Profile Actions */}
                 <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={openEditAtelierModal}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#9E593B]/30 bg-[#FAF3EC] hover:bg-[#9E593B] text-xs font-bold text-[#9E593B] hover:text-white transition-all cursor-pointer shadow-2xs"
-                  >
-                    <Pencil size={13} />
-                    <span>Edit Atelier</span>
-                  </button>
-
                   <input
                     key="atelier-avatar-file-input"
                     id="atelier-avatar-file-input"
@@ -1426,96 +1374,7 @@ export function StudioProfileView({
     )}
 
       {/* ── Edit Atelier Identity Modal ── */}
-      {isEditAtelierModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md bg-white rounded-2xl border border-[#E8E1D5] shadow-2xl overflow-hidden flex flex-col">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[#E8E1D5] flex items-center justify-between bg-[#FAF8F5]">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-[#FAF3EC] text-[#9E593B] border border-[#E8E1D5] flex items-center justify-center">
-                  <Store size={18} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[#1E2229]">
-                    Edit Atelier Details
-                  </h3>
-                  <p className="text-xs text-[#6B7280]">
-                    Update your studio identity and lead master tailor
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsEditAtelierModalOpen(false)}
-                className="p-2 text-[#6B7280] hover:text-[#1E2229] hover:bg-stone-200/50 rounded-xl transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                  Atelier / Studio Name *
-                </label>
-                <input
-                  key="modal-draft-studio-name-input"
-                  id="modal-draft-studio-name-input"
-                  type="text"
-                  required
-                  placeholder="e.g. Mayfair Sartoria or Atelier Studio"
-                  value={draftStudioName || ''}
-                  onChange={(e) => setDraftStudioName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
-                  Lead Master Tailor *
-                </label>
-                <input
-                  key="modal-draft-craftsman-name-input"
-                  id="modal-draft-craftsman-name-input"
-                  type="text"
-                  required
-                  placeholder="e.g. Master Tailor or Craftsman Name"
-                  value={draftName || ''}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs text-[#1E2229] font-semibold bg-white border border-[#E8E1D5] rounded-xl focus:outline-none focus:border-[#9E593B] transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-[#E8E1D5] bg-[#FAF8F5] flex items-center justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => setIsEditAtelierModalOpen(false)}
-                className="px-4 py-2 rounded-xl border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-xs font-semibold text-[#6B7280] transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveEditAtelier}
-                disabled={editAtelierSaving}
-                className="px-5 py-2 rounded-xl bg-[#9E593B] hover:bg-[#8A4C32] text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {editAtelierSaving ? (
-                  <span>Saving...</span>
-                ) : (
-                  <>
-                    <Check size={14} />
-                    <span>Save & Apply</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Uber-Style Locality Picker Google Map Modal */}
       <UberMapModal
