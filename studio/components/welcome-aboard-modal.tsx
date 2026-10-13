@@ -6,6 +6,7 @@ import {
   X,
 } from 'lucide-react'
 import type { User } from '@/components/data'
+import { RaffuLogo } from './raffu-logo'
 
 interface WelcomeAboardModalProps {
   isOpen: boolean
@@ -51,28 +52,9 @@ export function WelcomeAboardModal({
           <X className="w-4 h-4" />
         </button>
 
-        {/* ── Brand Logo Only ── */}
+        {/* ── Brand Logo Only: Pure Devanagari Raffu ── */}
         <div className="relative z-10 flex flex-col items-center justify-center mb-6">
-          <div className="relative">
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu"
-              className="h-10 sm:h-12 w-auto object-contain mx-auto"
-              onError={(e) => {
-                const target = e.currentTarget
-                target.style.display = 'none'
-                const fallback = document.getElementById('raffu-fallback-badge-sm')
-                if (fallback) fallback.style.display = 'flex'
-              }}
-            />
-            <div
-              id="raffu-fallback-badge-sm"
-              style={{ display: 'none' }}
-              className="h-10 px-3 items-center justify-center rounded-lg bg-[#FAF8F5] border border-[#EBE7DF] text-[#713f12] text-xs font-semibold"
-            >
-              RAFFU
-            </div>
-          </div>
+          <RaffuLogo devanagariOnly size="lg" />
         </div>
 
         {/* ── Main Welcome Section ── */}

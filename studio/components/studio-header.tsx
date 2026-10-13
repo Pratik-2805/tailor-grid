@@ -13,6 +13,7 @@ import {
 import { type User } from './data'
 import { CUSTOMER_SITE_URL } from '@/lib/api'
 import { StudioAvatar } from './studio-avatar'
+import { RaffuLogo } from './raffu-logo'
 
 interface StudioHeaderProps {
   user?: User | null
@@ -36,23 +37,7 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
             aria-label={user ? 'Raffu Studio Workbench' : 'Raffu Home'}
             title={user ? 'Raffu Studio Workbench' : 'Return to Raffu Home'}
           >
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu"
-              className="h-9 sm:h-10 w-auto object-contain"
-              onError={(e) => {
-                const target = e.currentTarget
-                target.style.display = 'none'
-              }}
-            />
-            <div className="hidden sm:flex flex-col justify-center border-l border-[#E8E1D5] pl-3">
-              <span className="text-[11px] font-bold tracking-wider uppercase text-[#1E2229] leading-tight">
-                Raffu Atelier
-              </span>
-              <span className="text-[10px] text-[#9E593B] font-semibold">
-                Workbench Node
-              </span>
-            </div>
+            <RaffuLogo subtitle="WORKBENCH NODE" size="sm" />
           </a>
         </div>
 

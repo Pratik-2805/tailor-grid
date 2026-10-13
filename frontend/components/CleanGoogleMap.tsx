@@ -605,9 +605,13 @@ export default function CleanGoogleMap({
         this.div.style.zIndex = '100'
 
         this.div.innerHTML = `
-          <div style="background: #FFFFFF; border-radius: 12px; border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22); padding: 2px 3px; display: flex; flex-direction: column; align-items: center; position: relative; pointer-events: none;">
-            <div style="display: flex; align-items: center; justify-content: center; padding: 1px;">
-              <img src="/removed_bg_logo.png" style="height: 24px; width: auto; max-width: 60px; object-fit: contain; display: block; pointer-events: none;" alt="" />
+          <div style="background: #FFFFFF; border-radius: 12px; border: 1.5px solid #0F1115; box-shadow: 0 4px 14px rgba(0,0,0,0.22); padding: 4px 8px; display: flex; flex-direction: column; align-items: center; position: relative; pointer-events: none;">
+            <div style="display: flex; align-items: baseline; justify-content: center; position: relative; line-height: 1;">
+              <div style="position: relative; display: inline-flex; align-items: baseline;">
+                <span style="font-size: 16px; font-weight: 900; color: #0F1115; letter-spacing: -0.5px; line-height: 1;">रफू</span>
+                <div style="position: absolute; top: 1px; left: 0; right: 0; height: 1.5px; background: repeating-linear-gradient(90deg, #DC2626 0, #DC2626 2px, transparent 2px, transparent 4px);"></div>
+              </div>
+              <span style="width: 4px; height: 4px; border-radius: 50%; background: #DC2626; margin-left: 2px; margin-bottom: 1px; display: inline-block;"></span>
             </div>
             <div style="position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 7px solid #0F1115;"></div>
           </div>

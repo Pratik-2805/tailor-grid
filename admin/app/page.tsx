@@ -63,6 +63,7 @@ import {
   getAdminUser,
   logoutSuperAdmin,
 } from '@/lib/api'
+import { RaffuLogo } from '@/components/raffu-logo'
 import { OverviewTab } from '@/components/overview-tab'
 import { CustomersTab } from '@/components/customers-tab'
 import { StudiosTab } from '@/components/studios-tab'
@@ -687,11 +688,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         {/* Top Minimal Bar */}
         <div className="max-w-7xl w-full mx-auto p-6 flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu Logo"
-              className="h-10 sm:h-11 w-auto object-contain"
-            />
+            <RaffuLogo devanagariOnly size="md" />
             <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#9E593B] px-2.5 py-1 rounded-lg bg-[#FAF3ED] border border-[#EADBCE]">
               Super Admin
             </span>
@@ -810,11 +807,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Super Admin badge */}
           <div className="flex items-center gap-3 shrink-0">
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu Logo"
-              className="h-9 sm:h-10 w-auto object-contain"
-            />
+            <RaffuLogo devanagariOnly size="md" />
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#FAF3ED] text-[#9E593B] border border-[#EADBCE]">
               Super Admin
             </span>
