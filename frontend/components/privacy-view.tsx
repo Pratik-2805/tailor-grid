@@ -1,140 +1,208 @@
 'use client'
 
-import { ArrowLeft, Lock, ShieldCheck, UserCheck } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { Screen } from './data'
 
 export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#18191B] py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Back Button */}
+    <div className="min-h-screen bg-[#FAF8F5] text-[#18191B] py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Navigation */}
         <button
           onClick={() => go('home')}
-          className="inline-flex items-center gap-2 text-xs font-semibold text-[#5A5D64] hover:text-[#18191B] mb-8 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-xs font-semibold text-[#5A5D64] hover:text-[#0F1115] mb-10 transition-colors cursor-pointer group"
         >
-          <ArrowLeft size={14} />
+          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
           <span>Back to Home</span>
         </button>
 
-        {/* Hero Section */}
-        <div className="mb-10 text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#9E593B]/10 text-[#9E593B] text-[11px] font-bold uppercase tracking-wider mb-3">
-            <Lock size={12} />
-            <span>Customer Privacy &amp; Data Security</span>
-          </div>
+        {/* Header */}
+        <header className="mb-10 pb-8 border-b border-[#EAE5DE]">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-[#9E593B] mb-2">
+            Data Privacy &amp; Security
+          </p>
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#0F1115] mb-3">
             Customer Privacy Policy
           </h1>
-          <p className="text-xs sm:text-sm text-[#5A5D64]">
-            Effective Date: October 2026 &middot; Applicable to all Raffu Client Users &amp; Digital Fit Passports
+          <p className="text-xs sm:text-sm text-[#7A7E85]">
+            Last updated: October 2026 &middot; Applies to all customer accounts, fit profiles, and Digital Fit Passports across Raffu.
           </p>
-        </div>
+        </header>
 
-        {/* Key Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
-          <div className="bg-white p-5 rounded-2xl border border-[#EBE6DF] shadow-xs">
-            <ShieldCheck size={20} className="text-[#10B981] mb-2" />
-            <h4 className="text-xs font-bold text-[#0F1115] mb-1">Encrypted Fit Vault</h4>
-            <p className="text-[11px] text-[#5A5D64]">Your personal waist, inseam, and bespoke body measurements are encrypted at rest.</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-[#EBE6DF] shadow-xs">
-            <Lock size={20} className="text-[#9E593B] mb-2" />
-            <h4 className="text-xs font-bold text-[#0F1115] mb-1">Zero Commercial Resale</h4>
-            <p className="text-[11px] text-[#5A5D64]">We never sell, rent, or monetize your personal wardrobe data to third-party advertisers.</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-[#EBE6DF] shadow-xs">
-            <UserCheck size={20} className="text-[#3B82F6] mb-2" />
-            <h4 className="text-xs font-bold text-[#0F1115] mb-1">Full Data Control</h4>
-            <p className="text-[11px] text-[#5A5D64]">Export or permanently delete your fit profile and order history anytime from your profile.</p>
-          </div>
-        </div>
-
-        {/* Policy Document Body */}
-        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#EBE6DF] shadow-xs space-y-8 text-xs sm:text-sm text-[#4A4D54] leading-relaxed">
+        {/* Content Body */}
+        <div className="space-y-10 text-sm sm:text-base text-[#3F4248] leading-relaxed">
           {/* Section 1 */}
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-[#0F1115] flex items-center gap-2">
-              <span className="size-6 rounded-full bg-[#FAF8F5] border border-[#E0D9CF] text-xs grid place-items-center text-[#9E593B]">1</span>
-              <span>Information We Collect as a Customer</span>
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              1. Introduction &amp; Commitment
             </h2>
-            <p>
-              When you use Raffu to book clothing alterations, we collect only the information necessary to fulfill your garment tailoring:
+            <p className="mb-3">
+              Raffu Technologies Ltd. (&quot;Raffu&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) operates an on-demand garment alteration and repair platform connecting customers with certified master tailor ateliers. We act as the data controller for your personal information.
             </p>
-            <ul className="list-disc pl-5 space-y-1.5 text-[#5A5D64]">
-              <li><strong className="text-[#18191B]">Contact Details:</strong> Your name, verified mobile phone number, and email address for order status SMS alerts, PIN verification, and receipts.</li>
-              <li><strong className="text-[#18191B]">Digital Fit Passport:</strong> Body measurements (waist, inseam, chest, sleeve length, shoulder span), garment fit preferences, and sewing notes.</li>
-              <li><strong className="text-[#18191B]">Garment Intake Imagery:</strong> Photos of clothing or fabric condition uploaded during booking or drop-off for quality assurance.</li>
-              <li><strong className="text-[#18191B]">Location Data:</strong> Your locality or postcode to match you with certified ateliers within 1 to 5 miles. We do not track background GPS coordinates when the app is closed.</li>
-            </ul>
+            <p>
+              We are committed to protecting your privacy and personal data under UK GDPR, the Data Protection Act 2018, and international data protection standards. We never sell, rent, or monetize your personal wardrobe data or body measurements to third-party advertisers or data brokers.
+            </p>
           </section>
 
           {/* Section 2 */}
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-[#0F1115] flex items-center gap-2">
-              <span className="size-6 rounded-full bg-[#FAF8F5] border border-[#E0D9CF] text-xs grid place-items-center text-[#9E593B]">2</span>
-              <span>How Partner Ateliers Access Your Data</span>
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              2. Personal Information We Collect
             </h2>
-            <p>
-              Under our strict atelier network guidelines:
+            <p className="mb-3">
+              We collect only the essential information necessary to provide garment alteration, fitting, and repair services:
             </p>
-            <ul className="list-disc pl-5 space-y-1.5 text-[#5A5D64]">
-              <li>Only the single, assigned partner atelier that accepts your order receives your garment notes and measurements.</li>
-              <li>Partner tailors view your 4-digit drop-off PIN to verify physical garment custody upon arrival.</li>
-              <li>Partner tailors are contractually bound by Non-Disclosure Agreements (NDAs) prohibiting them from using your phone number or email for unsolicited direct marketing or offline contact.</li>
+            <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
+              <li>
+                <strong className="text-[#0F1115]">Contact &amp; Account Details:</strong> Your full name, mobile telephone number, and email address used for booking confirmations, SMS status notifications, drop-off PIN alerts, and digital receipts.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Digital Fit Passport:</strong> Body measurements (such as waist, inseam, chest circumference, shoulder span, sleeve length), garment fit preferences, and master tailor pinning notes.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Garment Intake Imagery:</strong> Photos of clothing, pre-existing wear, tear areas, or pinning reference marks submitted during online booking or atelier drop-off for quality assurance.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Locality &amp; Postal Code:</strong> Your locality or postal code used to match you with verified partner ateliers within convenient traveling distance. We do not track continuous background GPS coordinates.
+              </li>
             </ul>
           </section>
 
           {/* Section 3 */}
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-[#0F1115] flex items-center gap-2">
-              <span className="size-6 rounded-full bg-[#FAF8F5] border border-[#E0D9CF] text-xs grid place-items-center text-[#9E593B]">3</span>
-              <span>Payment &amp; Transaction Security</span>
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              3. Digital Fit Passport &amp; Vault Encryption
             </h2>
+            <p className="mb-3">
+              Your Digital Fit Passport is designed to eliminate the hassle of measuring your clothes repeatedly for future alterations. All measurement data and fitting notes are encrypted at rest using AES-256 standard encryption in our secure fit vault.
+            </p>
             <p>
-              All customer payments are processed through PCI-DSS Level 1 certified payment infrastructure (such as Stripe and authorized banking gateways). Raffu does not store raw credit/debit card numbers or CVVs on our backend servers.
+              You maintain full control over your measurements and can view, edit, or delete stored sizing specifications at any time directly through your customer profile.
             </p>
           </section>
 
           {/* Section 4 */}
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-[#0F1115] flex items-center gap-2">
-              <span className="size-6 rounded-full bg-[#FAF8F5] border border-[#E0D9CF] text-xs grid place-items-center text-[#9E593B]">4</span>
-              <span>Your Privacy Rights &amp; Data Deletion</span>
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              4. How Partner Ateliers Access Your Data
             </h2>
-            <p>
-              In accordance with international privacy laws (including the Digital Personal Data Protection Act and UK GDPR):
+            <p className="mb-3">
+              To complete your garment alteration, only the specific partner atelier assigned to your order receives access to relevant order notes:
             </p>
-            <ul className="list-disc pl-5 space-y-1.5 text-[#5A5D64]">
-              <li><strong className="text-[#18191B]">Right to Rectify:</strong> You can edit your personal details, home address, and stored measurements at any time directly in your Customer Profile.</li>
-              <li><strong className="text-[#18191B]">Right to Erase:</strong> You may request complete erasure of your account, order archives, and Fit Passport by emailing <code className="px-1.5 py-0.5 rounded bg-[#FAF8F5] border border-[#EBE6DF] text-[#0F1115]">privacy@raffu.com</code>.</li>
+            <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
+              <li>
+                Ateliers receive your unique 4-digit drop-off PIN to verify physical garment custody upon handover.
+              </li>
+              <li>
+                Craftsmen view target hem lengths, taper measurements, sewing instructions, and reference photos needed to complete the alteration.
+              </li>
+              <li>
+                Partner studios are bound by strict Non-Disclosure Agreements (NDAs) and are strictly prohibited from using customer phone numbers or emails for unsolicited commercial contact or off-platform marketing.
+              </li>
             </ul>
           </section>
 
           {/* Section 5 */}
-          <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold text-[#0F1115] flex items-center gap-2">
-              <span className="size-6 rounded-full bg-[#FAF8F5] border border-[#E0D9CF] text-xs grid place-items-center text-[#9E593B]">5</span>
-              <span>Contact Our Data Protection Officer</span>
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              5. Lawful Basis for Data Processing
             </h2>
-            <p>
-              If you have any questions regarding your data privacy, fit passport storage, or wish to exercise your data rights, contact:
+            <p className="mb-3">
+              We process your personal information only when we have a valid lawful basis:
             </p>
-            <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#EBE6DF] text-xs space-y-1">
-              <p className="font-bold text-[#0F1115]">Raffu Technologies Ltd. &middot; Privacy &amp; Compliance Office</p>
-              <p className="text-[#5A5D64]">Email: privacy@raffu.com &middot; concierge@raffu.com</p>
-              <p className="text-[#5A5D64]">Support Hotline: +91 98450 95969 / +44 20 7946 0912</p>
-            </div>
+            <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
+              <li>
+                <strong className="text-[#0F1115]">Contract Performance:</strong> Processing your contact details, order specs, measurements, and drop-off PIN is strictly necessary to fulfill your alteration booking and honor our 100% Fit Guarantee.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Legitimate Interests:</strong> Managing customer service inquiries, recording pre-alteration garment condition photos, ensuring network security, and improving our tailoring workflows.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Legal Obligation:</strong> Maintaining accounting, VAT, and financial transaction records for statutory compliance.
+              </li>
+              <li>
+                <strong className="text-[#0F1115]">Consent:</strong> Sending promotional offers and atelier updates where you have opted in (which you may withdraw at any time).
+              </li>
+            </ul>
           </section>
-        </div>
 
-        {/* Back to Home CTA */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => go('home')}
-            className="px-6 py-2.5 rounded-full bg-[#18191B] hover:bg-[#9E593B] text-white text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer"
-          >
-            Return to Raffu Home
-          </button>
+          {/* Section 6 */}
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              6. Payment Security &amp; Financial Information
+            </h2>
+            <p className="mb-3">
+              All online customer payments are processed through PCI-DSS Level 1 certified payment infrastructure (such as Stripe and authorized banking partners).
+            </p>
+            <p>
+              Raffu does not store raw credit/debit card numbers or security CVVs on our backend servers. Payment transactions are executed using secure tokenization protocols.
+            </p>
+          </section>
+
+          {/* Section 7 */}
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              7. Data Retention Schedule
+            </h2>
+            <p className="mb-3">
+              We retain personal data only as long as necessary to fulfill the purposes for which it was collected:
+            </p>
+            <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
+              <li><strong className="text-[#0F1115]">Fit Passport:</strong> Retained for the active life of your account to facilitate effortless repeat alterations, or until you request deletion.</li>
+              <li><strong className="text-[#0F1115]">Garment Intake Imagery:</strong> Kept for 90 days after order completion for quality verification and then permanently purged.</li>
+              <li><strong className="text-[#0F1115]">Order &amp; PIN History:</strong> Kept for 3 years for warranty and dispute auditing.</li>
+              <li><strong className="text-[#0F1115]">Invoices &amp; Tax Records:</strong> Retained for 6 years in accordance with statutory accounting obligations.</li>
+            </ul>
+          </section>
+
+          {/* Section 8 */}
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              8. Your Statutory Privacy Rights
+            </h2>
+            <p className="mb-3">
+              Under applicable data protection legislation, you possess the following rights regarding your information:
+            </p>
+            <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
+              <li><strong className="text-[#0F1115]">Right to Access:</strong> Request a complete digital export of all order records and fit passport dimensions held in your account.</li>
+              <li><strong className="text-[#0F1115]">Right to Rectify:</strong> Correct or fine-tune any inaccurate personal details or measurements at any time.</li>
+              <li><strong className="text-[#0F1115]">Right to Erasure:</strong> Request the complete and permanent deletion of your profile, fit passport, and order history.</li>
+              <li><strong className="text-[#0F1115]">Right to Withdraw Consent:</strong> Unsubscribe from marketing communications at any time with a single click.</li>
+            </ul>
+          </section>
+
+          {/* Section 9 */}
+          <section>
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              9. Cookies &amp; Platform Diagnostics
+            </h2>
+            <p className="mb-3">
+              We use strictly necessary cookies to keep you signed in, remember your selected garments, and preserve items in your active alteration draft.
+            </p>
+            <p>
+              Anonymized telemetry helps us measure platform reliability and fix bugs. We do not use third-party tracking pixels to monitor your browsing behavior across external websites.
+            </p>
+          </section>
+
+          {/* Section 10 */}
+          <section className="pt-6 border-t border-[#EAE5DE]">
+            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
+              10. Contact Our Privacy Office
+            </h2>
+            <p className="mb-2">
+              For any questions regarding your data protection, fit vault privacy, or to exercise your statutory data rights, reach out directly:
+            </p>
+            <p className="text-sm font-medium text-[#0F1115]">
+              Raffu Privacy &amp; Compliance Office &middot;{' '}
+              <a href="mailto:privacy@raffu.com" className="text-[#9E593B] hover:underline">
+                privacy@raffu.com
+              </a>{' '}
+              &middot;{' '}
+              <a href="mailto:concierge@raffu.com" className="text-[#9E593B] hover:underline">
+                concierge@raffu.com
+              </a>
+            </p>
+          </section>
         </div>
       </div>
     </div>

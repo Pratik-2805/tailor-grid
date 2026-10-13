@@ -11,6 +11,7 @@ export type Screen =
   | 'contact'
   | 'support'
   | 'privacy'
+  | 'terms'
 
 export type GarmentCategory = {
   id: string

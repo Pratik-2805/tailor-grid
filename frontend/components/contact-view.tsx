@@ -4,10 +4,7 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
-  Clock,
   Mail,
-  MapPin,
-  MessageSquare,
   Phone,
   Send,
   ShieldCheck,
@@ -69,72 +66,53 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-          {/* Left Column: Direct Contact Info & Hours */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EBE6DF] shadow-xs space-y-6">
-              <h2 className="text-lg font-serif font-bold text-[#0F1115]">
+          {/* Left Column: Direct Contact Info */}
+          <div className="lg:col-span-5 space-y-6 pt-2">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-serif font-bold text-[#0F1115] mb-2">
                 Direct Concierge Desk
               </h2>
+              <p className="text-xs sm:text-sm text-[#5A5D64]">
+                Reach out to our master tailors directly for any inquiries or fitting advice.
+              </p>
+            </div>
 
-              <div className="space-y-4">
-                <a
-                  href="tel:+919845095969"
-                  className="flex items-start gap-3.5 p-3.5 rounded-2xl hover:bg-[#FAF8F5] transition-colors group"
-                >
-                  <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
-                    <Phone size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Phone Concierge</p>
-                    <p className="text-sm font-bold text-[#0F1115]">+91 98450 95969 / +44 20 7946 0912</p>
-                    <p className="text-xs text-[#5A5D64]">Direct line to master tailor desk</p>
-                  </div>
-                </a>
-
-                <a
-                  href="mailto:concierge@raffu.com"
-                  className="flex items-start gap-3.5 p-3.5 rounded-2xl hover:bg-[#FAF8F5] transition-colors group"
-                >
-                  <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
-                    <Mail size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Email Support</p>
-                    <p className="text-sm font-bold text-[#0F1115]">concierge@raffu.com</p>
-                    <p className="text-xs text-[#5A5D64]">Replies within 2 hours during atelier hours</p>
-                  </div>
-                </a>
-
-                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#EAE5DE]">
-                  <div className="size-10 rounded-xl bg-white text-[#10B981] grid place-items-center shrink-0 shadow-2xs">
-                    <Clock size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Atelier Operating Hours</p>
-                    <p className="text-xs font-bold text-[#0F1115]">Mon – Sat: 09:00 – 20:00</p>
-                    <p className="text-xs text-[#5A5D64]">Sunday: 11:00 – 17:00 (Emergency Dispatch Only)</p>
-                  </div>
+            <div className="space-y-3">
+              <a
+                href="tel:+919845095969"
+                className="flex items-start gap-3.5 p-3.5 -mx-3.5 rounded-2xl hover:bg-white/70 transition-colors group"
+              >
+                <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Phone size={18} />
                 </div>
-
-                <div className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-[#FAF8F5] border border-[#EAE5DE]">
-                  <div className="size-10 rounded-xl bg-white text-[#9E593B] grid place-items-center shrink-0 shadow-2xs">
-                    <MapPin size={18} />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Partner Ateliers</p>
-                    <p className="text-xs font-bold text-[#0F1115]">Over 500 Certified Partner Ateliers</p>
-                    <p className="text-xs text-[#5A5D64]">Mumbai · Pune · Nagpur · Nashik · Aurangabad & across Maharashtra</p>
-                  </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Phone Concierge</p>
+                  <p className="text-sm font-bold text-[#0F1115]">+91 98450 95969 / +44 20 7946 0912</p>
+                  <p className="text-xs text-[#5A5D64]">Direct line to master tailor desk</p>
                 </div>
-              </div>
+              </a>
 
-              {/* Fit Guarantee Callout */}
-              <div className="p-4 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-start gap-3">
-                <ShieldCheck size={20} className="text-[#10B981] shrink-0 mt-0.5" />
-                <div className="text-xs text-[#065F46]">
-                  <span className="font-bold block text-sm mb-0.5">100% Fit Guarantee Active</span>
-                  Every garment alteration booked via Raffu includes free micro-adjustments within 48 hours of trial.
+              <a
+                href="mailto:concierge@raffu.com"
+                className="flex items-start gap-3.5 p-3.5 -mx-3.5 rounded-2xl hover:bg-white/70 transition-colors group"
+              >
+                <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Mail size={18} />
                 </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Email Support</p>
+                  <p className="text-sm font-bold text-[#0F1115]">concierge@raffu.com</p>
+                  <p className="text-xs text-[#5A5D64]">Replies within 2 hours</p>
+                </div>
+              </a>
+            </div>
+
+            {/* Fit Guarantee Callout */}
+            <div className="p-4 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-start gap-3">
+              <ShieldCheck size={20} className="text-[#10B981] shrink-0 mt-0.5" />
+              <div className="text-xs text-[#065F46]">
+                <span className="font-bold block text-sm mb-0.5">100% Fit Guarantee Active</span>
+                Every garment alteration booked via Raffu includes free micro-adjustments within 48 hours of trial.
               </div>
             </div>
           </div>
