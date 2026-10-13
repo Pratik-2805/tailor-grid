@@ -204,7 +204,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
         <div className="flex items-center justify-between pb-8 border-b border-[#E8E1D5]">
           <div className="flex items-center gap-4 sm:gap-5">
             <div className="size-14 sm:size-16 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white font-serif text-xl sm:text-2xl font-bold grid place-items-center">
-              {user.avatar ? (
+              {user.avatar && !user.avatar.includes('dicebear') ? (
                 <Image
                   src={user.avatar}
                   alt={user.name}

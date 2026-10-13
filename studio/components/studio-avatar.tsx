@@ -47,7 +47,7 @@ export function StudioAvatar({
   }[size]
 
   const shapeClasses = shape === 'circle' ? 'rounded-full' : 'rounded-2xl'
-  const hasValidImage = Boolean(avatar && avatar.trim() && !imgError)
+  const hasValidImage = Boolean(avatar && avatar.trim() && !avatar.includes('dicebear') && !imgError)
 
   return (
     <div

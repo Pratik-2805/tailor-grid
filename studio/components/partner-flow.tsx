@@ -683,6 +683,7 @@ export function PartnerFlow({
 
   // Price Catalog Verification State & Persistent Prompt
   const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(null)
+  const [studioCatalogItems, setStudioCatalogItems] = useState<StudioCatalogItemData[]>([])
   const [showCatalogPromptModal, setShowCatalogPromptModal] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
 
@@ -697,6 +698,9 @@ export function PartnerFlow({
       .then((data) => {
         if (!isMounted) return
         setHasFilledCatalog(data.hasFilledCatalog)
+        if (Array.isArray(data.items)) {
+          setStudioCatalogItems(data.items)
+        }
         if (data.currency) {
           setStudioCurrency(data.currency)
           setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
@@ -1142,6 +1146,9 @@ export function PartnerFlow({
   const handleCatalogSaved = (items: StudioCatalogItemData[], curr?: string, currSym?: string) => {
     setHasFilledCatalog(true)
     setShowCatalogPromptModal(false)
+    if (Array.isArray(items)) {
+      setStudioCatalogItems(items)
+    }
     const effectiveCurr = curr || items?.[0]?.currency || studioCurrency
     const effectiveSym = currSym || items?.[0]?.currencySymbol || getCurrencySymbol(effectiveCurr)
 
@@ -1282,9 +1289,40 @@ export function PartnerFlow({
     })
   }
 
+  // Helper to determine if a service is disabled by this studio partner
+  const isServiceDisabledForStudio = (serviceId?: string, serviceName?: string, garmentId?: string) => {
+    if (!studioCatalogItems || studioCatalogItems.length === 0) return false
+    const sId = serviceId ? serviceId.toLowerCase().trim() : ''
+    const sName = serviceName ? serviceName.toLowerCase().trim() : ''
+    const gId = garmentId ? garmentId.toLowerCase().trim() : ''
+
+    const matches = studioCatalogItems.filter((item) => {
+      const itemSId = item.serviceId ? item.serviceId.toLowerCase().trim() : ''
+      const itemName = item.name ? item.name.toLowerCase().trim() : ''
+      const itemCat = item.categoryId ? item.categoryId.toLowerCase().trim() : ''
+
+      if (sId && itemSId && sId === itemSId) return true
+      if (sName && itemName && sName === itemName) return true
+      if (gId && itemCat && gId === itemCat) return true
+      return false
+    })
+
+    if (matches.length > 0) {
+      // If matching items exist, service is disabled if NONE of the matches are enabled with price > 0
+      const hasActive = matches.some((item) => item.enabled !== false && Number(item.price) > 0)
+      return !hasActive
+    }
+    return false
+  }
+
   // Map incoming dispatch requests (Single Dispatch Engine in Server Cache)
   const dispatchBroadcasts: BroadcastRequest[] = pendingDispatches
     .filter((pd) => !permanentlySkippedIds.includes(pd.orderId) && !acceptedOrderIds.includes(pd.orderId))
+    .filter((pd) => !isServiceDisabledForStudio(
+      pd.order?.serviceId || (pd as any).serviceId,
+      pd.serviceName || pd.order?.serviceName,
+      pd.order?.garmentId || (pd as any).garmentId
+    ))
     .map((pd) => ({
       id: pd.orderId,
       customerName: pd.customerName || pd.order?.customerName || 'Customer',
@@ -1311,30 +1349,32 @@ export function PartnerFlow({
     }))
 
   // Map live allocated orders from database (real customer alteration bookings)
-  const allocatedBroadcasts: BroadcastRequest[] = liveAllocatedOrders.map((o) => ({
-    id: o.id,
-    customerName: o.customerName || 'Valued Customer',
-    customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
-    distanceMiles: 0.8,
-    garmentName: o.garmentName || 'Garment Alteration',
-    quantity: o.quantity || 1,
-    serviceName: o.serviceName || 'Custom Fit & Alteration',
-    fittingType: 'NEED_STUDIO_FITTING' as const,
-    garmentBrand: o.garmentBrand || '',
-    notes: o.notes || o.fitNotes || '',
-    fitNotes: o.notes || o.fitNotes || '',
-    partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
-    price: o.price,
-    currency: o.currency,
-    currencySymbol: o.currencySymbol,
-    slaHours: o.slaHours || 48,
-    imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
-    otp: o.otp || '0000',
-    isRealCustomerOrder: true,
-    realOrder: o,
-    secondsRemaining: 15,
-    stage: 1,
-  }))
+  const allocatedBroadcasts: BroadcastRequest[] = liveAllocatedOrders
+    .filter((o) => !isServiceDisabledForStudio(o.serviceId, o.serviceName, o.garmentId))
+    .map((o) => ({
+      id: o.id,
+      customerName: o.customerName || 'Valued Customer',
+      customerArea: o.postcode ? `${o.postcode} · Local Area` : 'Local Area · 0.8 mi away',
+      distanceMiles: 0.8,
+      garmentName: o.garmentName || 'Garment Alteration',
+      quantity: o.quantity || 1,
+      serviceName: o.serviceName || 'Custom Fit & Alteration',
+      fittingType: 'NEED_STUDIO_FITTING' as const,
+      garmentBrand: o.garmentBrand || '',
+      notes: o.notes || o.fitNotes || '',
+      fitNotes: o.notes || o.fitNotes || '',
+      partnerPayout: o.partnerPayout || Math.round((o.price || 30) * 0.75),
+      price: o.price,
+      currency: o.currency,
+      currencySymbol: o.currencySymbol,
+      slaHours: o.slaHours || 48,
+      imageUrl: o.intakePhotoUrl || (o as any).imageUrl || '',
+      otp: o.otp || '0000',
+      isRealCustomerOrder: true,
+      realOrder: o,
+      secondsRemaining: 15,
+      stage: 1,
+    }))
 
   // Merge live cache dispatch sessions and database allocated alteration bookings
   const dispatchOrderIds = new Set(dispatchBroadcasts.map((d) => d.id))
