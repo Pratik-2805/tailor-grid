@@ -120,18 +120,38 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
             className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Raffu home"
           >
-            <img
-              src="/removed_bg_logo.png"
-              alt="Raffu"
-              className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
-            />
-            <div className="hidden sm:flex flex-col justify-center">
-              <span className="text-[10px] font-extrabold tracking-widest uppercase text-[#9E593B] block leading-none">
-                On-Demand
-              </span>
-              <span className="text-[9px] font-bold tracking-wider uppercase text-[#6B7280] block mt-0.5 leading-none">
-                Alterations
-              </span>
+            {/* Clean Linen Architectural Devanagari & Latin Lockup */}
+            <div className="flex items-center gap-3 sm:gap-3.5 select-none">
+              {/* Devanagari Wordmark with Red Tailor Stitch Line */}
+              <div className="relative flex items-baseline leading-none">
+                <div className="relative inline-flex items-baseline">
+                  <span className="text-[26px] sm:text-[29px] font-black text-[#0F1115] tracking-tight leading-none inline-flex items-baseline">
+                    रफू
+                  </span>
+                  {/* Crimson Tailor Stitch Seam across the shirorekha */}
+                  <div
+                    className="absolute top-[1.5px] left-0 right-0 h-[2px] pointer-events-none"
+                    style={{
+                      backgroundImage: 'repeating-linear-gradient(90deg, #DC2626 0, #DC2626 3.5px, transparent 3.5px, transparent 6px)',
+                    }}
+                  />
+                </div>
+                {/* Modern Red End Dot */}
+                <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626] ml-1.5 mb-0.5 inline-block shrink-0 shadow-xs" />
+              </div>
+
+              {/* Minimalist Divider */}
+              <div className="h-6 w-[1px] bg-[#E8E1D5]" />
+
+              {/* Roman Typographic Counterpart */}
+              <div className="flex flex-col justify-center">
+                <span className="text-[13px] sm:text-[14px] font-black tracking-[0.2em] uppercase text-[#0F1115] leading-none transition-colors group-hover:text-[#9E593B]">
+                  RAFFU
+                </span>
+                <span className="text-[7.5px] sm:text-[8px] font-semibold tracking-[0.22em] uppercase text-[#6B7280] mt-1 leading-none">
+                  CRAFT & TAILORING
+                </span>
+              </div>
             </div>
           </button>
         </div>
@@ -633,7 +653,7 @@ function UserAvatar({ src, name }: { src?: string | null; name?: string }) {
   const [failed, setFailed] = useState(false)
   const initial = (name || 'U')[0].toUpperCase()
 
-  if (!src || failed) {
+  if (!src || src.includes('dicebear') || failed) {
     return (
       <div className="size-6 rounded-full bg-[#0F1115] text-white text-[10px] font-bold grid place-items-center shrink-0">
         {initial}

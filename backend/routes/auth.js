@@ -459,11 +459,7 @@ async function findOrLinkUser({
           ? user.avatar
           : avatar && !avatar.includes("dicebear")
             ? avatar
-            : user.avatar ||
-              avatar ||
-              `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                normEmail || normPhone || "user",
-              )}`,
+            : null,
       address: address || resolvedStore?.address || user.address || null,
       postcode: postcode || resolvedStore?.postcode || user.postcode || null,
       contact:
@@ -561,8 +557,7 @@ async function findOrLinkUser({
       password: password || null,
       contact: contactStr,
       avatar:
-        avatar ||
-        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(contactStr)}`,
+        avatar && !avatar.includes("dicebear") ? avatar : null,
       address:
         address ||
         (resolvedRole === "STUDIO" ? resolvedStore?.address || null : null),
@@ -1491,9 +1486,7 @@ router.post("/google", async (req, res) => {
       const createdTempUser = await findOrLinkUser({
         name: name || "Google User",
         email: cleanEmail,
-        avatar:
-          avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        avatar: avatar && !avatar.includes("dicebear") ? avatar : null,
         method: "google",
         role: "TEMP_STUDIO",
         status: "INACTIVE",
@@ -1524,9 +1517,7 @@ router.post("/google", async (req, res) => {
       {
         email: cleanEmail,
         name: name || "Google User",
-        avatar:
-          avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+        avatar: avatar && !avatar.includes("dicebear") ? avatar : null,
         role,
         method: "google",
         type: "pending_google_signup",
@@ -1539,9 +1530,7 @@ router.post("/google", async (req, res) => {
       tempSignupId,
       email: cleanEmail,
       name: name || "Google User",
-      avatar:
-        avatar ||
-        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+      avatar: avatar && !avatar.includes("dicebear") ? avatar : null,
       role,
       method: "google",
     });
@@ -1550,9 +1539,7 @@ router.post("/google", async (req, res) => {
       id: tempSignupId,
       name: name || "Google User",
       email: cleanEmail,
-      avatar:
-        avatar ||
-        `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(cleanEmail)}`,
+      avatar: avatar && !avatar.includes("dicebear") ? avatar : null,
       role,
       status: "ACTIVE",
       contact: cleanEmail,

@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Tag,
   Search,
-  Plus,
   Trash2,
   Check,
   CheckCircle2,
@@ -14,7 +13,8 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  FolderPlus,
+  ChevronLeft,
+  ChevronRight,
   Coins,
   X,
 } from 'lucide-react'
@@ -100,6 +100,17 @@ export function PriceCatalogView({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL')
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
+  const pillsContainerRef = useRef<HTMLDivElement>(null)
+
+  const scrollPills = (direction: 'left' | 'right') => {
+    if (pillsContainerRef.current) {
+      const scrollAmount = 220
+      pillsContainerRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      })
+    }
+  }
 
   // Add Custom Service Form Modal
   const [showAddServiceModal, setShowAddServiceModal] = useState(false)
@@ -503,31 +514,6 @@ export function PriceCatalogView({
           >
             <span>⚡ Use Raffu Rates</span>
           </button>
-
-          {/* Add Category */}
-          <button
-            onClick={() => setShowAddCategoryModal(true)}
-            type="button"
-            className="py-1.5 px-3 rounded-xl border border-[#E0D5C5] bg-white hover:bg-[#FAF8F5] text-xs font-medium text-[#4A4B4D] transition-colors cursor-pointer flex items-center gap-1"
-          >
-            <FolderPlus className="w-3.5 h-3.5 text-[#7A7E85]" />
-            <span>+ Category</span>
-          </button>
-
-          {/* Add Service */}
-          <button
-            onClick={() => {
-              if (allCategories.length > 0) {
-                setTargetCategoryIdForAdd(allCategories[0].id)
-                setShowAddServiceModal(true)
-              }
-            }}
-            type="button"
-            className="py-1.5 px-3.5 rounded-xl bg-[#9E593B] hover:bg-[#854529] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs flex items-center gap-1 active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>+ Service</span>
-          </button>
         </div>
       </div>
 
@@ -567,31 +553,57 @@ export function PriceCatalogView({
           )}
         </div>
 
-        {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+        {/* Filter Pills with Side Scroller */}
+        <div className="relative flex items-center min-w-0 max-w-full sm:max-w-2xl lg:max-w-3xl">
+          {/* Scroll Left Button */}
           <button
-            onClick={() => setSelectedCategoryFilter('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              selectedCategoryFilter === 'ALL'
-                ? 'bg-[#9E593B] text-white shadow-xs'
-                : 'bg-white border border-[#E8E1D5] text-[#5A4B41] hover:bg-[#FAF8F5]'
-            }`}
+            type="button"
+            onClick={() => scrollPills('left')}
+            className="p-1 rounded-lg border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-[#5A4B41] shadow-2xs mr-1 shrink-0 cursor-pointer transition-colors"
+            title="Scroll Left"
           >
-            All ({allCategories.length})
+            <ChevronLeft className="w-3.5 h-3.5" />
           </button>
-          {allCategories.map((cat) => (
+
+          {/* Scrollable Container */}
+          <div
+            ref={pillsContainerRef}
+            className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scroll-smooth scrollbar-thin scrollbar-thumb-stone-300 scrollbar-track-transparent flex-1"
+          >
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategoryFilter(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                selectedCategoryFilter === cat.id
+              onClick={() => setSelectedCategoryFilter('ALL')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                selectedCategoryFilter === 'ALL'
                   ? 'bg-[#9E593B] text-white shadow-xs'
                   : 'bg-white border border-[#E8E1D5] text-[#5A4B41] hover:bg-[#FAF8F5]'
               }`}
             >
-              {cat.name}
+              All ({allCategories.length})
             </button>
-          ))}
+            {allCategories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategoryFilter(cat.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                  selectedCategoryFilter === cat.id
+                    ? 'bg-[#9E593B] text-white shadow-xs'
+                    : 'bg-white border border-[#E8E1D5] text-[#5A4B41] hover:bg-[#FAF8F5]'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Scroll Right Button */}
+          <button
+            type="button"
+            onClick={() => scrollPills('right')}
+            className="p-1 rounded-lg border border-[#E8E1D5] bg-white hover:bg-[#FAF8F5] text-[#5A4B41] shadow-2xs ml-1 shrink-0 cursor-pointer transition-colors"
+            title="Scroll Right"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -621,7 +633,9 @@ export function PriceCatalogView({
                 {/* Category Header */}
                 <div
                   onClick={() => toggleCategoryExpand(category.id)}
-                  className="px-4.5 py-3.5 bg-[#F8F4EE]/90 hover:bg-[#F5EFE6] flex items-center justify-between cursor-pointer border-b border-[#E8E1D5]/70 select-none transition-colors"
+                  className={`px-4.5 py-3.5 bg-[#F8F4EE]/90 hover:bg-[#F5EFE6] flex items-center justify-between cursor-pointer select-none transition-colors ${
+                    isExpanded ? 'border-b border-[#E8E1D5]/70' : ''
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-6 h-6 rounded-lg bg-[#FAF1EC] text-[#9E593B] flex items-center justify-center shrink-0">
@@ -640,21 +654,8 @@ export function PriceCatalogView({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setTargetCategoryIdForAdd(category.id)
-                        setShowAddServiceModal(true)
-                      }}
-                      className="text-xs text-[#9E593B] font-bold px-2 py-0.5 rounded bg-[#9E593B]/10 hover:bg-[#9E593B]/15 transition-colors cursor-pointer"
-                    >
-                      + Add
-                    </button>
-                    <div className="text-[#7A7E85]">
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </div>
+                  <div className="text-[#7A7E85]">
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
                 </div>
 
