@@ -186,7 +186,7 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
   const initial = (user.name || 'U')[0].toUpperCase()
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] py-10 sm:py-14 px-4 sm:px-6 lg:px-10">
+    <div className="flex-1 bg-[#FAF8F5] py-10 sm:py-14 px-4 sm:px-6 lg:px-10">
       <div className="max-w-[1100px] w-full mx-auto space-y-10">
 
         {/* Back link */}

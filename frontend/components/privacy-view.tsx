@@ -5,7 +5,7 @@ import type { Screen } from './data'
 
 export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#18191B] py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 bg-[#FAF8F5] text-[#18191B] py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Navigation */}
         <button

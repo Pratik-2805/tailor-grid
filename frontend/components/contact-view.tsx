@@ -40,7 +40,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#18191B] py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 bg-[#FAF8F5] text-[#18191B] py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Back Button */}
         <button

@@ -52,8 +52,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isCustomer = Boolean(user && user.role === 'CUSTOMER')
   const isStudioScreen = !isCustomer && (currentScreen === 'for-partners' || currentScreen === 'partner')
 
-  // In mobile view, remove footers from book, my orders, orders with id, and profile section for customer view
-  const isCustomerMobileNoFooterScreen =
+  // Remove footers completely from book, my orders, order details, and profile in customer site
+  const isCustomerNoFooterScreen =
     currentScreen === 'book' ||
     currentScreen === 'orders' ||
     currentScreen === 'order' ||
@@ -67,7 +67,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     pathname === '/profile' ||
     pathname?.startsWith('/profile')
 
-  const hideFooter = currentScreen === 'partner'
+  const hideFooter = currentScreen === 'partner' || isCustomerNoFooterScreen
 
   // Route Guard: Logged-in customers must never access '/' (home) or partner/studio routes via URL or back navigation
   React.useEffect(() => {
@@ -169,11 +169,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* Universal Footer */}
-      {!hideFooter && (
-        <div className={isCustomerMobileNoFooterScreen ? 'hidden md:block' : undefined}>
-          <Footer go={navigate} />
-        </div>
-      )}
+      {!hideFooter && <Footer go={navigate} />}
 
       {/* Dedicated Login Modal */}
       <LoginModal

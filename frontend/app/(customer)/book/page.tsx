@@ -1061,17 +1061,17 @@ export default function BookPage() {
 
   if (isAuthLoading || !user) {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
+      <div className="flex-1 w-full flex items-center justify-center bg-[#FAF8F5]">
         <NormalLoader />
       </div>
     )
   }
 
   return (
-    <div className="min-h-[calc(100vh-68px)] bg-[#FAF8F5] flex flex-col justify-start">
-      <div className="max-w-[1800px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3.5 sm:py-5 lg:py-7">
+    <div className="flex-1 bg-[#FAF8F5] flex flex-col justify-start">
+      <div className="max-w-[1800px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-4.5 flex-1 flex flex-col">
         {/* Uber Side-by-Side Placement Grid Layout */}
-        <div className="flex flex-col lg:flex-row gap-5 lg:gap-8 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 lg:gap-8 items-start flex-1">
 
           {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
           <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0 [perspective:1400px]">
@@ -1089,7 +1089,7 @@ export default function BookPage() {
                   backfaceVisibility: 'hidden',
                   WebkitBackfaceVisibility: 'hidden',
                 }}
-                className={`bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-7 space-y-4 sm:space-y-6 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                className={`bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-5 lg:p-6 space-y-3.5 sm:space-y-4 lg:space-y-4.5 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
                   }`}
               >
 
@@ -1559,7 +1559,7 @@ export default function BookPage() {
           </div>
 
           {/* RIGHT COLUMN: Uber-Style Map Placement (Matching Image 2) */}
-          <div className="flex-1 w-full min-h-[520px] lg:min-h-[calc(100vh-110px)] lg:sticky lg:top-20 h-[600px] lg:h-[calc(100vh-110px)]">
+          <div className="flex-1 w-full min-h-[480px] lg:min-h-0 lg:sticky lg:top-[86px] h-[520px] lg:h-[calc(100vh-106px)]">
             <div className="w-full h-full rounded-[28px] overflow-hidden border border-gray-200/90 shadow-sm relative bg-[#FAF8F5]">
               <CleanGoogleMap
                 lat={mapCoordinates.lat}

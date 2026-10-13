@@ -39,7 +39,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       try {
         localStorage.setItem(`tg_order_${orderId}`, JSON.stringify(targetOrder))
         setStorageCookie(`tg_order_${orderId}`, JSON.stringify(targetOrder))
-      } catch {}
+      } catch { }
     }
     router.push(`/order/${orderId}`)
   }
@@ -77,7 +77,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
                 }
               }
               localStorage.removeItem('tg_latest_order')
-            } catch {}
+            } catch { }
           }
 
           setBackendOrders(ordersFromBackend)
@@ -139,10 +139,10 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     try {
       // Mark order as Cancelled in PostgreSQL database
       await updateOrder(cancellingOrder.id, { status: 'Cancelled' })
-      
+
       // Update order status in local state so it remains in user's order history as Cancelled
       setBackendOrders((prev) => prev.map((o) => (o.id === cancellingOrder.id ? { ...o, status: 'Cancelled' } : o)))
-      
+
       // Clean up local storage cached order status
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem(`tg_order_${cancellingOrder.id}`)
@@ -166,7 +166,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   // If user is NOT signed in, display the auth protection view
   if (!user) {
     return (
-      <div className="py-14 lg:py-20 bg-[#FAF8F5] min-h-[calc(100vh-68px)] flex items-center justify-center">
+      <div className="py-14 lg:py-20 bg-[#FAF8F5] flex-1 flex items-center justify-center">
         <div className="mx-auto max-w-[560px] px-5 text-center">
           {/* Back button */}
           <div className="mb-8 flex justify-center">
@@ -249,7 +249,7 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   }))
 
   return (
-    <div className="py-8 sm:py-10 lg:py-14 bg-[#FAF8F5] min-h-screen">
+    <div className="py-8 sm:py-10 lg:py-14 bg-[#FAF8F5] flex-1">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Navigation */}
