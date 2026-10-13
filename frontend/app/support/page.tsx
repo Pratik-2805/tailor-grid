@@ -1,9 +1,12 @@
 'use client'
 
-import { SupportView } from '@/components/support-view'
-import { useApp } from '@/components/app-provider'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function SupportPage() {
-  const { navigate } = useApp()
-  return <SupportView go={navigate} />
+  const router = useRouter()
+  useEffect(() => {
+    router.replace('/contact')
+  }, [router])
+  return null
 }

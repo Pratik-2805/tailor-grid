@@ -10,7 +10,6 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useApp } from './app-provider'
-import { FaqAccordion } from './faq-accordion'
 import { type Screen } from './data'
 import {
   HeroTailoringIllustration,
@@ -400,27 +399,6 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
             </div>
 
           </div>
-
-        </section>
-
-        {/* ========================================================================= */}
-        {/* FREQUENTLY ASKED QUESTIONS SECTION */}
-        {/* ========================================================================= */}
-        <section className="py-16 sm:py-24 border-b border-[#EBE6DF]">
-          
-          <div className="text-center max-w-[640px] mx-auto mb-12">
-            <span className="pill-badge bg-white text-[#9E593B] border border-[#EBE6DF] mb-3">
-              Clear Answers
-            </span>
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115]">
-              Frequently Asked Questions
-            </h2>
-            <p className="mt-2 text-sm text-[#5A5D64]">
-              Everything you need to know about fittings, turnarounds, pricing, and our fit guarantee.
-            </p>
-          </div>
-
-          <FaqAccordion />
 
         </section>
 

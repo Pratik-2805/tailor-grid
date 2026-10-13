@@ -6,9 +6,7 @@ import {
   CheckCircle2,
   Loader2,
   Mail,
-  MapPin,
   Phone,
-  Scissors,
   ShieldCheck,
   X,
 } from 'lucide-react'
@@ -75,7 +73,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
 
               {/* Newsletter Subscription */}
               <div className="pt-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-[#D1D5DB] mb-2">
+                <p className="text-xs sm:text-[13px] font-semibold uppercase tracking-wider text-[#D1D5DB] mb-2.5">
                   Subscribe for Offers &amp; Updates
                 </p>
                 {subscribed ? (
@@ -120,35 +118,42 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             </div>
 
             {/* Services Column */}
-            <div className="lg:col-span-3 sm:col-span-4 space-y-3">
-              <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold">
+            <div className="lg:col-span-3 sm:col-span-4">
+              <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">
                 Services
               </h5>
-              <ul className="space-y-2 text-xs text-[#9CA3AF]">
-                {[
-                  'Trousers & Jeans Alterations',
-                  'Suits & Blazer Tailoring',
-                  'Dresses & Gowns Fitting',
-                  'Waist & Slimming Adjustments',
-                  'Ethnic & Occasion Wear',
-                  'Zip & Garment Repairs',
-                ].map((serviceName) => (
-                  <li key={serviceName}>
-                    <button
-                      onClick={() => nav('home')}
-                      className="hover:text-white transition-colors text-left block"
-                    >
-                      {serviceName}
-                    </button>
-                  </li>
-                ))}
+              <ul className="space-y-3 text-sm text-[#9CA3AF]">
+                <li>
+                  <button
+                    onClick={() => nav('for-partners')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    Work with Raffu
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => nav('book')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    Order from Raffu
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => nav('contact')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    Contact
+                  </button>
+                </li>
               </ul>
             </div>
 
             {/* Company */}
             <div className="lg:col-span-3 sm:col-span-4">
-              <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
-              <ul className="space-y-2.5 text-xs text-[#9CA3AF]">
+              <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
+              <ul className="space-y-3 text-sm text-[#9CA3AF]">
                 <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Raffu</button></li>
                 <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
                 <li><button onClick={() => isCustomer ? nav('book') : nav('for-partners')} className="hover:text-white transition-colors">{isCustomer ? 'Book Alterations' : 'Partner With Us'}</button></li>
@@ -157,11 +162,11 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             </div>
 
             {/* Portals & Help Column */}
-            <div className="lg:col-span-2 sm:col-span-4 space-y-3">
-              <h5 className="text-[11px] uppercase tracking-wider text-[#9E593B] font-bold">
-                Portals & Help
+            <div className="lg:col-span-2 sm:col-span-4">
+              <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">
+                Portals &amp; Help
               </h5>
-              <ul className="space-y-2 text-xs text-[#9CA3AF]">
+              <ul className="space-y-3 text-sm text-[#9CA3AF]">
                 {!isCustomer && (
                   <li>
                     <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left cursor-pointer">
@@ -175,13 +180,13 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => nav('support')} className="hover:text-white transition-colors text-left cursor-pointer">
-                    Support &amp; FAQ
+                  <button onClick={() => nav('privacy')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    Customer Privacy Policy
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => nav('privacy')} className="hover:text-white transition-colors text-left cursor-pointer">
-                    Customer Privacy Policy
+                  <button onClick={() => nav('terms')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    Terms &amp; Conditions
                   </button>
                 </li>
               </ul>
@@ -191,32 +196,8 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
         </div>
 
         {/* Bottom */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#6B7280]">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span>© {new Date().getFullYear()} Raffu Technologies Ltd.</span>
-            <span>·</span>
-            <button onClick={() => nav('privacy')} className="hover:text-white transition-colors cursor-pointer">
-              Privacy Policy
-            </button>
-            <span>·</span>
-            <button onClick={() => nav('support')} className="hover:text-white transition-colors cursor-pointer">
-              Support
-            </button>
-            <span>·</span>
-            <button onClick={() => nav('contact')} className="hover:text-white transition-colors cursor-pointer">
-              Contact
-            </button>
-            <span>·</span>
-            <span className="flex items-center gap-1 text-[#10B981]"><ShieldCheck size={13} /> 100% Fit Guarantee</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><MapPin size={12} /> Mumbai</span>
-            <span>·</span>
-            <span>Pune</span>
-            <span>·</span>
-            <span>London</span>
-          </div>
-
+        <div className="mt-8 text-center text-xs sm:text-sm text-[#6B7280]">
+          <p>© {new Date().getFullYear()} Raffu Technologies Ltd. All rights reserved.</p>
         </div>
       </footer>
 
