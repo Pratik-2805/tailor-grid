@@ -2530,7 +2530,7 @@ export function PartnerFlow({
 
               {/* Notification Popover Dropdown */}
               {notificationOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="fixed right-2 sm:absolute sm:right-0 top-auto sm:top-full mt-2 w-[calc(100vw-1rem)] sm:w-80 md:w-96 bg-white rounded-2xl shadow-xl border border-slate-200/90 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2" style={{top: 'calc(4rem + 0.5rem)'}}>
                   {/* Popover Header */}
                   <div className="p-3.5 border-b border-slate-100 flex items-center justify-between gap-2 bg-slate-50/70">
                     <div className="flex items-center gap-2">
@@ -2774,7 +2774,7 @@ export function PartnerFlow({
         </header>
 
         {/* ── SCROLLABLE WORKSPACE ── */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20 md:pb-0">
           {/* Action Required: Incomplete Price Catalog Banner */}
           {hasFilledCatalog === false && (
             <div className="bg-gradient-to-r from-amber-600 via-[#9E593B] to-amber-700 text-white px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md border-b border-amber-800/40">
@@ -2806,7 +2806,7 @@ export function PartnerFlow({
 
           {/* ── TOP-CENTER FLOATING INCOMING DISPATCH NOTIFICATION (STACKED BUNDLE SUPPORT) ── */}
           {online && currentBroadcast && currentBroadcastKey ? (
-            <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in">
+            <div className="fixed top-16 md:top-5 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-2xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in">
               <div className="relative">
                 {/* 3rd Stacked Card (Deep glassmorphism background layer - visible when 3+ requests exist) */}
                 {totalBroadcasts > 2 && thirdBroadcast && (
@@ -2998,7 +2998,7 @@ export function PartnerFlow({
           ) : null}
 
           {/* ── 2. MAIN WORKBENCH VIEW TABS ── */}
-          <div className="p-4 lg:p-8 pt-4 space-y-6 max-w-[1440px] mx-auto">
+          <div className="p-3 sm:p-4 lg:p-8 pt-3 sm:pt-4 space-y-4 sm:space-y-6 max-w-[1440px] w-full mx-auto min-w-0">
 
             {/* ════════════════════════════════════════════════════════════════ */}
             {/* TAB 1: WORKSHOP COCKPIT                                        */}
@@ -3007,7 +3007,7 @@ export function PartnerFlow({
               <div className="space-y-6 animate-fadeIn">
 
                 {/* ── 4 UIVERSE-INSPIRED ELEVATED METRIC CARDS ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                   {/* Card 1: Today's Orders & Revenue */}
                   <div className="uiverse-stat-card uiverse-stat-emerald group cursor-default">
                     <div className="flex items-center justify-between">
@@ -4569,11 +4569,11 @@ export function PartnerFlow({
                   </div>
 
                   {/* ── 3 CLEAN METRIC TILES ── */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {/* Card 1: Collected */}
-                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-3 sm:p-5 shadow-2xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
+                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#6B7280] hidden xs:block">
                           Collected Revenue
                         </span>
                         <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center font-extrabold text-xs">
@@ -4589,7 +4589,7 @@ export function PartnerFlow({
                     </div>
 
                     {/* Card 2: Due at Pickup */}
-                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-3 sm:p-5 shadow-2xs">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
                           Due at Pickup
@@ -4607,7 +4607,7 @@ export function PartnerFlow({
                     </div>
 
                     {/* Card 3: In Production */}
-                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-2xs">
+                    <div className="bg-white border border-[#E8E1D5] rounded-2xl p-3 sm:p-5 shadow-2xs">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
                           In Progress
@@ -4647,7 +4647,7 @@ export function PartnerFlow({
                             value={payoutsSearch}
                             onChange={(e) => setPayoutsSearch(e.target.value)}
                             placeholder="Search orders..."
-                            className="w-48 sm:w-56 pl-7 pr-6 py-1.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-lg text-xs text-[#1E2229] placeholder:text-[#6B7280] focus:outline-none focus:border-[#9E593B] focus:bg-white"
+                            className="w-full sm:w-56 pl-7 pr-6 py-1.5 bg-[#FAF8F5] border border-[#E8E1D5] rounded-lg text-xs text-[#1E2229] placeholder:text-[#6B7280] focus:outline-none focus:border-[#9E593B] focus:bg-white"
                           />
                           {payoutsSearch && (
                             <button
@@ -4689,8 +4689,96 @@ export function PartnerFlow({
                       </div>
                     </div>
 
-                    {/* Table */}
-                    <div className="overflow-x-auto">
+                    {/* ── Mobile: Card list (hidden on sm+) ── */}
+                    <div className="sm:hidden divide-y divide-[#E8E1D5]">
+                      {filteredLedger.length === 0 ? (
+                        <div className="py-10 text-center text-xs text-[#6B7280]">No orders found.</div>
+                      ) : filteredLedger.map((o) => {
+                        const price = o.price || 30
+                        const isSettled = o.status === 'Closed' || o.status === 'Collected'
+                        const isReadyForPickup = o.status === 'Ready'
+                        const isInProduction = ['Work in Progress', 'Fitting Completed'].includes(o.status)
+                        const ledgerPhotos = getAllGarmentPhotos(o)
+                        const garmentImg = ledgerPhotos[0] || getGarmentPhoto(o)
+                        return (
+                          <div key={o.id} className="p-3 flex items-start gap-3">
+                            {/* Garment thumbnail */}
+                            <div
+                              onClick={() => handleOpenFullView(ledgerPhotos, 0)}
+                              className="relative size-12 rounded-xl overflow-hidden border border-[#E8E1D5] shrink-0 cursor-pointer shadow-2xs"
+                            >
+                              <img
+                                src={garmentImg}
+                                alt={o.garmentName || 'Garment'}
+                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getDefaultGarmentImage(o.garmentId || o.garmentName) }}
+                                className="size-full object-cover"
+                              />
+                              {ledgerPhotos.length > 1 && (
+                                <span className="absolute bottom-0 right-0 bg-[#9E593B] text-white text-[8px] font-bold px-1 rounded-tl">+{ledgerPhotos.length - 1}</span>
+                              )}
+                            </div>
+                            {/* Info */}
+                            <div className="flex-1 min-w-0 space-y-0.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className="font-semibold text-xs text-[#1E2229] truncate">{o.garmentName || 'Garment'}</div>
+                                  <div className="text-[10px] text-[#6B7280] truncate">{o.serviceName || 'Custom Alteration'}</div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className="font-bold text-xs text-[#1E2229]">{o.currencySymbol || studioCurrencySymbol}{price}.00</div>
+                                  <div className="text-[10px] text-emerald-700 font-semibold">100% Studio</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between gap-2 pt-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  {/* Status pill */}
+                                  {isSettled ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                      <CheckCircle2 size={10} /><span>Collected</span>
+                                    </span>
+                                  ) : isReadyForPickup ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                      <Clock size={10} /><span>Due at Pickup</span>
+                                    </span>
+                                  ) : isInProduction ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-800 border border-sky-200">
+                                      <Scissors size={10} /><span>In Tailoring</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 text-stone-700 border border-stone-200">
+                                      <Package size={10} /><span>Drop-Off</span>
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] text-[#6B7280]">{o.date || 'Today'} · {o.timeSlot || 'Slot'}</span>
+                                </div>
+                                {/* Action */}
+                                {isReadyForPickup ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setPickupModalOrder(o); setPickupOtpInput('') }}
+                                    className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[10px] cursor-pointer shadow-2xs shrink-0"
+                                  >
+                                    Verify PIN
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSelectedOrder(o); setActiveTab('pipeline') }}
+                                    className="px-2.5 py-1 rounded-lg bg-[#FAF8F5] text-[#1E2229] border border-[#E8E1D5] font-semibold text-[10px] cursor-pointer shrink-0"
+                                  >
+                                    Inspect
+                                  </button>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-[#6B7280]">{o.customerName} · {o.customerPhone}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ── Desktop: Full table (hidden on mobile) ── */}
+                    <div className="hidden sm:block overflow-x-auto">
                       <table className="w-full text-xs text-left">
                         <thead className="bg-[#FAF8F5] border-b border-[#E8E1D5] text-[#6B7280] font-bold text-[11px] uppercase tracking-wider">
                           <tr>
@@ -4902,27 +4990,39 @@ export function PartnerFlow({
         </main>
 
         {/* ── MOBILE BOTTOM TAB BAR ── */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-[#E8E1D5] flex items-center justify-around h-14">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#E8E1D5] flex items-center justify-around h-16 safe-area-inset-bottom shadow-[0_-1px_12px_rgba(0,0,0,0.06)]">
           {NAV_ITEMS.map((item) => {
             const active = activeTab === item.id
             const Icon = item.icon
-            const badge = item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length : null
+            const badge =
+              item.id === 'cockpit' && allBroadcasts.length > 0 ? allBroadcasts.length :
+              item.id === 'pipeline' ? pendingDropOffs : null
             return (
-              <Link
+              <button
                 key={item.id}
-                href={item.href}
+                type="button"
                 onClick={() => {
+                  setActiveTab(item.id)
                   if (onTabChange) onTabChange(item.id)
                 }}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded transition-colors cursor-pointer relative no-underline ${active ? 'text-[#9E593B] font-bold' : 'text-[#6B7280] font-medium'
-                  }`}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all cursor-pointer relative min-w-[52px] ${
+                  active
+                    ? 'text-[#9E593B]'
+                    : 'text-[#9CA3AF]'
+                }`}
               >
-                <Icon size={18} />
-                <span className="text-[9px]">{item.shortLabel}</span>
-                {badge && (
-                  <span className="absolute -top-0.5 right-0.5 size-4 bg-amber-400 text-stone-950 text-[9px] font-bold rounded-full grid place-items-center">{badge}</span>
+                <div className={`p-1.5 rounded-xl transition-all ${
+                  active ? 'bg-[#FAF3EC]' : ''
+                }`}>
+                  <Icon size={19} strokeWidth={active ? 2.5 : 2} />
+                </div>
+                <span className={`text-[9px] font-semibold leading-none ${
+                  active ? 'text-[#9E593B]' : 'text-[#9CA3AF]'
+                }`}>{item.shortLabel}</span>
+                {badge !== null && badge > 0 && (
+                  <span className="absolute top-0.5 right-1.5 min-w-[16px] h-4 px-1 bg-amber-400 text-stone-950 text-[9px] font-black rounded-full grid place-items-center">{badge > 9 ? '9+' : badge}</span>
                 )}
-              </Link>
+              </button>
             )
           })}
         </nav>
@@ -5284,7 +5384,7 @@ export function PartnerFlow({
 
       {/* Workshop Notification / Toast Banner */}
       {(broadcastToast || studioNotice) && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0F1115]/95 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3 animate-in slide-in-from-bottom-4 fade-in">
+        <div className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 z-50 bg-[#0F1115]/95 backdrop-blur-md text-white px-4 sm:px-5 py-3 sm:py-3.5 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3 animate-in slide-in-from-bottom-4 fade-in max-w-[calc(100vw-2rem)]">
           <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
           <span className="text-sm font-semibold">{broadcastToast || studioNotice}</span>
         </div>
