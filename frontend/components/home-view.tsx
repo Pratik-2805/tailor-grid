@@ -14,7 +14,7 @@ interface HomeViewProps {
   onOpenAuth?: () => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
   onSelectStore?: (store: StoreOption) => void
-  onRequestMeasurement?: (params: {
+  onStartBooking?: (params: {
     city: string
     garmentId: string
     serviceId: string
@@ -31,7 +31,7 @@ export function HomeView({
   onOpenAuth,
   onQuickSearch,
   onSelectStore,
-  onRequestMeasurement,
+  onStartBooking,
 }: HomeViewProps) {
   return (
     <div className="flex flex-col">
@@ -43,7 +43,7 @@ export function HomeView({
             user={user}
             onOpenAuth={onOpenAuth}
             onQuickSearch={onQuickSearch}
-            onRequestMeasurement={onRequestMeasurement}
+            onStartBooking={onStartBooking}
           />
         </div>
         <TrustBar />

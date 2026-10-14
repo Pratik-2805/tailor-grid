@@ -26,8 +26,8 @@ import {
   Mail,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { createOrder, fetchOrderById, getCurrentUser, updateOrder, sendOrderPinEmail } from '@/lib/api'
-import { getAuthUser, getStorageCookie, setStorageCookie } from '@/lib/cookies'
+import { createOrder, fetchOrderById, getCurrentUser, updateOrder } from '@/lib/api'
+import { getAuthUser, deleteCookie } from '@/lib/cookies'
 import { getAllGarmentPhotos, type User, type StoreOption } from './data'
 import CleanGoogleMap, { openCarNavigation, calculateDistanceInMiles } from './CleanGoogleMap'
 import { TrustBar } from './trust-bar'
@@ -75,41 +75,6 @@ interface OrderDetailsViewProps {
   onGoOrders?: () => void
 }
 
-
-function formatMeasurementKey(key: string): string {
-  const map: Record<string, string> = {
-    waistHips: 'Waist & Hips',
-    hemLine: 'Hem Line',
-    hemLength: 'Dress Hem',
-    delicateHem: 'Delicate Hem',
-    hem: 'Hem',
-    waist: 'Waist',
-    waistSuppression: 'Waist & Sides Slimming',
-    inseam: 'Inseam',
-    sleeve: 'Sleeves',
-    sleeveLength: 'Sleeves',
-    chest: 'Chest',
-    chestWaist: 'Chest & Waist',
-    shirtLength: 'Shirt Length',
-    jacketTorso: 'Jacket Torso',
-    trouserInseamWaist: 'Trouser Inseam & Waist',
-    riseSeat: 'Rise & Seat',
-    bodiceFit: 'Top & Bust Fit',
-    strapsShoulders: 'Straps & Shoulders',
-    bustBodice: 'Bust & Bodice',
-    collarRoll: 'Collar Roll',
-    tapering: 'Slim Leg Fit',
-    shoulder: 'Shoulder',
-    custom: 'Notes & Specs',
-    fit: 'Fit Style',
-  }
-  if (map[key]) return map[key]
-  return key
-    .replace(/([A-Z])/g, ' $1')
-    .replace(/[_-]/g, ' ')
-    .replace(/^\w/, (c) => c.toUpperCase())
-    .trim()
-}
 
 function SewStitchDoodlePlayer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -317,7 +282,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [initialFetchDone, setInitialFetchDone] = useState(false)
   const [copiedToast, setCopiedToast] = useState(false)
-  const [isSendingPinEmail, setIsSendingPinEmail] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [inProcessDots, setInProcessDots] = useState('')
@@ -384,6 +348,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     setIsLoading(true)
     setInitialFetchDone(false)
 
+    // Clear any leftover booking wizard data from sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.clear()
+      } catch { }
+    }
+
     async function loadOrderData(isInitial = false) {
       if (isInitial) setIsLoading(true)
 
@@ -395,12 +366,14 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             setOrder(fetched)
             if (typeof window !== 'undefined') {
               try {
-                localStorage.setItem(`tg_order_${slugId}`, JSON.stringify(fetched))
-                setStorageCookie(`tg_order_${slugId}`, JSON.stringify(fetched))
+                localStorage.removeItem(`tg_order_${slugId}`)
                 if (fetched.id) {
-                  localStorage.setItem(`tg_order_${fetched.id}`, JSON.stringify(fetched))
-                  setStorageCookie(`tg_order_${fetched.id}`, JSON.stringify(fetched))
+                  localStorage.removeItem(`tg_order_${fetched.id}`)
                 }
+                localStorage.removeItem('tg_latest_order')
+                deleteCookie(`tg_order_${slugId}`, '/')
+                deleteCookie(`tg_order_${fetched.id}`, '/')
+                deleteCookie('tg_latest_order', '/')
               } catch {}
             }
             if (isInitial) {
@@ -411,11 +384,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             return
           } else {
             // Order does not exist or was deleted in backend database
-            // Invalidate and purge any stale localStorage cache for this slug so it is never shown
+            // Invalidate and purge any stale cache for this slug so it is never shown
             if (typeof window !== 'undefined') {
               try {
                 localStorage.removeItem(`tg_order_${slugId}`)
                 localStorage.removeItem('tg_latest_order')
+                deleteCookie(`tg_order_${slugId}`, '/')
+                deleteCookie('tg_latest_order', '/')
               } catch { }
             }
             setOrder(null)
@@ -522,10 +497,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       setOrder((prev: any) => (prev ? { ...prev, notes: newNote, fitNotes: newNote } : prev))
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem(`tg_order_notes_${targetId}`, newNote)
-          localStorage.setItem(`tg_order_notes_${targetId.replace(/^#/, '')}`, newNote)
-          localStorage.setItem(`tg_order_notes_${slugId}`, newNote)
-          setStorageCookie(`tg_order_notes_${targetId}`, newNote)
+          localStorage.removeItem(`tg_order_notes_${targetId}`)
+          localStorage.removeItem(`tg_order_notes_${targetId.replace(/^#/, '')}`)
+          localStorage.removeItem(`tg_order_notes_${slugId}`)
+          deleteCookie(`tg_order_notes_${targetId}`, '/')
         } catch { }
       }
       setIsEditingNote(false)
@@ -618,29 +593,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     coords: tailorCoords,
   }
 
-
-  const handleSendPinEmail = async () => {
-    const rawOId = order?.id || slugId
-    if (!rawOId) return
-    const cleanOId = String(rawOId).replace(/^#/, '').trim()
-    setIsSendingPinEmail(true)
-    try {
-      const targetEmail = currentUser?.email || order?.customerEmail
-      const res = await sendOrderPinEmail(cleanOId, targetEmail)
-      if (res.success) {
-        toast.success(`PIN sent to ${res.email || targetEmail || 'your email'}!`, {
-          position: 'top-center',
-          autoClose: 4000,
-        })
-      } else {
-        toast.error(res.error || res.message || 'Failed to send PIN email', { position: 'top-center' })
-      }
-    } catch {
-      toast.error('Unable to send PIN email. Please try again.', { position: 'top-center' })
-    } finally {
-      setIsSendingPinEmail(false)
-    }
-  }
 
   const handleShareMap = () => {
     if (typeof window !== 'undefined') {
@@ -750,8 +702,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       }
 
       if (typeof window !== 'undefined') {
-        setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(newOrderPayload))
-        setStorageCookie('tg_latest_order', JSON.stringify(newOrderPayload))
+        deleteCookie(`tg_order_${newOrderId}`, '/')
+        deleteCookie('tg_latest_order', '/')
       }
 
       await createOrder(newOrderPayload)
@@ -776,14 +728,9 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
       await updateOrder(order.id, { status: 'Cancelled' })
       setOrder((prev: any) => ({ ...prev, status: 'Cancelled' }))
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(`tg_order_${order.id}`)
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved)
-            parsed.status = 'Cancelled'
-            localStorage.setItem(`tg_order_${order.id}`, JSON.stringify(parsed))
-          } catch { }
-        }
+        try {
+          localStorage.removeItem(`tg_order_${order.id}`)
+        } catch { }
       }
       toast.success(`Order #${order.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {
@@ -1137,27 +1084,6 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                         {formattedOtp}
                       </span>
                     </div>
-                    {(order?.customerEmail || currentUser?.email) && (
-                      <button
-                        type="button"
-                        onClick={handleSendPinEmail}
-                        disabled={isSendingPinEmail}
-                        className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-black transition-colors cursor-pointer disabled:opacity-50"
-                        title="Send confirmation PIN to your email"
-                      >
-                        {isSendingPinEmail ? (
-                          <>
-                            <Loader2 size={10} className="animate-spin" />
-                            <span>Sending...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Mail size={10} />
-                            <span>Email PIN to Me</span>
-                          </>
-                        )}
-                      </button>
-                    )}
                   </div>
                 )}
 

@@ -31,7 +31,7 @@ import CleanGoogleMap from '@/components/CleanGoogleMap'
 import { NormalLoader } from '@/components/normal-loader'
 import { SewingLoader } from '@/components/sewing-loader'
 import { createOrder, startOrderDispatch, fetchDispatchStatus, cancelOrderDispatch, retryOrderDispatch, fetchNearbyTailors, updateUserProfile, fetchServices } from '@/lib/api'
-import { getStorageCookie, setStorageCookie, getCookie, deleteCookie } from '@/lib/cookies'
+import { deleteCookie } from '@/lib/cookies'
 import { useApp } from '@/components/app-provider'
 import { type GarmentCategory, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 import { getCachedReverseGeocode, setCachedReverseGeocode } from '@/lib/geocode-cache'
@@ -62,6 +62,7 @@ function clearSessionBookingData(): void {
   if (typeof window !== 'undefined') {
     try {
       sessionStorage.removeItem(SESSION_BOOKING_KEY)
+      sessionStorage.clear()
     } catch { }
     deleteCookie(SESSION_BOOKING_KEY, '/')
   }
@@ -190,7 +191,6 @@ export default function BookPage() {
     setPrefilledServiceId,
     prefilledStore,
     setPrefilledStore,
-    measurementDraft,
     setCreatedOrderId,
     startBookingTransition,
     stopBookingTransition,
@@ -599,7 +599,7 @@ export default function BookPage() {
     }
   }, [selectedCity, userGpsCoords?.lat, userGpsCoords?.lng, prefilledStore])
 
-  // Sync prefilled state from App context / measurement draft
+  // Sync prefilled state from App context
   useEffect(() => {
     if (prefilledGarmentId) {
       setSelectedGarmentId(prefilledGarmentId)
@@ -610,15 +610,7 @@ export default function BookPage() {
     if (prefilledStore) {
       setSelectedStore(prefilledStore)
     }
-    if (measurementDraft) {
-      if (measurementDraft.garmentId) setSelectedGarmentId(measurementDraft.garmentId)
-      if (measurementDraft.serviceId) setSelectedServiceId(measurementDraft.serviceId)
-      if (measurementDraft.city) setSelectedCity(measurementDraft.city)
-      if (measurementDraft.images && measurementDraft.images.length > 0) setUploadedImages(measurementDraft.images)
-      if (measurementDraft.scheduleDate) setScheduleDateObj(new Date(measurementDraft.scheduleDate))
-      if (measurementDraft.scheduleTime) setSelectedTime(measurementDraft.scheduleTime)
-    }
-  }, [prefilledGarmentId, prefilledServiceId, prefilledStore, measurementDraft])
+  }, [prefilledGarmentId, prefilledServiceId, prefilledStore])
 
   // Fetch live garment categories & services from backend database
   const [categories, setCategories] = useState<GarmentCategory[]>([])
@@ -627,12 +619,12 @@ export default function BookPage() {
     fetchServices().then((svcs) => {
       if (svcs && svcs.length > 0) {
         setCategories(svcs)
-        if (!prefilledGarmentId && !measurementDraft?.garmentId) {
+        if (!prefilledGarmentId) {
           setSelectedGarmentId((prev: string) => (svcs.some((c) => c.id === prev) ? prev : svcs[0].id))
         }
       }
     })
-  }, [prefilledGarmentId, measurementDraft?.garmentId])
+  }, [prefilledGarmentId])
 
   // Derive active category & service
   const currentCategory = useMemo(() => {
@@ -749,8 +741,12 @@ export default function BookPage() {
 
       await cancelOrderDispatch(activeOrderId)
       if (typeof window !== 'undefined') {
-        const { removeStorageCookie } = await import('@/lib/cookies')
-        removeStorageCookie(`tg_order_${activeOrderId}`)
+        try {
+          deleteCookie(`tg_order_${activeOrderId}`, '/')
+          deleteCookie('tg_latest_order', '/')
+          localStorage.removeItem(`tg_order_${activeOrderId}`)
+          localStorage.removeItem('tg_latest_order')
+        } catch { }
       }
     }
     searchOrderIdRef.current = ''
@@ -775,7 +771,6 @@ export default function BookPage() {
     const uniqueTs = Date.now().toString().slice(-6)
     const uniqueRand = Math.floor(100 + Math.random() * 900)
     const newOrderId = `TG-${uniqueTs}${uniqueRand}`
-    const otp = String(Math.floor(1000 + Math.random() * 9000))
 
     const activeSchedDate = schedDate || scheduleDateObj || new Date()
     const activeSchedTime = schedTime || selectedTime || '03:30 PM'
@@ -794,47 +789,6 @@ export default function BookPage() {
       addressDetails.city || selectedCity,
     ].filter(Boolean).join(', ') || selectedCity
 
-    const orderData = {
-      id: newOrderId,
-      otp,
-      customerName: user?.name || 'Customer',
-      customerEmail: user?.email || '',
-      customerPhone: user?.phone || '',
-      userId: user?.id || null,
-      customerLat: coords.lat,
-      customerLng: coords.lng,
-      customerAddress: fullCustomerAddress,
-      addressDetails: addressDetails,
-      storeId: closestStore?.id || null,
-      storeName: closestStore?.name || 'Awaiting Studio Acceptance',
-      storePhone: closestStore?.phone || null,
-      storeAddress: closestStore ? (closestStore.address + (closestStore.area ? `, ${closestStore.area}` : '')) : 'Local Partner Studio',
-      garmentId: selectedGarmentId,
-      garmentName: currentCategory?.name || 'Garment',
-      quantity: garmentQuantity,
-      serviceId: selectedServiceId,
-      serviceName: currentService?.name || 'Alteration Service',
-      brand: 'Levi\'s / Bespoke',
-      notes: bookingNotes.trim() || 'Requested from Atelier Booking Portal',
-      images: uploadedImages,
-      city: selectedCity,
-      date: formattedDateDisplay,
-      timeSlot: activeSchedTime,
-      price: calculatedTotalPrice,
-      status: 'Allocated',
-    }
-
-    // Save instant local cache (strip massive base64 image strings to stay well within browser storage limits)
-    if (typeof window !== 'undefined') {
-      const storagePayload = {
-        ...orderData,
-        quantity: garmentQuantity,
-        images: (uploadedImages || []).filter((img: string) => !img.startsWith('data:')),
-      }
-      setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storagePayload))
-      setStorageCookie('tg_latest_order', JSON.stringify(storagePayload))
-    }
-
     setPrefilledGarmentId(selectedGarmentId)
     setPrefilledServiceId(selectedServiceId)
     if (closestStore) {
@@ -846,13 +800,13 @@ export default function BookPage() {
     if (pickupOption === 'schedule') {
       startBookingTransition()
       try {
-        await createOrder({
+        const createRes = await createOrder({
           id: newOrderId,
           userId: user?.id,
           customerName: user?.name,
           customerEmail: user?.email,
           customerPhone: user?.phone,
-          postcode: closestStore?.postcode || 'W8 4EP',
+          postcode: fullCustomerAddress || closestStore?.postcode || 'W8 4EP',
           customerLat: coords.lat,
           customerLng: coords.lng,
           garmentId: selectedGarmentId,
@@ -871,16 +825,25 @@ export default function BookPage() {
           notes: bookingNotes.trim() || undefined,
           fitNotes: bookingNotes.trim() || undefined,
         } as any)
-        if (typeof window !== 'undefined' && bookingNotes.trim()) {
+
+        const confirmedOrderId = createRes?.order?.id || newOrderId
+
+        // Clear wizard draft and legacy order cookies; database is the single source of truth
+        clearSessionBookingData()
+        if (typeof window !== 'undefined') {
           try {
-            localStorage.setItem(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
-            localStorage.setItem('tg_last_booking_note', bookingNotes.trim())
-            localStorage.setItem('tg_booking_notes', bookingNotes.trim())
-            setStorageCookie(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
+            deleteCookie(`tg_order_${newOrderId}`, '/')
+            deleteCookie(`tg_order_${confirmedOrderId}`, '/')
+            deleteCookie('tg_latest_order', '/')
+            deleteCookie(`tg_order_notes_${newOrderId}`, '/')
+            deleteCookie(`tg_order_notes_${confirmedOrderId}`, '/')
+            localStorage.removeItem('tg_latest_order')
+            localStorage.removeItem(`tg_order_${newOrderId}`)
           } catch { }
         }
+
         toast.success('Scheduled atelier fitting confirmed!', { position: 'top-center' })
-        router.push(`/order/${newOrderId}`)
+        router.push(`/order/${confirmedOrderId}`)
       } catch (error) {
         console.error('Scheduled booking failed:', error)
         toast.error('Unable to create your order. Please try again.')
@@ -907,7 +870,7 @@ export default function BookPage() {
         customerName: user?.name,
         customerEmail: user?.email,
         customerPhone: user?.phone,
-        postcode: closestStore?.postcode || 'W8 4EP',
+        postcode: fullCustomerAddress || closestStore?.postcode || 'W8 4EP',
         customerLat: coords.lat,
         customerLng: coords.lng,
         garmentId: selectedGarmentId,
@@ -922,14 +885,6 @@ export default function BookPage() {
         notes: bookingNotes.trim() || undefined,
         fitNotes: bookingNotes.trim() || undefined,
       } as any)
-      if (typeof window !== 'undefined' && bookingNotes.trim()) {
-        try {
-          localStorage.setItem(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
-          localStorage.setItem('tg_last_booking_note', bookingNotes.trim())
-          localStorage.setItem('tg_booking_notes', bookingNotes.trim())
-          setStorageCookie(`tg_order_notes_${newOrderId}`, bookingNotes.trim())
-        } catch { }
-      }
 
       // If zero tailors found initially within 5 miles
       if (dispatchStartRes.dispatch?.status === 'ZERO_TAILORS') {
@@ -944,7 +899,7 @@ export default function BookPage() {
       } catch { }
 
       let isCompleted = false
-      const completeAssignedOrder = (acceptedTailorInfo: any) => {
+      const completeAssignedOrder = (assignedData: any) => {
         if (isCompleted) return
         isCompleted = true
 
@@ -960,31 +915,28 @@ export default function BookPage() {
         // Close search popup modal immediately (0ms)
         setIsSearching(false)
 
-        const winningStore = acceptedTailorInfo
-        const updatedOrder = {
-          ...orderData,
-          storeId: winningStore?.id || winningStore?.storeId || 'partner-atelier',
-          storeName: winningStore?.name || winningStore?.storeName || 'Partner Atelier',
-          storePhone: winningStore?.phone || winningStore?.storePhone || null,
-          storeAddress: winningStore?.address || winningStore?.storeAddress || 'Local Partner Studio',
-          status: 'Accepted',
-        }
+        const winningStore = assignedData?.acceptedTailor || assignedData
+        const confirmedOrderId = assignedData?.order?.id || assignedData?.orderId || newOrderId
 
-        if (typeof window !== 'undefined') {
-          const storageUpdatedOrder = {
-            ...updatedOrder,
-            images: (updatedOrder.images || []).filter((img: string) => typeof img === 'string' && !img.startsWith('data:')),
-          }
-          setStorageCookie(`tg_order_${newOrderId}`, JSON.stringify(storageUpdatedOrder))
-          setStorageCookie('tg_latest_order', JSON.stringify(storageUpdatedOrder))
-        }
-
+        // Clean up booking session draft and any legacy order cookies
         clearSessionBookingData()
+        if (typeof window !== 'undefined') {
+          try {
+            deleteCookie(`tg_order_${newOrderId}`, '/')
+            deleteCookie(`tg_order_${confirmedOrderId}`, '/')
+            deleteCookie('tg_latest_order', '/')
+            deleteCookie(`tg_order_notes_${newOrderId}`, '/')
+            deleteCookie(`tg_order_notes_${confirmedOrderId}`, '/')
+            localStorage.removeItem('tg_latest_order')
+            localStorage.removeItem(`tg_order_${newOrderId}`)
+          } catch { }
+        }
+
         toast.success(`Request accepted by ${winningStore?.name || winningStore?.storeName || 'Partner Atelier'}!`, {
           position: 'top-center',
         })
 
-        router.push(`/order/${newOrderId}`)
+        router.push(`/order/${confirmedOrderId}`)
       }
 
       // 1. Instant 0ms Cross-tab BroadcastChannel listener (eliminates 1-2s delay)
@@ -1007,7 +959,7 @@ export default function BookPage() {
           if (!status) return
 
           if (status.status === 'ASSIGNED') {
-            completeAssignedOrder(status.acceptedTailor)
+            completeAssignedOrder(status)
           } else if (status.status === 'EXHAUSTED' || status.status === 'ZERO_TAILORS') {
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current)
