@@ -212,8 +212,10 @@ function setAuthCookies(res, tokens, req) {
 
   res.cookie("tg_token", tokens.accessToken, cookieOptions);
 
+  // Set tg_refresh_token strictly as HttpOnly so JavaScript/XSS/Extensions CANNOT read or steal it
   res.cookie("tg_refresh_token", tokens.refreshToken, {
     ...cookieOptions,
+    httpOnly: true,
     maxAge: rtMaxAge * 1000,
   });
 }
@@ -2554,13 +2556,19 @@ router.post("/refresh", async (req, res) => {
 
     // Encrypted token validation: verify hashed token matches PostgreSQL record
     const incomingHashed = hashRefreshToken(refreshToken);
-    if (!user.refreshToken || user.refreshToken !== incomingHashed) {
-      return res
-        .status(401)
-        .json({
-          error:
-            "Refresh token has been revoked, rotated, or invalidated. Please sign in again.",
-        });
+    let storedHash = user.refreshToken;
+    if (storedHash && storedHash.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(storedHash);
+        if (parsed?.current) storedHash = parsed.current;
+      } catch {}
+    }
+
+    if (!storedHash || storedHash !== incomingHashed) {
+      return res.status(401).json({
+        error:
+          "Refresh token has been revoked, rotated, or invalidated. Please sign in again.",
+      });
     }
 
     if (user.status === "BANNED" || user.status === "SUSPENDED") {
@@ -2580,7 +2588,7 @@ router.post("/refresh", async (req, res) => {
       returnUser = await enrichStudioUser(user);
     }
 
-    // Issue new pair and rotate database stored hash
+    // Issue new pair and update database stored hash
     const tokens = await generateTokens(returnUser);
     setAuthCookies(res, tokens);
 

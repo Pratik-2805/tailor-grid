@@ -6,6 +6,7 @@ import {
   setRefreshToken,
   getAuthUser,
   setAuthUser,
+  getAuthRole,
   setAuthRole,
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
@@ -33,13 +34,6 @@ let refreshPromise: Promise<string | null> | null = null
 
 export async function refreshAccessToken(providedRefreshToken?: string): Promise<string | null> {
   const refreshToken = providedRefreshToken || getRefreshToken()
-  if (!refreshToken) {
-    return null
-  }
-
-  if (providedRefreshToken) {
-    setRefreshToken(providedRefreshToken)
-  }
 
   if (isRefreshing && refreshPromise && !providedRefreshToken) {
     return refreshPromise
@@ -52,11 +46,11 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       })
 
       if (res.status === 401 || res.status === 403) {
-        // Explicitly rejected by auth server (token expired / revoked)
+        // Explicitly rejected by auth server (token expired / revoked / reuse detected)
         clearAllAuth()
         return null
       }
@@ -70,7 +64,6 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
       const newAt = data.accessToken || data.token
       if (newAt) {
         setAuthToken(newAt)
-        if (data.refreshToken) setRefreshToken(data.refreshToken)
         if (data.user) {
           setAuthUser(data.user)
           if (data.user.role) setAuthRole(data.user.role)
@@ -95,9 +88,8 @@ export async function getValidAccessToken(): Promise<string | null> {
   let token = getAuthToken()
   if (token) return token
 
-  // Access token expired in cookie, attempt refresh with 15-day refresh token
-  const refreshToken = getRefreshToken()
-  if (refreshToken) {
+  // If user has a session, attempt refresh using secure HttpOnly cookie
+  if (getAuthUser() || getAuthRole() || getRefreshToken()) {
     token = await refreshAccessToken()
     if (token) return token
   }
@@ -115,8 +107,8 @@ export async function fetchWithAutoRefresh(url: string, options: RequestInit = {
 
   let res = await fetch(url, { credentials: 'include', ...options, headers })
 
-  // If 401 Unauthorized, attempt token refresh once and retry request
-  if (res.status === 401 && getRefreshToken()) {
+  // If 401 Unauthorized, attempt token refresh once via HttpOnly cookie and retry request
+  if (res.status === 401) {
     const newToken = await refreshAccessToken()
     if (newToken) {
       headers.set('Authorization', `Bearer ${newToken}`)
