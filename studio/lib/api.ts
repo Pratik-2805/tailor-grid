@@ -15,9 +15,69 @@ import {
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
   decodeJwtPayload,
+  hasActiveSession,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+
+let silentRefreshTimer: any = null
+
+export function cancelSilentRefresh(): void {
+  if (silentRefreshTimer) {
+    clearTimeout(silentRefreshTimer)
+    silentRefreshTimer = null
+  }
+}
+
+/**
+ * Automatically & silently refreshes access token before 15 minutes expire
+ * Keeps studio partner session perpetually alive without interruption.
+ */
+export function scheduleSilentRefresh(token?: string | null): void {
+  if (typeof window === 'undefined') return
+
+  cancelSilentRefresh()
+
+  const currentToken = token || getAuthToken()
+  if (!currentToken) {
+    if (hasActiveSession()) {
+      silentRefreshTimer = setTimeout(() => {
+        refreshAccessToken().then((newToken) => {
+          if (newToken) scheduleSilentRefresh(newToken)
+        })
+      }, 1000)
+    }
+    return
+  }
+
+  try {
+    const payload = decodeJwtPayload(currentToken)
+    const exp = payload?.exp ? payload.exp * 1000 : null
+    let delay = 12 * 60 * 1000 // default 12 minutes
+
+    if (exp) {
+      const remaining = exp - Date.now()
+      delay = remaining > 150000 ? remaining - 150000 : Math.max(10000, remaining / 2)
+    }
+
+    silentRefreshTimer = setTimeout(async () => {
+      try {
+        const freshToken = await refreshAccessToken()
+        if (freshToken) {
+          scheduleSilentRefresh(freshToken)
+        }
+      } catch (err) {
+        console.warn('[AUTH] Notice during studio silent auto-refresh:', err)
+      }
+    }, delay)
+  } catch (_) {
+    silentRefreshTimer = setTimeout(() => {
+      refreshAccessToken().then((t) => {
+        if (t) scheduleSilentRefresh(t)
+      })
+    }, 12 * 60 * 1000)
+  }
+}
 
 export const CUSTOMER_SITE_URL =
   process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
@@ -88,6 +148,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
           setAuthUser({ ...data.user, role: effectiveRole })
           setAuthRole(effectiveRole)
         }
+        scheduleSilentRefresh(newAt)
         return newAt
       }
 
@@ -460,6 +521,8 @@ export async function getCurrentUser(): Promise<User | null> {
     if (!token) {
       return null
     }
+  } else {
+    scheduleSilentRefresh(token)
   }
 
   try {

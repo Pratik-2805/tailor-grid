@@ -167,9 +167,31 @@ async function generateTokens(user) {
 
   if (user?.id && !String(user.id).startsWith("temp_g_")) {
     try {
+      let previousHash = null;
+      try {
+        const existingUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { refreshToken: true },
+        });
+        if (existingUser?.refreshToken) {
+          if (existingUser.refreshToken.startsWith("{")) {
+            const parsed = JSON.parse(existingUser.refreshToken);
+            previousHash = parsed.current || null;
+          } else {
+            previousHash = existingUser.refreshToken;
+          }
+        }
+      } catch (_) {}
+
+      const tokenPayload = JSON.stringify({
+        current: hashedRt,
+        previous: previousHash,
+        rotatedAt: Date.now(),
+      });
+
       await prisma.user.update({
         where: { id: user.id },
-        data: { refreshToken: hashedRt },
+        data: { refreshToken: tokenPayload },
       });
     } catch (err) {
       console.warn(
@@ -216,6 +238,13 @@ function setAuthCookies(res, tokens, req) {
   res.cookie("tg_refresh_token", tokens.refreshToken, {
     ...cookieOptions,
     httpOnly: true,
+    maxAge: rtMaxAge * 1000,
+  });
+
+  // Non-sensitive session indicator so client knows an active HttpOnly refresh token exists
+  res.cookie("tg_logged_in", "1", {
+    ...cookieOptions,
+    httpOnly: false,
     maxAge: rtMaxAge * 1000,
   });
 }
@@ -2346,14 +2375,23 @@ router.post("/update-profile", async (req, res) => {
 
 // GET /api/auth/me
 router.get("/me", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized: missing token" });
+  let decoded = req.user;
+
+  // Fallback: check Authorization header if req.user was not populated
+  if (!decoded) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
+      } catch (_) {}
+    }
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!decoded) {
+    return res.status(401).json({ error: "Unauthorized: missing or expired session" });
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
 
     let user = null;
     if (decoded.id) {
@@ -2557,14 +2595,27 @@ router.post("/refresh", async (req, res) => {
     // Encrypted token validation: verify hashed token matches PostgreSQL record
     const incomingHashed = hashRefreshToken(refreshToken);
     let storedHash = user.refreshToken;
-    if (storedHash && storedHash.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(storedHash);
-        if (parsed?.current) storedHash = parsed.current;
-      } catch {}
+    let isMatch = false;
+
+    if (storedHash) {
+      if (storedHash === incomingHashed) {
+        isMatch = true;
+      } else if (storedHash.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(storedHash);
+          if (parsed?.current === incomingHashed) {
+            isMatch = true;
+          } else if (
+            parsed?.previous === incomingHashed &&
+            Date.now() - (parsed?.rotatedAt || 0) < 60 * 1000 // 60s grace period for concurrent tabs/requests
+          ) {
+            isMatch = true;
+          }
+        } catch {}
+      }
     }
 
-    if (!storedHash || storedHash !== incomingHashed) {
+    if (!isMatch) {
       return res.status(401).json({
         error:
           "Refresh token has been revoked, rotated, or invalidated. Please sign in again.",
@@ -2674,6 +2725,7 @@ router.post("/logout", async (req, res) => {
     const cookieNames = [
       "tg_token",
       "tg_refresh_token",
+      "tg_logged_in",
       "tg_user_role",
       "tg_user",
       "token",
