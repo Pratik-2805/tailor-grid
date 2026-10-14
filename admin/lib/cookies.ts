@@ -125,9 +125,8 @@ export function getAuthToken(): string | null {
   return getCookie('tg_token')
 }
 
-export function setAuthToken(token: string): void {
-  // 15 minutes (15 / 1440 days)
-  setCookie('tg_token', token, 15 / 1440, '/')
+export function setAuthToken(token: string, days: number = 15 / 1440): void {
+  setCookie('tg_token', token, days, '/')
 }
 
 export function removeAuthToken(): void {

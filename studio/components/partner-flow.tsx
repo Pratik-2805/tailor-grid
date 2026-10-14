@@ -60,6 +60,7 @@ import { StudioAvatar } from './studio-avatar'
 import { PriceCatalogView, getCurrencySymbol } from './price-catalog-view'
 import { PriceCatalogModal } from './price-catalog-modal'
 import { WelcomeAboardModal } from './welcome-aboard-modal'
+import { RaffuLogo } from './raffu-logo'
 import { toast } from 'react-toastify'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile' | 'catalog'
@@ -681,8 +682,18 @@ export function PartnerFlow({
     }
   }, [user])
 
-  // Price Catalog Verification State & Persistent Prompt
-  const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(null)
+  // Price Catalog Verification State & Persistent Prompt (cached in localStorage to prevent flash on reload)
+  const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(() => {
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      if (studioId) {
+        const cached = localStorage.getItem(`tg_has_filled_catalog_${studioId}`)
+        if (cached === 'true') return true
+        if (cached === 'false') return false
+      }
+    }
+    return null
+  })
   const [studioCatalogItems, setStudioCatalogItems] = useState<StudioCatalogItemData[]>([])
   const [showCatalogPromptModal, setShowCatalogPromptModal] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
@@ -698,6 +709,11 @@ export function PartnerFlow({
       .then((data) => {
         if (!isMounted) return
         setHasFilledCatalog(data.hasFilledCatalog)
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`tg_has_filled_catalog_${studioIdToVerify}`, data.hasFilledCatalog ? 'true' : 'false')
+          } catch {}
+        }
         if (Array.isArray(data.items)) {
           setStudioCatalogItems(data.items)
         }
@@ -1145,6 +1161,14 @@ export function PartnerFlow({
   // Instantly handle saved catalog: updates cards, orders, parent user state, and cross-tab broadcasts with 0ms delay
   const handleCatalogSaved = (items: StudioCatalogItemData[], curr?: string, currSym?: string) => {
     setHasFilledCatalog(true)
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      if (studioId) {
+        try {
+          localStorage.setItem(`tg_has_filled_catalog_${studioId}`, 'true')
+        } catch {}
+      }
+    }
     setShowCatalogPromptModal(false)
     if (Array.isArray(items)) {
       setStudioCatalogItems(items)
@@ -2272,33 +2296,21 @@ export function PartnerFlow({
           flex flex-col border-r border-slate-800/80
           sidebar-transition shadow-2xl
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-          ${sidebarCollapsed ? 'w-20' : 'w-72'}
+          ${sidebarCollapsed ? 'w-20' : 'w-64'}
         `}
       >
-        {/* Sidebar Header: Brand & Workshop Node */}
-        <div className={`flex items-center gap-3 px-4 h-18 border-b border-slate-800/80 shrink-0 ${sidebarCollapsed ? 'justify-center' : ''}`}>
+        {/* Sidebar Header: Brand Node */}
+        <div className={`relative flex items-center justify-center px-4 h-18 border-b border-slate-800/80 shrink-0`}>
           {!sidebarCollapsed ? (
             <>
-              <div className="size-10 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center shrink-0 shadow-md ring-1 ring-white/15">
-                <Scissors size={18} className="text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-sm text-white truncate leading-tight tracking-tight">
-                  {studioName}
-                </div>
-                <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5 mt-0.5">
-                  <span className={`size-2 rounded-full ${hasFilledCatalog ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'} shrink-0`} />
-                  <span className="text-slate-300 font-medium">
-                    {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
-                  </span>
-                  <span className="text-slate-500 font-mono text-[10px]">#{currentStudioId.slice(-6)}</span>
-                </div>
+              <div className="flex items-center justify-center py-1">
+                <RaffuLogo theme="dark" devanagariOnly size="lg" />
               </div>
               {/* Collapse button — desktop only */}
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(true)}
-                className="hidden md:grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="hidden md:grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer absolute right-3"
                 title="Collapse sidebar"
               >
                 <ChevronLeft size={16} />
@@ -2307,7 +2319,7 @@ export function PartnerFlow({
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="md:hidden grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                className="md:hidden grid size-8 place-items-center hover:bg-white/10 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer absolute right-3"
               >
                 <X size={16} />
               </button>
@@ -2316,10 +2328,10 @@ export function PartnerFlow({
             <button
               type="button"
               onClick={() => setSidebarCollapsed(false)}
-              className="size-10 rounded-xl bg-gradient-to-br from-[#9E593B] to-[#7D3E24] text-white grid place-items-center cursor-pointer hover:opacity-90 transition-all shadow-md ring-1 ring-white/15"
+              className="flex items-center justify-center cursor-pointer hover:opacity-85 transition-opacity py-1"
               title="Expand sidebar"
             >
-              <Scissors size={18} />
+              <RaffuLogo theme="dark" devanagariOnly size="md" />
             </button>
           )}
         </div>
@@ -4848,7 +4860,7 @@ export function PartnerFlow({
             {/* TAB 5: STUDIO PROFILE & CONFIGURATION                           */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'profile' && user && (
-              <div className="animate-fadeIn">
+              <div className="animate-fadeIn w-full">
                 <StudioProfileView
                   user={user}
                   onUpdateUser={onUpdateUser}
@@ -4862,7 +4874,7 @@ export function PartnerFlow({
             {/* TAB: STUDIO PRICE CATALOG CONFIGURATION                         */}
             {/* ════════════════════════════════════════════════════════════════ */}
             {activeTab === 'catalog' && (
-              <div className="animate-fadeIn p-4 sm:p-8 max-w-7xl mx-auto w-full">
+              <div className="animate-fadeIn w-full">
                 <PriceCatalogView
                   user={user}
                   onSaved={handleCatalogSaved}

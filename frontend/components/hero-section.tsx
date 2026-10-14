@@ -269,7 +269,7 @@ interface HeroSectionProps {
   user?: User | null
   onOpenAuth?: () => void
   onQuickSearch?: (postcode: string, garmentId: string) => void
-  onRequestMeasurement?: (params: {
+  onStartBooking?: (params: {
     city: string
     garmentId: string
     serviceId: string
@@ -289,7 +289,7 @@ const CITIES = [
   'Los Angeles, CA',
 ]
 
-export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeasurement }: HeroSectionProps) {
+export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBooking }: HeroSectionProps) {
   const [selectedCity, setSelectedCity] = useCityLocation()
   const [showCityPicker, setShowCityPicker] = useState(false)
 
@@ -404,7 +404,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
       toast.info('Please select a service before proceeding.', { position: 'top-center' })
       return
     }
-    onRequestMeasurement?.({
+    onStartBooking?.({
       city: selectedCity,
       garmentId: selectedGarmentId,
       serviceId: selectedServiceObj.id,
@@ -434,7 +434,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onRequestMeas
     }
     setPickupOption('schedule')
     setIsScheduleModalOpen(false)
-    onRequestMeasurement?.({
+    onStartBooking?.({
       city: selectedCity,
       garmentId: selectedGarmentId,
       serviceId: selectedServiceObj.id,

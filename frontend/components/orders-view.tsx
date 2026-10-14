@@ -17,7 +17,7 @@ import {
 import { toast } from 'react-toastify'
 import { type Screen, type User, type FittingBooking } from './data'
 import { fetchOrders, updateOrder } from '@/lib/api'
-import { setStorageCookie } from '@/lib/cookies'
+import { deleteCookie } from '@/lib/cookies'
 
 interface OrdersViewProps {
   go: (s: Screen) => void
@@ -34,13 +34,6 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
   const [isLoading, setIsLoading] = useState(false)
 
   const handleNavigateToOrder = (orderId: string) => {
-    const targetOrder = backendOrders.find((bo) => bo.id === orderId)
-    if (targetOrder && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(`tg_order_${orderId}`, JSON.stringify(targetOrder))
-        setStorageCookie(`tg_order_${orderId}`, JSON.stringify(targetOrder))
-      } catch { }
-    }
     router.push(`/order/${orderId}`)
   }
 
@@ -51,32 +44,15 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
         .then((fetched) => {
           const ordersFromBackend = Array.isArray(fetched) ? fetched : []
 
-          // Synchronize and update local storage cache for all active backend orders
-          // so navigating to /order/[id] immediately loads the fresh status (e.g. Work in Progress)
+          // Purge any legacy local storage orders so database remains single source of truth
           if (typeof window !== 'undefined') {
             try {
-              ordersFromBackend.forEach((bo) => {
-                if (bo && bo.id) {
-                  localStorage.setItem(`tg_order_${bo.id}`, JSON.stringify(bo))
-                  setStorageCookie(`tg_order_${bo.id}`, JSON.stringify(bo))
-                }
-              })
-
-              const localKeys = Object.keys(localStorage).filter((k) => k.startsWith('tg_order_'))
+              const localKeys = Object.keys(localStorage).filter(
+                (k) => k.startsWith('tg_order_') || k === 'tg_latest_order'
+              )
               for (const key of localKeys) {
-                const raw = localStorage.getItem(key)
-                if (raw) {
-                  try {
-                    const parsed = JSON.parse(raw)
-                    if (parsed?.id && !ordersFromBackend.some((o) => o.id === parsed.id)) {
-                      localStorage.removeItem(key)
-                    }
-                  } catch {
-                    localStorage.removeItem(key)
-                  }
-                }
+                localStorage.removeItem(key)
               }
-              localStorage.removeItem('tg_latest_order')
             } catch { }
           }
 
@@ -143,16 +119,11 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
       // Update order status in local state so it remains in user's order history as Cancelled
       setBackendOrders((prev) => prev.map((o) => (o.id === cancellingOrder.id ? { ...o, status: 'Cancelled' } : o)))
 
-      // Clean up local storage cached order status
+      // Clean up local storage cached order if any
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(`tg_order_${cancellingOrder.id}`)
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved)
-            parsed.status = 'Cancelled'
-            localStorage.setItem(`tg_order_${cancellingOrder.id}`, JSON.stringify(parsed))
-          } catch { }
-        }
+        try {
+          localStorage.removeItem(`tg_order_${cancellingOrder.id}`)
+        } catch { }
       }
       toast.success(`Order #${cancellingOrder.id} status updated to Cancelled`, { position: 'top-center' })
     } catch (err) {

@@ -16,6 +16,8 @@ import {
   setStorageCookie,
   removeStorageCookie,
   decodeJwtPayload,
+  clearLegacyOrderCookies,
+  deleteCookie,
 } from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
 
@@ -31,32 +33,6 @@ interface AppContextType {
   navigate: (screen: Screen | string) => void
   handleAuthSuccess: (user: User) => void
   handleSignOut: () => void
-  measurementDraft: {
-    city: string
-    garmentId: string
-    serviceId: string
-    pickupOption: 'now' | 'schedule'
-    scheduleDate: Date
-    scheduleTime: string
-    images: string[]
-    measurements?: Record<string, string>
-    brand?: string
-    notes?: string
-    fittingMode?: string
-  }
-  setMeasurementDraft: React.Dispatch<React.SetStateAction<{
-    city: string
-    garmentId: string
-    serviceId: string
-    pickupOption: 'now' | 'schedule'
-    scheduleDate: Date
-    scheduleTime: string
-    images: string[]
-    measurements?: Record<string, string>
-    brand?: string
-    notes?: string
-    fittingMode?: string
-  }>>
   createdOrderId: string
   setCreatedOrderId: (id: string) => void
   prefilledPostcode: string
@@ -67,8 +43,6 @@ interface AppContextType {
   setPrefilledServiceId: (s: string | undefined) => void
   prefilledStore: StoreOption | undefined
   setPrefilledStore: (s: StoreOption | undefined) => void
-  confirmedMeasurements: Record<string, string> | undefined
-  setConfirmedMeasurements: (m: Record<string, string> | undefined) => void
   garmentBrand: string | undefined
   setGarmentBrand: (b: string | undefined) => void
   garmentNotes: string | undefined
@@ -98,54 +72,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>('trousers')
   const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(undefined)
   const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
-  const [confirmedMeasurements, setConfirmedMeasurements] = useState<Record<string, string> | undefined>()
   const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
   const [garmentNotes, setGarmentNotes] = useState<string | undefined>()
 
   const setPrefilledGarmentId = (g: string) => {
     setPrefilledGarmentIdState(g)
-    if (typeof window !== 'undefined') {
-      setStorageCookie('tg_prefilled_garment', g)
-    }
   }
 
   const setPrefilledServiceId = (s: string | undefined) => {
     setPrefilledServiceIdState(s)
-    if (typeof window !== 'undefined') {
-      if (s) setStorageCookie('tg_prefilled_service', s)
-      else removeStorageCookie('tg_prefilled_service')
-    }
   }
 
-  const [measurementDraft, setMeasurementDraft] = useState<{
-    city: string
-    garmentId: string
-    serviceId: string
-    pickupOption: 'now' | 'schedule'
-    scheduleDate: Date
-    scheduleTime: string
-    images: string[]
-    measurements?: Record<string, string>
-    brand?: string
-    notes?: string
-    fittingMode?: string
-  }>({
-    city: '',
-    garmentId: 'trousers',
-    serviceId: 'trouser-hem-plain',
-    pickupOption: 'now',
-    scheduleDate: new Date(),
-    scheduleTime: '03:30 PM',
-    images: [],
-  })
-
-  // Sync current user session on mount directly from DB / cookies
+  // Sync current user session on mount directly from DB / cookies and purge legacy storage
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const g = getStorageCookie('tg_prefilled_garment', 'trousers')
-      if (g && g !== 'trousers') setPrefilledGarmentIdState(g)
-      const s = getStorageCookie('tg_prefilled_service')
-      if (s) setPrefilledServiceIdState(s)
+      clearLegacyOrderCookies()
+
+      // Automatically purge legacy order, measurement, and prefill keys from localStorage
+      try {
+        const keysToRemove = Object.keys(localStorage).filter(
+          (k) =>
+            k.startsWith('tg_order_') ||
+            k.startsWith('tg_prefilled_') ||
+            k.startsWith('tg_measurement_') ||
+            k.startsWith('tg_order_notes_') ||
+            k === 'tg_latest_order' ||
+            k === 'tg_last_booking_note' ||
+            k === 'tg_booking_notes'
+        )
+        keysToRemove.forEach((k) => localStorage.removeItem(k))
+      } catch { }
 
       const stored = getAuthUser<User>()
       if (stored && stored.status !== 'INACTIVE') {
@@ -448,8 +404,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         navigate,
         handleAuthSuccess,
         handleSignOut,
-        measurementDraft,
-        setMeasurementDraft,
         createdOrderId,
         setCreatedOrderId,
         prefilledPostcode,
@@ -460,8 +414,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPrefilledServiceId,
         prefilledStore,
         setPrefilledStore,
-        confirmedMeasurements,
-        setConfirmedMeasurements,
         garmentBrand,
         setGarmentBrand,
         garmentNotes,

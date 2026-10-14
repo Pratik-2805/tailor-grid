@@ -52,14 +52,6 @@ let refreshPromise: Promise<string | null> | null = null
 
 export async function refreshAccessToken(providedRefreshToken?: string): Promise<string | null> {
   const refreshToken = providedRefreshToken || getRefreshToken()
-  if (!refreshToken) {
-    clearAllAuth()
-    return null
-  }
-
-  if (providedRefreshToken) {
-    setRefreshToken(providedRefreshToken)
-  }
 
   if (isRefreshing && refreshPromise && !providedRefreshToken) {
     return refreshPromise
@@ -72,7 +64,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify(refreshToken ? { refreshToken } : {}),
       })
 
       if (res.status === 401 || res.status === 403) {
@@ -88,7 +80,6 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
       const newAt = data.accessToken || data.token
       if (newAt) {
         setAuthToken(newAt)
-        if (data.refreshToken) setRefreshToken(data.refreshToken)
         if (data.user) {
           const currentRole = getAuthRole()
           const effectiveRole = (data.user.role === 'STUDIO' || currentRole === 'STUDIO')

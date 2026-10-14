@@ -141,8 +141,10 @@ export function getRefreshToken(): string | null {
 }
 
 export function setRefreshToken(token: string): void {
-  // 15 days
-  setCookie('tg_refresh_token', token, 15, '/')
+  // Server sets tg_refresh_token strictly as an HttpOnly cookie.
+  // Purge any client-accessible duplicate cookie to prevent JavaScript exposure
+  deleteCookie('tg_refresh_token', '/')
+  deleteCookie('refreshToken', '/')
 }
 
 export function removeRefreshToken(): void {

@@ -141,8 +141,10 @@ export function getRefreshToken(): string | null {
 }
 
 export function setRefreshToken(token: string): void {
-  // 15 days
-  setCookie('tg_refresh_token', token, 15, '/')
+  // Server sets tg_refresh_token strictly as an HttpOnly cookie.
+  // Purge any client-accessible duplicate cookie to prevent JavaScript exposure
+  deleteCookie('tg_refresh_token', '/')
+  deleteCookie('refreshToken', '/')
 }
 
 export function removeRefreshToken(): void {
@@ -249,8 +251,51 @@ export function removeAuthUser(): void {
   deleteCookie('tg_user', '/')
 }
 
+export function clearLegacyOrderCookies(): void {
+  if (typeof document === 'undefined') return
+  try {
+    const rawCookies = document.cookie.split(';')
+    for (let i = 0; i < rawCookies.length; i++) {
+      const cookie = rawCookies[i].trim()
+      if (!cookie) continue
+      const eqIdx = cookie.indexOf('=')
+      const name = eqIdx > -1 ? cookie.substring(0, eqIdx).trim() : cookie
+      let decodedName = name
+      try {
+        decodedName = decodeURIComponent(name)
+      } catch {}
+      if (
+        name.startsWith('tg_order_') ||
+        name.startsWith('tg_order_notes_') ||
+        name === 'tg_latest_order' ||
+        name === 'tg_book_session' ||
+        name === 'tg_prefilled_garment' ||
+        name === 'tg_prefilled_service' ||
+        name === 'tg_measurement_draft' ||
+        decodedName.startsWith('tg_order_') ||
+        decodedName.startsWith('tg_order_notes_') ||
+        decodedName === 'tg_latest_order' ||
+        decodedName === 'tg_book_session' ||
+        decodedName === 'tg_prefilled_garment' ||
+        decodedName === 'tg_prefilled_service' ||
+        decodedName === 'tg_measurement_draft'
+      ) {
+        deleteCookie(name, '/')
+        deleteCookie(name, '')
+        deleteCookie(decodedName, '/')
+        deleteCookie(decodedName, '')
+        document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        document.cookie = `${decodedName}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+      }
+    }
+  } catch (e) {
+    console.warn('Error clearing legacy order cookies:', e)
+  }
+}
+
 export function clearUnnecessaryDataOnLogin(): void {
   clearAllCookies()
+  clearLegacyOrderCookies()
 }
 
 export function clearAllAuth(): void {
@@ -259,6 +304,7 @@ export function clearAllAuth(): void {
   removeAuthUser()
   removeAuthRole()
   clearAllCookies()
+  clearLegacyOrderCookies()
   if (typeof window !== 'undefined') {
     try {
       localStorage.clear()
@@ -270,6 +316,7 @@ export function clearAllAuth(): void {
 }
 
 // ================= STORAGE COOKIE HELPERS =================
+// Note: Orders, prefilled choices, and drafts must NEVER be stored in cookies.
 
 export function getStorageCookie(key: string, defaultValue: string = ''): string {
   const cookieVal = getCookie(key)
@@ -277,10 +324,22 @@ export function getStorageCookie(key: string, defaultValue: string = ''): string
 }
 
 export function setStorageCookie(key: string, value: string): void {
+  // Prevent storing order payloads or UI state in cookies
+  if (
+    key.startsWith('tg_order_') ||
+    key === 'tg_latest_order' ||
+    key === 'tg_prefilled_garment' ||
+    key === 'tg_prefilled_service' ||
+    key === 'tg_measurement_draft'
+  ) {
+    deleteCookie(key, '/')
+    return
+  }
   setCookie(key, value, 30, '/')
 }
 
 export function removeStorageCookie(key: string): void {
   deleteCookie(key, '/')
 }
+
 

@@ -147,7 +147,7 @@ router.post('/login', async (req, res) => {
 /**
  * Security Middleware: Enforce Super Admin Authentication & RBAC
  */
-function requireAdminAuth(req, res, next) {
+async function requireAdminAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
     let token = null;
@@ -158,7 +158,7 @@ function requireAdminAuth(req, res, next) {
       const match = req.headers.cookie
         .split(';')
         .map((c) => c.trim())
-        .find((c) => c.startsWith('admin_token=') || c.startsWith('token='));
+        .find((c) => c.startsWith('admin_token=') || c.startsWith('token=') || c.startsWith('tg_token='));
       if (match) token = match.split('=')[1];
     }
 
@@ -171,7 +171,17 @@ function requireAdminAuth(req, res, next) {
       return res.status(403).json({ error: 'Forbidden: Super Admin privileges required' });
     }
 
-    req.admin = decoded;
+    // Verify admin still exists in DB and is an active ADMIN
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, status: true },
+    });
+
+    if (!user || user.role !== 'ADMIN') {
+      return res.status(401).json({ error: 'Admin account no longer exists in database or role revoked' });
+    }
+
+    req.admin = { ...decoded, ...user };
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired Super Admin token' });

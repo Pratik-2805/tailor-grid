@@ -644,10 +644,38 @@ function getAdminHeaders(): HeadersInit {
   }
 }
 
+export function handleAdminUnauthorized(): void {
+  if (typeof window !== 'undefined') {
+    logoutSuperAdmin()
+    try {
+      sessionStorage.removeItem('admin_cache_overview')
+      sessionStorage.removeItem('admin_cache_customers')
+      sessionStorage.removeItem('admin_cache_studios')
+      sessionStorage.removeItem('admin_cache_orders')
+    } catch {}
+    // Trigger custom event or redirect if on protected screen
+    window.dispatchEvent(new Event('admin:unauthorized'))
+  }
+}
+
+export async function adminFetch(input: string, init?: RequestInit): Promise<Response> {
+  const headers = getAdminHeaders()
+  const res = await fetch(input, {
+    ...init,
+    headers: {
+      ...headers,
+      ...(init?.headers || {}),
+    },
+  })
+  if (res.status === 401 || res.status === 403) {
+    handleAdminUnauthorized()
+  }
+  return res
+}
+
 export async function fetchAdminOverview(): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE}/admin/overview`, {
-      headers: getAdminHeaders(),
+    const res = await adminFetch(`${API_BASE}/admin/overview`, {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch admin overview')
@@ -664,8 +692,7 @@ export async function fetchAdminCustomers(search?: string, status?: string, role
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (role && role !== 'ALL') params.append('role', role)
-    const res = await fetch(`${API_BASE}/admin/customers?${params.toString()}`, {
-      headers: getAdminHeaders(),
+    const res = await adminFetch(`${API_BASE}/admin/customers?${params.toString()}`, {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch customers')
@@ -679,9 +706,8 @@ export async function fetchAdminCustomers(search?: string, status?: string, role
 
 export async function createAdminCustomer(data: any): Promise<{ success: boolean; customer?: any; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/admin/customers`, {
+    const res = await adminFetch(`${API_BASE}/admin/customers`, {
       method: 'POST',
-      headers: getAdminHeaders(),
       body: JSON.stringify(data),
     })
     const resData = await res.json()
@@ -694,9 +720,8 @@ export async function createAdminCustomer(data: any): Promise<{ success: boolean
 
 export async function updateAdminCustomer(id: string, updates: any): Promise<{ success: boolean; customer?: any; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -709,9 +734,8 @@ export async function updateAdminCustomer(id: string, updates: any): Promise<{ s
 
 export async function deleteAdminCustomer(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: getAdminHeaders(),
     })
     return res.ok
   } catch (err) {
@@ -724,8 +748,7 @@ export async function fetchAdminStudios(search?: string, area?: string): Promise
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (area && area !== 'ALL') params.append('area', area)
-    const res = await fetch(`${API_BASE}/admin/studios?${params.toString()}`, {
-      headers: getAdminHeaders(),
+    const res = await adminFetch(`${API_BASE}/admin/studios?${params.toString()}`, {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch studios')
@@ -739,9 +762,8 @@ export async function fetchAdminStudios(search?: string, area?: string): Promise
 
 export async function createAdminStudio(studioData: any): Promise<{ success: boolean; studio?: any; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/admin/studios`, {
+    const res = await adminFetch(`${API_BASE}/admin/studios`, {
       method: 'POST',
-      headers: getAdminHeaders(),
       body: JSON.stringify(studioData),
     })
     const data = await res.json()
@@ -754,9 +776,8 @@ export async function createAdminStudio(studioData: any): Promise<{ success: boo
 
 export async function updateAdminStudio(id: string, updates: any): Promise<{ success: boolean; studio?: any; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -769,9 +790,8 @@ export async function updateAdminStudio(id: string, updates: any): Promise<{ suc
 
 export async function deleteAdminStudio(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: getAdminHeaders(),
     })
     return res.ok
   } catch (err) {
@@ -785,8 +805,7 @@ export async function fetchAdminOrders(search?: string, status?: string, storeId
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (storeId && storeId !== 'ALL') params.append('storeId', storeId)
-    const res = await fetch(`${API_BASE}/admin/orders?${params.toString()}`, {
-      headers: getAdminHeaders(),
+    const res = await adminFetch(`${API_BASE}/admin/orders?${params.toString()}`, {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch orders')
@@ -800,9 +819,8 @@ export async function fetchAdminOrders(search?: string, status?: string, storeId
 
 export async function updateAdminOrder(id: string, updates: any): Promise<{ success: boolean; order?: any; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      headers: getAdminHeaders(),
       body: JSON.stringify(updates),
     })
     const data = await res.json()
@@ -816,8 +834,7 @@ export async function updateAdminOrder(id: string, updates: any): Promise<{ succ
 export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[] }> {
   try {
     if (!q || !q.trim()) return { customers: [], studios: [], orders: [] }
-    const res = await fetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, {
-      headers: getAdminHeaders(),
+    const res = await adminFetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, {
       cache: 'no-store',
     })
     if (!res.ok) return { customers: [], studios: [], orders: [] }
@@ -902,8 +919,8 @@ export async function loginSuperAdmin(idOrEmail: string, password: string): Prom
     setAdminToken(data.token)
     setAdminUser(data.user)
 
-    // Synchronize unified auth tokens & cookies so proxy recognizes Admin role across routes
-    setAuthToken(data.token)
+    // Synchronize unified auth tokens & cookies so proxy recognizes Admin role across routes (7 days)
+    setAuthToken(data.token, 7)
     setAuthRole('ADMIN')
     setAuthUser(data.user)
 
