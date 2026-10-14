@@ -681,8 +681,18 @@ export function PartnerFlow({
     }
   }, [user])
 
-  // Price Catalog Verification State & Persistent Prompt
-  const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(null)
+  // Price Catalog Verification State & Persistent Prompt (cached in localStorage to prevent flash on reload)
+  const [hasFilledCatalog, setHasFilledCatalog] = useState<boolean | null>(() => {
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      if (studioId) {
+        const cached = localStorage.getItem(`tg_has_filled_catalog_${studioId}`)
+        if (cached === 'true') return true
+        if (cached === 'false') return false
+      }
+    }
+    return null
+  })
   const [studioCatalogItems, setStudioCatalogItems] = useState<StudioCatalogItemData[]>([])
   const [showCatalogPromptModal, setShowCatalogPromptModal] = useState(false)
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
@@ -698,6 +708,11 @@ export function PartnerFlow({
       .then((data) => {
         if (!isMounted) return
         setHasFilledCatalog(data.hasFilledCatalog)
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem(`tg_has_filled_catalog_${studioIdToVerify}`, data.hasFilledCatalog ? 'true' : 'false')
+          } catch {}
+        }
         if (Array.isArray(data.items)) {
           setStudioCatalogItems(data.items)
         }
@@ -1145,6 +1160,14 @@ export function PartnerFlow({
   // Instantly handle saved catalog: updates cards, orders, parent user state, and cross-tab broadcasts with 0ms delay
   const handleCatalogSaved = (items: StudioCatalogItemData[], curr?: string, currSym?: string) => {
     setHasFilledCatalog(true)
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      if (studioId) {
+        try {
+          localStorage.setItem(`tg_has_filled_catalog_${studioId}`, 'true')
+        } catch {}
+      }
+    }
     setShowCatalogPromptModal(false)
     if (Array.isArray(items)) {
       setStudioCatalogItems(items)
