@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { HomeView } from '@/components/home-view'
 import { useApp } from '@/components/app-provider'
 import type { StoreOption } from '@/components/data'
-import { setStorageCookie, getAuthRole } from '@/lib/cookies'
+import { deleteCookie, getAuthRole } from '@/lib/cookies'
 import { NormalLoader } from '@/components/normal-loader'
 
 export default function HomePage() {
@@ -19,7 +19,6 @@ export default function HomePage() {
     setPrefilledGarmentId,
     setPrefilledServiceId,
     setPrefilledStore,
-    setMeasurementDraft,
   } = useApp()
 
   const role = user?.role || getAuthRole()
@@ -48,7 +47,7 @@ export default function HomePage() {
     setPrefilledStore(store)
   }
 
-  const handleRequestMeasurement = (params: {
+  const handleStartBooking = (params: {
     city: string
     garmentId: string
     serviceId: string
@@ -57,7 +56,6 @@ export default function HomePage() {
     scheduleTime: string
     images: string[]
   }) => {
-    setMeasurementDraft(params)
     setPrefilledGarmentId(params.garmentId)
     setPrefilledServiceId(params.serviceId)
     setPrefilledPostcode(
@@ -67,9 +65,6 @@ export default function HomePage() {
           ? 'W8 4EP'
           : '10012'
     )
-    if (typeof window !== 'undefined') {
-      setStorageCookie('tg_measurement_draft', JSON.stringify(params))
-    }
   }
 
   return (
@@ -79,7 +74,7 @@ export default function HomePage() {
       onOpenAuth={() => openAuth('CUSTOMER', 'signin')}
       onQuickSearch={handleQuickSearch}
       onSelectStore={handleSelectStore}
-      onRequestMeasurement={handleRequestMeasurement}
+      onStartBooking={handleStartBooking}
     />
   )
 }
