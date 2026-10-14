@@ -572,7 +572,7 @@ export function StudioProfileView({
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div className="w-full space-y-6 animate-in fade-in duration-200">
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E1D5] pb-5">
         <div>
@@ -639,7 +639,7 @@ export function StudioProfileView({
       )}
 
       {/* ── Tab Switcher ── */}
-      <div className="flex items-center gap-2 border-b border-[#E8E1D5] pb-px">
+      <div className="flex items-center gap-2 border-b border-[#E8E1D5] pb-px mb-2">
         <button
           type="button"
           onClick={() => setActiveSubTab('profile')}
@@ -685,12 +685,12 @@ export function StudioProfileView({
           <PriceCatalogView user={user} />
         </div>
       ) : (
-        <form onSubmit={handleSave} className="space-y-6">
+        <form onSubmit={handleSave} className="space-y-7 sm:space-y-8">
           {activeSubTab === 'profile' ? (
-            <div className="space-y-6">
+            <div className="space-y-7 sm:space-y-8">
             {/* Atelier Identity & Branding Card */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
                 <div className="flex items-center gap-4">
                   <StudioAvatar
                     avatar={avatar}
@@ -857,8 +857,8 @@ export function StudioProfileView({
             </div>
 
             {/* Form Fields Grid */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-5">
-              <div className="border-b border-[#E8E1D5] pb-2.5 flex items-center justify-between">
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-6">
+              <div className="border-b border-[#E8E1D5] pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-sm text-[#1E2229]">
                     Atelier & Master Tailor Details
@@ -1119,55 +1119,6 @@ export function StudioProfileView({
               </div>
             </div>
 
-            {/* ── Partner Operations & Legal Policies ── */}
-            <div className="p-5 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[#9E593B]">
-                Atelier Operations Desk &amp; Legal Policies
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <Link
-                  href="/contact"
-                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-[#9E593B] bg-[#FAF8F5] hover:bg-white transition-all text-left group"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="size-6 rounded-md bg-[#FAF3EC] text-[#9E593B] grid place-items-center group-hover:scale-110 transition-transform">
-                      <Headphones size={13} />
-                    </span>
-                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                  <div className="text-xs font-bold text-[#1E2229]">Partner Desk</div>
-                  <div className="text-[10px] text-[#6B7280]">Urgent dispatch &amp; disputes</div>
-                </Link>
-
-                <Link
-                  href="/support"
-                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-emerald-600 bg-[#FAF8F5] hover:bg-white transition-all text-left group"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="size-6 rounded-md bg-emerald-50 text-emerald-700 grid place-items-center group-hover:scale-110 transition-transform">
-                      <ShieldCheck size={13} />
-                    </span>
-                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                  <div className="text-xs font-bold text-[#1E2229]">SLA Guidelines</div>
-                  <div className="text-[10px] text-[#6B7280]">PIN intake &amp; 48h rules</div>
-                </Link>
-
-                <Link
-                  href="/privacy"
-                  className="p-3 rounded-xl border border-[#E8E1D5] hover:border-blue-600 bg-[#FAF8F5] hover:bg-white transition-all text-left group"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="size-6 rounded-md bg-blue-50 text-blue-700 grid place-items-center group-hover:scale-110 transition-transform">
-                      <Lock size={13} />
-                    </span>
-                    <ArrowRight size={12} className="text-[#A1A4AB] group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                  <div className="text-xs font-bold text-[#1E2229]">Partner Privacy</div>
-                  <div className="text-[10px] text-[#6B7280]">Workshop &amp; payout policy</div>
-                </Link>
-              </div>
-            </div>
 
             {/* Bottom Nav */}
             <div className="flex items-center justify-between pt-2">
@@ -1194,9 +1145,9 @@ export function StudioProfileView({
           </div>
         ) : (
           /* TAB 2: CRAFT & SPECIALISMS */
-          <div className="space-y-6">
+          <div className="space-y-7">
             {/* Primary Node Territory Section */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
@@ -1227,7 +1178,7 @@ export function StudioProfileView({
             </div>
 
             {/* Machine Specialties & Capabilities */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="border-b border-[#E8E1D5] pb-2 flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-sm text-[#1E2229]">Workshop Specialisms & Machinery</h3>
@@ -1262,7 +1213,7 @@ export function StudioProfileView({
             </div>
 
             {/* Workshop Capacity & Bench Setup */}
-            <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
+            <div className="p-6 sm:p-7 rounded-2xl bg-white border border-[#E8E1D5] shadow-2xs space-y-4">
               <div className="border-b border-[#E8E1D5] pb-2">
                 <h3 className="font-bold text-sm text-[#1E2229]">Atelier Capacity & Bench Machinery</h3>
                 <p className="text-xs text-[#6B7280] mt-0.5">

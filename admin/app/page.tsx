@@ -94,14 +94,27 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab)
 
   const handleTabSwitch = (tab: AdminTab) => {
+    if (tab === activeTab) return
     setActiveTab(tab)
     const targetPath = tab === 'overview' ? '/' : `/${tab}`
-    if (pathname !== targetPath) {
-      router.push(targetPath)
+    if (typeof window !== 'undefined' && window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath)
     }
   }
 
   // Sync activeTab when navigating via browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = window.location.pathname
+      if (p === '/customers') setActiveTab('customers')
+      else if (p === '/studios') setActiveTab('studios')
+      else if (p === '/orders') setActiveTab('orders')
+      else if (p === '/') setActiveTab('overview')
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   useEffect(() => {
     if (pathname === '/customers') setActiveTab('customers')
     else if (pathname === '/studios') setActiveTab('studios')
@@ -230,19 +243,22 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       return
     }
 
-    // Instant local hydration to avoid flashing the "Verifying Super Admin session" screen on route transitions
-    const cachedUser = getAdminUser()
-    if (cachedUser && cachedUser.role === 'ADMIN') {
-      setAdminUser(cachedUser)
-      setAuthChecking(false)
+    // Listen for unauthorized events to automatically reset admin session
+    const onUnauthorized = () => {
+      if (isMounted) {
+        setAdminUser(null)
+        setAuthChecking(false)
+        if (pathname !== '/') router.replace('/')
+      }
     }
+    window.addEventListener('admin:unauthorized', onUnauthorized)
 
     const safetyTimer = setTimeout(() => {
       if (isMounted) {
         setAuthChecking(false)
         if (!getAdminToken() && pathname !== '/') router.replace('/')
       }
-    }, 2000)
+    }, 2500)
 
     async function initSession() {
       try {
@@ -252,11 +268,15 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
           // Always load foundational data silently in background
           loadAllData(true)
         } else if (isMounted) {
+          setAdminUser(null)
           if (pathname !== '/') router.replace('/')
         }
       } catch (err) {
         console.warn('Session check notice:', err)
-        if (isMounted && pathname !== '/') router.replace('/')
+        if (isMounted) {
+          setAdminUser(null)
+          if (pathname !== '/') router.replace('/')
+        }
       } finally {
         if (isMounted) {
           setAuthChecking(false)
@@ -268,6 +288,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     initSession()
     return () => {
       isMounted = false
+      window.removeEventListener('admin:unauthorized', onUnauthorized)
       clearTimeout(safetyTimer)
     }
   }, [])
@@ -1047,67 +1068,69 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
 
       {/* ── MAIN CONTENT AREA ── */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* ── TAB 1: OVERVIEW & ANALYTICS ── */}
-        {activeTab === 'overview' && (
-          <OverviewTab
-            overview={overview}
-            customers={customers}
-            studios={studios}
-            orders={orders}
-            onNavigateTab={handleTabSwitch}
-            onOpenAddCustomer={() => setShowAddCustomerModal(true)}
-            onOpenAddStudio={() => setShowAddStudioModal(true)}
-            onFilterOrderStatus={setOrderStatusFilter}
-            onEditOrder={setEditingOrder}
-          />
-        )}
+        <div key={activeTab} className="animate-fadeIn transition-opacity duration-200">
+          {/* ── TAB 1: OVERVIEW & ANALYTICS ── */}
+          {activeTab === 'overview' && (
+            <OverviewTab
+              overview={overview}
+              customers={customers}
+              studios={studios}
+              orders={orders}
+              onNavigateTab={handleTabSwitch}
+              onOpenAddCustomer={() => setShowAddCustomerModal(true)}
+              onOpenAddStudio={() => setShowAddStudioModal(true)}
+              onFilterOrderStatus={setOrderStatusFilter}
+              onEditOrder={setEditingOrder}
+            />
+          )}
 
-        {/* ── TAB 2: CUSTOMER MASTER MANAGEMENT ── */}
-        {activeTab === 'customers' && (
-          <CustomersTab
-            customers={customers}
-            customerSearch={customerSearch}
-            setCustomerSearch={setCustomerSearch}
-            customerStatusFilter={customerStatusFilter}
-            setCustomerStatusFilter={setCustomerStatusFilter}
-            onOpenAddCustomer={() => setShowAddCustomerModal(true)}
-            onEditCustomer={setEditingCustomer}
-            onDeleteCustomer={handleDeleteCustomer}
-            onViewCustomerOrders={setViewingCustomerOrders}
-          />
-        )}
+          {/* ── TAB 2: CUSTOMER MASTER MANAGEMENT ── */}
+          {activeTab === 'customers' && (
+            <CustomersTab
+              customers={customers}
+              customerSearch={customerSearch}
+              setCustomerSearch={setCustomerSearch}
+              customerStatusFilter={customerStatusFilter}
+              setCustomerStatusFilter={setCustomerStatusFilter}
+              onOpenAddCustomer={() => setShowAddCustomerModal(true)}
+              onEditCustomer={setEditingCustomer}
+              onDeleteCustomer={handleDeleteCustomer}
+              onViewCustomerOrders={setViewingCustomerOrders}
+            />
+          )}
 
-        {/* ── TAB 3: STUDIO FLEET MANAGEMENT ── */}
-        {activeTab === 'studios' && (
-          <StudiosTab
-            studios={studios}
-            studioSearch={studioSearch}
-            setStudioSearch={setStudioSearch}
-            studioAreaFilter={studioAreaFilter}
-            setStudioAreaFilter={setStudioAreaFilter}
-            availableAreas={availableAreas}
-            onOpenAddStudio={() => setShowAddStudioModal(true)}
-            onEditStudio={setEditingStudio}
-            onDeleteStudio={handleDeleteStudio}
-          />
-        )}
+          {/* ── TAB 3: STUDIO FLEET MANAGEMENT ── */}
+          {activeTab === 'studios' && (
+            <StudiosTab
+              studios={studios}
+              studioSearch={studioSearch}
+              setStudioSearch={setStudioSearch}
+              studioAreaFilter={studioAreaFilter}
+              setStudioAreaFilter={setStudioAreaFilter}
+              availableAreas={availableAreas}
+              onOpenAddStudio={() => setShowAddStudioModal(true)}
+              onEditStudio={setEditingStudio}
+              onDeleteStudio={handleDeleteStudio}
+            />
+          )}
 
-        {/* ── TAB 4: ORDERS & DISPATCH CONSOLE ── */}
-        {activeTab === 'orders' && (
-          <OrdersTab
-            orders={orders}
-            studios={studios}
-            orderSearch={orderSearch}
-            setOrderSearch={setOrderSearch}
-            orderStatusFilter={orderStatusFilter}
-            setOrderStatusFilter={setOrderStatusFilter}
-            orderStoreFilter={orderStoreFilter}
-            setOrderStoreFilter={setOrderStoreFilter}
-            orderRetailFilter={orderRetailFilter}
-            setOrderRetailFilter={setOrderRetailFilter}
-            onEditOrder={setEditingOrder}
-          />
-        )}
+          {/* ── TAB 4: ORDERS & DISPATCH CONSOLE ── */}
+          {activeTab === 'orders' && (
+            <OrdersTab
+              orders={orders}
+              studios={studios}
+              orderSearch={orderSearch}
+              setOrderSearch={setOrderSearch}
+              orderStatusFilter={orderStatusFilter}
+              setOrderStatusFilter={setOrderStatusFilter}
+              orderStoreFilter={orderStoreFilter}
+              setOrderStoreFilter={setOrderStoreFilter}
+              orderRetailFilter={orderRetailFilter}
+              setOrderRetailFilter={setOrderRetailFilter}
+              onEditOrder={setEditingOrder}
+            />
+          )}
+        </div>
       </main>
 
       {/* ── MODAL: EDIT CUSTOMER (MASTER ADMIN CAPABILITY) ── */}
