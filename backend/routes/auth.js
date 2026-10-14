@@ -1002,16 +1002,6 @@ router.post("/verify-otp", async (req, res) => {
     const authCode = createAuthCode(returnUser, tokens.accessToken);
     setAuthCookies(res, tokens);
 
-    if (returnUser?.email && returnUser.role === "CUSTOMER") {
-      sendWelcomeEmail({
-        toEmail: returnUser.email,
-        name: returnUser.name,
-        role: "CUSTOMER",
-        phone: returnUser.phone || "",
-      }).catch((wErr) =>
-        console.warn("[WELCOME EMAIL] verify-otp notice:", wErr.message),
-      );
-    }
     return res.json({
       success: true,
       message: "Mobile number verified and authenticated successfully",
@@ -1148,16 +1138,6 @@ router.post("/link-phone", async (req, res) => {
     const authCode = createAuthCode(user, tokens.accessToken);
     setAuthCookies(res, tokens);
 
-    if (user?.email && user.role === "CUSTOMER") {
-      sendWelcomeEmail({
-        toEmail: user.email,
-        name: user.name,
-        role: "CUSTOMER",
-        phone: user.phone || cleanPhone || "",
-      }).catch((wErr) =>
-        console.warn("[WELCOME EMAIL] link-phone notice:", wErr.message),
-      );
-    }
     return res.json({
       success: true,
       message: "Mobile number linked successfully",
@@ -1447,16 +1427,6 @@ router.post("/google", async (req, res) => {
         const authCode = createAuthCode(returnUser, tokens.accessToken);
         setAuthCookies(res, tokens);
 
-        if (returnUser?.email && returnUser.role === "CUSTOMER") {
-          sendWelcomeEmail({
-            toEmail: returnUser.email,
-            name: returnUser.name,
-            role: "CUSTOMER",
-            phone: returnUser.phone || "",
-          }).catch((wErr) =>
-            console.warn("[WELCOME EMAIL] Google auth notice:", wErr.message),
-          );
-        }
         return res.json({
           success: true,
           message: "Authenticated with Google successfully",
