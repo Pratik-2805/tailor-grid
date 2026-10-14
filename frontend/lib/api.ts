@@ -11,16 +11,81 @@ import {
   clearAllAuth,
   clearUnnecessaryDataOnLogin,
   decodeJwtPayload,
+  hasActiveSession,
 } from './cookies'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
+let silentRefreshTimer: any = null
+
+export function cancelSilentRefresh(): void {
+  if (silentRefreshTimer) {
+    clearTimeout(silentRefreshTimer)
+    silentRefreshTimer = null
+  }
+}
+
+/**
+ * Automatically & silently refreshes access token before 15 minutes expire
+ * Keeps user session perpetually alive without interruption or logouts.
+ */
+export function scheduleSilentRefresh(token?: string | null): void {
+  if (typeof window === 'undefined') return
+
+  cancelSilentRefresh()
+
+  const currentToken = token || getAuthToken()
+  if (!currentToken) {
+    if (hasActiveSession()) {
+      silentRefreshTimer = setTimeout(() => {
+        refreshAccessToken().then((newToken) => {
+          if (newToken) scheduleSilentRefresh(newToken)
+        })
+      }, 1000)
+    }
+    return
+  }
+
+  try {
+    const payload = decodeJwtPayload(currentToken)
+    const exp = payload?.exp ? payload.exp * 1000 : null
+    let delay = 12 * 60 * 1000 // default 12 minutes
+
+    if (exp) {
+      const remaining = exp - Date.now()
+      // Proactively refresh 2.5 minutes before expiration (at ~12.5 minutes)
+      delay = remaining > 150000 ? remaining - 150000 : Math.max(10000, remaining / 2)
+    }
+
+    silentRefreshTimer = setTimeout(async () => {
+      try {
+        const freshToken = await refreshAccessToken()
+        if (freshToken) {
+          scheduleSilentRefresh(freshToken)
+        }
+      } catch (err) {
+        console.warn('[AUTH] Notice during silent auto-refresh:', err)
+      }
+    }, delay)
+  } catch (_) {
+    silentRefreshTimer = setTimeout(() => {
+      refreshAccessToken().then((t) => {
+        if (t) scheduleSilentRefresh(t)
+      })
+    }, 12 * 60 * 1000)
+  }
+}
+
 export function syncAuthCookies(token?: string | null, role?: string | null) {
-  if (token) setAuthToken(token)
+  if (token) {
+    setAuthToken(token)
+    scheduleSilentRefresh(token)
+  }
   if (role) setAuthRole(role)
 }
 
 export function clearAuthCookies() {
+  cancelSilentRefresh()
   clearAllAuth()
 }
 
@@ -50,7 +115,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
       })
 
       if (res.status === 401 || res.status === 403) {
-        // Explicitly rejected by auth server (token expired / revoked / reuse detected)
+        cancelSilentRefresh()
         clearAllAuth()
         return null
       }
@@ -68,6 +133,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
           setAuthUser(data.user)
           if (data.user.role) setAuthRole(data.user.role)
         }
+        scheduleSilentRefresh(newAt)
         return newAt
       }
 
@@ -88,10 +154,13 @@ export async function getValidAccessToken(): Promise<string | null> {
   let token = getAuthToken()
   if (token) return token
 
-  // If user has a session, attempt refresh using secure HttpOnly cookie
-  if (getAuthUser() || getAuthRole() || getRefreshToken()) {
+  // If user has an active session flag, cached user, or HttpOnly cookie, automatically refresh
+  if (hasActiveSession() || getAuthUser() || getAuthRole() || getRefreshToken()) {
     token = await refreshAccessToken()
-    if (token) return token
+    if (token) {
+      scheduleSilentRefresh(token)
+      return token
+    }
   }
 
   return null
@@ -135,6 +204,7 @@ export async function logoutUser(): Promise<void> {
   } catch (err) {
     console.warn('Backend logout request notice:', err)
   } finally {
+    cancelSilentRefresh()
     clearAllAuth()
   }
 }

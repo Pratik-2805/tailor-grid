@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toastify'
-import { getCurrentUser, logoutUser, getStudioUrl } from '@/lib/api'
+import { getCurrentUser, logoutUser, getStudioUrl, scheduleSilentRefresh } from '@/lib/api'
 import {
   getAuthToken,
   getRefreshToken,
@@ -18,6 +18,7 @@ import {
   decodeJwtPayload,
   clearLegacyOrderCookies,
   deleteCookie,
+  hasActiveSession,
 } from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
 
@@ -111,7 +112,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return
         }
         setUser(stored)
-      } else if (!getAuthToken() && !getRefreshToken()) {
+      } else if (!hasActiveSession() && !getAuthToken() && !getRefreshToken()) {
         setUser(null)
       }
 
@@ -127,7 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         window.history.replaceState({}, '', window.location.pathname)
       } else if (authParam === 'required' || authParam === 'signin') {
-        const hasToken = Boolean(getAuthToken() || getRefreshToken())
+        const hasToken = Boolean(hasActiveSession() || getAuthToken() || getRefreshToken())
         if (!hasToken) {
           openAuth('CUSTOMER', 'signin')
         }
@@ -135,8 +136,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const token = getAuthToken() || getRefreshToken()
-    if (token) {
+    const hasSession = hasActiveSession() || Boolean(getAuthToken() || getRefreshToken())
+    if (hasSession) {
+      scheduleSilentRefresh()
       getCurrentUser()
         .then((u) => {
           if (u) {
@@ -254,6 +256,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAuthRole(effectiveRole === 'STUDIO' ? 'STUDIO' : 'CUSTOMER')
     setCookieAuthRole(effectiveRole)
     setAuthUser(updatedUser)
+    scheduleSilentRefresh((loggedUser as any).token)
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
       position: 'top-center',
