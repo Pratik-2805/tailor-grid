@@ -25,56 +25,48 @@ export function RaffuLogo({
   const sizeClasses = {
     sm: {
       hindi: 'text-[22px] sm:text-[24px]',
-      dot: 'w-1 h-1 ml-1 mb-0.5',
+      dot: 'w-[3px] h-[3px] left-[18.5px] bottom-[2px]',
       divider: 'h-5',
       roman: 'text-[11px] sm:text-[12px]',
       subtitle: 'text-[6.5px] sm:text-[7px]',
-      stitchHeight: 'top-[1px] h-[1.5px]',
     },
     md: {
       hindi: 'text-[26px] sm:text-[29px]',
-      dot: 'w-1.5 h-1.5 ml-1.5 mb-0.5',
+      dot: 'w-[4px] h-[4px] left-[22px] bottom-[2.5px]',
       divider: 'h-6',
       roman: 'text-[13px] sm:text-[14px]',
       subtitle: 'text-[7.5px] sm:text-[8px]',
-      stitchHeight: 'top-[1.5px] h-[2px]',
     },
     lg: {
       hindi: 'text-[32px] sm:text-[38px]',
-      dot: 'w-2 h-2 ml-2 mb-1',
+      dot: 'w-[5px] h-[5px] left-[28px] bottom-[3.5px]',
       divider: 'h-8',
       roman: 'text-[16px] sm:text-[18px]',
       subtitle: 'text-[9px] sm:text-[10px]',
-      stitchHeight: 'top-[2px] h-[2.5px]',
     },
     xl: {
       hindi: 'text-[44px] sm:text-[54px]',
-      dot: 'w-2.5 h-2.5 ml-2.5 mb-1.5',
+      dot: 'w-[7px] h-[7px] left-[39px] bottom-[5px]',
       divider: 'h-10',
       roman: 'text-[20px] sm:text-[24px]',
       subtitle: 'text-[10px] sm:text-[12px]',
-      stitchHeight: 'top-[3px] h-[3px]',
     },
   }[size]
 
   return (
     <div className={`flex items-center gap-3 sm:gap-3.5 select-none ${className}`}>
-      {/* Devanagari Wordmark with Red Tailor Stitch Line */}
-      <div className="relative flex items-baseline leading-none">
-        <div className="relative inline-flex items-baseline">
-          <span className={`${sizeClasses.hindi} font-black ${textColor} tracking-tight leading-none inline-flex items-baseline`}>
-            रफू
+      {/* Devanagari Wordmark */}
+      <div className="relative inline-flex items-baseline leading-none">
+        <span className={`${sizeClasses.hindi} font-black ${textColor} tracking-tight leading-none inline-flex items-baseline`}>
+          र
+          <span className="relative inline-block leading-none">
+            फू
+            {/* Red dot nestled in the center / loop of the ukar of fu */}
+            <span
+              className={`absolute ${sizeClasses.dot} rounded-full bg-[#DC2626] pointer-events-none`}
+            />
           </span>
-          {/* Crimson Tailor Stitch Seam across the shirorekha */}
-          <div
-            className={`absolute ${sizeClasses.stitchHeight} left-0 right-0 pointer-events-none`}
-            style={{
-              backgroundImage: 'repeating-linear-gradient(90deg, #DC2626 0, #DC2626 3.5px, transparent 3.5px, transparent 6px)',
-            }}
-          />
-        </div>
-        {/* Modern Red End Dot */}
-        <span className={`${sizeClasses.dot} rounded-full bg-[#DC2626] inline-block shrink-0 shadow-xs`} />
+        </span>
       </div>
 
       {!devanagariOnly && (
