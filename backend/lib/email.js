@@ -1,4 +1,6 @@
 require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
 const { Resend } = require("resend");
 
 let resendClient = null;
@@ -576,6 +578,33 @@ function buildWelcomeEmailHtml({
   `.trim();
 }
 
+// Persistent deduplication registry to guarantee each account receives only 1 welcome email on initial signup
+const WELCOME_CACHE_FILE = path.join(__dirname, "../sent_welcome_emails.json");
+let sentWelcomeEmails = new Set();
+try {
+  if (fs.existsSync(WELCOME_CACHE_FILE)) {
+    const data = JSON.parse(fs.readFileSync(WELCOME_CACHE_FILE, "utf8"));
+    if (Array.isArray(data)) {
+      sentWelcomeEmails = new Set(data);
+    }
+  }
+} catch (e) {
+  sentWelcomeEmails = new Set();
+}
+
+function recordSentWelcomeEmail(key) {
+  sentWelcomeEmails.add(key);
+  try {
+    fs.writeFileSync(
+      WELCOME_CACHE_FILE,
+      JSON.stringify(Array.from(sentWelcomeEmails), null, 2),
+      "utf8",
+    );
+  } catch (e) {
+    console.warn("[WELCOME EMAIL] Failed to save sent email cache file:", e.message);
+  }
+}
+
 // In-memory cooldown store to prevent rapid duplicate sends during a single signup flow
 // Cooldown duration: 2 minutes (120,000ms)
 const WELCOME_EMAIL_COOLDOWN_MS = 2 * 60 * 1000;
@@ -605,6 +634,18 @@ async function sendWelcomeEmail({
   const cleanEmail = toEmail.trim().toLowerCase();
   const isStudio = role === "STUDIO" || role === "TEMP_STUDIO";
   const dedupKey = `welcome:${cleanEmail}:${isStudio ? "studio" : "customer"}`;
+
+  // Strict deduplication: Welcome email is ONLY sent once on initial signup
+  if (!force && sentWelcomeEmails.has(dedupKey)) {
+    console.log(
+      `[WELCOME EMAIL] Skipped: Welcome email already delivered to ${cleanEmail} for ${isStudio ? "studio" : "customer"}. Only sent once on new signup.`,
+    );
+    return {
+      success: true,
+      deduplicated: true,
+      message: "Welcome email already delivered for this account.",
+    };
+  }
 
   const now = Date.now();
   const lastSentTime = welcomeEmailCooldownMap.get(dedupKey);
@@ -706,6 +747,7 @@ Have questions or need assistance? Visit our Contact Page: ${contactUrl}
     }
 
     welcomeEmailCooldownMap.set(dedupKey, Date.now());
+    recordSentWelcomeEmail(dedupKey);
     console.log(
       `[WELCOME EMAIL] Successfully delivered welcome email to ${cleanEmail} (${role}) via Resend (ID: ${result.data?.id})`,
     );
