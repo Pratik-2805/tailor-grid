@@ -5,7 +5,6 @@ import {
   Search,
   Plus,
   Edit2,
-  Trash2,
 } from 'lucide-react'
 
 interface StudiosTabProps {
@@ -17,7 +16,6 @@ interface StudiosTabProps {
   availableAreas: string[]
   onOpenAddStudio: () => void
   onEditStudio: (studio: any) => void
-  onDeleteStudio: (id: string, name: string) => void
 }
 
 export function StudiosTab({
@@ -29,7 +27,6 @@ export function StudiosTab({
   availableAreas,
   onOpenAddStudio,
   onEditStudio,
-  onDeleteStudio,
 }: StudiosTabProps) {
   const filteredStudios = studios.filter((s) => {
     const matchArea = studioAreaFilter === 'ALL' || s.area === studioAreaFilter
@@ -113,16 +110,9 @@ export function StudiosTab({
                   <button
                     onClick={() => onEditStudio(s)}
                     className="p-1.5 text-[#78716C] hover:text-[#1E2229] hover:bg-[#FAF8F5] rounded-lg transition-colors cursor-pointer"
-                    title="Edit Studio"
+                    title="View / Edit Studio Details"
                   >
                     <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => onDeleteStudio(s.id, s.name)}
-                    className="p-1.5 text-[#A8A29E] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                    title="Delete Studio"
-                  >
-                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>

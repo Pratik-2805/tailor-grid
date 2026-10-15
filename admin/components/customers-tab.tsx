@@ -7,7 +7,6 @@ import {
   ExternalLink,
   ShoppingBag,
   Edit2,
-  Trash2,
 } from 'lucide-react'
 
 interface CustomersTabProps {
@@ -18,7 +17,6 @@ interface CustomersTabProps {
   setCustomerStatusFilter: (val: string) => void
   onOpenAddCustomer: () => void
   onEditCustomer: (customer: any) => void
-  onDeleteCustomer: (id: string, name: string) => void
   onViewCustomerOrders: (customer: any) => void
 }
 
@@ -30,7 +28,6 @@ export function CustomersTab({
   setCustomerStatusFilter,
   onOpenAddCustomer,
   onEditCustomer,
-  onDeleteCustomer,
   onViewCustomerOrders,
 }: CustomersTabProps) {
   const filteredCustomers = customers.filter((c) => {
@@ -188,16 +185,9 @@ export function CustomersTab({
                       <button
                         onClick={() => onEditCustomer(c)}
                         className="p-1.5 text-[#78716C] hover:text-[#9E593B] hover:bg-[#FAF3ED] rounded-lg transition-colors cursor-pointer"
-                        title="Edit Customer"
+                        title="View / Edit Customer Details"
                       >
                         <Edit2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => onDeleteCustomer(c.id, c.name)}
-                        className="p-1.5 text-[#A8A29E] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Delete Customer"
-                      >
-                        <Trash2 size={14} />
                       </button>
                     </div>
                   </td>

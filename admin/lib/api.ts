@@ -503,7 +503,7 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
       clearAllAuth()
       return null
     }
@@ -734,17 +734,6 @@ export async function updateAdminCustomer(id: string, updates: any): Promise<{ s
   }
 }
 
-export async function deleteAdminCustomer(id: string): Promise<boolean> {
-  try {
-    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.CUSTOMER_BY_ID(id)), {
-      method: 'DELETE',
-    })
-    return res.ok
-  } catch (err) {
-    return false
-  }
-}
-
 export async function fetchAdminStudios(search?: string, area?: string): Promise<any[]> {
   try {
     const params = new URLSearchParams()
@@ -787,17 +776,6 @@ export async function updateAdminStudio(id: string, updates: any): Promise<{ suc
     return { success: true, studio: data.studio }
   } catch (err: any) {
     return { success: false, error: err.message }
-  }
-}
-
-export async function deleteAdminStudio(id: string): Promise<boolean> {
-  try {
-    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.STUDIO_BY_ID(id)), {
-      method: 'DELETE',
-    })
-    return res.ok
-  } catch (err) {
-    return false
   }
 }
 
