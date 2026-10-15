@@ -88,6 +88,24 @@ async function authenticateUser(req, res, next) {
     if (token) {
       try {
         const decoded = jwt.verify(token, JWT_SECRET);
+
+        // Ensure user account actually still exists in PostgreSQL and is active
+        if (decoded && decoded.id && !String(decoded.id).startsWith('temp_g_')) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: decoded.id },
+            select: { id: true, role: true, status: true, studioId: true, studioName: true, name: true, email: true, phone: true },
+          });
+
+          if (!dbUser || dbUser.status === 'BANNED' || dbUser.status === 'SUSPENDED' || dbUser.status === 'DELETED') {
+            // User was deleted or banned/suspended by admin - force immediate invalidation
+            req.user = null;
+            return next();
+          }
+
+          req.user = { ...decoded, ...dbUser };
+          return next();
+        }
+
         req.user = decoded;
         return next();
       } catch (tokenErr) {

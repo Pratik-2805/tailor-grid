@@ -49,11 +49,9 @@ import {
   fetchAdminCustomers,
   createAdminCustomer,
   updateAdminCustomer,
-  deleteAdminCustomer,
   fetchAdminStudios,
   createAdminStudio,
   updateAdminStudio,
-  deleteAdminStudio,
   fetchAdminOrders,
   updateAdminOrder,
   searchAdminGlobal,
@@ -517,23 +515,6 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     }
   }
 
-  const handleDeleteCustomer = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove customer "${name}"? This action cannot be undone.`)) {
-      return
-    }
-
-    const ok = await deleteAdminCustomer(id)
-    if (ok) {
-      toast.success('Customer removed from records')
-      // Immediately remove from state
-      setCustomers((prev) => prev.filter((c) => c.id !== id))
-      fetchAdminOverview().then((ov) => {
-        if (ov) setOverview(ov)
-      })
-    } else {
-      toast.error('Failed to remove customer')
-    }
-  }
 
   // ==========================================
   // HANDLERS: STUDIO MANAGEMENT
@@ -627,23 +608,6 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     }
   }
 
-  const handleDeleteStudio = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to deactivate and remove studio "${name}"?`)) {
-      return
-    }
-
-    const ok = await deleteAdminStudio(id)
-    if (ok) {
-      toast.success('Studio partner removed')
-      // Immediately remove studio from local state
-      setStudios((prev) => prev.filter((s) => s.id !== id))
-      fetchAdminOverview().then((ov) => {
-        if (ov) setOverview(ov)
-      })
-    } else {
-      toast.error('Failed to remove studio')
-    }
-  }
 
   // ==========================================
   // HANDLERS: ORDER & DISPATCH REASSIGNMENT
@@ -1094,7 +1058,6 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               setCustomerStatusFilter={setCustomerStatusFilter}
               onOpenAddCustomer={() => setShowAddCustomerModal(true)}
               onEditCustomer={setEditingCustomer}
-              onDeleteCustomer={handleDeleteCustomer}
               onViewCustomerOrders={setViewingCustomerOrders}
             />
           )}
@@ -1110,7 +1073,6 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               availableAreas={availableAreas}
               onOpenAddStudio={() => setShowAddStudioModal(true)}
               onEditStudio={setEditingStudio}
-              onDeleteStudio={handleDeleteStudio}
             />
           )}
 

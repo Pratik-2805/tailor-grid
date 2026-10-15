@@ -631,7 +631,7 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
       clearAllAuth()
       return null
     }

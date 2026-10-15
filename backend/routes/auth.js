@@ -1901,9 +1901,9 @@ router.post("/login", async (req, res) => {
     }
 
     // Account Status Validation
-    if (user.status === "BANNED" || user.status === "SUSPENDED") {
+    if (user.status === "BANNED" || user.status === "SUSPENDED" || user.status === "DELETED") {
       return res.status(403).json({
-        error: "Your account has been suspended. Please contact support.",
+        error: "Your account has been suspended or deactivated. Please contact support.",
       });
     }
 
@@ -2388,7 +2388,11 @@ router.get("/me", async (req, res) => {
           },
         });
       }
-      return res.status(404).json({ error: "User profile not found" });
+      return res.status(401).json({ error: "User account does not exist or has been removed.", deleted: true });
+    }
+
+    if (user.status === "BANNED" || user.status === "SUSPENDED" || user.status === "DELETED") {
+      return res.status(401).json({ error: "User account has been deactivated.", deactivated: true });
     }
 
     if (await isUserExpiredTempStudio(user)) {
