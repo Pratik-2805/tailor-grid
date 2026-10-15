@@ -38,10 +38,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // 2. Redirect /admin requests to dedicated Admin Portal (port 3002)
+  // 2. Redirect /admin requests to dedicated Admin Portal
   if (pathname.startsWith('/admin')) {
-    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002'
-    return NextResponse.redirect(new URL(pathname, adminUrl))
+    const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || process.env.ADMIN_URL
+    if (adminUrl) {
+      return NextResponse.redirect(new URL(pathname, adminUrl))
+    }
   }
 
   // 3. Allow OAuth exchange callback route

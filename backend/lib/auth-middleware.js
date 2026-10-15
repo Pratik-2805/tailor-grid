@@ -2,8 +2,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { prisma } = require('./prisma');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'Darzi_jwt_refresh_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_REFRESH_SECRET =
+  process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const ACCESS_TOKEN_EXPIRY = '15m'; // 15 minutes
 
 function hashRefreshToken(token) {

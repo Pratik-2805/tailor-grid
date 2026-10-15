@@ -13,12 +13,15 @@ const { sendAuthOtpEmail, sendWelcomeEmail } = require("../lib/email");
 const { hashPassword } = require("../lib/password");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "Darzi_jwt_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID ||
-  "927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com";
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
 // In-memory OTP storage: phone -> { code, expiresAt }
 const otpStore = new Map();
@@ -112,7 +115,7 @@ async function isUserExpiredTempStudio(user) {
 }
 
 const JWT_REFRESH_SECRET =
-  process.env.JWT_REFRESH_SECRET || "Darzi_jwt_refresh_secret_key_2026";
+  process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = "15d"; // 15 days
 

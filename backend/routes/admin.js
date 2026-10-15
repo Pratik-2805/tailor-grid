@@ -6,7 +6,7 @@ const { verifyPassword, hashPassword } = require('../lib/password');
 const { sendWelcomeEmail } = require('../lib/email');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Format helper for order outputs

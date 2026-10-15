@@ -52,7 +52,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, sendOtp, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
 import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
@@ -1695,11 +1695,7 @@ export function PartnerFlow({
     // Dispatch SMS to customer if phone exists
     const targetOrder = orders.find((o) => o.id === orderId)
     if (targetOrder?.customerPhone) {
-      fetch('/api/auth/send-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: targetOrder.customerPhone, otp: freshOtp }),
-      }).catch(() => { })
+      sendOtp(targetOrder.customerPhone).catch(() => { })
     }
 
     setBroadcastToast(`🔑 Pickup OTP (${freshOtp}) generated & sent to customer!`)

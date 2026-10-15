@@ -5,7 +5,8 @@ import { getStudioUrl, loginWithGoogle } from './api'
 
 export const GOOGLE_CLIENT_ID =
   process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-  '927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com'
+  process.env.GOOGLE_CLIENT_ID ||
+  ''
 
 export function triggerStudioGoogleAuth(options?: {
   onSuccess?: (user: User) => void
