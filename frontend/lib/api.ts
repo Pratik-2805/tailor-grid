@@ -14,7 +14,9 @@ import {
   hasActiveSession,
 } from './cookies'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+import { API_BASE, API_ROUTES, getApiUrl } from './api-routes'
+
+export { API_BASE, API_ROUTES, getApiUrl }
 
 let silentRefreshTimer: any = null
 
@@ -107,7 +109,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
   isRefreshing = true
   refreshPromise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await fetch(getApiUrl(API_ROUTES.AUTH.REFRESH), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -192,7 +194,7 @@ export async function logoutUser(): Promise<void> {
   try {
     const token = getAuthToken()
     const refreshToken = getRefreshToken()
-    await fetch(`${API_BASE}/auth/logout`, {
+    await fetch(getApiUrl(API_ROUTES.AUTH.LOGOUT), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -246,7 +248,7 @@ export async function exchangeAuthCode(code: string): Promise<{
   role: string
 }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.OAUTH_EXCHANGE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
@@ -275,7 +277,7 @@ export async function exchangeAuthCode(code: string): Promise<{
 // Send OTP to phone number
 export async function sendOtp(phone: string, forceResend: boolean = false): Promise<{ success: boolean; message: string; phone?: string; cooldown?: boolean }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/send-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.SEND_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, forceResend }),
@@ -296,7 +298,7 @@ export async function sendOtp(phone: string, forceResend: boolean = false): Prom
 // Send OTP to email address (valid for 10 minutes)
 export async function sendEmailOtp(email: string): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/send-email-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.SEND_EMAIL_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
@@ -314,7 +316,7 @@ export async function sendEmailOtp(email: string): Promise<{ success: boolean; m
 // Verify Email OTP
 export async function verifyEmailOtp(email: string, otp: string): Promise<{ success: boolean; verified: boolean; message: string }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/verify-email-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.VERIFY_EMAIL_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, otp }),
@@ -332,7 +334,7 @@ export async function verifyEmailOtp(email: string, otp: string): Promise<{ succ
 // Pre-signup pure phone OTP verification
 export async function verifyPhoneOtp(phone: string, otp: string): Promise<{ success: boolean; verified: boolean; message: string }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/verify-phone-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.VERIFY_PHONE_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, otp }),
@@ -368,7 +370,7 @@ export async function verifyOtp(params: {
   message?: string
 }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.VERIFY_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -407,7 +409,7 @@ export async function linkPhone(params: {
 }): Promise<{ success: boolean; user: User; token: string; accessToken?: string; refreshToken?: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
-    const res = await fetch(`${API_BASE}/auth/link-phone`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.LINK_PHONE), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -455,7 +457,7 @@ export async function loginWithGoogle(params: {
   isLogin?: boolean
 }): Promise<{ token?: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/google`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.GOOGLE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -488,7 +490,7 @@ export async function loginWithGoogle(params: {
 
 export async function checkEmailExists(email: string, role: string = 'STUDIO'): Promise<{ exists: boolean; error?: string; user?: User }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`)
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.CHECK_EMAIL(email, role)))
     if (res.ok) {
       return await res.json()
     }
@@ -513,7 +515,7 @@ export async function signUpUser(data: {
 }): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/auth/signup`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.SIGNUP), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -555,7 +557,7 @@ export async function loginUser(data: {
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
 }): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.LOGIN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -587,7 +589,7 @@ export async function loginUser(data: {
 }
 
 export async function updateUserProfile(updates: Partial<User>): Promise<{ success: boolean; user: User; token?: string; accessToken?: string; refreshToken?: string }> {
-  const res = await fetchWithAutoRefresh(`${API_BASE}/auth/update-profile`, {
+  const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.AUTH.UPDATE_PROFILE), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
@@ -620,7 +622,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   try {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/auth/me`)
+    const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.AUTH.ME))
 
     if (res.ok) {
       const data = await res.json()
@@ -648,7 +650,7 @@ export async function fetchOrders(query?: string, userId?: string): Promise<Fitt
     const params = new URLSearchParams()
     if (query) params.append('contact', query)
     if (userId) params.append('userId', userId)
-    const url = params.toString() ? `${API_BASE}/orders?${params.toString()}` : `${API_BASE}/orders`
+    const url = getApiUrl(API_ROUTES.ORDERS.BY_FILTER(params.toString()))
     const res = await fetchWithAutoRefresh(url, {
       headers: { 'Content-Type': 'application/json' },
     })
@@ -662,7 +664,7 @@ export async function fetchOrders(query?: string, userId?: string): Promise<Fitt
 
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
-    const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
+    const url = getApiUrl(API_ROUTES.ORDERS.BY_STORE(storeId))
     const res = await fetchWithAutoRefresh(url, {
       headers: { 'Content-Type': 'application/json' },
     })
@@ -676,7 +678,7 @@ export async function fetchStudioOrders(storeId?: string | null): Promise<Fittin
 
 export async function fetchOrderById(id: string): Promise<FittingBooking | null> {
   try {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+    const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.ORDERS.BY_ID(id)), {
       headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) return null
@@ -689,7 +691,7 @@ export async function fetchOrderById(id: string): Promise<FittingBooking | null>
 
 export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
-    const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
+    const url = getApiUrl(API_ROUTES.ORDERS.STUDIO_STATS(storeId))
     const res = await fetchWithAutoRefresh(url, {
       headers: { 'Content-Type': 'application/json' },
     })
@@ -703,7 +705,7 @@ export async function fetchStudioStats(storeId?: string | null): Promise<any> {
 
 export async function updateOrder(id: string, updates: Partial<FittingBooking>): Promise<FittingBooking | null> {
   try {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${id}`, {
+    const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.ORDERS.BY_ID(id)), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -718,7 +720,7 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
 
 export async function deleteOrder(id: string): Promise<boolean> {
   try {
-    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+    const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.ORDERS.BY_ID(id)), {
       method: 'DELETE',
     })
     return res.ok
@@ -729,7 +731,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
 
 export async function createOrder(orderData: any): Promise<{ success: boolean; order?: FittingBooking; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/orders`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.BASE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderData),
@@ -750,7 +752,7 @@ export async function createOrder(orderData: any): Promise<{ success: boolean; o
 export async function sendOrderPinEmail(orderId: string, email?: string): Promise<{ success: boolean; message?: string; email?: string; error?: string }> {
   try {
     const cleanId = orderId ? encodeURIComponent(orderId.replace(/^#/, '').trim()) : ''
-    const res = await fetchWithAutoRefresh(`${API_BASE}/orders/${cleanId}/send-otp-email`, {
+    const res = await fetchWithAutoRefresh(getApiUrl(API_ROUTES.ORDERS.SEND_OTP_EMAIL(cleanId)), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -765,7 +767,7 @@ export async function sendOrderPinEmail(orderId: string, email?: string): Promis
 
 export async function fetchStores(search?: string): Promise<StoreOption[]> {
   try {
-    const url = search ? `${API_BASE}/stores?search=${encodeURIComponent(search)}` : `${API_BASE}/stores`
+    const url = getApiUrl(API_ROUTES.STORES(search))
     const res = await fetch(url)
     if (!res.ok) throw new Error('Failed to fetch stores')
     const data = await res.json()
@@ -781,7 +783,7 @@ export async function fetchStores(search?: string): Promise<StoreOption[]> {
 
 export async function fetchServices(): Promise<GarmentCategory[]> {
   try {
-    const res = await fetch(`${API_BASE}/services`)
+    const res = await fetch(getApiUrl(API_ROUTES.SERVICES))
     if (res.ok) {
       const data = await res.json()
       if (Array.isArray(data.services)) {
@@ -818,7 +820,7 @@ export async function startOrderDispatch(orderData: any): Promise<{
   error?: string
 }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/dispatch/start`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_START), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(orderData),
@@ -838,7 +840,7 @@ export async function startOrderDispatch(orderData: any): Promise<{
 
 export async function fetchDispatchStatus(orderId: string): Promise<DispatchSessionStatus | null> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/status`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_STATUS(orderId)), {
       cache: 'no-store',
     })
     if (!res.ok) return null
@@ -855,7 +857,7 @@ export async function retryOrderDispatch(
   customerLng?: number
 ): Promise<{ success: boolean; dispatch?: DispatchSessionStatus }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/retry`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_RETRY(orderId)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ customerLat, customerLng }),
@@ -868,7 +870,7 @@ export async function retryOrderDispatch(
 
 export async function cancelOrderDispatch(orderId: string): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/cancel`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_CANCEL(orderId)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     })
@@ -884,7 +886,7 @@ export async function scheduleOrder(
   timeSlot: string
 ): Promise<{ success: boolean; order?: any }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/schedule`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_SCHEDULE(orderId)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ date, timeSlot }),
@@ -908,7 +910,7 @@ export async function fetchNearbyTailors(
       radiusMiles: radiusMiles.toString(),
       ...(query ? { query } : {}),
     })
-    const res = await fetch(`${API_BASE}/tailors/nearby?${params.toString()}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.TAILORS.NEARBY(params.toString())), {
       headers: { 'Content-Type': 'application/json' },
     })
     if (!res.ok) {
@@ -932,7 +934,7 @@ export async function checkPhoneExists(
   role: string = 'CUSTOMER'
 ): Promise<{ exists: boolean; user?: any; error?: string; roleMismatch?: boolean; phone?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/check-phone?phone=${encodeURIComponent(phone)}&role=${encodeURIComponent(role)}`)
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.CHECK_PHONE(phone, role)))
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       return { exists: false, error: err.error }
@@ -949,7 +951,7 @@ export async function subscribeNewsletter(
   source: string = 'footer'
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
+    const res = await fetch(getApiUrl(API_ROUTES.NEWSLETTER.SUBSCRIBE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, source }),
