@@ -24,8 +24,8 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
     },
     {
       n: '03',
-      title: 'Visit Store for Fitting',
-      desc: 'Walk into your allocated partner store with your QR pass for a quick 5-minute precision pinning session.',
+      title: 'Direct Tailor Fitting',
+      desc: 'Hand your garment directly to your allocated master tailor, who takes exact measurements and fit specs in person.',
       icon: MapPin,
     },
     {
@@ -110,7 +110,7 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
 
           <div className="relative z-10 max-w-[560px]">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#F59E0B] mb-4">
-              <Sparkles size={12} /> Standardized Pricing · 42 London Partner Stores
+              <Sparkles size={12} /> Standardized Upfront Pricing · Certified Neighborhood Ateliers
             </span>
             <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold leading-snug mb-3">
               Ready to get your clothes altered?

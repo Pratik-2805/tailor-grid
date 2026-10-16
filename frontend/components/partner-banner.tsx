@@ -85,12 +85,12 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <span className="text-xs text-white/70">Average Monthly In-Store Revenue</span>
-                  <span className="font-serif text-lg font-bold text-white">$3,400+</span>
+                  <span className="text-xs text-white/70">Alteration Earnings</span>
+                  <span className="text-sm font-bold text-white">Direct studio payout</span>
                 </div>
                 <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <span className="text-xs text-white/70">Customer Retail Upsell Rate</span>
-                  <span className="text-xs font-bold text-[#10B981]">34% in-store purchase</span>
+                  <span className="text-xs text-white/70">In-Store Footfall</span>
+                  <span className="text-xs font-bold text-[#10B981]">High-intent local clients</span>
                 </div>
                 <div className="flex items-center gap-2 text-[11px] text-white/60">
                   <CheckCircle2 size={13} className="text-[#10B981]" />

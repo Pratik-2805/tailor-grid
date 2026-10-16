@@ -5,9 +5,9 @@ import { Clock, Leaf, Scissors, ShieldCheck, Star } from 'lucide-react'
 export function TrustBar() {
   const items = [
     { icon: ShieldCheck, title: 'Audited Craft Standards', desc: 'Certified machinery calibration & seam quality' },
-    { icon: Scissors,    title: 'Savile Row Artisans',    desc: 'Audited master tailors with 5+ yrs craft' },
+    { icon: Scissors,    title: 'Verified Master Tailors', desc: 'Audited machinery & experienced artisan craft' },
     { icon: Clock,       title: '24h & 48h Turnaround',  desc: 'Rapid return with live status tracking' },
-    { icon: Star,        title: '4.96 / 5.0 Rating',      desc: 'Across 15,000+ tailored garments' },
+    { icon: ShieldCheck, title: '100% Fit Guarantee',     desc: 'Free complimentary re-fit if needed' },
     { icon: Leaf,        title: 'Circular & Local',       desc: 'Zero shipping waste, hyper-local ateliers' },
   ]
 

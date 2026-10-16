@@ -176,35 +176,7 @@ export function getClosestStoreForLocation(location?: string, customStores?: Sto
   return customStores[0] || null
 }
 
-export const TESTIMONIALS = [
-  {
-    quote:
-      'I dropped off three pairs of selvedge denim at Atelier SoHo through Raffu. The original chainstitch hem match was immaculate and ready in 48 hours.',
-    author: 'Camilla Harrington',
-    role: 'Fashion Director, New York',
-    garment: '3x Selvedge Denim',
-    store: 'Atelier SoHo Tailors',
-    rating: 5,
-  },
-  {
-    quote:
-      'Finding a tailor you actually trust with luxury garments used to be stressful. Raffu matched me with a master seamstress 5 minutes away. Incredible 24-hour turnaround on my blazer.',
-    author: 'Julian Sterling',
-    role: 'Architect, Los Angeles',
-    garment: 'Loro Piana Wool Blazer',
-    store: 'Stitch & Form Beverly Hills',
-    rating: 5,
-  },
-  {
-    quote:
-      'The digital fitting pass made everything seamless. Walked into the Lexington Ave studio, spent 5 minutes getting pinned, and picked up a custom-fit dress two days later.',
-    author: 'Sophie Dubois',
-    role: 'Creative Director',
-    garment: 'Silk Slip Evening Gown',
-    store: 'The Hem Room Studio',
-    rating: 5,
-  },
-]
+export const TESTIMONIALS: Array<{ quote: string; author: string; role: string; garment: string; store: string; rating: number }> = []
 
 export const FAQS = [
   {
@@ -212,8 +184,8 @@ export const FAQS = [
     a: 'Simply choose your garment type and required alteration, enter your location, and our platform instantly matches you with a certified master tailor studio nearby. You get transparent upfront pricing, book a fitting or drop-off time, and receive your digital fitting pass with direct studio directions.',
   },
   {
-    q: 'Do I need to pin my clothes before dropping off?',
-    a: 'You can choose either option! If you know your exact measurement or have pinned it at home, you can simply drop it off in under 60 seconds. Alternatively, select "Pin & Measure in Studio" during booking, and the partner master tailor will personally pin and fit the garment on you in their private fitting room.',
+    q: 'Do I need to take measurements or pre-fit my clothes before booking?',
+    a: 'No, not at all! You do not need to measure, pin, or pre-fit anything yourself. Simply book your alteration, and hand your garment directly to the assigned master tailor, who takes all precision measurements and handles the fitting directly in person.',
   },
   {
     q: 'What if the fit is not 100% right upon collection?',
