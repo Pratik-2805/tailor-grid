@@ -67,12 +67,12 @@ const MVP_SERVICES = [
 
 export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps = {}) {
   return (
-    <section className="min-h-[calc(100vh-68px)] min-h-[calc(100dvh-68px)] flex flex-col justify-center py-10 sm:py-12 lg:py-14 bg-[#FAF8F5] border-b border-[#E8E1D5]">
+    <section className="py-10 sm:py-14 lg:py-16 lg:min-h-[calc(100vh-68px)] lg:min-h-[calc(100dvh-68px)] flex flex-col justify-center bg-[#FAF8F5] border-b border-[#E8E1D5]">
       <div className="w-full max-w-[1380px] mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="mb-6 sm:mb-8 text-left">
-          <h2 className="text-3xl sm:text-4xl lg:text-[40px] font-black text-[#0F1115] tracking-tight">
+          <h2 className="text-2xl sm:text-3xl lg:text-[40px] font-black text-[#0F1115] tracking-tight leading-tight">
             Explore what you can do with Raffu
           </h2>
           <p className="mt-2 text-sm sm:text-base text-[#5A5D64] max-w-2xl">
@@ -81,17 +81,17 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps = {}) {
         </div>
 
         {/* 6 Clean Category Cards with tags & turnaround */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
           {MVP_SERVICES.map((svc) => (
             <div
               key={svc.id}
-              className="group relative flex flex-col justify-between rounded-3xl p-5 sm:p-6 bg-white border border-[#E8E1D5] hover:border-[#9E593B]/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ease-out cursor-default"
+              className="group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 bg-white border border-[#E8E1D5] hover:border-[#9E593B]/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 ease-out cursor-default"
             >
               {/* Top: Title & Description + Image */}
               <div>
-                <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3">
                   <div className="flex-1 min-w-0 pr-1">
-                    <h3 className="text-lg sm:text-xl font-extrabold text-[#0F1115] group-hover:text-[#9E593B] mb-1.5 tracking-tight transition-colors duration-300">
+                    <h3 className="text-base sm:text-lg lg:text-xl font-extrabold text-[#0F1115] group-hover:text-[#9E593B] mb-1 sm:mb-1.5 tracking-tight transition-colors duration-300">
                       {svc.title}
                     </h3>
                     <p className="text-xs text-[#5A5D64] leading-relaxed line-clamp-2">
@@ -100,23 +100,23 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps = {}) {
                   </div>
 
                   {/* Right Product Graphic with hover zoom */}
-                  <div className="relative size-18 sm:size-20 shrink-0 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] group-hover:border-[#9E593B]/30 group-hover:bg-[#F5EFE8] shadow-xs transition-colors duration-300">
+                  <div className="relative size-16 sm:size-18 lg:size-20 shrink-0 rounded-2xl overflow-hidden bg-[#FAF8F5] border border-[#E8E1D5] group-hover:border-[#9E593B]/30 group-hover:bg-[#F5EFE8] shadow-xs transition-colors duration-300">
                     <Image
                       src={svc.image}
                       alt={svc.title}
                       fill
                       className="object-contain p-2 group-hover:scale-108 transition-transform duration-300 ease-out"
-                      sizes="(max-width: 768px) 72px, 80px"
+                      sizes="(max-width: 640px) 64px, (max-width: 1024px) 72px, 80px"
                     />
                   </div>
                 </div>
 
                 {/* Service Highlights / Tags */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
+                <div className="flex flex-wrap gap-1.5 mb-3 sm:mb-4">
                   {svc.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="inline-flex items-center text-[10px] sm:text-[11px] font-semibold text-[#5A5D64] bg-[#FAF8F5] border border-[#EBE5DC] rounded-lg px-2.5 py-0.5 group-hover:border-[#DFD5C7] transition-colors"
+                      className="inline-flex items-center text-[10px] sm:text-[11px] font-semibold text-[#5A5D64] bg-[#FAF8F5] border border-[#EBE5DC] rounded-lg px-2 sm:px-2.5 py-0.5 group-hover:border-[#DFD5C7] transition-colors"
                     >
                       {tag}
                     </span>
@@ -125,12 +125,12 @@ export function ServiceGrid({ go, onSelectGarment }: ServiceGridProps = {}) {
               </div>
 
               {/* Card Footer: Turnaround & Fit Guarantee */}
-              <div className="flex items-center justify-between pt-3 border-t border-[#F3EFEA] text-[11px] sm:text-xs">
+              <div className="flex items-center justify-between pt-3 border-t border-[#F3EFEA] text-[10.5px] sm:text-xs">
                 <div className="flex items-center gap-1.5 text-[#5A5D64]">
                   <span className="inline-block size-1.5 rounded-full bg-[#10B981]"></span>
                   <span className="font-medium">{svc.turnaround}</span>
                 </div>
-                <div className="flex items-center gap-1 text-[#8C8F96] text-[11px] font-medium">
+                <div className="flex items-center gap-1 text-[#8C8F96] text-[10.5px] sm:text-[11px] font-medium">
                   <span>✨ 100% Fit Guarantee</span>
                 </div>
               </div>

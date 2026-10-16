@@ -37,16 +37,16 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
   ]
 
   return (
-    <section className="py-16 sm:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
+    <section className="py-12 sm:py-18 lg:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12">
           <div>
             <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
               Core Customer Journey
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F1115] tracking-tight">
               How the Alteration Network Works.
             </h2>
             <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
@@ -55,20 +55,20 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
           </div>
           <button
             onClick={() => go('how-it-works')}
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start shrink-0"
           >
             Full Journey Guide <ArrowRight size={14} />
           </button>
         </div>
 
         {/* 4 Clean Step Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-14">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-10 sm:mb-14">
           {steps.map((step) => {
             const Icon = step.icon
             return (
               <div
                 key={step.n}
-                className="relative flex flex-col justify-between p-6 rounded-3xl bg-[#FAF8F5] border border-[#EBE6DF] transition-all duration-200 hover:border-[#D1D5DB] hover:bg-white hover:shadow-md group"
+                className="relative flex flex-col justify-between p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#FAF8F5] border border-[#EBE6DF] transition-all duration-200 hover:border-[#D1D5DB] hover:bg-white hover:shadow-md group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -98,7 +98,7 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
         </div>
 
         {/* High Conversion Store Pass Banner */}
-        <div className="relative overflow-hidden rounded-3xl bg-[#0F1115] text-white p-8 sm:p-12 shadow-lg">
+        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-[#0F1115] text-white p-6 sm:p-10 lg:p-12 shadow-lg">
           <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20 pointer-events-none hidden lg:block">
             <Image
               src="/images/garments_rack.jpg"
@@ -109,19 +109,19 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
           </div>
 
           <div className="relative z-10 max-w-[560px]">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#F59E0B] mb-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#F59E0B] mb-3 sm:mb-4">
               <Sparkles size={12} /> Standardized Upfront Pricing · Certified Neighborhood Ateliers
             </span>
             <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold leading-snug mb-3">
               Ready to get your clothes altered?
             </h3>
-            <p className="text-sm text-white/70 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-white/70 leading-relaxed mb-6">
               Enter your postcode, choose your garment, and get allocated to your closest certified atelier with instant QR fitting pass.
             </p>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 onClick={() => go('book')}
-                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
+                className="flex items-center justify-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95 w-full sm:w-auto text-center"
               >
                 <span>Book Fitting Pass</span>
                 <ArrowRight size={14} />
@@ -129,7 +129,7 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
               {!isCustomer && (
                 <button
                   onClick={() => go('for-partners')}
-                  className="rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
+                  className="rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10 w-full sm:w-auto text-center"
                 >
                   For Partner Stores
                 </button>

@@ -61,55 +61,58 @@ export function TestimonialsSection() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
 
   return (
-    <section className="py-16 sm:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
+    <section className="py-12 sm:py-18 lg:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
-        <div className="text-center max-w-[640px] mx-auto mb-14">
+        <div className="text-center max-w-[640px] mx-auto mb-10 sm:mb-14">
           <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3 inline-flex items-center gap-1.5 shadow-2xs">
             <ShieldCheck size={13} className="text-[#9E593B]" />
             The Raffu Standard
           </span>
-          <h2 className="font-serif text-3xl sm:text-4xl lg:text-[38px] font-bold text-[#0F1115] tracking-tight leading-tight">
+          <h2 className="font-serif text-2xl sm:text-3xl lg:text-[38px] font-bold text-[#0F1115] tracking-tight leading-tight">
             Tailored with care. Guaranteed for fit.
           </h2>
-          <p className="mt-3 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
+          <p className="mt-2.5 sm:mt-3 text-xs sm:text-sm md:text-base text-[#5A5D64] leading-relaxed">
             No pre-fitting, measuring tape, or guesswork required. Hand your clothes directly to a vetted local master tailor who takes all measurements in person, backed by our 100% free re-fit guarantee.
           </p>
         </div>
 
         {/* Smart Craftsmanship & Guarantee Pillars */}
-        <div className="grid gap-6 md:grid-cols-3 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 mb-12 sm:mb-16">
           {CRAFT_PILLARS.map((pillar, i) => {
             const Icon = pillar.icon
+            const isLastOdd = i === 2
             return (
               <div
                 key={i}
-                className="flex flex-col justify-between bg-white rounded-3xl p-6 sm:p-7 border border-[#E8E1D5] transition-all duration-300 hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] hover:border-[#9E593B]/40 group"
+                className={`flex flex-col justify-between bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#E8E1D5] transition-all duration-300 hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] hover:border-[#9E593B]/40 group ${
+                  isLastOdd ? 'sm:col-span-2 lg:col-span-1 sm:max-w-md sm:mx-auto lg:max-w-none w-full' : ''
+                }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="size-11 rounded-2xl bg-[#0F1115] text-[#FAF8F5] grid place-items-center group-hover:bg-[#9E593B] transition-colors duration-300 shadow-xs">
-                      <Icon size={20} />
+                  <div className="flex items-center justify-between mb-4 sm:mb-5">
+                    <div className="size-10 sm:size-11 rounded-2xl bg-[#0F1115] text-[#FAF8F5] grid place-items-center group-hover:bg-[#9E593B] transition-colors duration-300 shadow-xs">
+                      <Icon size={19} />
                     </div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#9E593B] bg-[#9E593B]/10 px-2.5 py-1 rounded-full">
+                    <span className="text-[10.5px] sm:text-[11px] font-bold uppercase tracking-wider text-[#9E593B] bg-[#9E593B]/10 px-2.5 py-1 rounded-full">
                       {pillar.tag}
                     </span>
                   </div>
 
-                  <h3 className="font-serif text-lg sm:text-xl font-bold text-[#0F1115] mb-2.5 tracking-tight group-hover:text-[#9E593B] transition-colors">
+                  <h3 className="font-serif text-base sm:text-lg lg:text-xl font-bold text-[#0F1115] mb-2 sm:mb-2.5 tracking-tight group-hover:text-[#9E593B] transition-colors">
                     {pillar.title}
                   </h3>
 
-                  <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-6">
+                  <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-5 sm:mb-6">
                     {pillar.description}
                   </p>
                 </div>
 
                 {/* Verification badges */}
-                <div className="pt-4 border-t border-[#F3F4F6] flex flex-col gap-2">
+                <div className="pt-3.5 sm:pt-4 border-t border-[#F3F4F6] flex flex-col gap-2">
                   {pillar.badges.map((badge, bi) => (
-                    <div key={bi} className="flex items-center gap-2 text-xs font-medium text-[#0F1115]">
+                    <div key={bi} className="flex items-center gap-2 text-[11px] sm:text-xs font-medium text-[#0F1115]">
                       <CheckCircle2 size={13} className="text-[#10B981] shrink-0" />
                       <span>{badge}</span>
                     </div>
@@ -121,12 +124,12 @@ export function TestimonialsSection() {
         </div>
 
         {/* Smart FAQ / Fitting Assistance Accordion */}
-        <div className="bg-white rounded-3xl border border-[#E8E1D5] p-6 sm:p-10 mb-14 shadow-2xs">
-          <div className="max-w-[700px] mb-8">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E8E1D5] p-5 sm:p-8 lg:p-10 mb-10 sm:mb-14 shadow-2xs">
+          <div className="max-w-[700px] mb-6 sm:mb-8">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] mb-1.5">
               <HelpCircle size={14} /> Fitting &amp; Service Clarity
             </span>
-            <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#0F1115] tracking-tight">
+            <h3 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-[#0F1115] tracking-tight">
               Common questions answered upfront.
             </h3>
             <p className="text-xs sm:text-sm text-[#5A5D64] mt-1.5">

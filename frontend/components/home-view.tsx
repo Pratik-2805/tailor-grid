@@ -35,8 +35,8 @@ export function HomeView({
 }: HomeViewProps) {
   return (
     <div className="flex flex-col">
-      {/* 1. Full First-Screen Section (Hero + TrustBar anchored at bottom of 1st screen) */}
-      <div className="min-h-[calc(100vh-68px)] min-h-[calc(100dvh-68px)] flex flex-col justify-between bg-white">
+      {/* 1. Full First-Screen Section (Hero + TrustBar anchored at bottom of 1st screen on desktop) */}
+      <div className="lg:min-h-[calc(100vh-68px)] lg:min-h-[calc(100dvh-68px)] flex flex-col justify-between bg-white">
         <div className="flex-1 flex flex-col justify-center">
           <HeroSection
             go={go}
