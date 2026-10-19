@@ -290,7 +290,7 @@ const CITIES = [
 ]
 
 export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBooking }: HeroSectionProps) {
-  const [selectedCity, setSelectedCity] = useCityLocation()
+  const [selectedCity, setSelectedCity] = useCityLocation('Mumbai, IN')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
   // Pickup / Schedule time selection state
@@ -453,13 +453,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
 
           {/* LEFT: Pixel-Perfect Uber 'Request an alteration' Card Form */}
-          <div ref={formRef} className="lg:col-span-6 flex flex-col justify-center max-w-[480px]">
+          <div ref={formRef} className="lg:col-span-6 flex flex-col justify-center w-full max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0">
 
             {/* 1. Location Header */}
-            <div className="relative mb-3.5 flex items-center gap-1.5 text-[15px] font-medium text-black">
+            <div className="relative mb-3.5 flex items-center gap-1.5 text-sm sm:text-[15px] font-medium text-black">
               <MapPin size={18} className="text-[#0F1115] shrink-0" />
-              <span className="font-bold truncate max-w-[280px]" title={selectedCity}>
-                {formatLocationDisplay(selectedCity)}
+              <span className="font-bold truncate max-w-[180px] sm:max-w-[280px]" title={selectedCity}>
+                {formatLocationDisplay(selectedCity) || selectedCity || 'Select city'}
               </span>
               <button
                 type="button"
@@ -664,11 +664,11 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             </div>
 
             {/* 6. Action Buttons Row */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={handleBookNow}
-                className="flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-7 py-3.5 text-base transition-colors cursor-pointer shadow-xs active:scale-[0.98] text-center"
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-6 sm:px-7 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs active:scale-[0.98] text-center"
               >
                 Book now
               </button>
@@ -676,7 +676,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
               <button
                 type="button"
                 onClick={() => setIsScheduleModalOpen(true)}
-                className="flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-6 py-3.5 text-base transition-colors cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-5 sm:px-6 py-3.5 text-sm sm:text-base transition-colors cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
               >
                 <Calendar size={18} />
                 <span>Schedule for later</span>
@@ -686,8 +686,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
           </div>
 
           {/* RIGHT: Modern Clean Studio & Atelier Illustration */}
-          <div className="lg:col-span-6 relative flex justify-center items-center">
-            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
+          <div className="lg:col-span-6 relative flex justify-center items-center w-full">
+            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[24px] sm:rounded-[32px] lg:rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
               <Image
                 src="/images/about_hero_art.jpg"
                 alt="Modern tailoring atelier salon with garments and craft tools"
@@ -704,8 +704,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
 
       {/* Custom Raffu Theme Schedule Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
 
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
