@@ -137,19 +137,37 @@ export function removeAuthToken(): void {
 }
 
 export function getRefreshToken(): string | null {
-  return getCookie('tg_refresh_token')
+  const fromCookie = getCookie('tg_refresh_token') || getCookie('refreshToken')
+  if (fromCookie) return fromCookie
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem('tg_refresh_token') || localStorage.getItem('refreshToken')
+    } catch {}
+  }
+  return null
 }
 
 export function setRefreshToken(token: string): void {
-  // Server sets tg_refresh_token strictly as an HttpOnly cookie.
-  // Purge any client-accessible duplicate cookie to prevent JavaScript exposure
-  deleteCookie('tg_refresh_token', '/')
-  deleteCookie('refreshToken', '/')
+  if (!token) return
+  // Persist refresh token in cookie for 15 days
+  setCookie('tg_refresh_token', token, 15, '/')
+  // Also backup in localStorage for resilient persistence across ports and tab refreshes
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('tg_refresh_token', token)
+    } catch {}
+  }
 }
 
 export function removeRefreshToken(): void {
   deleteCookie('tg_refresh_token', '/')
   deleteCookie('refreshToken', '/')
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('tg_refresh_token')
+      localStorage.removeItem('refreshToken')
+    } catch {}
+  }
 }
 
 /**
