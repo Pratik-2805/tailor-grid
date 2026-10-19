@@ -7,7 +7,6 @@ import {
   QrCode,
   Scissors,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react'
 import { useApp } from './app-provider'
 import { type Screen } from './data'
@@ -412,10 +411,6 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
           <div className="absolute left-10 -bottom-10 size-40 rounded-full bg-white/5 pointer-events-none" />
 
           <div className="relative z-10 max-w-[640px]">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1 text-xs font-semibold text-[#F59E0B] mb-4">
-              <Sparkles size={13} /> 40+ Certified Master Partner Ateliers
-            </span>
-
             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15] mb-4">
               Ready to get your clothes tailored?
             </h2>

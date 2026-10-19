@@ -1,9 +1,15 @@
-'use client'
+import type { Metadata } from 'next'
+import { TermsClient } from './terms-client'
 
-import { TermsView } from '@/components/terms-view'
-import { useApp } from '@/components/app-provider'
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description:
+    'Raffu Terms of Service, workshop craft standards, fixed pricing schedule, and 100% Fit Guarantee terms.',
+  alternates: {
+    canonical: '/terms',
+  },
+}
 
 export default function TermsPage() {
-  const { navigate } = useApp()
-  return <TermsView go={navigate} />
+  return <TermsClient />
 }

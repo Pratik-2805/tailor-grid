@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, CheckCircle2, MapPin, Scissors, ShieldCheck, Sparkles, Store } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, CheckCircle2, MapPin, Scissors, ShieldCheck, Store } from 'lucide-react'
 import { type Screen } from './data'
 import { useApp } from './app-provider'
 
@@ -44,21 +45,21 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12">
           <div>
             <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
-              Core Customer Journey
+              Raffu — Own Your Fit
             </span>
-            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F1115] tracking-tight">
-              How the Alteration Network Works.
+            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
+              How the Alteration Network Works
             </h2>
             <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
               Simple, transparent, and hyper-local. We connect you with vetted neighborhood partner tailors in minutes.
             </p>
           </div>
-          <button
-            onClick={() => go('how-it-works')}
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start shrink-0"
+          <Link
+            href="/how-it-works"
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
           >
             Full Journey Guide <ArrowRight size={14} />
-          </button>
+          </Link>
         </div>
 
         {/* 4 Clean Step Cards */}
@@ -109,30 +110,27 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
           </div>
 
           <div className="relative z-10 max-w-[560px]">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#F59E0B] mb-3 sm:mb-4">
-              <Sparkles size={12} /> Standardized Upfront Pricing · Certified Neighborhood Ateliers
-            </span>
             <h3 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold leading-snug mb-3">
               Ready to get your clothes altered?
             </h3>
             <p className="text-xs sm:text-sm text-white/70 leading-relaxed mb-6">
               Enter your postcode, choose your garment, and get allocated to your closest certified atelier with instant QR fitting pass.
             </p>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <button
-                onClick={() => go('book')}
-                className="flex items-center justify-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95 w-full sm:w-auto text-center"
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/book"
+                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
               >
                 <span>Book Fitting Pass</span>
                 <ArrowRight size={14} />
-              </button>
+              </Link>
               {!isCustomer && (
-                <button
-                  onClick={() => go('for-partners')}
-                  className="rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10 w-full sm:w-auto text-center"
+                <Link
+                  href="/for-partners"
+                  className="rounded-full border border-white/30 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
                 >
                   For Partner Stores
-                </button>
+                </Link>
               )}
             </div>
           </div>

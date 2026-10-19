@@ -1,9 +1,15 @@
-'use client'
+import type { Metadata } from 'next'
+import { PrivacyClient } from './privacy-client'
 
-import { PrivacyView } from '@/components/privacy-view'
-import { useApp } from '@/components/app-provider'
+export const metadata: Metadata = {
+  title: 'Privacy Policy',
+  description:
+    'Raffu Privacy & Data Protection Policy. Read how we safeguard your fitting dimensions, account data, and payment information.',
+  alternates: {
+    canonical: '/privacy',
+  },
+}
 
 export default function PrivacyPage() {
-  const { navigate } = useApp()
-  return <PrivacyView go={navigate} />
+  return <PrivacyClient />
 }

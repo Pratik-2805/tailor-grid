@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import {
   ArrowRight,
   CheckCircle2,
@@ -64,10 +65,10 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
           <div className="grid grid-cols-12 gap-8 lg:gap-10 pb-12 border-b border-[#1E2229]/80">
 
             {/* Brand Col */}
-            <div className="col-span-12 lg:col-span-4">
-              <div className="flex items-center gap-3 mb-5 cursor-pointer" onClick={() => nav('home')}>
+            <div className="lg:col-span-4">
+              <Link href="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-3 mb-5 cursor-pointer">
                 <RaffuLogo theme="dark" subtitle="OWN YOUR FIT" size="md" />
-              </div>
+              </Link>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
                 Professional clothing alterations and tailoring. Guaranteed perfect fit, upfront clear prices, and easy local service.
               </p>
@@ -125,28 +126,31 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               </h5>
               <ul className="space-y-3 text-sm text-[#9CA3AF]">
                 <li>
-                  <button
-                    onClick={() => nav('for-partners')}
-                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  <Link
+                    href="/for-partners"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="hover:text-white transition-colors text-left cursor-pointer inline-block"
                   >
                     Work with Raffu
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() => nav('book')}
-                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  <Link
+                    href="/book"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="hover:text-white transition-colors text-left cursor-pointer inline-block"
                   >
                     Order from Raffu
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button
-                    onClick={() => nav('contact')}
-                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  <Link
+                    href="/contact"
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className="hover:text-white transition-colors text-left cursor-pointer inline-block"
                   >
                     Contact
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </div>
@@ -155,10 +159,26 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             <div className="col-span-6 sm:col-span-4 lg:col-span-3">
               <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
               <ul className="space-y-3 text-sm text-[#9CA3AF]">
-                <li><button onClick={() => nav('about')} className="hover:text-white transition-colors">About Raffu</button></li>
-                <li><button onClick={() => nav('how-it-works')} className="hover:text-white transition-colors">How It Works</button></li>
-                <li><button onClick={() => isCustomer ? nav('book') : nav('for-partners')} className="hover:text-white transition-colors">{isCustomer ? 'Book Alterations' : 'Partner With Us'}</button></li>
-                <li><button onClick={() => nav('orders')} className="hover:text-white transition-colors">Saved Fit Profile</button></li>
+                <li>
+                  <Link href="/about" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
+                    About Raffu
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/how-it-works" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
+                    How It Works
+                  </Link>
+                </li>
+                <li>
+                  <Link href={isCustomer ? '/book' : '/for-partners'} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
+                    {isCustomer ? 'Book Alterations' : 'Partner With Us'}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/orders" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
+                    Saved Fit Profile
+                  </Link>
+                </li>
               </ul>
             </div>
 
@@ -170,25 +190,25 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               <ul className="space-y-3 text-sm text-[#9CA3AF]">
                 {!isCustomer && (
                   <li>
-                    <button onClick={() => nav('partner')} className="hover:text-white transition-colors text-left cursor-pointer">
+                    <Link href="/partner" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
                       Tailor Partner Portal
-                    </button>
+                    </Link>
                   </li>
                 )}
                 <li>
-                  <button onClick={() => nav('contact')} className="hover:text-white transition-colors text-left cursor-pointer">
+                  <Link href="/contact" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
                     Contact Concierge
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button onClick={() => nav('privacy')} className="hover:text-white transition-colors text-left cursor-pointer">
+                  <Link href="/privacy" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
                     Customer Privacy Policy
-                  </button>
+                  </Link>
                 </li>
                 <li>
-                  <button onClick={() => nav('terms')} className="hover:text-white transition-colors text-left cursor-pointer">
+                  <Link href="/terms" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
                     Terms &amp; Conditions
-                  </button>
+                  </Link>
                 </li>
               </ul>
             </div>

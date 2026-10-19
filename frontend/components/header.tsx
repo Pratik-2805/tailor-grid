@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   Building2,
+  HelpCircle,
   Info,
   LifeBuoy,
   LogOut,
@@ -13,7 +15,6 @@ import {
   Phone,
   Receipt,
   Scissors,
-  Sparkles,
   User as UserIcon,
   Wallet,
   X,
@@ -116,43 +117,48 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
 
         {/* Brand Logo */}
         <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-          <button
+          <Link
+            href="/"
             onClick={() => nav('home')}
             className="flex items-center gap-3 group text-left shrink-0 py-1"
             aria-label="Raffu home"
           >
             <RaffuLogo subtitle="OWN YOUR FIT" size="md" />
-          </button>
+          </Link>
         </div>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-5 lg:gap-7 xl:gap-8 text-[13.5px] font-medium text-[#4B5563] shrink-0">
           {user ? (
             <>
-              <button
+              <Link
+                href="/book"
                 onClick={() => nav('book')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'book' ? 'text-[#0F1115] font-bold' : ''}`}
               >
                 Book Alterations
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/orders"
                 onClick={() => nav('orders')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'orders' || currentScreen === 'order' ? 'text-[#0F1115] font-bold' : ''}`}
               >
                 My Orders
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/how-it-works"
                 onClick={() => nav('how-it-works')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
               >
                 How it Works
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/about"
                 onClick={() => nav('about')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
               >
                 About Us
-              </button>
+              </Link>
             </>
           ) : isAuthLoading ? (
             <div className="flex items-center gap-5 lg:gap-7 xl:gap-8 opacity-0 pointer-events-none select-none">
@@ -163,24 +169,27 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
             </div>
           ) : (
             <>
-              <button
+              <Link
+                href="/how-it-works"
                 onClick={() => nav('how-it-works')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'how-it-works' ? 'text-[#0F1115] font-semibold' : ''}`}
               >
                 How it Works
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/about"
                 onClick={() => nav('about')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'about' ? 'text-[#0F1115] font-semibold' : ''}`}
               >
                 About Us
-              </button>
-              <button
+              </Link>
+              <Link
+                href="/for-partners"
                 onClick={() => nav('for-partners')}
                 className={`whitespace-nowrap shrink-0 transition-colors hover:text-[#0F1115] ${currentScreen === 'for-partners' ? 'text-[#0F1115] font-semibold' : ''}`}
               >
                 For Studios
-              </button>
+              </Link>
             </>
           )}
         </nav>
@@ -511,65 +520,65 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
                   </button>
 
                   {/* How it Works */}
-                  <button
-                    type="button"
-                    onClick={() => nav('how-it-works')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Sparkles size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>How it Works</span>
-                  </button>
+                  <Link
+                      href="/how-it-works"
+                      onClick={() => nav('how-it-works')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>How it Works</span>
+                    </Link>
 
-                  {/* About Us */}
-                  <button
-                    type="button"
-                    onClick={() => nav('about')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>About Us</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  {/* Guest Menu Items */}
-                  <button
-                    type="button"
-                    onClick={() => nav('book')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>Book Alterations</span>
-                  </button>
+                    {/* About Us */}
+                    <Link
+                      href="/about"
+                      onClick={() => nav('about')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>About Us</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    {/* Guest Menu Items */}
+                    <Link
+                      href="/book"
+                      onClick={() => nav('book')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>Book Alterations</span>
+                    </Link>
 
-                  <button
-                    type="button"
-                    onClick={() => nav('how-it-works')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Sparkles size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>How it Works</span>
-                  </button>
+                    <Link
+                      href="/how-it-works"
+                      onClick={() => nav('how-it-works')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>How it Works</span>
+                    </Link>
 
-                  <button
-                    type="button"
-                    onClick={() => nav('about')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>About Us</span>
-                  </button>
+                    <Link
+                      href="/about"
+                      onClick={() => nav('about')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>About Us</span>
+                    </Link>
 
-                  <button
-                    type="button"
-                    onClick={() => nav('for-partners')}
-                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                  >
-                    <Building2 size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                    <span>For Studios & Partners</span>
-                  </button>
-                </>
-              )}
+                    <Link
+                      href="/for-partners"
+                      onClick={() => nav('for-partners')}
+                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                    >
+                      <Building2 size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                      <span>For Studios & Partners</span>
+                    </Link>
+                  </>
+                )}
             </div>
           </div>
 
