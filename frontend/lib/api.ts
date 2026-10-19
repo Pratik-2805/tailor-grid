@@ -131,6 +131,9 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
       const newAt = data.accessToken || data.token
       if (newAt) {
         setAuthToken(newAt)
+        if (data.refreshToken) {
+          setRefreshToken(data.refreshToken)
+        }
         if (data.user) {
           setAuthUser(data.user)
           if (data.user.role) setAuthRole(data.user.role)

@@ -154,8 +154,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               clearAllAuth()
             }
           } else {
-            setUser(null)
-            clearAllAuth()
+            if (!hasActiveSession() && !getRefreshToken()) {
+              setUser(null)
+              clearAllAuth()
+            }
           }
         })
         .catch(() => {
@@ -168,8 +170,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (cached && cached.status !== 'INACTIVE') {
             setUser(cached)
           } else {
-            setUser(null)
-            clearAllAuth()
+            if (!hasActiveSession() && !getRefreshToken()) {
+              setUser(null)
+              clearAllAuth()
+            }
           }
         })
         .finally(() => {
@@ -182,7 +186,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Sync auth state if cookies changed while user was in another portal tab
     const handleSync = () => {
-      const hasToken = Boolean(getAuthToken() || getRefreshToken())
+      const hasToken = Boolean(getAuthToken() || getRefreshToken() || hasActiveSession())
       if (!hasToken) {
         setUser((prev) => (prev ? null : prev))
       } else {
@@ -200,8 +204,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               clearAllAuth()
             }
           } else {
-            setUser(null)
-            clearAllAuth()
+            if (!hasActiveSession() && !getRefreshToken()) {
+              setUser(null)
+              clearAllAuth()
+            }
           }
         }).catch(() => {})
       }

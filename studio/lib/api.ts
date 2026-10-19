@@ -142,6 +142,9 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
       const newAt = data.accessToken || data.token
       if (newAt) {
         setAuthToken(newAt)
+        if (data.refreshToken) {
+          setRefreshToken(data.refreshToken)
+        }
         if (data.user) {
           const currentRole = getAuthRole()
           const effectiveRole = (data.user.role === 'STUDIO' || currentRole === 'STUDIO')

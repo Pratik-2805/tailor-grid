@@ -136,17 +136,36 @@ export function removeAuthToken(): void {
 }
 
 export function getRefreshToken(): string | null {
-  return getCookie('tg_refresh_token')
+  const fromCookie = getCookie('tg_refresh_token') || getCookie('refreshToken')
+  if (fromCookie) return fromCookie
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem('tg_refresh_token') || localStorage.getItem('refreshToken')
+    } catch {}
+  }
+  return null
 }
 
 export function setRefreshToken(token: string): void {
+  if (!token) return
   // 15 days
   setCookie('tg_refresh_token', token, 15, '/')
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('tg_refresh_token', token)
+    } catch {}
+  }
 }
 
 export function removeRefreshToken(): void {
   deleteCookie('tg_refresh_token', '/')
   deleteCookie('refreshToken', '/')
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('tg_refresh_token')
+      localStorage.removeItem('refreshToken')
+    } catch {}
+  }
 }
 
 /**
