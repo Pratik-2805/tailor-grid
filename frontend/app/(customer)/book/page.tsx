@@ -102,9 +102,12 @@ function GarmentCategoryIcon({ categoryId, className = 'size-4' }: { categoryId:
           <path d="M6 3h12l-2 6 2 12H6l2-12L6 3zM12 9v12M10 5l2 2 2-2" />
         </svg>
       )
+    case 'repairs':
+      return <Scissors className={className} />
     case 'occasion':
-    default:
       return <Sparkles className={className} />
+    default:
+      return <Shirt className={className} />
   }
 }
 
@@ -253,11 +256,11 @@ export default function BookPage() {
   // Selection states initialized from prefilled context or session cookie
   const [selectedGarmentId, setSelectedGarmentId] = useState(() => {
     const s = getSessionBookingData()
-    return s?.garmentId || prefilledGarmentId || 'trousers'
+    return s?.garmentId || prefilledGarmentId || ''
   })
   const [selectedServiceId, setSelectedServiceId] = useState(() => {
     const s = getSessionBookingData()
-    return s?.serviceId || prefilledServiceId || 'trouser-hem-plain'
+    return s?.serviceId || prefilledServiceId || ''
   })
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false)
@@ -619,23 +622,19 @@ export default function BookPage() {
     fetchServices().then((svcs) => {
       if (svcs && svcs.length > 0) {
         setCategories(svcs)
-        if (!prefilledGarmentId) {
-          setSelectedGarmentId((prev: string) => (svcs.some((c) => c.id === prev) ? prev : svcs[0].id))
-        }
       }
     })
   }, [prefilledGarmentId])
 
   // Derive active category & service
   const currentCategory = useMemo(() => {
-    return categories.find((c) => c.id === selectedGarmentId) || categories[0] || null
+    return categories.find((c) => c.id === selectedGarmentId) || null
   }, [categories, selectedGarmentId])
 
   const currentService = useMemo(() => {
     if (!currentCategory || !currentCategory.popularServices) return null
     return (
       currentCategory.popularServices.find((s) => s.id === selectedServiceId) ||
-      currentCategory.popularServices[0] ||
       null
     )
   }, [currentCategory, selectedServiceId])
@@ -675,11 +674,8 @@ export default function BookPage() {
   // Sync default service when category changes
   const handleSelectCategory = (catId: string) => {
     setSelectedGarmentId(catId)
-    const cat = categories.find((c) => c.id === catId)
-    if (cat && cat.popularServices && cat.popularServices.length > 0) {
-      setSelectedServiceId(cat.popularServices[0].id)
-    }
     setIsCategoryDropdownOpen(false)
+    setSelectedServiceId('')
   }
 
   // Handle Photo Upload (Max 4 photos allowed)
@@ -762,6 +758,16 @@ export default function BookPage() {
 
   // Complete Booking flow execution
   const executeBooking = async (pickupOption: 'now' | 'schedule', schedDate?: Date, schedTime?: string) => {
+    if (!selectedGarmentId || !currentCategory) {
+      toast.info('Please choose a category before proceeding.', { position: 'top-center' })
+      setIsCategoryDropdownOpen(true)
+      return
+    }
+    if (!selectedServiceId || !currentService) {
+      toast.info('Please choose what needs to be done before proceeding.', { position: 'top-center' })
+      setIsServiceDropdownOpen(true)
+      return
+    }
     if (!user || !user.phone) {
       openAuth('CUSTOMER', user ? 'signup' : 'signin')
       return
@@ -1083,11 +1089,8 @@ export default function BookPage() {
                         <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                          CATEGORY OF CLOTHES
-                        </p>
-                        <p className="text-sm sm:text-base font-bold sm:font-extrabold text-black truncate">
-                          {currentCategory ? currentCategory.name : 'Loading categories...'}
+                        <p className={`text-sm sm:text-base font-bold sm:font-extrabold truncate ${currentCategory ? 'text-black' : 'text-neutral-600'}`}>
+                          {currentCategory ? currentCategory.name : 'Choose Category'}
                         </p>
                       </div>
                     </div>
@@ -1101,6 +1104,9 @@ export default function BookPage() {
                   {/* Dropdown Menu */}
                   {isCategoryDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                      <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
+                        Choose Category
+                      </div>
                       {categories.map((cat) => {
                         const isSelected = cat.id === selectedGarmentId
                         return (
@@ -1133,6 +1139,12 @@ export default function BookPage() {
                   <button
                     type="button"
                     onClick={() => {
+                      if (!selectedGarmentId) {
+                        toast.info('Please choose a category first.', { position: 'top-center' })
+                        setIsCategoryDropdownOpen(true)
+                        setIsServiceDropdownOpen(false)
+                        return
+                      }
                       setIsServiceDropdownOpen(!isServiceDropdownOpen)
                       setIsCategoryDropdownOpen(false)
                     }}
@@ -1143,11 +1155,8 @@ export default function BookPage() {
                         <Scissors className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500 leading-none mb-1">
-                          WHAT NEEDS TO BE DONE?
-                        </p>
-                        <p className="text-sm sm:text-base font-bold sm:font-extrabold text-black truncate">
-                          {currentService ? currentService.name : 'Select alteration'}
+                        <p className={`text-sm sm:text-base font-bold sm:font-extrabold truncate ${currentService ? 'text-black' : 'text-neutral-600'}`}>
+                          {currentService ? currentService.name : 'Choose What Needs to be done'}
                         </p>
                       </div>
                     </div>
@@ -1159,33 +1168,42 @@ export default function BookPage() {
                   </button>
 
                   {/* Dropdown Menu */}
-                  {isServiceDropdownOpen && currentCategory && (
+                  {isServiceDropdownOpen && (
                     <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-200 shadow-2xl p-2 z-30 space-y-1 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
-                      {currentCategory.popularServices?.map((srv) => {
-                        const isSelected = srv.id === selectedServiceId
-                        return (
-                          <button
-                            key={srv.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedServiceId(srv.id)
-                              setIsServiceDropdownOpen(false)
-                            }}
-                            className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
-                              }`}
-                          >
-                            <div>
-                              <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
-                              <p className="text-[11px] text-gray-500">{srv.description}</p>
-                            </div>
-                            <div className="text-right shrink-0 ml-3">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-neutral-200 text-neutral-800">
-                                {srv.turnaroundDays}d SLA
-                              </span>
-                            </div>
-                          </button>
-                        )
-                      })}
+                      <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
+                        {currentCategory ? `${currentCategory.name} Services` : 'Services'}
+                      </div>
+                      {currentCategory?.popularServices && currentCategory.popularServices.length > 0 ? (
+                        currentCategory.popularServices.map((srv) => {
+                          const isSelected = srv.id === selectedServiceId
+                          return (
+                            <button
+                              key={srv.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedServiceId(srv.id)
+                                setIsServiceDropdownOpen(false)
+                              }}
+                              className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors cursor-pointer ${isSelected ? 'bg-neutral-100 font-bold' : 'hover:bg-neutral-50 font-medium'
+                                }`}
+                            >
+                              <div>
+                                <p className="text-xs sm:text-sm text-black font-extrabold">{srv.name}</p>
+                                <p className="text-[11px] text-gray-500">{srv.description}</p>
+                              </div>
+                              <div className="text-right shrink-0 ml-3">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-neutral-200 text-neutral-800">
+                                  {srv.turnaroundDays}d SLA
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div className="p-4 text-center text-xs text-gray-500">
+                          Please select a category first to see available services.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1434,11 +1452,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('home')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'home'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'home'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Home size={13} className={addressTag === 'home' ? 'text-white' : 'text-neutral-500'} />
                               <span>Home</span>
@@ -1447,11 +1464,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('work')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'work'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'work'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Briefcase size={13} className={addressTag === 'work' ? 'text-white' : 'text-neutral-500'} />
                               <span>Work</span>
@@ -1460,11 +1476,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('other')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'other'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'other'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Tag size={13} className={addressTag === 'other' ? 'text-white' : 'text-neutral-500'} />
                               <span>Other</span>

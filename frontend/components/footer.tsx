@@ -62,7 +62,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
           {/* Main Footer Navigation Grid */}
-          <div className="grid gap-10 pb-12 lg:grid-cols-12 border-b border-[#1E2229]/80">
+          <div className="grid grid-cols-12 gap-8 lg:gap-10 pb-12 border-b border-[#1E2229]/80">
 
             {/* Brand Col */}
             <div className="lg:col-span-4">
@@ -120,7 +120,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             </div>
 
             {/* Services Column */}
-            <div className="lg:col-span-3 sm:col-span-4">
+            <div className="col-span-6 sm:col-span-4 lg:col-span-3">
               <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">
                 Services
               </h5>
@@ -156,7 +156,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
             </div>
 
             {/* Company */}
-            <div className="lg:col-span-3 sm:col-span-4">
+            <div className="col-span-6 sm:col-span-4 lg:col-span-3">
               <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">Company</h5>
               <ul className="space-y-3 text-sm text-[#9CA3AF]">
                 <li>
@@ -174,16 +174,11 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                     {isCustomer ? 'Book Alterations' : 'Partner With Us'}
                   </Link>
                 </li>
-                <li>
-                  <Link href="/orders" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
-                    Saved Fit Profile
-                  </Link>
-                </li>
               </ul>
             </div>
 
             {/* Portals & Help Column */}
-            <div className="lg:col-span-2 sm:col-span-4">
+            <div className="col-span-12 sm:col-span-4 lg:col-span-2">
               <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">
                 Portals &amp; Help
               </h5>
