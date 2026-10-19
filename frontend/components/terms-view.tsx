@@ -213,8 +213,8 @@ export function TermsView({ go }: { go: (s: Screen | string) => void }) {
             </p>
             <p className="text-sm font-medium text-[#0F1115]">
               Raffu Client Concierge Desk &middot;{' '}
-              <a href="mailto:concierge@raffu.com" className="text-[#9E593B] hover:underline">
-                concierge@raffu.com
+              <a href="mailto:developer.sitarahub@gmail.com" className="text-[#9E593B] hover:underline">
+                developer.sitarahub@gmail.com
               </a>
             </p>
           </section>

@@ -52,6 +52,8 @@ export const API_ROUTES = {
     ORDERS: (params?: string) => params ? `/admin/orders?${params}` : '/admin/orders',
     ORDER_BY_ID: (id: string) => `/admin/orders/${encodeURIComponent(id)}`,
     SEARCH: (q: string) => `/admin/search?q=${encodeURIComponent(q.trim())}`,
+    INQUIRIES: (params?: string) => params ? `/admin/inquiries?${params}` : '/admin/inquiries',
+    INQUIRY_BY_ID: (id: string) => `/admin/inquiries/${encodeURIComponent(id)}`,
   },
 } as const
 

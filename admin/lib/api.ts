@@ -811,17 +811,96 @@ export async function updateAdminOrder(id: string, updates: any): Promise<{ succ
   }
 }
 
-export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[] }> {
+export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[]; inquiries?: any[] }> {
   try {
-    if (!q || !q.trim()) return { customers: [], studios: [], orders: [] }
+    if (!q || !q.trim()) return { customers: [], studios: [], orders: [], inquiries: [] }
     const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.SEARCH(q)), {
       cache: 'no-store',
     })
-    if (!res.ok) return { customers: [], studios: [], orders: [] }
+    if (!res.ok) return { customers: [], studios: [], orders: [], inquiries: [] }
     const data = await res.json()
-    return data.results || { customers: [], studios: [], orders: [] }
+    return data.results || { customers: [], studios: [], orders: [], inquiries: [] }
   } catch (err) {
-    return { customers: [], studios: [], orders: [] }
+    return { customers: [], studios: [], orders: [], inquiries: [] }
+  }
+}
+
+export async function fetchAdminInquiries(
+  search?: string,
+  status?: string,
+  source?: string,
+  priority?: string,
+  limit: number = 100
+): Promise<{ inquiries: any[]; statusCounts: any; total: number }> {
+  try {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    if (status && status !== 'ALL') params.append('status', status)
+    if (source && source !== 'ALL') params.append('source', source)
+    if (priority && priority !== 'ALL') params.append('priority', priority)
+    if (limit) params.append('limit', limit.toString())
+
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.INQUIRIES(params.toString())), {
+      cache: 'no-store',
+    })
+    if (!res.ok) throw new Error('Failed to fetch contact inquiries')
+    const data = await res.json()
+    return {
+      inquiries: data.inquiries || [],
+      statusCounts: data.statusCounts || { ALL: 0, NEW: 0, IN_REVIEW: 0, RESOLVED: 0, ARCHIVED: 0 },
+      total: data.total || 0,
+    }
+  } catch (err) {
+    console.error('fetchAdminInquiries error:', err)
+    return {
+      inquiries: [],
+      statusCounts: { ALL: 0, NEW: 0, IN_REVIEW: 0, RESOLVED: 0, ARCHIVED: 0 },
+      total: 0,
+    }
+  }
+}
+
+export async function fetchAdminInquiryById(id: string): Promise<any | null> {
+  try {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.INQUIRY_BY_ID(id)), {
+      cache: 'no-store',
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.inquiry || null
+  } catch (err) {
+    console.error('fetchAdminInquiryById error:', err)
+    return null
+  }
+}
+
+export async function updateAdminInquiry(
+  id: string,
+  updates: { status?: string; priority?: string; adminNotes?: string }
+): Promise<{ success: boolean; inquiry?: any; error?: string }> {
+  try {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.INQUIRY_BY_ID(id)), {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to update inquiry' }
+    return { success: true, inquiry: data.inquiry }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
+export async function deleteAdminInquiry(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.INQUIRY_BY_ID(id)), {
+      method: 'DELETE',
+    })
+    const data = await res.json()
+    if (!res.ok) return { success: false, error: data.error || 'Failed to delete inquiry' }
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
 }
 

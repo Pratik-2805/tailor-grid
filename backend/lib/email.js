@@ -749,11 +749,220 @@ Have questions or need assistance? Visit our Contact Page: ${contactUrl}
   }
 }
 
+/**
+ * Sends a Concierge / Contact Form submission directly to support email (developer.sitarahub@gmail.com).
+ */
+async function sendConciergeInquiryEmail({
+  name,
+  email,
+  phone,
+  topic,
+  orderNumber,
+  message,
+  source = "Customer Concierge Desk",
+  priority,
+}) {
+  const client = getResendClient();
+  const recipient = process.env.SUPPORT_EMAIL || "developer.sitarahub@gmail.com";
+
+  const topicLabels = {
+    alteration_inquiry: "Question about Garment Alteration & Pinning",
+    order_status: "Order Progress & Studio Drop-off Assistance",
+    fit_guarantee: "100% Fit Guarantee Adjustment Request",
+    bespoke_consultation: "Bespoke Bridal or Suit Tailoring Advice",
+    other: "General Inquiries / Feedback",
+    payout_query: "Weekly Settlement & Bank Payout Query",
+    sla_dispute: "Customer Measurement & Fit Dispute",
+    capacity_pause: "Temporary Capacity Pause / Machine Repair",
+    profile_specialties: "Atelier Profile & Services Update",
+    materials_threads: "OEM Industrial Threads & Hangtag Reorder",
+    app_bug: "Workbench Software / Telemetry Assistance",
+  };
+
+  const humanTopic = topicLabels[topic] || topic || "General Concierge Request";
+  const cleanName = (name || "Customer").trim();
+  const cleanPhone = (phone || "").trim();
+  const cleanEmail = (email || "").trim();
+  const cleanOrder = (orderNumber || "").trim();
+  const cleanMessage = (message || "").trim();
+  const cleanPriority = (priority || "").trim();
+
+  const subject = `[Raffu Concierge Request] ${humanTopic} - from ${cleanName}`;
+
+  const plainText = `
+Raffu Concierge Inquiry
+-----------------------
+Source: ${source}
+Topic: ${humanTopic}
+Sender: ${cleanName}
+Phone: ${cleanPhone || "Not provided"}
+Email: ${cleanEmail || "Not provided"}
+Order Reference: ${cleanOrder || "None"}
+${cleanPriority ? `Priority: ${cleanPriority}\n` : ""}
+
+Message / Garment Notes:
+${cleanMessage}
+
+Submitted: ${new Date().toLocaleString("en-GB", { timeZone: "Asia/Kolkata" })} IST
+  `.trim();
+
+  const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>New Concierge Inquiry</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FAF8F5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #18191B;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #FAF8F5; padding: 40px 16px;">
+    <tr>
+      <td align="center" valign="middle">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #FFFFFF; border-radius: 16px; border: 1px solid #EBE6DF; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04);">
+          <!-- Top Accent Banner -->
+          <tr>
+            <td style="background-color: #18191B; padding: 24px 32px; text-align: left;">
+              <span style="display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #D88D70; margin-bottom: 6px;">Raffu Client Concierge</span>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #FFFFFF; font-family: Georgia, serif;">New Concierge Request Received</h1>
+            </td>
+          </tr>
+
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 32px;">
+              <p style="margin: 0 0 20px; font-size: 14px; color: #5A5D64; line-height: 1.6;">
+                A new inquiry has been submitted via <strong>${source}</strong>. You can respond directly to this email if an email address was provided.
+              </p>
+
+              <!-- Topic Callout -->
+              <table role="presentation" width="100%" style="background-color: #FBF7F4; border-left: 4px solid #9E593B; border-radius: 8px; margin-bottom: 24px; padding: 12px 16px;">
+                <tr>
+                  <td>
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9E593B;">Topic / Category</div>
+                    <div style="font-size: 15px; font-weight: 700; color: #0F1115; margin-top: 2px;">${humanTopic}</div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Client Details Table -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border: 1px solid #EFEAE3; border-radius: 12px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85; border-bottom: 1px solid #EFEAE3; width: 140px;">Customer / Contact:</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #0F1115; border-bottom: 1px solid #EFEAE3;">${cleanName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85; border-bottom: 1px solid #EFEAE3;">Phone Number:</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #0F1115; border-bottom: 1px solid #EFEAE3;">
+                    ${cleanPhone ? `<a href="tel:${cleanPhone}" style="color: #9E593B; text-decoration: none;">${cleanPhone}</a>` : '<span style="color: #9CA3AF;">Not provided</span>'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85; border-bottom: 1px solid #EFEAE3;">Email Address:</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #0F1115; border-bottom: 1px solid #EFEAE3;">
+                    ${cleanEmail ? `<a href="mailto:${cleanEmail}" style="color: #9E593B; text-decoration: none;">${cleanEmail}</a>` : '<span style="color: #9CA3AF;">Not provided</span>'}
+                  </td>
+                </tr>
+                ${cleanOrder ? `
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85; border-bottom: 1px solid #EFEAE3;">Order Reference:</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #0F1115; border-bottom: 1px solid #EFEAE3;">${cleanOrder}</td>
+                </tr>` : ""}
+                ${cleanPriority ? `
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85; border-bottom: 1px solid #EFEAE3;">Priority Level:</td>
+                  <td style="padding: 12px 16px; font-size: 13px; font-weight: 700; color: #DC2626; border-bottom: 1px solid #EFEAE3;">${cleanPriority.toUpperCase()}</td>
+                </tr>` : ""}
+                <tr>
+                  <td style="padding: 12px 16px; font-size: 12px; font-weight: 600; color: #7A7E85;">Source Channel:</td>
+                  <td style="padding: 12px 16px; font-size: 12px; color: #5A5D64;">${source}</td>
+                </tr>
+              </table>
+
+              <!-- Customer Message Block -->
+              <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #7A7E85; margin-bottom: 8px;">
+                Message / Garment Notes:
+              </div>
+              <div style="background-color: #FAF8F5; border: 1px solid #E5DFD7; border-radius: 12px; padding: 18px 20px; font-size: 14px; line-height: 1.6; color: #18191B; white-space: pre-wrap;">${cleanMessage}</div>
+
+              <!-- Quick Reply button if email available -->
+              ${cleanEmail ? `
+              <div style="margin-top: 24px; text-align: center;">
+                <a href="mailto:${cleanEmail}?subject=Re: Raffu Concierge - ${encodeURIComponent(humanTopic)}" style="display: inline-block; background-color: #18191B; color: #FFFFFF; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 12px 24px; border-radius: 50px; text-decoration: none;">Reply to Customer Directly</a>
+              </div>` : ""}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F9F7F4; border-top: 1px solid #EBE6DF; padding: 16px 32px; text-align: center;">
+              <p style="margin: 0; font-size: 11px; color: #7A7E85;">
+                Raffu Concierge Notifications &bull; Sent to ${recipient}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+
+  if (!client) {
+    console.warn(`[CONCIERGE EMAIL] Resend client not configured. Message from ${cleanName}: ${cleanMessage}`);
+    return { success: false, reason: "RESEND_API_KEY missing" };
+  }
+
+  try {
+    const defaultFrom = getFromEmail();
+    const emailMatch = defaultFrom.match(/<([^>]+)>/);
+    const pureFromEmail = emailMatch
+      ? emailMatch[1]
+      : defaultFrom.includes('@')
+        ? defaultFrom.trim()
+        : 'no-reply@indoglobaltradefair.com';
+    const senderDisplayName = cleanName.replace(/["<>\r\n]/g, '').trim() || 'Raffu Concierge';
+    const fromAddress = `"${senderDisplayName}" <${pureFromEmail}>`;
+
+    const payload = {
+      from: fromAddress,
+      to: recipient,
+      subject,
+      html,
+      text: plainText,
+    };
+    if (cleanEmail && cleanEmail.includes("@")) {
+      payload.reply_to = cleanEmail;
+    }
+
+    const result = await client.emails.send(payload);
+
+    if (result.error) {
+      console.error(
+        `[CONCIERGE EMAIL ERROR] Resend rejected email to ${recipient}:`,
+        result.error,
+      );
+      return { success: false, error: result.error };
+    }
+
+    console.log(
+      `[CONCIERGE EMAIL] Successfully delivered concierge form from ${cleanName} (${cleanEmail || cleanPhone}) to ${recipient} (ID: ${result.data?.id})`,
+    );
+    return { success: true, id: result.data?.id };
+  } catch (err) {
+    console.error(
+      `[CONCIERGE EMAIL ERROR] Failed to send email to ${recipient}:`,
+      err.message || err,
+    );
+    return { success: false, error: err.message };
+  }
+}
+
 module.exports = {
   getResendClient,
   sendOrderOtpEmail,
   sendAuthOtpEmail,
   sendWelcomeEmail,
+  sendConciergeInquiryEmail,
   buildWelcomeEmailHtml,
   buildOtpEmailHtml,
 };

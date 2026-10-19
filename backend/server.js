@@ -10,9 +10,11 @@ const ordersRoutes = require("./routes/orders");
 const servicesRoutes = require("./routes/services");
 const adminRoutes = require("./routes/admin");
 const newsletterRoutes = require("./routes/newsletter");
+const contactRoutes = require("./routes/contact");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+// Raffu Master Tailor Engine with Contact Inquiries Support
 
 // 1. Security Headers (Disable tech stack fingerprinting & prevent clickjacking/sniffing)
 app.use(
@@ -145,6 +147,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/newsletter", newsletterRoutes);
+app.use("/api/contact", contactRoutes);
 app.use("/api", servicesRoutes);
 
 // Fallback 404 handler
