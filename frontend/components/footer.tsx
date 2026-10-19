@@ -312,10 +312,13 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Have questions regarding your fitting, partner atelier matching, or custom luxury garments? Our master tailor concierge team is here to assist:
                 </p>
                 <div className="space-y-3 pt-2">
-                  <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
+                  <a
+                    href="mailto:developer.sitarahub@gmail.com"
+                    className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115] hover:border-[#9E593B] transition-colors"
+                  >
                     <Mail size={16} className="text-[#9E593B]" />
-                    <span>support@raffu.com</span>
-                  </div>
+                    <span>developer.sitarahub@gmail.com</span>
+                  </a>
                   <div className="flex items-center gap-3 rounded-xl bg-white border border-[#EBE6DF] p-3 text-xs font-semibold text-[#0F1115]">
                     <Phone size={16} className="text-[#10B981]" />
                     <span>+1 (800) 555-RAFFU / +44 (20) 7946 0912</span>

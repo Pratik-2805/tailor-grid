@@ -194,12 +194,8 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             </p>
             <p className="text-sm font-medium text-[#0F1115]">
               Raffu Privacy &amp; Compliance Office &middot;{' '}
-              <a href="mailto:privacy@raffu.com" className="text-[#9E593B] hover:underline">
-                privacy@raffu.com
-              </a>{' '}
-              &middot;{' '}
-              <a href="mailto:concierge@raffu.com" className="text-[#9E593B] hover:underline">
-                concierge@raffu.com
+              <a href="mailto:developer.sitarahub@gmail.com" className="text-[#9E593B] hover:underline">
+                developer.sitarahub@gmail.com
               </a>
             </p>
           </section>
