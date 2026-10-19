@@ -146,7 +146,7 @@ export function StudioPrivacyView() {
               For legal inquiries, NDA clarifications, or partner data requests:
             </p>
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-xs space-y-1">
-              <p className="font-bold text-white">Raffu Technologies Ltd. &middot; Partner Legal &amp; Compliance</p>
+              <p className="font-bold text-white">Raffu Labs Ltd. &middot; Partner Legal &amp; Compliance</p>
               <p className="text-slate-400">Partner Desk Email: developer.sitarahub@gmail.com</p>
               <p className="text-slate-400">Partner Escalations Hotline: +91 98450 95969 / +44 20 7946 0912</p>
             </div>

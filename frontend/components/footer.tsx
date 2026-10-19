@@ -177,27 +177,20 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
               </ul>
             </div>
 
-            {/* Portals & Help Column */}
+            {/* Help & Policies Column */}
             <div className="col-span-12 sm:col-span-4 lg:col-span-2">
               <h5 className="text-xs sm:text-[13px] uppercase tracking-wider text-[#9E593B] font-bold mb-4">
-                Portals &amp; Help
+                Help &amp; Policies
               </h5>
               <ul className="space-y-3 text-sm text-[#9CA3AF]">
-                {!isCustomer && (
-                  <li>
-                    <Link href="/partner" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
-                      Tailor Partner Portal
-                    </Link>
-                  </li>
-                )}
                 <li>
                   <Link href="/contact" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
-                    Contact Concierge
+                    Contact Us
                   </Link>
                 </li>
                 <li>
                   <Link href="/privacy" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors text-left cursor-pointer inline-block">
-                    Customer Privacy Policy
+                    Privacy Policy
                   </Link>
                 </li>
                 <li>
@@ -213,7 +206,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
 
         {/* Bottom */}
         <div className="mt-8 text-center text-xs sm:text-sm text-[#6B7280]">
-          <p>© {new Date().getFullYear()} Raffu Technologies Ltd. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Raffu Labs Ltd. All rights reserved.</p>
         </div>
       </footer>
 
@@ -267,7 +260,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                   Privacy & Data Policy
                 </h3>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                  Raffu Technologies Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
+                  Raffu Labs Ltd. values your privacy. We only collect essential customer data (fitting measurements, order status, contact phone/email) to facilitate studio bookings and maintain your secure Digital Fit Passport.
                 </p>
                 <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
                   Your payment information is encrypted end-to-end and never stored in plain text. We do not sell personal data to third parties.

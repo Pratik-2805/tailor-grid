@@ -557,7 +557,7 @@ function buildWelcomeEmailHtml({
 
               <!-- Copyright -->
               <p style="margin: 0; font-size: 11px; color: #B0B0B0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-                &copy; Copyright Raffu Technologies Ltd, 2026
+                &copy; Copyright Raffu Labs Ltd, 2026
               </p>
 
             </td>
@@ -712,7 +712,7 @@ ${isStudio ? "Team Raffu Studio" : "Team Raffu"}
 
 Have questions or need assistance? Visit our Contact Page: ${contactUrl}
 
-© Copyright Raffu Technologies Ltd, 2026
+© Copyright Raffu Labs Ltd, 2026
   `.trim();
 
   // Prepare CID attachment for welcome handshake image
