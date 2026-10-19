@@ -482,9 +482,11 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             </div>
 
             {/* 2. Main Title */}
-            <h1 className="text-3xl sm:text-[44px] lg:text-[48px] font-extrabold tracking-tight text-black leading-[1.08] mb-6">
-              Request an alteration
-            </h1>
+            <div className="mb-6">
+              <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
+                Doorstep Alterations &amp; Custom Fitting
+              </h1>
+            </div>
 
             {/* Uber-Style Input Fields */}
             <div className="relative w-full mb-4">

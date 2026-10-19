@@ -58,12 +58,10 @@ export function HomeView({
       {/* 4. Simple 4-Step Journey */}
       <HowItWorksPreview go={go} />
 
-      {/* 8. Partner Banner for Master Tailors (Rapido Captain / Uber Driver style) */}
-      {!(user && (user.role === 'CUSTOMER' || user.role !== 'STUDIO')) && (
-        <PartnerBanner go={go} />
-      )}
+      {/* 5. Partner Acquisition Banner for Tailors & Studios */}
+      {user?.role !== 'CUSTOMER' && <PartnerBanner go={go} />}
 
-      {/* 9. Client Stories & Craftsmanship Standards */}
+      {/* 6. Client Stories & Craftsmanship Standards */}
       <TestimonialsSection />
     </div>
   )

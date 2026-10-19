@@ -1,10 +1,11 @@
 'use client'
 
 import Image from 'next/image'
-import { ArrowRight, Banknote, Calendar, CheckCircle2, ShoppingBag, Store } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, Banknote, Calendar, CheckCircle2, ShoppingBag } from 'lucide-react'
 import { type Screen } from './data'
 
-export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
+export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
   return (
     <section className="py-16 sm:py-24 bg-[#0F1115] text-white overflow-hidden relative border-b border-[#1E2229]">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
@@ -13,9 +14,6 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
           
           {/* Left Column: Copy & Benefit Pillars */}
           <div className="lg:col-span-7">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-[#F59E0B] mb-4">
-              <Store size={13} /> Partner Store Portal · Tailors &amp; Fashion Retailers
-            </span>
 
             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] mb-4">
               Drive customer footfall<br />
@@ -55,19 +53,19 @@ export function PartnerBanner({ go }: { go: (s: Screen) => void }) {
 
             {/* Action buttons */}
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => go('for-partners')}
+              <Link
+                href="/for-partners"
                 className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
               >
                 <span>Apply as Partner Store</span>
                 <ArrowRight size={14} />
-              </button>
-              <button
-                onClick={() => go('partner')}
+              </Link>
+              <Link
+                href="/partner"
                 className="rounded-full border border-white/20 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
               >
                 Partner Store Portal
-              </button>
+              </Link>
             </div>
           </div>
 

@@ -3,12 +3,11 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import {
+  BadgeCheck,
   CheckCircle2,
   ChevronDown,
-  HelpCircle,
   Scissors,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react'
 
 const CRAFT_PILLARS = [
@@ -29,7 +28,7 @@ const CRAFT_PILLARS = [
     badges: ['Factory distressed hem kept', 'Blind-stitch & chainstitch'],
   },
   {
-    icon: Sparkles,
+    icon: BadgeCheck,
     tag: 'Total Transparency',
     title: 'Standardized Rates, Zero Surprises',
     description:
@@ -78,7 +77,7 @@ export function TestimonialsSection() {
           </p>
         </div>
 
-        {/* Smart Craftsmanship & Guarantee Pillars */}
+        {/* Craftsmanship & Guarantee Pillars */}
         <div className="grid gap-6 md:grid-cols-3 mb-16">
           {CRAFT_PILLARS.map((pillar, i) => {
             const Icon = pillar.icon
@@ -120,12 +119,9 @@ export function TestimonialsSection() {
           })}
         </div>
 
-        {/* Smart FAQ / Fitting Assistance Accordion */}
+        {/* FAQ Accordion */}
         <div className="bg-white rounded-3xl border border-[#E8E1D5] p-6 sm:p-10 mb-14 shadow-2xs">
           <div className="max-w-[700px] mb-8">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] mb-1.5">
-              <HelpCircle size={14} /> Fitting &amp; Service Clarity
-            </span>
             <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#0F1115] tracking-tight">
               Common questions answered upfront.
             </h3>
@@ -141,7 +137,7 @@ export function TestimonialsSection() {
                 <div key={idx} className="py-4.5 sm:py-5 first:pt-0 last:pb-0">
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between text-left gap-4 group"
+                    className="w-full flex items-center justify-between text-left gap-4 group cursor-pointer"
                   >
                     <span className="font-serif text-base sm:text-lg font-bold text-[#0F1115] group-hover:text-[#9E593B] transition-colors">
                       {faq.q}

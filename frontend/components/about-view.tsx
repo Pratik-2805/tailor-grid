@@ -15,7 +15,6 @@ import {
   Newspaper,
   Scissors,
   ShieldCheck,
-  Sparkles,
   Store,
   Users,
   X,
