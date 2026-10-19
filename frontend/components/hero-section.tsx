@@ -238,10 +238,10 @@ function CustomRaffuCalendar({
               disabled={isPast}
               onClick={() => onSelectDate(dateObj)}
               className={`h-8 w-8 mx-auto rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${isSelected
-                  ? 'bg-black text-white shadow-xs scale-105'
-                  : isPast
-                    ? 'text-gray-300 pointer-events-none line-through'
-                    : 'text-black hover:bg-[#E8E8E8]'
+                ? 'bg-black text-white shadow-xs scale-105'
+                : isPast
+                  ? 'text-gray-300 pointer-events-none line-through'
+                  : 'text-black hover:bg-[#E8E8E8]'
                 }`}
             >
               {dateObj.getDate()}
@@ -484,7 +484,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             {/* 2. Main Title */}
             <div className="mb-6">
               <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
-                Doorstep Alterations &amp; Custom Fitting
+                Request an alteration
               </h1>
             </div>
 
@@ -762,10 +762,10 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                       disabled={passed}
                       onClick={() => setSelectedTime(t)}
                       className={`py-2 rounded-xl text-xs font-bold text-center transition-all border ${isSelected
-                          ? 'bg-black text-white border-black shadow-xs scale-105'
-                          : passed
-                            ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
-                            : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
+                        ? 'bg-black text-white border-black shadow-xs scale-105'
+                        : passed
+                          ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
+                          : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
                         }`}
                     >
                       {t}

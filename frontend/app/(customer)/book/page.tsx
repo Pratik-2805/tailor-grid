@@ -1434,11 +1434,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('home')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'home'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'home'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Home size={13} className={addressTag === 'home' ? 'text-white' : 'text-neutral-500'} />
                               <span>Home</span>
@@ -1447,11 +1446,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('work')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'work'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'work'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Briefcase size={13} className={addressTag === 'work' ? 'text-white' : 'text-neutral-500'} />
                               <span>Work</span>
@@ -1460,11 +1458,10 @@ export default function BookPage() {
                             <button
                               type="button"
                               onClick={() => setAddressTag('other')}
-                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${
-                                addressTag === 'other'
+                              className={`flex-1 py-1.5 sm:py-2 px-3 rounded-full border text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5 ${addressTag === 'other'
                                   ? 'bg-black text-white border-black shadow-xs'
                                   : 'bg-transparent hover:bg-neutral-100 text-neutral-700 border-[#D5CDC2] hover:border-black'
-                              }`}
+                                }`}
                             >
                               <Tag size={13} className={addressTag === 'other' ? 'text-white' : 'text-neutral-500'} />
                               <span>Other</span>
