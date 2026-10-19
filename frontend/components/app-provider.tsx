@@ -70,7 +70,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const stopBookingTransition = () => setIsBookingTransitioning(false)
 
   const [prefilledPostcode, setPrefilledPostcode] = useState('')
-  const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>('trousers')
+  const [prefilledGarmentId, setPrefilledGarmentIdState] = useState<string>('')
   const [prefilledServiceId, setPrefilledServiceIdState] = useState<string | undefined>(undefined)
   const [prefilledStore, setPrefilledStore] = useState<StoreOption | undefined>()
   const [garmentBrand, setGarmentBrand] = useState<string | undefined>()
