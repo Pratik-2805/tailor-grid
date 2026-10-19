@@ -94,17 +94,17 @@ export function TermsView({ go }: { go: (s: Screen | string) => void }) {
           {/* Section 5 */}
           <section>
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-3">
-              5. Pinning, Measurements &amp; Fitting Responsibility
+              5. Measurements, Fitting &amp; Direct Tailor Handover
             </h2>
             <p className="mb-3">
-              Accurate measurements are essential for a flawless fit:
+              Accurate measurements are handled directly by your assigned master tailor:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-[#4A4D54]">
               <li>
-                <strong className="text-[#0F1115]">In-Studio Pinning:</strong> When you choose in-studio pinning, a master tailor pins your garment in person and verifies the line, break, and silhouette with you before cutting.
+                <strong className="text-[#0F1115]">Direct Tailor Measurement:</strong> You are not required to take measurements or pre-fit your clothes beforehand. Upon handover, your master tailor takes all precision measurements, pins, and verifies the line, break, and silhouette with you in person before cutting.
               </li>
               <li>
-                <strong className="text-[#0F1115]">Self-Pinning &amp; Matching Garment:</strong> If you pin the garment yourself or send a reference sample, our tailors will alter the garment exactly to the pinned position or sample dimensions provided. Raffu is not responsible for fit discrepancies resulting from inaccurate self-pinning.
+                <strong className="text-[#0F1115]">Fitting Specifications:</strong> Any specific alteration preferences (such as crop length or slimness) recorded during direct fitting or noted in the order form the basis of the work performed.
               </li>
               <li>
                 <strong className="text-[#0F1115]">Footwear &amp; Undergarments:</strong> For hem adjustments and gown fittings, you must wear the actual shoes and undergarments intended for the outfit to ensure correct finished lengths.

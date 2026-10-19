@@ -6,7 +6,7 @@ const { verifyPassword, hashPassword } = require('../lib/password');
 const { sendWelcomeEmail } = require('../lib/email');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'Darzi_jwt_secret_key_2026';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Format helper for order outputs
@@ -574,21 +574,6 @@ router.put('/customers/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/admin/customers/:id - Delete or archive customer
-router.delete('/customers/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    // Set orders to null userId first or let cascade handle
-    await prisma.user.delete({
-      where: { id },
-    });
-    return res.json({ success: true, message: 'Customer record deleted successfully.' });
-  } catch (err) {
-    console.error('Admin delete customer error:', err);
-    return res.status(500).json({ error: 'Failed to delete customer' });
-  }
-});
-
 // -------------------------------------------------------------
 // 3. STUDIOS / PARTNER STORES MANAGEMENT
 // -------------------------------------------------------------
@@ -865,20 +850,6 @@ router.put('/studios/:id', async (req, res) => {
   } catch (err) {
     console.error('Admin update studio error:', err);
     return res.status(500).json({ error: 'Failed to update studio partner' });
-  }
-});
-
-// DELETE /api/admin/studios/:id - Delete partner store
-router.delete('/studios/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.partnerStore.delete({
-      where: { id },
-    });
-    return res.json({ success: true, message: 'Studio partner removed successfully.' });
-  } catch (err) {
-    console.error('Admin delete studio error:', err);
-    return res.status(500).json({ error: 'Failed to delete studio partner' });
   }
 });
 

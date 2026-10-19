@@ -17,7 +17,9 @@ import {
   decodeJwtPayload,
 } from './cookies'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+import { API_BASE, API_ROUTES, getApiUrl } from './api-routes'
+
+export { API_BASE, API_ROUTES, getApiUrl }
 
 export const CUSTOMER_SITE_URL =
   process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
@@ -68,7 +70,7 @@ export async function refreshAccessToken(providedRefreshToken?: string): Promise
   isRefreshing = true
   refreshPromise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await fetch(getApiUrl(API_ROUTES.AUTH.REFRESH), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +124,7 @@ export async function exchangeAuthCode(code: string): Promise<{
   role: string
 }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/oauth/exchange`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.OAUTH_EXCHANGE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
@@ -154,7 +156,7 @@ export async function logoutUser(): Promise<void> {
   try {
     const token = getAuthToken()
     const refreshToken = getRefreshToken()
-    await fetch(`${API_BASE}/auth/logout`, {
+    await fetch(getApiUrl(API_ROUTES.AUTH.LOGOUT), {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -172,7 +174,7 @@ export async function logoutUser(): Promise<void> {
 
 export async function sendOtp(phone: string, forceResend: boolean = false): Promise<{ success: boolean; message: string; phone?: string; cooldown?: boolean }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/send-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.SEND_OTP), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ phone, forceResend }),
@@ -211,7 +213,7 @@ export async function verifyOtp(params: {
 }> {
   const token = getAuthToken()
   try {
-    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.VERIFY_OTP), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -249,7 +251,7 @@ export async function linkPhone(params: {
 }): Promise<{ success: boolean; user: User; token: string; accessToken?: string; refreshToken?: string; authCode?: string; hasPhone: boolean }> {
   const token = getAuthToken()
   try {
-    const res = await fetch(`${API_BASE}/auth/link-phone`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.LINK_PHONE), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -294,7 +296,7 @@ export async function loginWithGoogle(params: {
   isLogin?: boolean
 }): Promise<{ token?: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean; isNewUser?: boolean; tempSignupId?: string; expiresIn?: number }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/google`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.GOOGLE), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),
@@ -324,7 +326,7 @@ export async function loginWithGoogle(params: {
 
 export async function checkEmailExists(email: string, role: string = 'STUDIO'): Promise<{ exists: boolean; error?: string; user?: User }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/check-email?email=${encodeURIComponent(email)}&role=${encodeURIComponent(role)}`)
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.CHECK_EMAIL(email, role)))
     if (res.ok) {
       return await res.json()
     }
@@ -351,7 +353,7 @@ export async function signUpUser(data: {
 }): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
     const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/auth/signup`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.SIGNUP), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -389,7 +391,7 @@ export async function loginUser(data: {
   role?: 'CUSTOMER' | 'STUDIO' | 'ADMIN'
 }): Promise<{ token: string; accessToken?: string; refreshToken?: string; authCode?: string; user: User; needsPhone?: boolean }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.LOGIN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -419,7 +421,7 @@ export async function loginUser(data: {
 
 export async function updateUserProfile(updates: Partial<User> & { otp?: string }): Promise<{ success: boolean; user: User; token?: string; accessToken?: string; refreshToken?: string }> {
   let token = getAuthToken()
-  let res = await fetch(`${API_BASE}/auth/update-profile`, {
+  let res = await fetch(getApiUrl(API_ROUTES.AUTH.UPDATE_PROFILE), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -431,7 +433,7 @@ export async function updateUserProfile(updates: Partial<User> & { otp?: string 
   if (res.status === 401) {
     const newToken = await refreshAccessToken()
     if (newToken) {
-      res = await fetch(`${API_BASE}/auth/update-profile`, {
+      res = await fetch(getApiUrl(API_ROUTES.AUTH.UPDATE_PROFILE), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -472,7 +474,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 
   try {
-    let res = await fetch(`${API_BASE}/auth/me`, {
+    let res = await fetch(getApiUrl(API_ROUTES.AUTH.ME), {
       credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -480,7 +482,7 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.status === 401) {
       const newToken = await refreshAccessToken()
       if (newToken) {
-        res = await fetch(`${API_BASE}/auth/me`, {
+        res = await fetch(getApiUrl(API_ROUTES.AUTH.ME), {
           credentials: 'include',
           headers: { Authorization: `Bearer ${newToken}` },
         })
@@ -501,7 +503,7 @@ export async function getCurrentUser(): Promise<User | null> {
       }
     }
 
-    if (res.status === 401 || res.status === 403) {
+    if (res.status === 401 || res.status === 403 || res.status === 404) {
       clearAllAuth()
       return null
     }
@@ -516,7 +518,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function fetchStudioOrders(storeId?: string | null): Promise<FittingBooking[]> {
   try {
     const token = getAuthToken()
-    const url = storeId ? `${API_BASE}/orders?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders`
+    const url = getApiUrl(API_ROUTES.ORDERS.BY_STORE(storeId))
     const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -534,7 +536,7 @@ export async function fetchStudioOrders(storeId?: string | null): Promise<Fittin
 export async function fetchStudioStats(storeId?: string | null): Promise<any> {
   try {
     const token = getAuthToken()
-    const url = storeId ? `${API_BASE}/orders/studio/stats?storeId=${encodeURIComponent(storeId)}` : `${API_BASE}/orders/studio/stats`
+    const url = getApiUrl(API_ROUTES.ORDERS.STUDIO_STATS(storeId))
     const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -552,7 +554,7 @@ export async function fetchStudioStats(storeId?: string | null): Promise<any> {
 export async function updateOrder(id: string, updates: Partial<FittingBooking>): Promise<FittingBooking | null> {
   try {
     const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/orders/${id}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.BY_ID(id)), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -571,7 +573,7 @@ export async function updateOrder(id: string, updates: Partial<FittingBooking>):
 export async function deleteOrder(id: string): Promise<boolean> {
   try {
     const token = getAuthToken()
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(id)}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.BY_ID(id)), {
       method: 'DELETE',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -603,7 +605,7 @@ export interface PendingDispatchRequest {
 export async function fetchPendingDispatches(storeId: string): Promise<PendingDispatchRequest[]> {
   try {
     if (!storeId) return []
-    const res = await fetch(`${API_BASE}/orders/dispatch/pending?storeId=${encodeURIComponent(storeId)}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_PENDING(storeId)), {
       cache: 'no-store',
     })
     if (!res.ok) return []
@@ -620,7 +622,7 @@ export async function respondToDispatch(
   action: 'ACCEPT' | 'SKIP'
 ): Promise<{ success: boolean; message?: string; code?: string; order?: any }> {
   try {
-    const res = await fetch(`${API_BASE}/orders/${encodeURIComponent(orderId)}/dispatch/respond`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ORDERS.DISPATCH_RESPOND(orderId)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tailorId, action }),
@@ -675,7 +677,7 @@ export async function adminFetch(input: string, init?: RequestInit): Promise<Res
 
 export async function fetchAdminOverview(): Promise<any> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/overview`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.OVERVIEW), {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch admin overview')
@@ -692,7 +694,7 @@ export async function fetchAdminCustomers(search?: string, status?: string, role
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (role && role !== 'ALL') params.append('role', role)
-    const res = await adminFetch(`${API_BASE}/admin/customers?${params.toString()}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.CUSTOMERS(params.toString())), {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch customers')
@@ -706,7 +708,7 @@ export async function fetchAdminCustomers(search?: string, status?: string, role
 
 export async function createAdminCustomer(data: any): Promise<{ success: boolean; customer?: any; error?: string }> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/customers`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.CUSTOMERS()), {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -720,7 +722,7 @@ export async function createAdminCustomer(data: any): Promise<{ success: boolean
 
 export async function updateAdminCustomer(id: string, updates: any): Promise<{ success: boolean; customer?: any; error?: string }> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.CUSTOMER_BY_ID(id)), {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
@@ -732,23 +734,12 @@ export async function updateAdminCustomer(id: string, updates: any): Promise<{ s
   }
 }
 
-export async function deleteAdminCustomer(id: string): Promise<boolean> {
-  try {
-    const res = await adminFetch(`${API_BASE}/admin/customers/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    })
-    return res.ok
-  } catch (err) {
-    return false
-  }
-}
-
 export async function fetchAdminStudios(search?: string, area?: string): Promise<any[]> {
   try {
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (area && area !== 'ALL') params.append('area', area)
-    const res = await adminFetch(`${API_BASE}/admin/studios?${params.toString()}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.STUDIOS(params.toString())), {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch studios')
@@ -762,7 +753,7 @@ export async function fetchAdminStudios(search?: string, area?: string): Promise
 
 export async function createAdminStudio(studioData: any): Promise<{ success: boolean; studio?: any; error?: string }> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/studios`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.STUDIOS()), {
       method: 'POST',
       body: JSON.stringify(studioData),
     })
@@ -776,7 +767,7 @@ export async function createAdminStudio(studioData: any): Promise<{ success: boo
 
 export async function updateAdminStudio(id: string, updates: any): Promise<{ success: boolean; studio?: any; error?: string }> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.STUDIO_BY_ID(id)), {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
@@ -788,24 +779,13 @@ export async function updateAdminStudio(id: string, updates: any): Promise<{ suc
   }
 }
 
-export async function deleteAdminStudio(id: string): Promise<boolean> {
-  try {
-    const res = await adminFetch(`${API_BASE}/admin/studios/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    })
-    return res.ok
-  } catch (err) {
-    return false
-  }
-}
-
 export async function fetchAdminOrders(search?: string, status?: string, storeId?: string): Promise<any[]> {
   try {
     const params = new URLSearchParams()
     if (search) params.append('search', search)
     if (status && status !== 'ALL') params.append('status', status)
     if (storeId && storeId !== 'ALL') params.append('storeId', storeId)
-    const res = await adminFetch(`${API_BASE}/admin/orders?${params.toString()}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.ORDERS(params.toString())), {
       cache: 'no-store',
     })
     if (!res.ok) throw new Error('Failed to fetch orders')
@@ -819,7 +799,7 @@ export async function fetchAdminOrders(search?: string, status?: string, storeId
 
 export async function updateAdminOrder(id: string, updates: any): Promise<{ success: boolean; order?: any; error?: string }> {
   try {
-    const res = await adminFetch(`${API_BASE}/admin/orders/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.ORDER_BY_ID(id)), {
       method: 'PUT',
       body: JSON.stringify(updates),
     })
@@ -834,7 +814,7 @@ export async function updateAdminOrder(id: string, updates: any): Promise<{ succ
 export async function searchAdminGlobal(q: string): Promise<{ customers: any[]; studios: any[]; orders: any[] }> {
   try {
     if (!q || !q.trim()) return { customers: [], studios: [], orders: [] }
-    const res = await adminFetch(`${API_BASE}/admin/search?q=${encodeURIComponent(q.trim())}`, {
+    const res = await adminFetch(getApiUrl(API_ROUTES.ADMIN.SEARCH(q)), {
       cache: 'no-store',
     })
     if (!res.ok) return { customers: [], studios: [], orders: [] }
@@ -906,7 +886,7 @@ export async function loginSuperAdmin(idOrEmail: string, password: string): Prom
 }> {
   try {
     const trimmedIdentifier = idOrEmail.trim()
-    const res = await fetch(`${API_BASE}/admin/login`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ADMIN.LOGIN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: trimmedIdentifier, id: trimmedIdentifier, password }),
@@ -938,7 +918,7 @@ export async function checkSuperAdminSession(): Promise<any | null> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 2500)
 
-    const res = await fetch(`${API_BASE}/admin/me`, {
+    const res = await fetch(getApiUrl(API_ROUTES.ADMIN.ME), {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
       cache: 'no-store',
@@ -984,7 +964,7 @@ export async function checkPhoneExists(
   role: string = 'STUDIO'
 ): Promise<{ exists: boolean; user?: any; error?: string; roleMismatch?: boolean; phone?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/auth/check-phone?phone=${encodeURIComponent(phone)}&role=${encodeURIComponent(role)}`)
+    const res = await fetch(getApiUrl(API_ROUTES.AUTH.CHECK_PHONE(phone, role)))
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       return { exists: false, error: err.error }
@@ -1048,7 +1028,7 @@ export async function fetchStudioCatalog(studioId?: string): Promise<StudioCatal
   const token = getAuthToken()
   const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
   try {
-    const res = await fetch(`${API_BASE}/studio/catalog${q}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG(q)), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -1088,7 +1068,7 @@ export async function saveStudioCatalog(params: {
 }> {
   const token = getAuthToken()
   try {
-    const res = await fetch(`${API_BASE}/studio/catalog`, {
+    const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG()), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1113,7 +1093,7 @@ export async function saveStudioCatalogItem(params: {
 }): Promise<{ success: boolean; item: StudioCatalogItemData }> {
   const token = getAuthToken()
   try {
-    const res = await fetch(`${API_BASE}/studio/catalog/item`, {
+    const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG_ITEM), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1136,7 +1116,7 @@ export async function deleteStudioCatalogItem(id: string, studioId?: string): Pr
   const token = getAuthToken()
   const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
   try {
-    const res = await fetch(`${API_BASE}/studio/catalog/item/${encodeURIComponent(id)}${q}`, {
+    const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG_ITEM_BY_ID(id, q)), {
       method: 'DELETE',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

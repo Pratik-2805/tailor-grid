@@ -580,7 +580,7 @@ export function PartnerOnboarding({
         method: 'email',
         role: 'STUDIO',
         status: 'ACTIVE',
-        studioId: res?.user?.studioId || user?.studioId || 'atelier-soho',
+        studioId: res?.user?.studioId || user?.studioId || `studio_${Date.now()}`,
         studioName: shopName.trim(),
         postcode: postcode.trim(),
         address: fullRegisteredAddress.trim(),

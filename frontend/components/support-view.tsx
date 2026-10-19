@@ -95,20 +95,19 @@ export function SupportView({ go }: { go: (s: Screen | string) => void }) {
           {/* Section 3 */}
           <section>
             <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0F1115] mb-4">
-              3. Measurements &amp; In-Studio Pinning
+              3. Fitting &amp; Direct Tailor Measurements
             </h2>
             <div className="space-y-6">
               <div>
                 <h3 className="font-serif text-base sm:text-lg font-bold text-[#0F1115] mb-1.5">
-                  How do I provide measurements if I don&apos;t know them?
+                  Do I need to measure or pre-fit my clothes myself?
                 </h3>
                 <p className="mb-2">
-                  You have three simple options during checkout:
+                  No, not at all! You do not need to use a measuring tape, pin, or submit any sizing specifications beforehand:
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-[#4A4D54]">
-                  <li><strong className="text-[#0F1115]">Studio Fitting:</strong> Book an in-person fitting and a master tailor will measure and pin your garment at the atelier.</li>
-                  <li><strong className="text-[#0F1115]">Pin at Home:</strong> Fold and pin the excess fabric with standard safety pins to mark your desired finished hem or silhouette.</li>
-                  <li><strong className="text-[#0F1115]">Match a Sample:</strong> Bring a favorite garment that already fits you perfectly, and the studio will duplicate its exact dimensions.</li>
+                  <li><strong className="text-[#0F1115]">Direct Tailor Measurement:</strong> Hand your garment directly to your assigned master tailor upon intake. The artisan takes all precision measurements, pins, and marks the fit directly in person.</li>
+                  <li><strong className="text-[#0F1115]">Zero Guesswork:</strong> You never have to worry about measuring errors. The professional tailor verifies the drape, hem break, and silhouette directly with you.</li>
                 </ul>
               </div>
 

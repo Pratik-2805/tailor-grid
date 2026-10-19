@@ -61,9 +61,9 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
     },
     {
       num: '3',
-      title: 'In-studio fitting or express drop-off',
-      desc: 'Walk into your allocated partner atelier with your instant Digital Fitting Pass. Enjoy a 5-minute personal fitting and pinning session with a master tailor in a private fitting room, or drop off pre-pinned garments in under 60 seconds.',
-      tips: ['Private luxury fitting rooms', 'Bring intended shoes for exact hem break'],
+      title: 'Direct tailor fitting & intake',
+      desc: 'Hand your garment directly to the allocated master tailor. The artisan takes all precision measurements and fitting in person, with zero self-measuring or pre-fitting needed on your part.',
+      tips: ['Tailor measures and chalks in person', 'Bring intended shoes for exact hem break'],
       Illustration: Step3Illustration,
     },
     {

@@ -143,8 +143,8 @@ function StudioDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-[460px] rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl space-y-5 font-sans relative animate-in zoom-in-95 duration-200 text-left">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full max-w-[460px] rounded-2xl sm:rounded-3xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 font-sans relative animate-in zoom-in-95 duration-200 text-left">
         {/* Close Button */}
         <button
           type="button"
@@ -927,17 +927,17 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
   }
 
   return (
-    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans">
-      <div className="flex-1 py-6 sm:py-8 lg:py-10 px-4 sm:px-6 lg:px-8 w-full max-w-[1280px] mx-auto flex flex-col">
+    <div className="bg-[#F6F6F6] min-h-[calc(100vh-68px)] flex flex-col justify-between select-none font-sans overflow-x-hidden w-full">
+      <div className="flex-1 py-4 sm:py-8 lg:py-10 px-3.5 sm:px-6 lg:px-8 w-full max-w-[1280px] mx-auto flex flex-col">
         {/* Navigation Breadcrumb / Header in left whitespace */}
-        <div className="mb-4 sm:mb-5 lg:-ml-10 xl:-ml-16 2xl:-ml-24 transition-all">
+        <div className="mb-3.5 sm:mb-5 lg:-ml-10 xl:-ml-16 2xl:-ml-24 transition-all">
           <button
             type="button"
             onClick={onGoOrders || onGoHome || (() => { window.location.href = '/orders' })}
-            className="inline-flex items-center gap-2.5 text-xs sm:text-sm font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer group"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold uppercase tracking-wider text-[#7A7E85] hover:text-[#18191B] transition-colors cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-full bg-white border border-gray-200/90 shadow-2xs flex items-center justify-center text-[#18191B] group-hover:bg-[#18191B] group-hover:text-white transition-all">
-              <ArrowLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white border border-gray-200/90 shadow-2xs flex items-center justify-center text-[#18191B] group-hover:bg-[#18191B] group-hover:text-white transition-all shrink-0">
+              <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
             </div>
             <span className="font-bold text-[#18191B]">Order Details</span>
           </button>
@@ -946,31 +946,31 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
         {/* Notification Alert if Request Not Accepted / Cancelled */}
         {isCancelled && (
-          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-red-950 shadow-2xs">
-            <div className="flex items-start gap-4">
-              <div className="size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
-                <XCircle size={22} />
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-5 text-red-950 shadow-2xs">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <div className="size-9 sm:size-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 border border-red-200">
+                <XCircle size={20} />
               </div>
               <div className="space-y-1 min-w-0 flex-1">
-                <h3 className="font-extrabold text-base text-red-950">Fitting Request Not Accepted</h3>
+                <h3 className="font-extrabold text-sm sm:text-base text-red-950">Fitting Request Not Accepted</h3>
                 <p className="text-xs sm:text-sm text-red-800 leading-relaxed">
                   No nearby studio was able to accept your fitting request at this time. Your request has been cancelled and no charges were incurred.
                 </p>
-                <div className="pt-3 flex flex-wrap items-center gap-3">
+                <div className="pt-3 flex flex-wrap items-center gap-2.5 sm:gap-3">
                   <button
                     type="button"
                     disabled={isRebooking}
                     onClick={handleRebookSameRequest}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-5 py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#0F1115] hover:bg-[#9E593B] px-4 sm:px-5 py-2 sm:py-2.5 text-xs font-bold text-white transition-all shadow-sm active:scale-95 cursor-pointer disabled:opacity-50"
                   >
-                    <RotateCcw size={14} className={isRebooking ? 'animate-spin' : ''} />
+                    <RotateCcw size={13} className={isRebooking ? 'animate-spin' : ''} />
                     <span>{isRebooking ? 'Re-submitting Request...' : 'Try Booking Again'}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => { window.location.href = '/book' }}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-white border border-red-200 px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-red-800 hover:bg-red-100 transition-all shadow-2xs cursor-pointer"
                   >
                     <span>Book Different Fitting</span> &rarr;
                   </button>
@@ -983,21 +983,21 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
         {/* ========================================================================= */}
         {/* UBER-STYLE 2-COLUMN MAIN CONTENT GRID */}
         {/* ========================================================================= */}
-        <div className="grid lg:grid-cols-12 gap-5 items-stretch">
+        <div className="grid lg:grid-cols-12 gap-4 sm:gap-5 items-stretch w-full">
 
           {/* ───────────────────────────────────────────────────────────────────────── */}
           {/* LEFT COLUMN: Order Status, Atelier Info, High-Visibility PIN, Work & Meas */}
           {/* ───────────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-7 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+          <div className="lg:col-span-7 bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 p-4 sm:p-5 lg:p-6 shadow-xs flex flex-col justify-between h-full w-full overflow-hidden">
 
             <div>
               {/* 1. Integrated Order ID & Cancel Button */}
-              <div className="flex items-center justify-between gap-3 pb-3.5 border-b border-gray-100">
+              <div className="flex items-center justify-between gap-3 pb-3 sm:pb-3.5 border-b border-gray-100">
                 <div className="min-w-0 flex-1">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-gray-400 block mb-0.5">
                     Order ID
                   </span>
-                  <span className="text-xs sm:text-[13px] font-mono font-bold text-[#0F1115] tracking-wide block">
+                  <span className="text-xs sm:text-[13px] font-mono font-bold text-[#0F1115] tracking-wide block truncate">
                     #{order?.id || slugId}
                   </span>
                 </div>
@@ -1006,7 +1006,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                   <button
                     type="button"
                     onClick={() => setShowCancelModal(true)}
-                    className="inline-flex items-center justify-center px-4 sm:px-5 py-2 rounded-full bg-red-600 hover:bg-red-700 text-xs sm:text-sm font-bold text-white transition-all shadow-sm cursor-pointer active:scale-95 shrink-0"
+                    className="inline-flex items-center justify-center px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs sm:text-sm font-bold transition-all shadow-2xs cursor-pointer active:scale-95 shrink-0"
                   >
                     Cancel Order
                   </button>
@@ -1014,26 +1014,26 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               </div>
 
               {/* 2. Matched Studio Info & PIN Box */}
-              <div className="flex items-start justify-between gap-4 py-4 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 py-3.5 sm:py-4 border-b border-gray-100">
 
                 {/* Store Info */}
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-[#0F1115] truncate leading-tight tracking-tight">
+                  <h2 className="text-lg sm:text-2xl font-extrabold text-[#0F1115] leading-tight tracking-tight">
                     {storeNameDisplay}
                   </h2>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-xs font-medium text-gray-600">
-                    <MapPin size={14} className="text-[#9E593B] shrink-0" />
-                    <span className="truncate">{storeAddressDisplay}</span>
+                  <div className="flex items-start gap-1.5 mt-1.5 text-xs font-medium text-gray-600 leading-relaxed">
+                    <MapPin size={14} className="text-[#9E593B] shrink-0 mt-0.5" />
+                    <span className="break-words">{storeAddressDisplay}</span>
                   </div>
 
                   {/* Studio Direct Contact Phone & Details */}
-                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                  <div className="mt-2.5 flex items-center gap-1.5 sm:gap-2 flex-wrap">
                     <a
                       href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
                       className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 transition-colors text-xs font-bold cursor-pointer"
                       title="Click to call studio"
                     >
-                      <Phone size={13} className="text-emerald-600" />
+                      <Phone size={13} className="text-emerald-600 shrink-0" />
                       <span>{storePhoneDisplay}</span>
                     </a>
                     <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200/80">
@@ -1044,7 +1044,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 {/* Top-Right Area: Completed / Cancelled / Reveal PIN / Revealed PIN */}
                 {isCancelled ? (
-                  <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                  <div className="shrink-0 bg-red-950/80 text-white border border-red-800/60 rounded-2xl px-4 py-2.5 text-center shadow-md w-full sm:w-auto sm:min-w-[155px]">
                     <div className="flex items-center justify-center gap-1.5 mb-0.5">
                       <span className="size-2 rounded-full bg-red-500" />
                       <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-red-400">
@@ -1060,7 +1060,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </span>
                   </div>
                 ) : isCompleted ? (
-                  <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md min-w-[155px]">
+                  <div className="shrink-0 bg-[#0F1115] text-white border border-[#2D3139] rounded-2xl px-4 py-2.5 text-center shadow-md w-full sm:w-auto sm:min-w-[155px]">
                     <div className="flex items-center justify-center gap-1.5 mb-0.5">
                       <span className="size-2 rounded-full bg-emerald-500" />
                       <span className="text-[9.5px] font-extrabold uppercase tracking-widest text-emerald-400">
@@ -1076,10 +1076,29 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     </span>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center shrink-0">
-                    <div
-                      className="shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md flex items-center justify-center animate-in zoom-in-95 duration-150"
-                    >
+                  <div className="w-full sm:w-auto shrink-0 flex flex-col items-center">
+                    {/* Mobile Hero PIN Card (visible on < sm screens) */}
+                    <div className="sm:hidden w-full bg-black text-white border border-neutral-800 rounded-2xl p-3 shadow-md flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="size-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                          <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-300">
+                            {isReady ? 'Pickup PIN' : 'Drop-off PIN'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400 font-medium">
+                          Show at studio counter
+                        </p>
+                      </div>
+                      <div className="bg-neutral-900 border border-neutral-700/80 rounded-xl px-3.5 py-1.5 shadow-inner shrink-0">
+                        <span className="text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
+                          {formattedOtp}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Tablet & Desktop PIN Badge (visible on sm: and up) */}
+                    <div className="hidden sm:flex shrink-0 bg-black text-white border border-black rounded-2xl w-[155px] h-[58px] text-center shadow-md items-center justify-center animate-in zoom-in-95 duration-150">
                       <span className="text-xl sm:text-2xl font-mono font-black text-white tracking-[0.25em] leading-none block">
                         {formattedOtp}
                       </span>
@@ -1090,10 +1109,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               </div>
 
               {/* Middle Row: Itemized Work & Garment Cards (Uber Clean) */}
-              <div className="grid grid-cols-2 gap-3 py-4 border-b border-gray-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 py-3.5 sm:py-4 border-b border-gray-100">
 
                 {/* Cloth Type */}
-                <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                <div className="bg-[#F8F8F8] rounded-xl p-3 sm:p-3.5 border border-gray-200/80">
                   <div className="flex items-center justify-between mb-1">
                     <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400">
                       Garment / Cloth Type
@@ -1111,7 +1130,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                 </div>
 
                 {/* Your Work */}
-                <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                <div className="bg-[#F8F8F8] rounded-xl p-3 sm:p-3.5 border border-gray-200/80">
                   <span className="block text-[9.5px] font-extrabold uppercase tracking-wider text-gray-400 mb-1">
                     Requested Alteration
                   </span>
@@ -1135,8 +1154,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
                 return (
                   <div className="py-3.5 border-b border-gray-100">
-                    <div className="rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] p-3.5 space-y-2">
-                      <div className="flex items-center justify-between">
+                    <div className="rounded-xl sm:rounded-2xl bg-[#FAF8F5] border border-[#E8E1D5] p-3 sm:p-3.5 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-1">
                         <span className="text-[9.5px] font-extrabold uppercase tracking-wider text-gray-500">
                           Workshop Pricing &amp; Bill
                         </span>
@@ -1169,20 +1188,20 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                           </div>
 
                           {adjustment > 0 && (
-                            <div className="flex items-center justify-between text-xs text-amber-900 bg-amber-50/80 px-2 py-1 rounded-lg border border-amber-200/60">
+                            <div className="flex items-center justify-between text-xs text-amber-900 bg-amber-50/80 px-2 py-1.5 rounded-lg border border-amber-200/60">
                               <span className="truncate pr-2">
-                                Critical Work Surcharge ({(order as any).priceAdjustmentReason || 'Delicate fabric / complex finishing'}):
+                                Critical Work Surcharge ({(order as any).priceAdjustmentReason || 'Specialist finishing'}):
                               </span>
                               <span className="font-bold shrink-0">+{currencySym}{adjustment.toFixed(2)}</span>
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-1 border-t border-gray-200 text-xs sm:text-sm font-extrabold text-[#0F1115]">
+                          <div className="flex items-center justify-between pt-1.5 border-t border-gray-200 text-xs sm:text-sm font-extrabold text-[#0F1115]">
                             <span>Total Due at Studio Pickup:</span>
-                            <span className="text-base text-[#9E593B] font-mono">{currencySym}{totalPrice.toFixed(2)}</span>
+                            <span className="text-base text-[#9E593B] font-mono font-bold">{currencySym}{totalPrice.toFixed(2)}</span>
                           </div>
 
-                          <p className="text-[10px] text-gray-500 pt-0.5">
+                          <p className="text-[10px] text-gray-500 pt-0.5 leading-snug break-words">
                             Direct counter payment to the partner atelier upon inspecting your fitted garment.
                           </p>
                         </div>
@@ -1193,10 +1212,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               })()}
 
               {/* Lower Section: Garment Notes & Photos */}
-              <div className="pt-4 space-y-3">
+              <div className="pt-3.5 sm:pt-4 space-y-3">
 
                 {/* Fitting & Alteration Notes Card */}
-                <div className="bg-[#F8F8F8] rounded-xl p-3.5 border border-gray-200/80">
+                <div className="bg-[#F8F8F8] rounded-xl p-3 sm:p-3.5 border border-gray-200/80">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-1.5">
                       <div className="w-5 h-5 rounded-md bg-neutral-900 text-white flex items-center justify-center shrink-0">
@@ -1298,13 +1317,13 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                       <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-1.5">
                         Reference Garment Photo{photos.length > 1 ? 's' : ''}:
                       </span>
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                         {photos.map((url, idx) => (
                           <img
                             key={idx}
                             src={url}
                             alt={`${order?.garmentName || 'Garment'} Reference ${idx + 1}`}
-                            className="w-20 h-20 object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
+                            className="w-full aspect-square object-cover rounded-lg border border-gray-200 shadow-2xs hover:scale-105 transition-transform"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).style.display = 'none'
                             }}
@@ -1320,11 +1339,11 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
             {/* Note Strip */}
             {!isCompleted && !isCancelled && (
-              <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-medium text-gray-500">
-                <span className="text-gray-600">
+              <div className="mt-4 sm:mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-medium text-gray-500">
+                <span className="text-gray-600 leading-snug">
                   <strong className="text-black font-bold">NOTE:</strong> {isReady ? 'Give this PIN to the tailor for collecting your completed garment.' : 'Give this PIN to the tailor for confirming the order.'}
                 </span>
-                <span className="font-bold text-black">Raffu</span>
+                <span className="font-bold text-black ml-2 shrink-0">Raffu</span>
               </div>
             )}
 
@@ -1333,18 +1352,18 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
           {/* ───────────────────────────────────────────────────────────────────────── */}
           {/* RIGHT COLUMN: Real Interactive Google Map & Action Buttons */}
           {/* ───────────────────────────────────────────────────────────────────────── */}
-          <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs flex flex-col justify-between h-full">
+          <div className="lg:col-span-5 bg-white rounded-2xl sm:rounded-3xl border border-gray-200/90 p-4 sm:p-5 lg:p-6 shadow-xs flex flex-col justify-between h-full w-full overflow-hidden">
 
             <div className="flex-1 flex flex-col">
               {/* Map Header */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5 sm:mb-3">
                 <div className="flex items-center gap-1.5">
-                  <Navigation size={15} className="text-black fill-black" />
+                  <Navigation size={15} className="text-black fill-black shrink-0" />
                   <span className="text-xs font-extrabold text-[#0F1115] uppercase tracking-wider">
                     Studio Map &amp; Route
                   </span>
                 </div>
-                <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200">
+                <span className="text-[11px] font-extrabold bg-[#F3F3F3] text-black px-2.5 py-1 rounded-full border border-gray-200 shrink-0">
                   {dynamicDistanceBadge}
                 </span>
               </div>
@@ -1352,7 +1371,7 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
               {/* Tailor Studio Map Canvas (Google Maps JS API / Clean Styled) */}
               <div
                 onClick={handleOpenAppMap}
-                className="flex-1 min-h-[320px] sm:min-h-[360px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
+                className="flex-1 min-h-[250px] sm:min-h-[320px] lg:min-h-[360px] rounded-2xl border border-gray-200/90 relative overflow-hidden bg-[#EBE7E0] shadow-inner select-none flex flex-col justify-between group cursor-pointer"
                 title="Click map to start car navigation in your map app"
               >
                 <CleanGoogleMap
@@ -1384,10 +1403,10 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
                     handleFetchCurrentLocation()
                   }}
                   disabled={isLocating}
-                  className="absolute bottom-4 right-4 z-30 size-11 rounded-2xl bg-[#0066FF] hover:bg-[#0052CC] active:scale-90 text-white shadow-xl flex items-center justify-center transition-all border border-white/30 cursor-pointer group/btn"
+                  className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-30 size-10 sm:size-11 rounded-2xl bg-[#0066FF] hover:bg-[#0052CC] active:scale-90 text-white shadow-xl flex items-center justify-center transition-all border border-white/30 cursor-pointer group/btn"
                   title="Find nearest studio to my location"
                 >
-                  <Navigation size={18} className={`fill-white ${isLocating ? 'animate-spin text-amber-300' : 'group-hover/btn:scale-110'} transition-transform`} />
+                  <Navigation size={17} className={`fill-white ${isLocating ? 'animate-spin text-amber-300' : 'group-hover/btn:scale-110'} transition-transform`} />
                 </button>
 
                 {/* Copy Toast Alert */}
@@ -1401,32 +1420,32 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
             </div>
 
             {/* Uber-Style Action Buttons Row */}
-            <div className="grid grid-cols-3 gap-2 mt-5 pt-3 border-t border-gray-100 mt-auto">
+            <div className="grid grid-cols-3 gap-2 mt-4 sm:mt-5 pt-3 border-t border-gray-100 mt-auto">
               <a
                 href={`tel:${storePhoneDisplay.replace(/\s+/g, '')}`}
-                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-sm active:scale-95 text-center truncate"
+                className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-[11px] sm:text-xs font-bold py-2.5 sm:py-3 px-1 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 shadow-sm active:scale-95 text-center"
                 title="Call Partner Studio"
               >
-                <Phone size={14} />
+                <Phone size={14} className="shrink-0" />
                 <span className="truncate">Call Studio</span>
               </a>
 
               <button
                 type="button"
                 onClick={handleShareMap}
-                className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-2xs active:scale-95 truncate"
+                className="w-full rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] active:bg-[#E0E0E0] border border-gray-300 text-black text-[11px] sm:text-xs font-bold py-2.5 sm:py-3 px-1 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 shadow-2xs active:scale-95 text-center"
               >
-                <Share2 size={14} />
+                <Share2 size={14} className="shrink-0" />
                 <span className="truncate">Share Map</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleOpenAppMap}
-                className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-xs font-bold py-3 px-1.5 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-md active:scale-95 truncate"
+                className="w-full rounded-xl bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white text-[11px] sm:text-xs font-bold py-2.5 sm:py-3 px-1 transition-all cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-1 shadow-md active:scale-95 text-center"
                 title="Open in Map app"
               >
-                <Navigation size={14} className="fill-white" />
+                <Navigation size={14} className="fill-white shrink-0" />
                 <span className="truncate">Open App</span>
               </button>
             </div>
@@ -1437,8 +1456,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
 
       {/* Cancel Order Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-[440px] rounded-3xl border border-red-200 bg-white p-6 shadow-2xl text-center space-y-4 font-sans">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs">
+          <div className="w-full max-w-[440px] rounded-2xl sm:rounded-3xl border border-red-200 bg-white p-5 sm:p-6 shadow-2xl text-center space-y-4 font-sans">
             <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-red-50 text-red-600 border border-red-200">
               <XCircle size={28} />
             </div>

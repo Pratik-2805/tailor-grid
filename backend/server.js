@@ -136,6 +136,11 @@ app.get("/api/health", async (req, res) => {
   });
 });
 
+const { authenticateUser } = require("./lib/auth-middleware");
+
+// Universal Auth & Transparent Token Auto-Renewal on all API endpoints
+app.use("/api", authenticateUser);
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", ordersRoutes);

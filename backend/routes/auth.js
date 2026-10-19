@@ -13,12 +13,15 @@ const { sendAuthOtpEmail, sendWelcomeEmail } = require("../lib/email");
 const { hashPassword } = require("../lib/password");
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "Darzi_jwt_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+
 const GOOGLE_CLIENT_ID =
   process.env.GOOGLE_CLIENT_ID ||
-  "927264064365-eki90ht1ko6aba8n0pnoiq6bvhql0l9m.apps.googleusercontent.com";
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
 
 // In-memory OTP storage: phone -> { code, expiresAt }
 const otpStore = new Map();
@@ -112,7 +115,7 @@ async function isUserExpiredTempStudio(user) {
 }
 
 const JWT_REFRESH_SECRET =
-  process.env.JWT_REFRESH_SECRET || "Darzi_jwt_refresh_secret_key_2026";
+  process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = "15d"; // 15 days
 
@@ -167,9 +170,31 @@ async function generateTokens(user) {
 
   if (user?.id && !String(user.id).startsWith("temp_g_")) {
     try {
+      let previousHash = null;
+      try {
+        const existingUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { refreshToken: true },
+        });
+        if (existingUser?.refreshToken) {
+          if (existingUser.refreshToken.startsWith("{")) {
+            const parsed = JSON.parse(existingUser.refreshToken);
+            previousHash = parsed.current || null;
+          } else {
+            previousHash = existingUser.refreshToken;
+          }
+        }
+      } catch (_) {}
+
+      const tokenPayload = JSON.stringify({
+        current: hashedRt,
+        previous: previousHash,
+        rotatedAt: Date.now(),
+      });
+
       await prisma.user.update({
         where: { id: user.id },
-        data: { refreshToken: hashedRt },
+        data: { refreshToken: tokenPayload },
       });
     } catch (err) {
       console.warn(
@@ -216,6 +241,13 @@ function setAuthCookies(res, tokens, req) {
   res.cookie("tg_refresh_token", tokens.refreshToken, {
     ...cookieOptions,
     httpOnly: true,
+    maxAge: rtMaxAge * 1000,
+  });
+
+  // Non-sensitive session indicator so client knows an active HttpOnly refresh token exists
+  res.cookie("tg_logged_in", "1", {
+    ...cookieOptions,
+    httpOnly: false,
     maxAge: rtMaxAge * 1000,
   });
 }
@@ -1872,9 +1904,9 @@ router.post("/login", async (req, res) => {
     }
 
     // Account Status Validation
-    if (user.status === "BANNED" || user.status === "SUSPENDED") {
+    if (user.status === "BANNED" || user.status === "SUSPENDED" || user.status === "DELETED") {
       return res.status(403).json({
-        error: "Your account has been suspended. Please contact support.",
+        error: "Your account has been suspended or deactivated. Please contact support.",
       });
     }
 
@@ -2316,14 +2348,23 @@ router.post("/update-profile", async (req, res) => {
 
 // GET /api/auth/me
 router.get("/me", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Unauthorized: missing token" });
+  let decoded = req.user;
+
+  // Fallback: check Authorization header if req.user was not populated
+  if (!decoded) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
+      } catch (_) {}
+    }
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!decoded) {
+    return res.status(401).json({ error: "Unauthorized: missing or expired session" });
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
 
     let user = null;
     if (decoded.id) {
@@ -2350,7 +2391,11 @@ router.get("/me", async (req, res) => {
           },
         });
       }
-      return res.status(404).json({ error: "User profile not found" });
+      return res.status(401).json({ error: "User account does not exist or has been removed.", deleted: true });
+    }
+
+    if (user.status === "BANNED" || user.status === "SUSPENDED" || user.status === "DELETED") {
+      return res.status(401).json({ error: "User account has been deactivated.", deactivated: true });
     }
 
     if (await isUserExpiredTempStudio(user)) {
@@ -2527,14 +2572,27 @@ router.post("/refresh", async (req, res) => {
     // Encrypted token validation: verify hashed token matches PostgreSQL record
     const incomingHashed = hashRefreshToken(refreshToken);
     let storedHash = user.refreshToken;
-    if (storedHash && storedHash.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(storedHash);
-        if (parsed?.current) storedHash = parsed.current;
-      } catch {}
+    let isMatch = false;
+
+    if (storedHash) {
+      if (storedHash === incomingHashed) {
+        isMatch = true;
+      } else if (storedHash.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(storedHash);
+          if (parsed?.current === incomingHashed) {
+            isMatch = true;
+          } else if (
+            parsed?.previous === incomingHashed &&
+            Date.now() - (parsed?.rotatedAt || 0) < 60 * 1000 // 60s grace period for concurrent tabs/requests
+          ) {
+            isMatch = true;
+          }
+        } catch {}
+      }
     }
 
-    if (!storedHash || storedHash !== incomingHashed) {
+    if (!isMatch) {
       return res.status(401).json({
         error:
           "Refresh token has been revoked, rotated, or invalidated. Please sign in again.",
@@ -2644,6 +2702,7 @@ router.post("/logout", async (req, res) => {
     const cookieNames = [
       "tg_token",
       "tg_refresh_token",
+      "tg_logged_in",
       "tg_user_role",
       "tg_user",
       "token",
