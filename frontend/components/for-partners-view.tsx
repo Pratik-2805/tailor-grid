@@ -21,7 +21,6 @@ import {
   Scissors,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
   Star,
   Store,
   Users

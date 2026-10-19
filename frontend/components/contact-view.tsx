@@ -8,7 +8,6 @@ import {
   Phone,
   Send,
   ShieldCheck,
-  Sparkles,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import type { Screen } from './data'
@@ -54,7 +53,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
         {/* Hero Header */}
         <div className="mb-12 text-center max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#9E593B]/10 text-[#9E593B] text-[11px] font-bold uppercase tracking-wider mb-3">
-            <Sparkles size={12} />
+            <ShieldCheck size={12} />
             <span>Dedicated Client Concierge</span>
           </div>
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-[#0F1115] mb-4">
