@@ -20,6 +20,7 @@ import {
   Lock,
   LogOut,
   MapPin,
+  MessageSquare,
   MoreVertical,
   Phone,
   Plus,
@@ -54,6 +55,9 @@ import {
   updateAdminStudio,
   fetchAdminOrders,
   updateAdminOrder,
+  fetchAdminInquiries,
+  updateAdminInquiry,
+  deleteAdminInquiry,
   searchAdminGlobal,
   loginSuperAdmin,
   checkSuperAdminSession,
@@ -66,8 +70,9 @@ import { OverviewTab } from '@/components/overview-tab'
 import { CustomersTab } from '@/components/customers-tab'
 import { StudiosTab } from '@/components/studios-tab'
 import { OrdersTab } from '@/components/orders-tab'
+import { InquiriesTab } from '@/components/inquiries-tab'
 
-export type AdminTab = 'overview' | 'customers' | 'studios' | 'orders'
+export type AdminTab = 'overview' | 'customers' | 'studios' | 'orders' | 'inquiries'
 
 interface SuperAdminPageProps {
   initialTab?: AdminTab
@@ -107,6 +112,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       if (p === '/customers') setActiveTab('customers')
       else if (p === '/studios') setActiveTab('studios')
       else if (p === '/orders') setActiveTab('orders')
+      else if (p === '/inquiries') setActiveTab('inquiries')
       else if (p === '/') setActiveTab('overview')
     }
     window.addEventListener('popstate', handlePopState)
@@ -117,6 +123,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     if (pathname === '/customers') setActiveTab('customers')
     else if (pathname === '/studios') setActiveTab('studios')
     else if (pathname === '/orders') setActiveTab('orders')
+    else if (pathname === '/inquiries') setActiveTab('inquiries')
     else if (pathname === '/') setActiveTab('overview')
   }, [pathname])
 
@@ -160,6 +167,28 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     }
     return []
   })
+  const [inquiries, setInquiries] = useState<any[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('admin_cache_inquiries')
+        return cached ? JSON.parse(cached) : []
+      } catch { return [] }
+    }
+    return []
+  })
+  const [inquiryStatusCounts, setInquiryStatusCounts] = useState<{
+    ALL: number
+    NEW: number
+    IN_REVIEW: number
+    RESOLVED: number
+    ARCHIVED: number
+  }>({
+    ALL: 0,
+    NEW: 0,
+    IN_REVIEW: 0,
+    RESOLVED: 0,
+    ARCHIVED: 0,
+  })
 
   // Search & Filter states
   const [globalSearchQuery, setGlobalSearchQuery] = useState('')
@@ -180,6 +209,11 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
   const [orderStoreFilter, setOrderStoreFilter] = useState('ALL')
   const [orderRetailFilter, setOrderRetailFilter] = useState('ALL')
 
+  // Inquiries filter
+  const [inquirySearch, setInquirySearch] = useState('')
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState('ALL')
+  const [inquirySourceFilter, setInquirySourceFilter] = useState('ALL')
+
   // Modals & Edit States
   const [editingCustomer, setEditingCustomer] = useState<any | null>(null)
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
@@ -196,11 +230,12 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     else setRefreshing(true)
 
     try {
-      const [overviewData, customersData, studiosData, ordersData] = await Promise.all([
+      const [overviewData, customersData, studiosData, ordersData, inquiriesData] = await Promise.all([
         fetchAdminOverview(),
         fetchAdminCustomers('', 'ALL', 'CUSTOMER'),
         fetchAdminStudios(),
         fetchAdminOrders(),
+        fetchAdminInquiries(),
       ])
 
       if (overviewData) {
@@ -218,6 +253,13 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       if (ordersData) {
         setOrders(ordersData)
         try { sessionStorage.setItem('admin_cache_orders', JSON.stringify(ordersData)) } catch {}
+      }
+      if (inquiriesData) {
+        setInquiries(inquiriesData.inquiries || [])
+        if (inquiriesData.statusCounts) {
+          setInquiryStatusCounts(inquiriesData.statusCounts)
+        }
+        try { sessionStorage.setItem('admin_cache_inquiries', JSON.stringify(inquiriesData.inquiries || [])) } catch {}
       }
     } catch (err) {
       console.error('Failed to load admin data:', err)
@@ -652,6 +694,52 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
     }
   }
 
+  // ==========================================
+  // HANDLERS: CONTACT INQUIRIES MANAGEMENT
+  // ==========================================
+  const handleUpdateInquiryStatus = async (id: string, status: string, notes?: string) => {
+    try {
+      const res = await updateAdminInquiry(id, { status, adminNotes: notes })
+      if (res.success && res.inquiry) {
+        setInquiries((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, ...res.inquiry } : item))
+        )
+        // Refresh inquiries status counts & overview counts quietly
+        fetchAdminInquiries().then((inqData) => {
+          if (inqData?.statusCounts) setInquiryStatusCounts(inqData.statusCounts)
+        })
+        fetchAdminOverview().then((ov) => {
+          if (ov) setOverview(ov)
+        })
+      } else {
+        throw new Error(res.error || 'Failed to update inquiry status')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating inquiry')
+      throw err
+    }
+  }
+
+  const handleDeleteInquiry = async (id: string) => {
+    try {
+      const res = await deleteAdminInquiry(id)
+      if (res.success) {
+        setInquiries((prev) => prev.filter((item) => item.id !== id))
+        fetchAdminInquiries().then((inqData) => {
+          if (inqData?.statusCounts) setInquiryStatusCounts(inqData.statusCounts)
+        })
+        fetchAdminOverview().then((ov) => {
+          if (ov) setOverview(ov)
+        })
+      } else {
+        throw new Error(res.error || 'Failed to delete inquiry')
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting inquiry')
+      throw err
+    }
+  }
+
   // ── 1. LOADING SESSION GATE ──
   if (!mounted || (authChecking && !adminUser)) {
     return (
@@ -924,11 +1012,47 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
                   </div>
                 )}
 
+                {/* Inquiries matches */}
+                {globalSearchResults.inquiries?.length > 0 && (
+                  <div className="p-2 border-t border-[#E8E1D5]">
+                    <span className="text-[10px] font-bold text-[#A8A29E] uppercase tracking-wider block px-2 mb-1">
+                      Contact Inquiries ({globalSearchResults.inquiries.length})
+                    </span>
+                    {globalSearchResults.inquiries.map((inq: any) => (
+                      <div
+                        key={inq.id}
+                        onClick={() => {
+                          setInquirySearch(inq.name || inq.id)
+                          handleTabSwitch('inquiries')
+                          setGlobalSearchResults(null)
+                        }}
+                        className="flex items-center justify-between p-2 hover:bg-[#FAF3ED] rounded-lg cursor-pointer transition-colors"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[#1E2229]">{inq.name}</span>
+                            <span className="text-[10px] bg-[#FAF8F5] text-[#9E593B] px-1.5 py-0.2 rounded font-semibold border border-[#EADBCE]">
+                              {inq.source}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[#78716C] line-clamp-1">
+                            {inq.topic} • {inq.message}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                          {inq.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {(!globalSearchResults.customers?.length &&
                   !globalSearchResults.studios?.length &&
-                  !globalSearchResults.orders?.length) && (
+                  !globalSearchResults.orders?.length &&
+                  !globalSearchResults.inquiries?.length) && (
                   <div className="p-6 text-center text-xs text-[#78716C]">
-                    No matching records found across customers, studios, or orders.
+                    No matching records found across customers, studios, orders, or inquiries.
                   </div>
                 )}
               </div>
@@ -1027,6 +1151,31 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               {orders.length}
             </span>
           </button>
+
+          <button
+            onClick={() => handleTabSwitch('inquiries')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'inquiries'
+                ? 'bg-[#9E593B] text-white shadow-xs font-bold'
+                : 'text-[#1E2229] hover:text-black hover:bg-[#F3EFEA]'
+            }`}
+          >
+            <MessageSquare size={14} />
+            <span>Contact Inquiries</span>
+            {inquiryStatusCounts.NEW > 0 ? (
+              <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                activeTab === 'inquiries' ? 'bg-amber-400 text-stone-900' : 'bg-amber-500 text-white animate-pulse'
+              }`}>
+                {inquiryStatusCounts.NEW} NEW
+              </span>
+            ) : (
+              <span className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] ${
+                activeTab === 'inquiries' ? 'bg-white/20 text-white' : 'bg-[#E8E1D5] text-[#1E2229]'
+              }`}>
+                {inquiries.length}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 
@@ -1090,6 +1239,28 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               orderRetailFilter={orderRetailFilter}
               setOrderRetailFilter={setOrderRetailFilter}
               onEditOrder={setEditingOrder}
+            />
+          )}
+
+          {/* ── TAB 5: CONTACT & CONCIERGE INQUIRIES ── */}
+          {activeTab === 'inquiries' && (
+            <InquiriesTab
+              inquiries={inquiries}
+              statusCounts={inquiryStatusCounts}
+              inquirySearch={inquirySearch}
+              setInquirySearch={setInquirySearch}
+              inquiryStatusFilter={inquiryStatusFilter}
+              setInquiryStatusFilter={setInquiryStatusFilter}
+              inquirySourceFilter={inquirySourceFilter}
+              setInquirySourceFilter={setInquirySourceFilter}
+              onUpdateInquiryStatus={handleUpdateInquiryStatus}
+              onDeleteInquiry={handleDeleteInquiry}
+              onRefresh={() => loadAllData(true)}
+              refreshing={refreshing}
+              onNavigateToOrder={(orderId) => {
+                setOrderSearch(orderId)
+                handleTabSwitch('orders')
+              }}
             />
           )}
         </div>

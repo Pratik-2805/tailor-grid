@@ -239,6 +239,9 @@ router.get('/overview', async (req, res) => {
       orders,
       stores,
       activeUsers,
+      totalInquiries,
+      newInquiries,
+      recentInquiries,
     ] = await Promise.all([
       prisma.user.count({ where: { role: 'CUSTOMER' } }),
       prisma.partnerStore.count(),
@@ -259,6 +262,12 @@ router.get('/overview', async (req, res) => {
         },
       }),
       prisma.user.count({ where: { role: 'CUSTOMER', status: 'ACTIVE' } }),
+      prisma.contactInquiry.count(),
+      prisma.contactInquiry.count({ where: { status: 'NEW' } }),
+      prisma.contactInquiry.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }),
     ]);
 
     // Financial GMV & Studio Earnings calculation
@@ -351,9 +360,12 @@ router.get('/overview', async (req, res) => {
         totalCapacity,
         totalActiveLoad,
         fleetUtilization,
+        totalInquiries,
+        newInquiries,
       },
       statusCounts,
       recentOrders: orders.slice(0, 10).map(formatAdminOrder),
+      recentInquiries: recentInquiries || [],
     });
   } catch (err) {
     console.error('Admin overview error:', err);
@@ -1051,6 +1063,23 @@ router.get('/search', async (req, res) => {
           user: true,
         },
       }),
+
+      // Contact Inquiries search
+      prisma.contactInquiry.findMany({
+        where: {
+          OR: [
+            { id: { contains: query, mode: 'insensitive' } },
+            { name: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { topic: { contains: query, mode: 'insensitive' } },
+            { orderNumber: { contains: query, mode: 'insensitive' } },
+            { message: { contains: query, mode: 'insensitive' } },
+          ],
+        },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
 
     return res.json({
@@ -1060,11 +1089,192 @@ router.get('/search', async (req, res) => {
         customers,
         studios,
         orders: orders.map(formatAdminOrder),
+        inquiries: inquiries || [],
       },
     });
   } catch (err) {
     console.error('Admin search error:', err);
     return res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// -------------------------------------------------------------
+// 7. CONTACT & CONCIERGE INQUIRIES MANAGEMENT
+// -------------------------------------------------------------
+
+// GET /api/admin/inquiries - List inquiries with filtering & search
+router.get('/inquiries', async (req, res) => {
+  try {
+    const { search, status, source, priority, limit = 100, page = 1 } = req.query;
+
+    const where = {};
+
+    if (status && status !== 'ALL') {
+      where.status = status;
+    }
+
+    if (source && source !== 'ALL') {
+      where.source = source;
+    }
+
+    if (priority && priority !== 'ALL') {
+      where.priority = priority;
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: 'insensitive' } },
+        { phone: { contains: q, mode: 'insensitive' } },
+        { topic: { contains: q, mode: 'insensitive' } },
+        { category: { contains: q, mode: 'insensitive' } },
+        { orderNumber: { contains: q, mode: 'insensitive' } },
+        { message: { contains: q, mode: 'insensitive' } },
+        { id: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const take = Math.min(parseInt(limit, 10) || 100, 200);
+    const skip = ((parseInt(page, 10) || 1) - 1) * take;
+
+    const [inquiries, totalCount, statusAgg] = await Promise.all([
+      prisma.contactInquiry.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip,
+      }),
+      prisma.contactInquiry.count({ where }),
+      prisma.contactInquiry.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
+    ]);
+
+    const statusCounts = {
+      ALL: 0,
+      NEW: 0,
+      IN_REVIEW: 0,
+      RESOLVED: 0,
+      ARCHIVED: 0,
+    };
+
+    statusAgg.forEach((item) => {
+      if (item.status && statusCounts[item.status] !== undefined) {
+        statusCounts[item.status] = item._count.id;
+      }
+      statusCounts.ALL += item._count.id;
+    });
+
+    return res.json({
+      success: true,
+      count: inquiries.length,
+      total: totalCount,
+      statusCounts,
+      inquiries,
+    });
+  } catch (err) {
+    console.error('Admin fetch inquiries error:', err);
+    return res.status(500).json({ error: 'Failed to fetch contact inquiries' });
+  }
+});
+
+// GET /api/admin/inquiries/:id - Single inquiry details with linked user & order
+router.get('/inquiries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inquiry = await prisma.contactInquiry.findUnique({
+      where: { id },
+    });
+
+    if (!inquiry) {
+      return res.status(404).json({ error: 'Inquiry not found' });
+    }
+
+    // Attempt to resolve associated user or order
+    let linkedUser = null;
+    let linkedOrder = null;
+
+    if (inquiry.email || inquiry.phone) {
+      linkedUser = await prisma.user.findFirst({
+        where: {
+          OR: [
+            inquiry.email ? { email: { equals: inquiry.email, mode: 'insensitive' } } : undefined,
+            inquiry.phone ? { phone: inquiry.phone } : undefined,
+          ].filter(Boolean),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          status: true,
+        },
+      });
+    }
+
+    if (inquiry.orderNumber) {
+      linkedOrder = await prisma.order.findFirst({
+        where: {
+          OR: [
+            { id: inquiry.orderNumber },
+            { hangTagNo: inquiry.orderNumber },
+          ],
+        },
+        include: { store: true },
+      });
+    }
+
+    return res.json({
+      success: true,
+      inquiry: {
+        ...inquiry,
+        linkedUser,
+        linkedOrder: linkedOrder ? formatAdminOrder(linkedOrder) : null,
+      },
+    });
+  } catch (err) {
+    console.error('Admin get inquiry error:', err);
+    return res.status(500).json({ error: 'Failed to retrieve inquiry' });
+  }
+});
+
+// PUT /api/admin/inquiries/:id - Update status, priority, or internal notes
+router.put('/inquiries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, priority, adminNotes } = req.body;
+
+    const data = {};
+    if (status !== undefined) data.status = status;
+    if (priority !== undefined) data.priority = priority;
+    if (adminNotes !== undefined) data.adminNotes = adminNotes;
+
+    const updated = await prisma.contactInquiry.update({
+      where: { id },
+      data,
+    });
+
+    return res.json({ success: true, inquiry: updated });
+  } catch (err) {
+    console.error('Admin update inquiry error:', err);
+    return res.status(500).json({ error: 'Failed to update inquiry' });
+  }
+});
+
+// DELETE /api/admin/inquiries/:id - Delete an inquiry
+router.delete('/inquiries/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.contactInquiry.delete({
+      where: { id },
+    });
+    return res.json({ success: true, message: 'Inquiry deleted successfully' });
+  } catch (err) {
+    console.error('Admin delete inquiry error:', err);
+    return res.status(500).json({ error: 'Failed to delete inquiry' });
   }
 });
 

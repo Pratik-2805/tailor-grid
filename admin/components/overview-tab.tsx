@@ -12,6 +12,8 @@ import {
   Plus,
   UserPlus,
   Edit2,
+  MessageSquare,
+  ChevronRight,
 } from 'lucide-react'
 
 interface OverviewTabProps {
@@ -19,7 +21,7 @@ interface OverviewTabProps {
   customers: any[]
   studios: any[]
   orders: any[]
-  onNavigateTab: (tab: 'overview' | 'customers' | 'studios' | 'orders') => void
+  onNavigateTab: (tab: 'overview' | 'customers' | 'studios' | 'orders' | 'inquiries') => void
   onOpenAddCustomer: () => void
   onOpenAddStudio: () => void
   onFilterOrderStatus: (status: string) => void
@@ -40,7 +42,7 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Top Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <div className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-[#78716C] mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Total Customers</span>
@@ -102,7 +104,7 @@ export function OverviewTab({
               ).toLocaleString()}
             </span>
             <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
-              From Work in Progress & onwards
+              From Work in Progress &amp; onwards
             </p>
           </div>
         </div>
@@ -118,6 +120,33 @@ export function OverviewTab({
             </span>
             <p className="text-[11px] text-[#78716C] font-semibold mt-0.5">
               Used today
+            </p>
+          </div>
+        </div>
+
+        {/* Contact Inquiries Card */}
+        <div
+          onClick={() => onNavigateTab('inquiries')}
+          className="bg-white rounded-2xl p-4 border border-[#E8E1D5] shadow-xs flex flex-col justify-between hover:border-[#9E593B] cursor-pointer transition-all group"
+        >
+          <div className="flex items-center justify-between text-[#78716C] mb-2">
+            <span className="text-xs font-semibold uppercase tracking-wider group-hover:text-[#9E593B]">Inquiries</span>
+            <MessageSquare size={16} className="text-[#9E593B]" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-[#1E2229]">
+                {overview?.kpis?.totalInquiries ?? 0}
+              </span>
+              {(overview?.kpis?.newInquiries ?? 0) > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800 animate-pulse">
+                  {overview.kpis.newInquiries} NEW
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-[#9E593B] font-semibold mt-0.5 flex items-center gap-0.5">
+              <span>View tickets</span>
+              <ChevronRight size={11} />
             </p>
           </div>
         </div>
@@ -268,6 +297,25 @@ export function OverviewTab({
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
                   {overview?.statusCounts?.['Allocated'] ?? 0} Pending
                 </span>
+              </button>
+
+              <button
+                onClick={() => onNavigateTab('inquiries')}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquare size={15} className="text-[#9E593B]" />
+                  Contact Inquiries &amp; Concierge
+                </span>
+                {(overview?.kpis?.newInquiries ?? 0) > 0 ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold animate-pulse">
+                    {overview.kpis.newInquiries} New
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8E1D5] text-[#78716C] font-bold">
+                    {overview?.kpis?.totalInquiries ?? 0} Total
+                  </span>
+                )}
               </button>
             </div>
           </div>

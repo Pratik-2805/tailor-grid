@@ -1,12 +1,12 @@
 const express = require('express');
-const { sendConciergeInquiryEmail } = require('../lib/email');
+const { prisma } = require('../lib/prisma');
 
 const router = express.Router();
 
 /**
  * POST /api/contact
  * Handles submissions from the Contact & Concierge Request forms (customer frontend and studio).
- * Dispatches an email notification to developer.sitarahub@gmail.com
+ * Exclusively saves the inquiry to the database for Super Admin dashboard display without email dispatch.
  */
 router.post('/', async (req, res) => {
   try {
@@ -28,6 +28,10 @@ router.post('/', async (req, res) => {
     const contactPhone = (phone || '').trim();
     const contactEmail = (email || '').trim();
     const contactMessage = (message || '').trim();
+    const resolvedOrder = (orderNumber || orderId || '').trim();
+    const resolvedTopic = topic || category || 'General Inquiry';
+    const resolvedPriority = (priority || 'NORMAL').toUpperCase();
+    const resolvedSource = source || 'Client Concierge Desk';
 
     if (!contactName) {
       return res.status(400).json({ error: 'Please provide your name.' });
@@ -41,25 +45,27 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Please enter a message or garment notes.' });
     }
 
-    const emailResult = await sendConciergeInquiryEmail({
-      name: contactName,
-      email: contactEmail,
-      phone: contactPhone,
-      topic: topic || category || 'General Inquiry',
-      orderNumber: orderNumber || orderId || '',
-      message: contactMessage,
-      source: source || 'Raffu Concierge Desk',
-      priority: priority || '',
+    // Persist inquiry directly into PostgreSQL database for Super Admin dashboard
+    const createdInquiry = await prisma.contactInquiry.create({
+      data: {
+        name: contactName,
+        email: contactEmail || null,
+        phone: contactPhone || null,
+        topic: resolvedTopic,
+        category: category || topic || null,
+        orderNumber: resolvedOrder || null,
+        message: contactMessage,
+        source: resolvedSource,
+        priority: resolvedPriority,
+        status: 'NEW',
+      },
     });
-
-    if (!emailResult.success) {
-      console.warn('[CONTACT ROUTE] Email delivery issue:', emailResult.error || emailResult.reason);
-    }
 
     return res.status(200).json({
       success: true,
       message: 'Your inquiry has been successfully transmitted to our master tailor concierge desk.',
-      id: emailResult.id || null,
+      id: createdInquiry?.id || null,
+      inquiry: createdInquiry,
     });
   } catch (err) {
     console.error('[CONTACT ROUTE ERROR]', err);
