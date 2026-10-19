@@ -59,9 +59,12 @@ function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId:
           <path d="M6 3h12l-2 6 2 12H6l2-12L6 3zM12 9v12M10 5l2 2 2-2" />
         </svg>
       )
+    case 'repairs':
+      return <Scissors className={className} />
     case 'occasion':
-    default:
       return <Sparkles className={className} />
+    default:
+      return <Shirt className={className} />
   }
 }
 
@@ -238,10 +241,10 @@ function CustomRaffuCalendar({
               disabled={isPast}
               onClick={() => onSelectDate(dateObj)}
               className={`h-8 w-8 mx-auto rounded-xl text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${isSelected
-                  ? 'bg-black text-white shadow-xs scale-105'
-                  : isPast
-                    ? 'text-gray-300 pointer-events-none line-through'
-                    : 'text-black hover:bg-[#E8E8E8]'
+                ? 'bg-black text-white shadow-xs scale-105'
+                : isPast
+                  ? 'text-gray-300 pointer-events-none line-through'
+                  : 'text-black hover:bg-[#E8E8E8]'
                 }`}
             >
               {dateObj.getDate()}
@@ -290,7 +293,7 @@ const CITIES = [
 ]
 
 export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBooking }: HeroSectionProps) {
-  const [selectedCity, setSelectedCity] = useCityLocation()
+  const [selectedCity, setSelectedCity] = useCityLocation('Mumbai, IN')
   const [showCityPicker, setShowCityPicker] = useState(false)
 
   // Pickup / Schedule time selection state
@@ -301,7 +304,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
 
   // Tailoring selection state
   const [categories, setCategories] = useState<GarmentCategory[]>([])
-  const [selectedGarmentId, setSelectedGarmentId] = useState('trousers')
+  const [selectedGarmentId, setSelectedGarmentId] = useState('')
   const [showGarmentPicker, setShowGarmentPicker] = useState(false)
   const [selectedAlteration, setSelectedAlteration] = useState('')
   const [showAlterationPicker, setShowAlterationPicker] = useState(false)
@@ -310,16 +313,11 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
     fetchServices().then((svcs) => {
       if (svcs && svcs.length > 0) {
         setCategories(svcs)
-        const initialGarmentId = svcs[0].id
-        setSelectedGarmentId(initialGarmentId)
-        if (svcs[0].popularServices && svcs[0].popularServices.length > 0) {
-          setSelectedAlteration(svcs[0].popularServices[0].name)
-        }
       }
     })
   }, [])
 
-  const currentCategory = categories.find((c) => c.id === selectedGarmentId) || categories[0]
+  const currentCategory = categories.find((c) => c.id === selectedGarmentId) || null
 
   // Image Upload state
   const [uploadedImages, setUploadedImages] = useState<string[]>([])
@@ -342,10 +340,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
   const handleGarmentChange = (garmentId: string) => {
     setSelectedGarmentId(garmentId)
     setShowGarmentPicker(false)
-    const category = categories.find((c) => c.id === garmentId)
-    if (category && category.popularServices.length > 0) {
-      setSelectedAlteration(category.popularServices[0].name)
-    }
+    setSelectedAlteration('')
   }
 
   const handleAlterationSelect = (altName: string) => {
@@ -384,9 +379,19 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
     setUploadedImages((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const selectedServiceObj = currentCategory?.popularServices?.find((s) => s.name === selectedAlteration) || currentCategory?.popularServices?.[0]
+  const selectedServiceObj = currentCategory?.popularServices?.find((s) => s.name === selectedAlteration) || null
 
   const handleBookNow = async () => {
+    if (!selectedGarmentId || !currentCategory) {
+      toast.info('Please choose a category before proceeding.', { position: 'top-center' })
+      setShowGarmentPicker(true)
+      return
+    }
+    if (!selectedAlteration || !selectedServiceObj) {
+      toast.info('Please choose what needs to be done before proceeding.', { position: 'top-center' })
+      setShowAlterationPicker(true)
+      return
+    }
     if (!user) {
       const refToken = getRefreshToken()
       if (refToken) {
@@ -399,10 +404,6 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
         onOpenAuth?.()
         return
       }
-    }
-    if (!selectedServiceObj || !currentCategory) {
-      toast.info('Please select a service before proceeding.', { position: 'top-center' })
-      return
     }
     onStartBooking?.({
       city: selectedCity,
@@ -418,6 +419,16 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
   }
 
   const handleConfirmSchedule = async () => {
+    if (!selectedGarmentId || !currentCategory) {
+      toast.info('Please choose a category before proceeding.', { position: 'top-center' })
+      setShowGarmentPicker(true)
+      return
+    }
+    if (!selectedAlteration || !selectedServiceObj) {
+      toast.info('Please choose what needs to be done before proceeding.', { position: 'top-center' })
+      setShowAlterationPicker(true)
+      return
+    }
     if (!user) {
       setIsScheduleModalOpen(false)
       const refToken = getRefreshToken()
@@ -453,13 +464,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
 
           {/* LEFT: Pixel-Perfect Uber 'Request an alteration' Card Form */}
-          <div ref={formRef} className="lg:col-span-6 flex flex-col justify-center max-w-[480px]">
+          <div ref={formRef} className="lg:col-span-6 flex flex-col justify-center w-full max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0">
 
             {/* 1. Location Header */}
-            <div className="relative mb-3.5 flex items-center gap-1.5 text-[15px] font-medium text-black">
+            <div className="relative mb-3.5 flex items-center gap-1.5 text-sm sm:text-[15px] font-medium text-black">
               <MapPin size={18} className="text-[#0F1115] shrink-0" />
-              <span className="font-bold truncate max-w-[280px]" title={selectedCity}>
-                {formatLocationDisplay(selectedCity)}
+              <span className="font-bold truncate max-w-[180px] sm:max-w-[280px]" title={selectedCity}>
+                {formatLocationDisplay(selectedCity) || selectedCity || 'Select city'}
               </span>
               <button
                 type="button"
@@ -484,7 +495,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             {/* 2. Main Title */}
             <div className="mb-6">
               <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
-                Doorstep Alterations &amp; Custom Fitting
+                Request an alteration
               </h1>
             </div>
 
@@ -498,18 +509,15 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                       setShowAlterationPicker(false)
                       setShowCityPicker(false)
                     }}
-                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showGarmentPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
+                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3.5 border transition-all cursor-pointer select-none ${showGarmentPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
                       }`}
                   >
-                    <div className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
-                      <GarmentCategoryIcon categoryId={selectedGarmentId} className="size-3.5 text-white" />
+                    <div className="size-7 rounded-full bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
+                      <GarmentCategoryIcon categoryId={selectedGarmentId} className="size-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
-                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-0.5">
-                        Category of clothes
-                      </span>
-                      <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {currentCategory ? currentCategory.name : 'Loading services...'}
+                      <span className={`block text-[15px] font-bold truncate leading-tight ${currentCategory ? 'text-black' : 'text-neutral-600'}`}>
+                        {currentCategory ? currentCategory.name : 'Choose Category'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showGarmentPicker ? 'rotate-180' : ''}`} />
@@ -518,7 +526,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                   {showGarmentPicker && (
                     <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-2xl bg-white border border-gray-200 shadow-2xl p-2 space-y-1 max-h-80 overflow-y-auto animate-in fade-in duration-150">
                       <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
-                        Select Garment Category
+                        Choose Category
                       </div>
                       {categories.map((cat) => {
                         const isSelected = selectedGarmentId === cat.id
@@ -553,65 +561,75 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                 <div className="relative">
                   <div
                     onClick={() => {
+                      if (!selectedGarmentId) {
+                        toast.info('Please choose a category first.', { position: 'top-center' })
+                        setShowGarmentPicker(true)
+                        setShowAlterationPicker(false)
+                        setShowCityPicker(false)
+                        return
+                      }
                       setShowAlterationPicker(!showAlterationPicker)
                       setShowGarmentPicker(false)
                       setShowCityPicker(false)
                     }}
-                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3 border transition-all cursor-pointer select-none ${showAlterationPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
+                    className={`relative z-0 flex items-center bg-[#F3F3F3] hover:bg-[#E8E8E8] rounded-[12px] px-3.5 py-3.5 border transition-all cursor-pointer select-none ${showAlterationPicker ? 'border-black bg-white shadow-sm' : 'border-transparent'
                       }`}
                   >
-                    <div className="w-6 h-6 rounded-md bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
-                      <Ruler className="size-3.5 text-white" />
+                    <div className="size-7 rounded-md bg-black text-white flex items-center justify-center shrink-0 mr-3 z-20 shadow-xs">
+                      <Ruler className="size-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0 pr-2">
-                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-gray-500 mb-0.5">
-                        What needs to be done?
-                      </span>
-                      <span className="block text-[15px] font-bold text-black truncate leading-tight">
-                        {selectedAlteration || (selectedServiceObj ? selectedServiceObj.name : 'Select alteration')}
+                      <span className={`block text-[15px] font-bold truncate leading-tight ${selectedAlteration ? 'text-black' : 'text-neutral-600'}`}>
+                        {selectedAlteration || 'Choose What Needs to be done'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-black shrink-0 transition-transform duration-200 ${showAlterationPicker ? 'rotate-180' : ''}`} />
                   </div>
 
-                  {showAlterationPicker && currentCategory && (
+                  {showAlterationPicker && (
                     <div className="absolute top-full left-0 right-0 z-50 mt-1.5 rounded-2xl bg-white border border-gray-200 shadow-2xl p-2 space-y-1 max-h-80 overflow-y-auto animate-in fade-in duration-150">
                       <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 px-3 py-1.5">
-                        {currentCategory.name} Services
+                        {currentCategory ? `${currentCategory.name} Services` : 'Services'}
                       </div>
-                      {currentCategory.popularServices?.map((svc) => {
-                        const isSelected = selectedAlteration === svc.name
-                        return (
-                          <button
-                            key={svc.id}
-                            type="button"
-                            onClick={() => handleAlterationSelect(svc.name)}
-                            className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
-                              }`}
-                          >
-                            <div className="min-w-0 pr-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold truncate leading-tight">{svc.name}</span>
-                                {svc.popular && (
-                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-black text-white'
-                                    }`}>
-                                    Popular
-                                  </span>
-                                )}
+                      {currentCategory?.popularServices && currentCategory.popularServices.length > 0 ? (
+                        currentCategory.popularServices.map((svc) => {
+                          const isSelected = selectedAlteration === svc.name
+                          return (
+                            <button
+                              key={svc.id}
+                              type="button"
+                              onClick={() => handleAlterationSelect(svc.name)}
+                              className={`w-full text-left px-3.5 py-3 rounded-xl transition-all flex items-center justify-between group ${isSelected ? 'bg-black text-white' : 'text-black hover:bg-[#F3F3F3]'
+                                }`}
+                            >
+                              <div className="min-w-0 pr-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold truncate leading-tight">{svc.name}</span>
+                                  {svc.popular && (
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase shrink-0 ${isSelected ? 'bg-white/20 text-white' : 'bg-black text-white'
+                                      }`}>
+                                      Popular
+                                    </span>
+                                  )}
+                                </div>
+                                <div className={`text-xs mt-1 line-clamp-1 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
+                                  {svc.description}
+                                </div>
                               </div>
-                              <div className={`text-xs mt-1 line-clamp-1 ${isSelected ? 'text-gray-300' : 'text-gray-500'}`}>
-                                {svc.description}
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-neutral-800'}`}>
+                                  {svc.turnaroundDays}d SLA
+                                </span>
+                                {isSelected && <Check size={16} className="text-white shrink-0 ml-1" />}
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : 'bg-[#E8E8E8] text-neutral-800'}`}>
-                                {svc.turnaroundDays}d SLA
-                              </span>
-                              {isSelected && <Check size={16} className="text-white shrink-0" />}
-                            </div>
-                          </button>
-                        )
-                      })}
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div className="p-4 text-center text-xs text-gray-500">
+                          Please select a category first to see available services.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -664,19 +682,31 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             </div>
 
             {/* 6. Action Buttons Row */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
               <button
                 type="button"
                 onClick={handleBookNow}
-                className="flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-7 py-3.5 text-base transition-colors cursor-pointer shadow-xs active:scale-[0.98] text-center"
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-6 sm:px-7 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs active:scale-[0.98] text-center"
               >
                 Book now
               </button>
 
               <button
                 type="button"
-                onClick={() => setIsScheduleModalOpen(true)}
-                className="flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-6 py-3.5 text-base transition-colors cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                onClick={() => {
+                  if (!selectedGarmentId || !currentCategory) {
+                    toast.info('Please choose a category before proceeding.', { position: 'top-center' })
+                    setShowGarmentPicker(true)
+                    return
+                  }
+                  if (!selectedAlteration || !selectedServiceObj) {
+                    toast.info('Please choose what needs to be done before proceeding.', { position: 'top-center' })
+                    setShowAlterationPicker(true)
+                    return
+                  }
+                  setIsScheduleModalOpen(true)
+                }}
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-5 sm:px-6 py-3.5 text-sm sm:text-base transition-colors cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
               >
                 <Calendar size={18} />
                 <span>Schedule for later</span>
@@ -686,8 +716,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
           </div>
 
           {/* RIGHT: Modern Clean Studio & Atelier Illustration */}
-          <div className="lg:col-span-6 relative flex justify-center items-center">
-            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
+          <div className="lg:col-span-6 relative flex justify-center items-center w-full">
+            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[24px] sm:rounded-[32px] lg:rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
               <Image
                 src="/images/about_hero_art.jpg"
                 alt="Modern tailoring atelier salon with garments and craft tools"
@@ -704,8 +734,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
 
       {/* Custom Raffu Theme Schedule Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[24px] sm:rounded-[28px] p-5 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
 
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -762,10 +792,10 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                       disabled={passed}
                       onClick={() => setSelectedTime(t)}
                       className={`py-2 rounded-xl text-xs font-bold text-center transition-all border ${isSelected
-                          ? 'bg-black text-white border-black shadow-xs scale-105'
-                          : passed
-                            ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
-                            : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
+                        ? 'bg-black text-white border-black shadow-xs scale-105'
+                        : passed
+                          ? 'bg-gray-100 text-gray-400 border-transparent cursor-not-allowed line-through opacity-50'
+                          : 'bg-[#F3F3F3] text-black border-transparent hover:bg-[#E8E8E8] cursor-pointer'
                         }`}
                     >
                       {t}
