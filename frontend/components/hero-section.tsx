@@ -481,14 +481,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
               />
             </div>
 
-            {/* 2. Main Title with Brand & Semantic Keywords */}
+            {/* 2. Main Title */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wider uppercase bg-[#F3EFEA] text-[#9E593B] border border-[#E8E1D5]">
-                  Raffu — Own Your Fit
-                </span>
-                <span className="text-xs font-semibold text-gray-500">Master Tailor Network</span>
-              </div>
               <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
                 Doorstep Alterations &amp; Custom Fitting
               </h1>
