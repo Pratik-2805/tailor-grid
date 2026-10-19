@@ -174,11 +174,6 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                     {isCustomer ? 'Book Alterations' : 'Partner With Us'}
                   </Link>
                 </li>
-                <li>
-                  <Link href="/orders" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-white transition-colors inline-block">
-                    Saved Fit Profile
-                  </Link>
-                </li>
               </ul>
             </div>
 

@@ -9,8 +9,6 @@ import {
   Activity,
   Clock,
   Shield,
-  Plus,
-  UserPlus,
   Edit2,
 } from 'lucide-react'
 
@@ -225,53 +223,6 @@ export function OverviewTab({
 
         {/* Right Col: Admin Quick Shortcuts & Health */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#9E593B]">
-              Quick Actions
-            </span>
-            <h3 className="text-base font-bold text-[#1E2229] mt-1 mb-4">Manage Platform</h3>
-
-            <div className="space-y-2.5">
-              <button
-                onClick={onOpenAddCustomer}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-              >
-                <span className="flex items-center gap-2">
-                  <UserPlus size={15} className="text-[#9E593B]" />
-                  Add New Customer
-                </span>
-                <Plus size={14} />
-              </button>
-
-              <button
-                onClick={onOpenAddStudio}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-              >
-                <span className="flex items-center gap-2">
-                  <Store size={15} className="text-blue-600" />
-                  Add Partner Studio
-                </span>
-                <Plus size={14} />
-              </button>
-
-              <button
-                onClick={() => {
-                  onFilterOrderStatus('Allocated')
-                  onNavigateTab('orders')
-                }}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#FAF8F5] hover:bg-[#F3EFEA] border border-[#E8E1D5] text-xs font-semibold text-[#1E2229] transition-colors cursor-pointer text-left"
-              >
-                <span className="flex items-center gap-2">
-                  <Scissors size={15} className="text-[#9E593B]" />
-                  Review Pending Orders
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
-                  {overview?.statusCounts?.['Allocated'] ?? 0} Pending
-                </span>
-              </button>
-            </div>
-          </div>
-
           {/* Fleet Health Card */}
           <div className="bg-white rounded-2xl p-5 border border-[#E8E1D5] shadow-xs">
             <h4 className="text-xs font-bold text-[#1E2229] uppercase tracking-wider mb-2 flex items-center gap-1.5">

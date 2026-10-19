@@ -36,6 +36,89 @@ interface ForPartnersViewProps {
   onPartnerRegistered?: (user: any) => void
 }
 
+const PARTNER_REQUIREMENTS_DATA = {
+  tailors: {
+    categoryLabel: 'For Independent Master Tailors & Alteration Ateliers',
+    summary:
+      'Clear, straightforward standards to certify your workshop and start welcoming nearby alteration and fitting appointments.',
+    cards: [
+      {
+        step: '01 / SPACE & SKILL',
+        title: 'Requirements',
+        icon: Scissors,
+        badge: 'Craftsmanship Check',
+        points: [
+          'Dedicated, clean fitting space or private changing cabin with full-length mirrors',
+          'Minimum 2+ years professional garment tailoring, alteration, or pattern-making experience',
+          'Pass a brief craftsmanship quality screening audit (hemming, tapering & finishing standards)',
+        ],
+      },
+      {
+        step: '02 / TOOLS & SPECS',
+        title: 'Documents & Equipment',
+        icon: FileText,
+        badge: 'Standard Studio Kit',
+        points: [
+          'Industrial single-needle lockstitch sewing machine in active working order',
+          'Overlock / serger or blind-stitch hemming capability for refined garment edges',
+          'Proof of business address or studio lease / shop establishment certificate',
+        ],
+      },
+      {
+        step: '03 / FAST ONBOARDING',
+        title: 'Signup process',
+        icon: CheckCircle2,
+        badge: 'Active in 24–48h',
+        points: [
+          'Submit quick online studio enrollment below with workshop photos & details',
+          'Brief studio verification visit and machine calibration check by our artisan lead',
+          'Go live on the Raffu network and immediately receive walk-in fitting bookings',
+        ],
+      },
+    ],
+  },
+  retailers: {
+    categoryLabel: 'For Fashion Boutiques, Apparel Retailers & Bridal Stores',
+    summary:
+      'Turn garment alteration from a return liability into a high-margin in-store service with zero factory setup or overhead.',
+    cards: [
+      {
+        step: '01 / STORE CRITERIA',
+        title: 'Storefront Requirements',
+        icon: Store,
+        badge: 'Physical Storefront',
+        points: [
+          'Commercial apparel storefront, multi-brand boutique, or designer bridal showroom',
+          'Clean, private in-store trial rooms or fitting lounges with customer mirrors',
+          'Valid commercial business registration (GSTIN / Trade License / Company ID)',
+        ],
+      },
+      {
+        step: '02 / SETUP & TECH',
+        title: 'In-Store Setup & Tech',
+        icon: ShoppingBag,
+        badge: 'No Machinery Needed',
+        points: [
+          'Tablet, smartphone, or desktop web browser to access the Raffu Partner Portal',
+          'Dedicated garment holding rail or staging zone for alteration drop-offs & collections',
+          'Designated store associate or alteration desk contact for customer handoffs',
+        ],
+      },
+      {
+        step: '03 / LAUNCH & INTEGRATION',
+        title: 'Partnership Process',
+        icon: Laptop,
+        badge: 'Turnkey Retail Service',
+        points: [
+          'Submit retailer partnership application with store count, location & average traffic',
+          'Configure workflow: connect your in-house tailors or route jobs to Raffu master ateliers',
+          'Staff onboarding session, customized digital alteration menu, and store QR signage kit',
+        ],
+      },
+    ],
+  },
+}
+
 export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPartnersViewProps) {
   const [partnerTypeTab, setPartnerTypeTab] = useState<'tailors' | 'retailers'>('tailors')
   const [openFaq, setOpenFaq] = useState<number | null>(null)
@@ -225,104 +308,100 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           </div>
 
           {/* Type Selector Tabs (Uber style: To drive / To deliver) */}
-          <div className="flex border-b border-[#DDD6CB] gap-8 mb-10 text-sm font-bold">
+          <div className="flex border-b border-[#DDD6CB] gap-3 sm:gap-8 mb-6 text-sm font-bold overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
+              type="button"
               onClick={() => setPartnerTypeTab('tailors')}
-              className={`pb-3 transition-colors ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative ${
                 partnerTypeTab === 'tailors'
-                  ? 'border-b-2 border-[#0F1115] text-[#0F1115]'
-                  : 'text-[#7A7E85] hover:text-[#0F1115]'
+                  ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
+                  : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
-              Independent Tailor Studios
+              <Scissors size={16} className={partnerTypeTab === 'tailors' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
+              <span>Independent Tailor Studios</span>
+              <span
+                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                  partnerTypeTab === 'tailors' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
+                }`}
+              >
+                Artisans
+              </span>
             </button>
             <button
+              type="button"
               onClick={() => setPartnerTypeTab('retailers')}
-              className={`pb-3 transition-colors ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative ${
                 partnerTypeTab === 'retailers'
-                  ? 'border-b-2 border-[#0F1115] text-[#0F1115]'
-                  : 'text-[#7A7E85] hover:text-[#0F1115]'
+                  ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
+                  : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
-              Fashion Boutiques &amp; Retailers
+              <Store size={16} className={partnerTypeTab === 'retailers' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
+              <span>Fashion Boutiques &amp; Retailers</span>
+              <span
+                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                  partnerTypeTab === 'retailers' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
+                }`}
+              >
+                Retail
+              </span>
             </button>
           </div>
 
-          {/* 3 Columns Requirements matching Uber */}
-          <div className="grid md:grid-cols-3 gap-8">
-            
-            {/* Col 1 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E8E1D5] shadow-xs">
-              <div className="size-10 rounded-2xl bg-[#0F1115] text-white grid place-items-center mb-4">
-                <Star size={18} className="text-[#F9C933]" />
-              </div>
-              <h3 className="text-lg font-bold text-[#0F1115] mb-4">
-                Requirements
-              </h3>
-              <ul className="space-y-3 text-xs text-[#5A5D64]">
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Dedicated, clean fitting space or private changing cabin with mirrors</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Minimum 2+ years professional garment tailoring or alteration experience</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Clear a brief craftsmanship quality screening audit</span>
-                </li>
-              </ul>
-            </div>
+          {/* Dynamic Summary Banner */}
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs sm:text-sm text-[#5A5D64]">
+            <p className="max-w-2xl leading-relaxed">
+              {PARTNER_REQUIREMENTS_DATA[partnerTypeTab].summary}
+            </p>
+            <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-[#9E593B] bg-[#9E593B]/10 px-3 py-1 rounded-full w-fit">
+              <Check size={12} className="stroke-[3]" />
+              {PARTNER_REQUIREMENTS_DATA[partnerTypeTab].categoryLabel}
+            </span>
+          </div>
 
-            {/* Col 2 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E8E1D5] shadow-xs">
-              <div className="size-10 rounded-2xl bg-[#0F1115] text-white grid place-items-center mb-4">
-                <FileText size={18} className="text-[#F9C933]" />
-              </div>
-              <h3 className="text-lg font-bold text-[#0F1115] mb-4">
-                Documents &amp; Equipment
-              </h3>
-              <ul className="space-y-3 text-xs text-[#5A5D64]">
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Industrial single-needle lockstitch sewing machine</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Overlock / serger or blind-stitch hemming capability</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Proof of business address or studio lease / registration</span>
-                </li>
-              </ul>
-            </div>
+          {/* 3 Columns Requirements matching Active Partner Track */}
+          <div key={partnerTypeTab} className="grid md:grid-cols-3 gap-8 animate-in fade-in-50 duration-300">
+            {PARTNER_REQUIREMENTS_DATA[partnerTypeTab].cards.map((card, idx) => {
+              const IconComponent = card.icon
+              return (
+                <div
+                  key={idx}
+                  className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E8E1D5] shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-3 mb-5">
+                      <div className="size-10 rounded-2xl bg-[#0F1115] text-white grid place-items-center shadow-xs">
+                        <IconComponent size={18} className="text-[#F9C933]" />
+                      </div>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E1D5] text-[#5A5D64]">
+                        {card.step}
+                      </span>
+                    </div>
 
-            {/* Col 3 */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#E8E1D5] shadow-xs">
-              <div className="size-10 rounded-2xl bg-[#0F1115] text-white grid place-items-center mb-4">
-                <CheckCircle2 size={18} className="text-[#F9C933]" />
-              </div>
-              <h3 className="text-lg font-bold text-[#0F1115] mb-4">
-                Signup process
-              </h3>
-              <ul className="space-y-3 text-xs text-[#5A5D64]">
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Submit online partner application below with studio details</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Brief studio visit and machine calibration check</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-[#0F1115] font-bold">•</span>
-                  <span>Go live on network and receive walk-in fitting orders</span>
-                </li>
-              </ul>
-            </div>
+                    <h3 className="text-lg font-bold text-[#0F1115] mb-4">
+                      {card.title}
+                    </h3>
 
+                    <ul className="space-y-3.5 text-xs text-[#5A5D64] leading-relaxed">
+                      {card.points.map((pt, pIdx) => (
+                        <li key={pIdx} className="flex items-start gap-2.5">
+                          <span className="text-[#0F1115] font-black text-sm leading-none mt-0.5">•</span>
+                          <span>{pt}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-[#F0EBE3] flex items-center justify-between text-[11px] text-[#7A7E85]">
+                    <span className="inline-flex items-center gap-1 font-medium text-[#9E593B]">
+                      <Check size={12} className="stroke-[3]" />
+                      {card.badge}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
         </div>
