@@ -439,8 +439,8 @@ export function PartnerOnboarding({
     if (isSendingStep3OtpRef.current) return
     const raw = phone.trim()
     const cleanedDigits = raw.replace(/\D/g, '')
-    if (cleanedDigits.length < 10) {
-      const msg = 'Please enter a valid 10-digit mobile number with country code.'
+    if (cleanedDigits.length !== 10) {
+      const msg = 'Please enter a valid 10-digit mobile number.'
       setError(msg)
       toast.warning(msg, { position: 'top-center' })
       return
@@ -710,7 +710,7 @@ export function PartnerOnboarding({
                     <p className="text-[11px] text-gray-500 truncate">{user?.email || 'partner@raffu.com'}</p>
                   </div>
                   <a
-                    href="mailto:support@raffu.com"
+                    href="mailto:developer.sitarahub@gmail.com"
                     className="block px-4 py-2 hover:bg-gray-50 text-gray-700"
                   >
                     Contact Support
@@ -1208,14 +1208,16 @@ export function PartnerOnboarding({
                                   </div>
                                   <input
                                     type="tel"
-                                    inputMode="tel"
+                                    inputMode="numeric"
+                                    maxLength={10}
+                                    pattern="[0-9]{10}"
                                     autoFocus={!step3OtpSent}
                                     value={phone}
                                     onChange={(e) => {
-                                      const cleaned = e.target.value.replace(/[^\d+\-\s()]/g, '')
-                                      setPhone(cleaned)
+                                      const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10)
+                                      setPhone(digitsOnly)
                                     }}
-                                    placeholder="e.g. +91 98765 43210 or +44 7700 900000"
+                                    placeholder="e.g. 9876543210"
                                     className="w-full rounded-lg bg-gray-100 border-none pl-11 pr-4 py-3.5 text-sm font-medium text-[#0F1115] focus:bg-white focus:ring-2 focus:ring-[#0F1115] outline-none transition-all"
                                   />
                                 </div>

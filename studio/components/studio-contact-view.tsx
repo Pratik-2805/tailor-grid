@@ -31,18 +31,54 @@ export function StudioContactView({ user }: { user?: any }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const phoneDigits = (form.phone || '').replace(/\D/g, '')
+    if (phoneDigits.length !== 10) {
+      toast.warning('Please enter a valid 10-digit phone number.', {
+        position: 'top-center',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+      const res = await fetch(`${apiBase}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studioName: form.studioName,
+          phone: form.phone,
+          email: form.email,
+          category: form.category,
+          priority: form.priority,
+          orderId: form.orderId,
+          message: form.message,
+          source: 'Studio Atelier Operations Desk',
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to dispatch ticket')
+      }
+
       setIsSubmitted(true)
-      toast.success('Your partner operations ticket has been dispatched to your regional manager.', {
+      toast.success('Your partner operations ticket has been dispatched to our operations team.', {
         position: 'top-center',
         autoClose: 4000,
       })
-    }, 900)
+    } catch (err: any) {
+      toast.error(err.message || 'Unable to submit your ticket. Please try again.', {
+        position: 'top-center',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -106,7 +142,7 @@ export function StudioContactView({ user }: { user?: any }) {
                 </a>
 
                 <a
-                  href="mailto:partners@raffu.com"
+                  href="mailto:developer.sitarahub@gmail.com"
                   className="flex items-start gap-3.5 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-[#9E593B]/50 transition-colors group"
                 >
                   <div className="size-10 rounded-xl bg-blue-500/20 text-blue-400 grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
@@ -114,7 +150,7 @@ export function StudioContactView({ user }: { user?: any }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Partner Operations Desk</p>
-                    <p className="text-sm font-bold text-white">partners@raffu.com</p>
+                    <p className="text-sm font-bold text-white">developer.sitarahub@gmail.com</p>
                     <p className="text-[11px] text-slate-400">Settlements, GST invoicing &amp; capacity updates</p>
                   </div>
                 </a>
@@ -201,10 +237,16 @@ export function StudioContactView({ user }: { user?: any }) {
                       </label>
                       <input
                         type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
                         required
                         value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        placeholder="e.g. +91 98450 12345"
+                        onChange={(e) => {
+                          const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10)
+                          setForm({ ...form, phone: digitsOnly })
+                        }}
+                        placeholder="e.g. 9845012345"
                         className="w-full px-3.5 py-2.5 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl focus:outline-none focus:border-[#9E593B] transition-all"
                       />
                     </div>

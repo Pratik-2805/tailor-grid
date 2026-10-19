@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -11,9 +11,12 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { useApp } from './app-provider'
 import type { Screen } from './data'
 
 export function ContactView({ go }: { go: (s: Screen | string) => void }) {
+  const { user, openAuth } = useApp()
+  const pendingAutoSubmitRef = useRef(false)
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -25,18 +28,87 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  // Auto-fill user details if logged in & auto-dispatch if user just signed in from popup
+  useEffect(() => {
+    if (user) {
+      const rawUserPhone = user.phone || (user.contact && !user.contact.includes('@') ? user.contact : '')
+      const userPhoneDigits = rawUserPhone.replace(/\D/g, '').slice(-10)
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || user.name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || userPhoneDigits || '',
+      }))
+
+      if (pendingAutoSubmitRef.current) {
+        pendingAutoSubmitRef.current = false
+        setTimeout(() => {
+          handleSubmit()
+        }, 150)
+      }
+    }
+  }, [user])
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+
+    // Validate 10-digit phone number
+    const rawPhone = form.phone || (user?.phone || (user?.contact && !user.contact.includes('@') ? user.contact : ''))
+    const phoneDigits = (rawPhone || '').replace(/\D/g, '')
+    if (phoneDigits.length !== 10) {
+      toast.warning('Please enter a valid 10-digit phone number.', {
+        position: 'top-center',
+      })
+      return
+    }
+
+    // Require sign-in before submitting
+    if (!user) {
+      pendingAutoSubmitRef.current = true
+      toast.info('Please sign in to your account to send your concierge request.', {
+        position: 'top-center',
+        autoClose: 3500,
+      })
+      openAuth('CUSTOMER', 'signin')
+      return
+    }
+
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+      const res = await fetch(`${apiBase}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name || user.name,
+          email: form.email || user.email,
+          phone: form.phone || user.contact,
+          topic: form.topic,
+          orderNumber: form.orderNumber,
+          message: form.message,
+          source: 'Client Concierge Desk',
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to dispatch request')
+      }
+
       setIsSubmitted(true)
-      toast.success('Your message has been received! Our master tailor concierge will reach out shortly.', {
+      toast.success('Your message has been received! Our concierge team will reach out shortly.', {
         position: 'top-center',
         autoClose: 4000,
       })
-    }, 900)
+    } catch (err: any) {
+      toast.error(err.message || 'Unable to submit your message. Please try again.', {
+        position: 'top-center',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -93,7 +165,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
               </a>
 
               <a
-                href="mailto:concierge@raffu.com"
+                href="mailto:developer.sitarahub@gmail.com"
                 className="flex items-start gap-3.5 p-3.5 -mx-3.5 rounded-2xl hover:bg-white/70 transition-colors group"
               >
                 <div className="size-10 rounded-xl bg-[#F4EFEB] text-[#9E593B] grid place-items-center shrink-0 group-hover:scale-105 transition-transform">
@@ -101,7 +173,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Email Support</p>
-                  <p className="text-sm font-bold text-[#0F1115]">concierge@raffu.com</p>
+                  <p className="text-sm font-bold text-[#0F1115]">developer.sitarahub@gmail.com</p>
                   <p className="text-xs text-[#5A5D64]">Replies within 2 hours</p>
                 </div>
               </a>
@@ -134,15 +206,15 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                   </div>
                   <h3 className="font-serif text-2xl font-bold text-[#0F1115]">Message Dispatched</h3>
                   <p className="text-sm text-[#5A5D64] max-w-md mx-auto">
-                    Thank you, {form.name || 'valued customer'}. Our master tailor concierge has received your request and will contact you via {form.phone || form.email || 'your provided contact'} within 15–30 minutes.
+                    Thank you, {form.name || user?.name || 'valued customer'}. Our master tailor concierge has received your request and will contact you via {form.phone || form.email || user?.contact || user?.email || 'your provided contact'} within 15–30 minutes.
                   </p>
                   <button
                     onClick={() => {
                       setIsSubmitted(false)
                       setForm({
-                        name: '',
-                        email: '',
-                        phone: '',
+                        name: user?.name || '',
+                        email: user?.email || '',
+                        phone: user?.phone || (user?.contact && !user?.contact.includes('@') ? user.contact : '') || '',
                         topic: 'alteration_inquiry',
                         orderNumber: '',
                         message: '',
@@ -175,10 +247,16 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                       </label>
                       <input
                         type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
                         required
                         value={form.phone}
-                        onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        placeholder="e.g. +91 98765 43210"
+                        onChange={(e) => {
+                          const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 10)
+                          setForm({ ...form, phone: digitsOnly })
+                        }}
+                        placeholder="e.g. 9876543210"
                         className="w-full px-3.5 py-2.5 text-xs text-[#0F1115] bg-[#FAF8F5] border border-[#E0D9CF] rounded-xl focus:outline-none focus:border-[#9E593B] focus:bg-white transition-all"
                       />
                     </div>
