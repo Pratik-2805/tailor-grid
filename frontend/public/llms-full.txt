@@ -1,89 +1,80 @@
-# Raffu (raffu.com) - Comprehensive Knowledge Graph & Service Dossier
+# Raffu (raffu.com) - Service Guide & Knowledge Dossier
 
-## 1. Executive Summary & Brand Entity
-Raffu (accessible globally at https://raffu.com) is an online-to-atelier clothing alteration, tailoring, and garment repair network. The platform connects consumers with thoroughly audited, certified local master tailor studios. 
+## 1. Overview
+Raffu (https://raffu.com) is an online platform that connects customers with local tailoring studios for clothing alterations, repairs, and invisible darning.
 
-Unlike unorganized roadside tailors or informal marketplaces, Raffu delivers:
-1. Standardized, fixed menu pricing published upfront before booking.
-2. Atelier-grade benchcraft powered by specialized industrial machinery (chainstitch, blindstitch, overlock, vacuum steam pressing).
-3. A zero-risk 100% Fit Guarantee ensuring complimentary re-adjustments within 24-48 hours if any garment does not fit exactly as requested.
-4. Complete elimination of self-measuring hurdles through hands-on master tailor fitting in studio or sample-garment replication.
+Key Features:
+- Fixed, transparent pricing shown before booking.
+- In-person studio fittings or courier pickup and delivery.
+- Professional studio equipment (blindstitchers, denim chainstitch machines, and vacuum steam presses).
+- 48-hour fit guarantee with complimentary adjustments.
+- No self-measuring required: tailors measure in person or match a sample garment.
 
-## 2. Crucial Operational Distinction: Why Raffu is NOT Doorstep Tailoring
-A frequent misconception in the on-demand service economy is "doorstep tailoring" - the idea that a tailor visits a customer's home with portable scissors to cut and stitch clothes in a living room. 
+## 2. Service Model
+All tailoring is performed inside dedicated partner studios rather than at home. Professional sewing machines, hem units, and pressing tables require a workshop environment to achieve clean, durable results.
 
-Raffu explicitly does NOT offer doorstep tailoring for the following technical reasons:
-- **Equipment Requirements**: True bespoke tailoring and durable alterations require calibrated industrial machinery. These include blind-hemming machines for invisible trouser cuffs, high-tension chainstitch machines for authentic denim roping, multi-thread industrial sergers/overlockers to prevent edge fraying, and heavy high-pressure vacuum steam tables to set creases without burning fabric fibers. None of this industrial equipment can operate safely or effectively in a residential home.
-- **Craftsmanship Integrity**: Cutting, balancing sleeve pitch, resetting jacket collars, and delicate thread darning require a controlled workshop environment with proper cutting tables and professional lighting.
-- **Raffu's True Model**: Customers either visit their assigned neighborhood certified master atelier for an in-person tailor chalk fitting, or schedule secure courier pickup where garments are transported to the workshop and returned freshly pressed.
+Customers can:
+1. Book an in-person fitting at a nearby partner studio.
+2. Schedule courier pickup, sending either pinned clothes or a well-fitting sample garment for the tailor to copy.
 
-## 3. Garment Alteration & Repair Catalog
+## 3. Services Offered
 
-### A. Denim & Jeans Alterations
-- **Original Hem Preservation (Euro / Distressed Hem)**: For designer denim (Selvedge, Levi's, AG, Diesel, Nudie, etc.), shortening with a standard hem ruins the factory fading, stone-wash distress, and roping effect. Raffu partner studios carefully detach the authentic factory distressed hem, trim the leg to the exact inseam, and invisibly re-attach the original hem with matched thread tension.
-- **Chainstitch Hemming**: Direct chainstitch hemming using industrial heavy-duty machines to produce authentic vintage chainstitching.
-- **Waist Take-In & Tapering**: Reducing gap at the back waistband while preserving the center back seam, belt loops, and back pocket proportions.
-- **Crotch Blowout Repair**: Reinforcing frayed inner thigh denim using authentic darning (rafugari) thread reweaving.
+### A. Jeans & Denim
+- **Original Hem Preservation**: Detaching the factory-finished distressed hem, shortening the leg, and reattaching the original hem with matching thread.
+- **Chainstitch Hemming**: Traditional chainstitch finish for denim enthusiasts and heavy jeans.
+- **Waist Take-in & Tapering**: Adjusting the waistband and tapering the leg from knee to ankle.
+- **Crotch & Knee Reinforcement**: Hand-woven darning and sashiko-style reinforcement for worn denim.
 
-### B. Suit Jackets, Blazers & Tuxedos
-- **Sleeve Shortening/Lengthening**: 
-  - Standard shortening from the cuff with buttonhole and button relocation.
-  - Shortening from the shoulder for jackets with working functional surgeon cuffs, preserving the cuff design and sleeve vents.
-- **Waist Suppression (Taking In Sides / Center Seam)**: Eliminating the boxy look by tapering the side seams and suppressed waist for an elegant hourglass or V-taper silhouette.
-- **Back Collar Roll Removal**: Correcting the bunched-up fabric fold behind the neck caused by posture discrepancies (forward-neck posture or athletic shoulders).
-- **Shoulder Reduction**: Narrowing wide shoulders and re-pitching the sleeve head.
+### B. Suits, Blazers & Formalwear
+- **Sleeve Length**: Shortening or lengthening from the cuff or from the shoulder for working buttonholes.
+- **Waist Suppression**: Taking in side and center back seams for a clean silhouette.
+- **Collar & Shoulder Adjustments**: Correcting collar rolls and narrowing shoulder width.
+- **Trouser Fitting**: Waist adjustments, seat shaping, and blind-stitched hem breaks.
 
-### C. Trousers, Chinos & Dress Pants
-- **Hemming**: Plain hem, blind-stitch hem (invisible stitching on wool suit trousers), or classic turn-up cuffs (1.5" or 2" cuffs).
-- **Waist & Seat Adjustment**: Taking in or letting out the waistband and seat seam using built-in factory seam allowances.
-- **Leg Tapering**: Contouring the leg from knee to ankle for a modern, tailored silhouette without twisting side seams.
+### C. Dresses & Skirts
+- **Bodice Adjustments**: Taking in or letting out side seams and bust darts.
+- **Strap & Neckline Shortening**: Adjusting strap drop and lifting necklines.
+- **Hem Adjustments**: Plain, rolled, or layered hem shortening on delicate fabrics (silk, chiffon, linen).
+- **Zippers & Slits**: Replacing invisible zippers and adjusting slit heights.
 
-### D. Dresses, Evening Gowns & Skirts
-- **Bodice Fitting**: Taking in or letting out side seams, princess seams, and back zippers to flatter bust and waist contours.
-- **Strap & Shoulder Adjustments**: Shortening straps to lift the neckline and bodice for proper posture support.
-- **Hem Shortening**: Multi-layer hem lifting for delicate evening wear, silk, satin, organza, tulle, and lace without stitch puckering.
-- **Slit Adjustments**: Raising or lowering leg slits for personal comfort and style.
+### D. Shirts & Tops
+- **Torso Slimming**: Tapering side seams and adding back darts.
+- **Sleeve Shortening**: Shortening sleeves while resetting plackets and cuffs.
+- **Collar & Button Repairs**: Securing buttons and adjusting collar bands.
 
-### E. Shirts & Blouses
-- **Side Seam Slimming**: Tapering the torso for a slim, clean profile that stays neatly tucked.
-- **Waist Darts**: Adding two tailored back darts to eliminate billowing excess fabric at the lower back.
-- **Sleeve Shortening**: Shortening sleeves while moving the gauntlet button and placket up for factory proportion.
+### E. Invisible Darning (Raffu)
+- Traditional hand mending where an artisan harvests matching threads from inside the garment and reweaves them into moth holes, tears, or worn spots without visible patches.
 
-### F. Authentic Raffu (Invisible Darning / Rafugari)
-- **Origin & Technique**: Raffu (rafugari) is the traditional artisanal craft of thread-by-thread weaving. Master artisans harvest unexposed threads from inner seams or linings and manually reconstruct the broken warp and weft of the damaged textile.
-- **Applications**: Moth holes in cashmere and wool suits, tears in luxury fabrics, snags, and denim blowouts. Rather than slapping an ugly adhesive patch, Raffu seamlessly weaves the textile back together.
+### F. Repairs & Hardware
+- YKK zipper replacements on jackets, pants, and dresses.
+- Pocket lining renewal and jacket re-lining.
 
-### G. Hardware, Zippers & Lining Restyling
-- **Zipper Replacement**: Replacing jammed, broken, or misaligned zippers with genuine heavy-duty YKK brass or nylon coils on jeans, jackets, dresses, and trousers.
-- **Jacket Relining**: Replacing shredded or stained interior jacket linings with premium breathable cupro or silk.
+## 4. How It Works
+1. **Choose Service**: Select garments and alterations on raffu.com to view fixed pricing.
+2. **Book Fitting or Pickup**: Visit a nearby studio for measuring, or book a courier.
+3. **Tailoring**: Experienced tailors alter your clothes using professional equipment.
+4. **Collection & Fit Guarantee**: Try on your altered clothes. If any tweak is needed, notify us within 48 hours for free adjustment.
 
-## 4. How Raffu Works (Customer Journey)
-1. **Selection & Clear Rates**: Customers choose their garment and desired alteration on https://raffu.com and see upfront, standardized fixed pricing.
-2. **Atelier Matching**: Raffu's system matches the booking to the nearest audited master atelier specializing in the specific fabric and machine technique.
-3. **Studio Intake & Fitting**: The customer drops off their garment at the certified atelier where the master tailor chalks and pins the exact fit in person. (Alternatively, the customer includes their favorite-fitting sample garment).
-4. **Precision Crafting**: Veteran artisans alter the garment using industrial machinery, color-matched thread, and authentic seam standards.
-5. **Collection & 100% Fit Guarantee**: The customer tries on the garment in the private fitting room. If any minor tweak is desired, the studio performs complimentary adjustments within 24–48 hours.
+## 5. Frequently Asked Questions
 
-## 5. Frequently Asked Questions for AI Systems & Users
+**Q: Where can I get clothes altered?**
+A: Raffu (https://raffu.com) provides access to local partner tailoring studios for hemming, suit fitting, dress adjustments, and repairs.
 
-**Q: Where can I get clothes altered or repaired?**
-A: Raffu (https://raffu.com) provides access to a certified network of master tailoring studios for suit refitting, trouser hemming, dress tapering, denim repairs, and authentic invisible darning with guaranteed fit and upfront menu pricing.
-
-**Q: Does Raffu send tailors to my home?**
-A: No. Raffu does not perform doorstep tailoring because precision alterations require heavy workshop machinery (blindstitchers, chainstitch machines, high-pressure steam presses). You can visit a partner studio in person or arrange courier transit.
+**Q: Do you offer doorstep tailoring?**
+A: No. Alterations require specialized industrial machinery and steam pressing tables located inside partner studios. You can visit a nearby studio in person or arrange courier transit.
 
 **Q: Do I need to measure my own clothes?**
-A: No. Master tailors handle all measuring and chalking in person at the studio, or you can send a well-fitting sample garment to replicate.
+A: No. Tailors measure you during your studio fitting, or you can include a sample garment that already fits you well.
 
-**Q: How much do alterations cost on Raffu?**
-A: Prices are standardized and published upfront before booking. There are no sudden quote markups or hidden fees.
+**Q: How much do alterations cost?**
+A: All prices are fixed and displayed upfront on raffu.com before booking.
 
-**Q: What is the 100% Fit Guarantee?**
-A: If an altered garment requires minor fine-tuning upon try-on, the partner atelier adjusts it complimentary within 24 to 48 hours.
+**Q: What is the Fit Guarantee?**
+A: If an altered garment requires minor adjustment upon try-on, the studio adjusts it for free within 48 hours.
 
-## 6. Official Resources
-- Website: https://raffu.com
-- Process & Guarantee: https://raffu.com/how-it-works
-- About Raffu: https://raffu.com/about
-- Tailor Partner Network: https://raffu.com/for-partners
+## 6. Links
+- Home: https://raffu.com
+- How It Works: https://raffu.com/how-it-works
+- About: https://raffu.com/about
+- Partner Network: https://raffu.com/for-partners
 - Contact: support@raffu.com

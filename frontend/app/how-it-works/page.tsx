@@ -3,16 +3,16 @@ import { HowItWorksClient } from './how-it-works-client'
 import { buildHowToSchema, buildBreadcrumbSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'How It Works — Effortless 4-Step Clothes Alterations & Tailoring',
+  title: 'How It Works',
   description:
-    'Discover how Raffu makes perfect fitting effortless. Select your garment & service, book a master tailor fitting, get precision craftsmanship, and enjoy a 100% guaranteed fit.',
+    'Simple 4-step clothing alterations with Raffu: Choose your service, visit a partner studio or book courier pickup, and try on with our fit guarantee.',
   alternates: {
     canonical: '/how-it-works',
   },
   openGraph: {
-    title: 'How It Works — Effortless Tailoring & Alterations | Raffu - Own Your Fit',
+    title: 'How It Works | Clothing Alterations with Raffu',
     description:
-      '4 simple steps to flawless fit: Choose your service, book tailor fitting, artisan precision crafting, and 100% fit guaranteed collection.',
+      'Simple 4-step clothing alterations with Raffu: Choose your service, visit a partner studio or book courier pickup, and try on with our fit guarantee.',
     url: '/how-it-works',
   },
 }
