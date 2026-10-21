@@ -49,7 +49,7 @@ export function HomeView({
         <TrustBar />
       </div>
 
-      {/* 3. Uber/Rapido Ride & Service Option Cards (Doorstep, Express, Bespoke) */}
+      {/* 3. Service Option Cards (Studio Drop-off, Express, Bespoke) */}
       <ServiceGrid
         go={go}
         onSelectGarment={(garmentId) => onQuickSearch?.('W8 4EP', garmentId)}

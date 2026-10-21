@@ -17,7 +17,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_CONFIG.url),
   title: {
-    default: 'Raffu — Own Your Fit | Doorstep Tailoring & Alteration Network',
+    default: 'Raffu — Own Your Fit | Certified Alteration & Tailoring Studio Network',
     template: '%s | Raffu - Own Your Fit',
   },
   description: SITE_CONFIG.description,
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
   },
   manifest: '/site.webmanifest',
   openGraph: {
-    title: 'Raffu — Own Your Fit | Doorstep Tailoring & Alteration Network',
+    title: 'Raffu — Own Your Fit | Certified Alteration & Tailoring Studio Network',
     description: SITE_CONFIG.description,
     url: SITE_CONFIG.url,
     siteName: 'Raffu - Own Your Fit',
@@ -49,13 +49,13 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Raffu - Own Your Fit | Modern Tailoring & Alteration Network',
+        alt: 'Raffu - Own Your Fit | Certified Alteration & Tailoring Studio Network',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Raffu — Own Your Fit | Doorstep Tailoring & Alteration Network',
+    title: 'Raffu — Own Your Fit | Certified Alteration & Tailoring Studio Network',
     description: SITE_CONFIG.description,
     creator: '@raffufit',
     site: '@raffufit',

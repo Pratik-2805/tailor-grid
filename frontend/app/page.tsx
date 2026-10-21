@@ -3,16 +3,16 @@ import { HomeClient } from './home-client'
 import { SITE_CONFIG, buildLocalBusinessSchema, buildFAQSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'Raffu — Own Your Fit | Doorstep Alterations, Custom Tailoring & Fitting',
+  title: 'Raffu — Own Your Fit | Certified Clothes Alterations & Tailoring Studio Network',
   description:
-    'Book verified local master tailors with upfront transparent pricing. Fast doorstep pickup, precision trouser hemming, suit fitting & bespoke repairs. 100% Fit Guarantee.',
+    'Book verified neighborhood master tailors with transparent upfront menu pricing. Precision trouser & denim hemming with original finish preservation, suit refitting, dress tapering & artisanal darning. 100% Fit Guarantee.',
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Raffu — Own Your Fit | Doorstep Alterations, Custom Tailoring & Fitting',
+    title: 'Raffu — Own Your Fit | Certified Clothes Alterations & Tailoring Studio Network',
     description:
-      'Book verified local master tailors with upfront transparent pricing. Fast doorstep pickup, precision trouser hemming, suit fitting & bespoke repairs. 100% Fit Guarantee.',
+      'Book verified neighborhood master tailors with transparent upfront menu pricing. Precision trouser & denim hemming with original finish preservation, suit refitting, dress tapering & artisanal darning. 100% Fit Guarantee.',
     url: '/',
   },
 }
