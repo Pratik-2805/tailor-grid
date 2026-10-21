@@ -37,7 +37,7 @@ export function TermsView({ go }: { go: (s: Screen | string) => void }) {
               1. Introduction &amp; Agreement
             </h2>
             <p className="mb-3">
-              These Terms &amp; Conditions (&quot;Terms&quot;) govern the contractual relationship between you (&quot;Customer&quot;, &quot;you&quot;) and Raffu Technologies Ltd. (&quot;Raffu&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) when accessing our platform, website, applications, or booking clothing alteration, tailoring, and repair services through our certified partner atelier network.
+              These Terms &amp; Conditions (&quot;Terms&quot;) govern the contractual relationship between you (&quot;Customer&quot;, &quot;you&quot;) and Raffu Labs Ltd. (&quot;Raffu&quot;, &quot;we&quot;, &quot;our&quot;, &quot;us&quot;) when accessing our platform, website, applications, or booking clothing alteration, tailoring, and repair services through our certified partner atelier network.
             </p>
             <p>
               By creating an account, booking an alteration service, dropping off a garment at a partner studio, or using our concierge services, you confirm that you have read, understood, and agreed to be bound by these Terms in full.

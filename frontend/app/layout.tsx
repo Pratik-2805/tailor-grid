@@ -22,9 +22,9 @@ export const metadata: Metadata = {
   },
   description: SITE_CONFIG.description,
   keywords: SITE_CONFIG.keywords,
-  authors: [{ name: 'Raffu Technologies Ltd.', url: SITE_CONFIG.url }],
+  authors: [{ name: 'Raffu Labs Ltd.', url: SITE_CONFIG.url }],
   creator: 'Raffu',
-  publisher: 'Raffu Technologies Ltd.',
+  publisher: 'Raffu Labs Ltd.',
   applicationName: 'Raffu - Own Your Fit',
   category: 'Fashion & Tailoring Services',
   formatDetection: {

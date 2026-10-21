@@ -4553,10 +4553,10 @@ export function PartnerFlow({
                     {/* Card 1: Collected */}
                     <div className="bg-white border border-[#E8E1D5] rounded-2xl p-3 sm:p-5 shadow-2xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#6B7280] hidden xs:block">
-                          Collected Revenue
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6B7280]">
+                          Collected
                         </span>
-                        <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center font-extrabold text-xs">
+                        <div className="size-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60 grid place-items-center font-extrabold text-xs shrink-0">
                           <span>{studioCurrencySymbol}</span>
                         </div>
                       </div>

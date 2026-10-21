@@ -66,7 +66,7 @@ export function buildOrganizationSchema() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_CONFIG.name,
-    legalName: 'Raffu Technologies Ltd.',
+    legalName: 'Raffu Labs Ltd.',
     alternateName: 'Raffu',
     url: SITE_CONFIG.url,
     logo: `${SITE_CONFIG.url}/android-chrome-512x512.png`,
