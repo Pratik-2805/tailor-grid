@@ -1983,9 +1983,8 @@ async function enrichStudioUser(user) {
           "Precision Hemming",
           "Express Tailoring",
         ],
-        leadTailor: store.leadTailor || user.name,
-        currency: store.currency || user.currency || "GBP",
-        currencySymbol: store.currencySymbol || user.currencySymbol || "£",
+        currency: (store.currency && store.currency !== "GBP" ? store.currency : null) || (user.currency && user.currency !== "GBP" ? user.currency : null) || "USD",
+        currencySymbol: (store.currency && store.currency !== "GBP" ? store.currencySymbol : null) || (user.currency && user.currency !== "GBP" ? user.currencySymbol : null) || "$",
       };
     }
   } catch (err) {

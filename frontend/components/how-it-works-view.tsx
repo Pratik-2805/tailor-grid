@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import {
   ArrowLeft,
   ArrowRight,
@@ -404,11 +405,28 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
         {/* ========================================================================= */}
         {/* FINAL HIGH-CONVERSION CTA BANNER */}
         {/* ========================================================================= */}
-        <section className="mt-16 sm:mt-20 rounded-3xl bg-[#0F1115] text-[#FAF8F5] p-8 sm:p-14 relative overflow-hidden shadow-xl">
+        <section className="mt-16 sm:mt-20 rounded-3xl bg-[#0F1115] text-[#FAF8F5] p-8 sm:p-14 relative overflow-hidden shadow-2xl border border-white/10">
           
-          {/* Subtle background decorative shapes */}
-          <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[#9E593B]/10 rounded-l-full pointer-events-none" />
-          <div className="absolute left-10 -bottom-10 size-40 rounded-full bg-white/5 pointer-events-none" />
+          {/* Subtle atelier background with atmospheric gradient blend */}
+          <div className="absolute right-0 top-0 bottom-0 w-full sm:w-2/3 lg:w-1/2 pointer-events-none overflow-hidden select-none">
+            <Image
+              src="/atelier_panoramic_banner.jpg"
+              alt="Bespoke tailoring atelier workshop"
+              fill
+              className="object-cover object-center sm:object-right opacity-30 md:opacity-40"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            {/* Smooth directional fade masks so copy stays perfectly crisp & legible */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0F1115] via-[#0F1115]/80 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0F1115] via-transparent to-[#0F1115]/40" />
+          </div>
+
+          {/* Warm terracotta ambient glow */}
+          <div className="absolute -right-16 -bottom-16 size-80 rounded-full bg-[#9E593B]/15 blur-3xl pointer-events-none" />
+          <div className="absolute left-10 -bottom-10 size-40 rounded-full bg-white/[0.03] pointer-events-none" />
+
+          {/* Delicate tailoring stitch guide line at top */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
 
           <div className="relative z-10 max-w-[640px]">
             <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight leading-[1.15] mb-4">
@@ -424,7 +442,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
                 onClick={() => go('book')}
                 className="rounded-full bg-[#FAF8F5] text-[#0F1115] px-8 py-4 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-md transition-all hover:bg-[#9E593B] hover:text-white active:scale-95 inline-flex items-center gap-2"
               >
-                <span>Book a fitting pass now</span>
+                <span>Book your alteration now</span>
                 <ArrowRight size={15} />
               </button>
 
