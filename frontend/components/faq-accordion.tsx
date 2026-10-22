@@ -26,6 +26,9 @@ export function FaqAccordion() {
           >
             <button
               onClick={() => toggle(idx)}
+              aria-expanded={isOpen}
+              aria-controls={`faq-answer-${idx}`}
+              id={`faq-question-${idx}`}
               className="flex w-full items-center justify-between p-5 text-left text-sm sm:text-base font-bold text-[#0F1115] focus:outline-none"
             >
               <span className="flex items-center gap-3">
@@ -40,11 +43,16 @@ export function FaqAccordion() {
               />
             </button>
 
-            {isOpen && (
-              <div className="px-5 pb-5 pt-1 text-xs sm:text-sm leading-relaxed text-[#4B5563] border-t border-[#F3F4F6]">
-                {faq.a}
-              </div>
-            )}
+            <div
+              id={`faq-answer-${idx}`}
+              role="region"
+              aria-labelledby={`faq-question-${idx}`}
+              className={`px-5 pb-5 pt-1 text-xs sm:text-sm leading-relaxed text-[#4B5563] border-t border-[#F3F4F6] ${
+                isOpen ? 'block' : 'hidden'
+              }`}
+            >
+              {faq.a}
+            </div>
           </div>
         )
       })}

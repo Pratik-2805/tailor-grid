@@ -3,16 +3,16 @@ import { ContactClient } from './contact-client'
 import { SITE_CONFIG, buildBreadcrumbSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'Contact Concierge Support — Tailoring & Fitting Assistance',
+  title: 'Contact Us',
   description:
-    'Need help with your garment fitting, order status, or tailoring consultation? Contact the Raffu concierge support team via email, phone, or live inquiry.',
+    'Have a question about your fitting or order? Contact the Raffu customer team by email or phone.',
   alternates: {
     canonical: '/contact',
   },
   openGraph: {
-    title: 'Contact Raffu Concierge Support | Raffu - Own Your Fit',
+    title: 'Contact Us | Raffu',
     description:
-      'Dedicated concierge support for tailoring consultations, fitting inquiries, and order assistance.',
+      'Have a question about your fitting or order? Contact the Raffu customer team by email or phone.',
     url: '/contact',
   },
 }
@@ -21,8 +21,8 @@ export default function ContactPage() {
   const contactSchema = {
     '@context': 'https://schema.org',
     '@type': 'ContactPage',
-    name: 'Contact Raffu Concierge Support',
-    description: 'Get in touch with Raffu for tailoring consultations and fitting inquiries.',
+    name: 'Contact Raffu',
+    description: 'Get in touch with Raffu for tailoring and fitting questions.',
     url: `${SITE_CONFIG.url}/contact`,
     mainEntity: {
       '@type': 'Organization',

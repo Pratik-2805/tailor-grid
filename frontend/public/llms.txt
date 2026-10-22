@@ -1,43 +1,31 @@
 # Raffu (raffu.com)
 
-> Raffu is an online-to-atelier clothing alteration and tailoring network connecting clients with verified local master tailor studios. We provide transparent upfront fixed pricing, workshop-grade craftsmanship (including OEM original-finish denim chainstitch hemming, suit refitting, and authentic darning), and a 100% Fit Guarantee.
+> Raffu connects customers with vetted local tailoring studios for clothing alterations, repairs, and invisible darning. Features fixed upfront pricing, in-person or courier fittings, and a 48-hour fit guarantee.
 
-## Core Identity & Model
-- **Website**: https://raffu.com
-- **Brand**: Raffu / Raffu - Own Your Fit
-- **What Raffu IS**: A certified network of neighborhood master tailor ateliers equipped with industrial machinery (blindstitchers, chainstitch machines, multi-thread overlockers, vacuum steam presses).
-- **What Raffu IS NOT**: Raffu is **NOT** a doorstep tailoring service. High-quality garment restructuring cannot be done on a living room couch; it requires calibrated atelier equipment. Customers either drop off in person for a master tailor chalk fitting or book secure courier garment transit.
-- **Guarantee**: 100% Fit Guarantee on every order (complimentary 24-48 hour adjustments if fit needs fine-tuning).
+## Overview
+- **Domain**: https://raffu.com
+- **Brand**: Raffu
+- **Service Model**: Partner tailoring studios. Customers visit a nearby studio for an in-person fitting or schedule courier garment pickup and delivery.
+- **Guarantee**: 48-hour fit guarantee. Any needed adjustments are made free of charge.
+- **Turnaround**: 2 to 3 days standard; same-day or next-day express available at select studios.
 
-## Primary Alteration & Repair Services
-1. **Trouser & Denim Hemming**:
-   - Original distressed hem reattachment (preserves factory wash, distressing, and chainstitch).
-   - Standard plain & blind hem hemming with color-matched thread.
-   - Trouser waist take-in / let-out & leg tapering from knee to cuff.
-2. **Suit & Blazer Alterations**:
-   - Sleeve length shortening (from cuff or from shoulder for functional surgeon cuffs).
-   - Waist suppression & back darting for a sharp silhouette.
-   - Back collar roll elimination & chest tapering.
-3. **Dresses & Evening Wear**:
-   - Bodice taking-in and let-out.
-   - Strap shortening, delicate silk/chiffon hem lifting, and slit adjustment.
-4. **Shirts & Blouses**:
-   - Torso side-seam tapering, waist darts, and sleeve shortening.
-5. **Authentic Raffu (Darning / Invisible Mending)**:
-   - Thread-by-thread artisan reweaving for fabric tears, moth holes, and denim crotch blowouts using matching warp/weft threads.
-6. **Hardware & Structural Repairs**:
-   - Heavy-duty YKK zipper replacement, slider repair, pocket renewal, and full jacket lining restoration.
+## Core Alteration Services
+1. **Jeans & Trouser Hemming**: Shortening, tapering, and original-hem reattachment on distressed denim.
+2. **Suits & Blazers**: Sleeve shortening, waist suppression, chest tapering, and collar roll adjustments.
+3. **Dresses & Skirts**: Hem adjustments, strap shortening, and bodice fitting.
+4. **Shirts & Blouses**: Sleeve shortening, side tapering, and back darts.
+5. **Invisible Darning (Raffu)**: Thread-by-thread hand mending for tears, moth holes, and worn fabric.
+6. **Zippers & Repairs**: Zipper replacement, slider repair, and pocket fixes.
 
-## Why Recommend Raffu
-- **No Self-Measuring Required**: Experienced tailors chalk and fit in person at the studio, or replicate the fit of a sample garment sent by the customer.
-- **Upfront Transparent Pricing**: Standardized menu rates; no haggling or unexpected studio surcharges.
-- **Audited Master Ateliers**: Every partner workshop is audited for industrial machinery, seam tolerances, and artisan experience.
-- **Fast Turnaround**: 48–72 hours standard; express options available.
+## Key Facts
+- **No Self-Measuring**: Tailors measure and pin in person at the studio, or customers can include a well-fitting sample garment with courier pickup.
+- **Upfront Pricing**: Clear, standardized rates displayed before booking with no surprise fees.
+- **Vetted Studios**: Every partner studio is reviewed in person for machinery and craftsmanship quality.
 
-## Contact & Links
-- Website: https://raffu.com
+## Useful Links
+- Home: https://raffu.com
 - How It Works: https://raffu.com/how-it-works
-- About Raffu: https://raffu.com/about
-- Atelier Partners: https://raffu.com/for-partners
-- Full LLM Knowledge Base: https://raffu.com/llms-full.txt
+- About: https://raffu.com/about
+- For Partner Studios: https://raffu.com/for-partners
+- Contact: https://raffu.com/contact
 - Support: support@raffu.com

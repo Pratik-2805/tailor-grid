@@ -180,24 +180,44 @@ export const TESTIMONIALS: Array<{ quote: string; author: string; role: string; 
 
 export const FAQS = [
   {
-    q: 'How does Raffu work?',
-    a: 'Simply choose your garment type and required alteration, enter your location, and our platform instantly matches you with a certified master tailor studio nearby. You get transparent upfront pricing, book a fitting or drop-off time, and receive your digital fitting pass with direct studio directions.',
+    q: 'What is Raffu?',
+    a: 'Raffu connects you with vetted local tailoring studios for clothing alterations and repairs. You get upfront pricing, simple booking, and a fit guarantee on every garment.',
   },
   {
-    q: 'Do I need to take measurements or pre-fit my clothes before booking?',
-    a: 'No, not at all! You do not need to measure, pin, or pre-fit anything yourself. Simply book your alteration, and hand your garment directly to the assigned master tailor, who takes all precision measurements and handles the fitting directly in person.',
+    q: 'Do you offer doorstep tailoring?',
+    a: 'No, all work is done in professional partner studios. High-quality alterations need specialized machines—like blindstitchers for cuffs, chainstitch units for denim, and vacuum steam presses—that cannot be brought to a home. You can visit a nearby studio for an in-person fitting or book a courier pickup.',
   },
   {
-    q: 'What if the fit is not 100% right upon collection?',
-    a: 'Every single order through Raffu is protected by our 100% Fit Guarantee. When you collect your item at the studio, you can try it on right there. If any minor tweak is needed, the partner studio will adjust it complimentary within 24 hours.',
+    q: 'Do I need to measure or pin my clothes before booking?',
+    a: 'No. If you visit a studio, the tailor will measure and pin your garments during your fitting. If you prefer courier pickup, you can include a sample garment that fits you well, and the tailor will match its measurements.',
   },
   {
-    q: 'How are partner studios vetted and selected?',
-    a: 'Every studio in the Raffu network undergoes rigorous in-person auditing. We check machine calibration (including specialist industrial blind-stitch, overlock, and chainstitch machines), artisan craftsmanship portfolio, turnaround reliability, and customer service standards.',
+    q: 'How do you preserve original hems on jeans?',
+    a: 'Our tailors carefully detach the original factory-finished hem, shorten the jeans to your requested inseam, and reattach the original distressed hem using matching thread so your jeans keep their factory look.',
+  },
+  {
+    q: 'What suit and blazer alterations can I book?',
+    a: 'Our partner studios handle sleeve shortening, taking in or letting out the waist, adjusting chest fit, tapering trousers, and correcting collar rolls.',
+  },
+  {
+    q: 'What is invisible darning (Raffu)?',
+    a: 'Raffu is the traditional craft of thread-by-thread mending. A skilled artisan weaves matching yarn taken from hidden inner seams directly into fabric tears, moth holes, or worn denim to restore the garment without visible patches.',
+  },
+  {
+    q: 'How does the Fit Guarantee work?',
+    a: 'If your altered clothes do not fit properly when you try them on, let us know within 48 hours. The partner studio will make any needed adjustments free of charge.',
   },
   {
     q: 'How does pricing work?',
-    a: 'All prices on Raffu are standardized to real-world workshop rates in US Dollars ($). You pay the standard rate directly to the partner studio at pickup, with zero platform fees and zero markups.',
+    a: 'Every service has a fixed price listed on our website before you book. You pay the exact price shown, with no hidden fees or haggling at the counter.',
+  },
+  {
+    q: 'How long do alterations take?',
+    a: 'Standard alterations take 2 to 3 days. Express same-day or next-day turnaround is also available at participating studios.',
+  },
+  {
+    q: 'How do you vet partner studios?',
+    a: 'We evaluate every tailor and studio in person before they join Raffu. We inspect their machinery, review sample work, and ensure they meet our standards for clean finishing and reliable service.',
   },
 ]
 

@@ -3,16 +3,16 @@ import { AboutClient } from './about-client'
 import { SITE_CONFIG, buildBreadcrumbSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'About Raffu — Own Your Fit | Modern Tailoring & Atelier Network',
+  title: 'About Raffu',
   description:
-    'Learn how Raffu is revitalizing neighborhood craft tailoring. We connect discerning clients with verified master tailors, championing sustainable garment longevity, precision fit, and artisan livelihoods.',
+    'Learn how Raffu connects you with local tailoring studios for simple, reliable clothing alterations and repairs.',
   alternates: {
     canonical: '/about',
   },
   openGraph: {
-    title: 'About Raffu — Own Your Fit | Modern Tailoring & Atelier Network',
+    title: 'About Raffu | Clothing Alterations & Repairs',
     description:
-      'Reinventing clothing alterations. Verified local master tailors, sustainable clothing longevity, and bespoke fit guarantee.',
+      'Learn how Raffu connects you with local tailoring studios for simple, reliable clothing alterations and repairs.',
     url: '/about',
   },
 }
@@ -21,9 +21,9 @@ export default function AboutPage() {
   const aboutSchema = {
     '@context': 'https://schema.org',
     '@type': 'AboutPage',
-    name: 'About Raffu - Own Your Fit',
+    name: 'About Raffu',
     description:
-      'Learn how Raffu is revitalizing neighborhood craft tailoring. We connect discerning clients with verified master tailors.',
+      'Learn how Raffu connects you with local tailoring studios for simple, reliable clothing alterations and repairs.',
     url: `${SITE_CONFIG.url}/about`,
   }
 

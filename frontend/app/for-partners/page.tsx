@@ -3,16 +3,16 @@ import { ForPartnersClient } from './for-partners-client'
 import { SITE_CONFIG, buildBreadcrumbSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'Partner with Raffu — Grow Your Tailoring Atelier & Studio Business',
+  title: 'Partner with Raffu',
   description:
-    'Join the Raffu verified tailoring network. Increase atelier footfall, receive high-value alteration orders with clear digital specifications, and boost monthly studio revenue.',
+    'Join our network of tailoring studios. Get new local alteration customers, clear order details, and guaranteed payouts.',
   alternates: {
     canonical: '/for-partners',
   },
   openGraph: {
-    title: 'Partner with Raffu — Master Tailor Atelier Network | Raffu - Own Your Fit',
+    title: 'Partner with Raffu | Tailoring Studio Network',
     description:
-      'Fill empty bench capacity and scale your tailoring studio with verified high-ticket alteration orders.',
+      'Join our network of tailoring studios. Get new local alteration customers, clear order details, and guaranteed payouts.',
     url: '/for-partners',
   },
 }
