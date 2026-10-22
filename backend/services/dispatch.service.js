@@ -479,9 +479,8 @@ async function recordTailorAccept(orderId, tailorId) {
       const studioCatalogItems = allStudioCatalogItems.filter((item) => item.enabled && Number(item.price) > 0);
 
       let calculatedPrice = oData.price ? parseFloat(oData.price) : 20;
-      let calculatedPayout = oData.partnerPayout ? parseFloat(oData.partnerPayout) : calculatedPrice;
-      let studioCurrency = store.currency || 'GBP';
-      let studioCurrencySymbol = store.currencySymbol || '£';
+      let studioCurrency = (store.currency && store.currency !== 'GBP' ? store.currency : 'USD');
+      let studioCurrencySymbol = (store.currency && store.currency !== 'GBP' ? store.currencySymbol : '$') || '$';
 
       if (studioCatalogItems.length > 0) {
         if (studioCatalogItems[0].currency) studioCurrency = studioCatalogItems[0].currency;

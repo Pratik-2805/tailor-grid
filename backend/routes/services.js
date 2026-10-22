@@ -370,19 +370,19 @@ router.get('/studio/catalog', authenticateUser, async (req, res) => {
       customItems.length > 0 &&
       customItems.some((i) => i.enabled !== false && Number(i.price) > 0);
 
-    let studioCurrency = 'GBP';
-    let studioCurrencySymbol = '£';
+    let studioCurrency = 'USD';
+    let studioCurrencySymbol = '$';
 
     if (customItems.length > 0 && customItems[0].currency) {
       studioCurrency = customItems[0].currency;
-      studioCurrencySymbol = customItems[0].currencySymbol || '£';
+      studioCurrencySymbol = customItems[0].currencySymbol || '$';
     } else {
       const store = await prisma.partnerStore.findFirst({
         where: { id: effectiveStudioId },
       });
-      if (store?.currency) {
+      if (store?.currency && store.currency !== 'GBP') {
         studioCurrency = store.currency;
-        studioCurrencySymbol = store.currencySymbol || '£';
+        studioCurrencySymbol = store.currencySymbol || '$';
       }
     }
 
@@ -415,8 +415,8 @@ router.post('/studio/catalog', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'Catalog items array is required.' });
     }
 
-    const effectiveCurrency = currency || 'GBP';
-    const effectiveSymbol = currencySymbol || (effectiveCurrency === 'USD' ? '$' : effectiveCurrency === 'EUR' ? '€' : effectiveCurrency === 'INR' ? '₹' : '£');
+    const effectiveCurrency = currency || 'USD';
+    const effectiveSymbol = currencySymbol || (effectiveCurrency === 'USD' ? '$' : effectiveCurrency === 'EUR' ? '€' : effectiveCurrency === 'INR' ? '₹' : effectiveCurrency === 'GBP' ? '£' : '$');
 
     // Validate that at least 1 valid service has a proper positive price
     const validItems = items.filter(
