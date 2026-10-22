@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     title: 'Raffu | Clothes Alteration & Tailoring Studios',
     description:
       'Discover local tailoring and alteration studios, transparent service pricing, and clothing repair services with Raffu.',
-    url: 'https://raffu.com/',
+    url: 'https://raffu.com',
     siteName: 'Raffu',
     locale: 'en_IN',
     type: 'website',

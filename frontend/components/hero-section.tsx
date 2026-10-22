@@ -469,7 +469,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             {/* 1. Location Header */}
             <div className="relative mb-3.5 flex items-center gap-1.5 text-sm sm:text-[15px] font-medium text-black">
               <MapPin size={18} className="text-[#0F1115] shrink-0" />
-              <span className="font-bold truncate max-w-[180px] sm:max-w-[280px]" title={selectedCity}>
+              <span suppressHydrationWarning className="font-bold truncate max-w-[180px] sm:max-w-[280px]" title={selectedCity}>
                 {formatLocationDisplay(selectedCity) || selectedCity || 'Select city'}
               </span>
               <button
