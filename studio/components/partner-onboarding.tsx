@@ -22,8 +22,9 @@ import {
   verifyOtp,
   checkEmailExists,
   CUSTOMER_SITE_URL,
+  getCustomerSiteUrl,
 } from '@/lib/api'
-import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, getAuthUser } from '@/lib/cookies'
+import { setAuthRole, setAuthToken, setAuthUser, clearAllAuth, getAuthToken, getAuthUser, setCookie } from '@/lib/cookies'
 import { UberMapModal, SelectedLocationData } from './uber-map-modal'
 import { AnimatedLocationPin } from './animated-location-pin'
 import { OtpVerificationCard } from './otp-input'
@@ -717,10 +718,15 @@ export function PartnerOnboarding({
                   </a>
                   <button
                     onClick={() => {
-                      clearAllAuth()
-                      if (onSignOut) onSignOut()
-                      if (typeof window !== 'undefined') {
-                        window.location.href = CUSTOMER_SITE_URL || '/'
+                      if (onSignOut) {
+                        onSignOut()
+                      } else {
+                        clearAllAuth()
+                        setCookie('tg_studio_signout', '1', 1 / 1440, '/')
+                        const targetUrl = getCustomerSiteUrl('/?signout=studio')
+                        if (typeof window !== 'undefined') {
+                          window.location.href = targetUrl
+                        }
                       }
                     }}
                     className="w-full text-left px-4 py-2 hover:bg-gray-50 text-red-600 font-medium cursor-pointer"
@@ -768,8 +774,13 @@ export function PartnerOnboarding({
                       if (currentStep === 'phone-verify') setCurrentStep('shop-info')
                       else if (currentStep === 'shop-info') setCurrentStep('location')
                       else if (currentStep === 'location') {
-                        if (onSignOut) onSignOut()
-                        else if (typeof window !== 'undefined') window.location.replace(CUSTOMER_SITE_URL)
+                        if (onSignOut) {
+                          onSignOut()
+                        } else if (typeof window !== 'undefined') {
+                          setCookie('tg_studio_signout', '1', 1 / 1440, '/')
+                          const targetUrl = getCustomerSiteUrl('/?signout=studio')
+                          window.location.replace(targetUrl)
+                        }
                       }
                     }}
                     className="size-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-700 cursor-pointer transition-colors"

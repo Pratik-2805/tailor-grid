@@ -1006,7 +1006,7 @@ router.get('/search', async (req, res) => {
 
     const query = q.trim();
 
-    const [customers, studios, orders] = await Promise.all([
+    const [customers, studios, orders, inquiries] = await Promise.all([
       // Customers search
       prisma.user.findMany({
         where: {

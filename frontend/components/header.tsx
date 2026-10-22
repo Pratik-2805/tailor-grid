@@ -521,53 +521,53 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
 
                   {/* How it Works */}
                   <Link
-                      href="/how-it-works"
-                      onClick={() => nav('how-it-works')}
-                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                    >
-                      <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                      <span>How it Works</span>
-                    </Link>
+                    href="/how-it-works"
+                    onClick={() => nav('how-it-works')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>How it Works</span>
+                  </Link>
 
-                    {/* About Us */}
-                    <Link
-                      href="/about"
-                      onClick={() => nav('about')}
-                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                    >
-                      <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                      <span>About Us</span>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    {/* Guest Menu Items */}
-                    <Link
-                      href="/book"
-                      onClick={() => nav('book')}
-                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                    >
-                      <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                      <span>Book Alterations</span>
-                    </Link>
+                  {/* About Us */}
+                  <Link
+                    href="/about"
+                    onClick={() => nav('about')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>About Us</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {/* Guest Menu Items */}
+                  <Link
+                    href="/book"
+                    onClick={() => nav('book')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Scissors size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>Book Alterations</span>
+                  </Link>
 
-                    <Link
-                      href="/how-it-works"
-                      onClick={() => nav('how-it-works')}
-                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                    >
-                      <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                      <span>How it Works</span>
-                    </Link>
+                  <Link
+                    href="/how-it-works"
+                    onClick={() => nav('how-it-works')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <HelpCircle size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>How it Works</span>
+                  </Link>
 
-                    <Link
-                      href="/about"
-                      onClick={() => nav('about')}
-                      className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
-                    >
-                      <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
-                      <span>About Us</span>
-                    </Link>
+                  <Link
+                    href="/about"
+                    onClick={() => nav('about')}
+                    className="w-full flex items-center gap-4 py-3.5 px-2 text-left text-[16px] font-semibold text-[#111827] hover:bg-gray-50 active:bg-gray-100 rounded-xl transition-colors cursor-pointer group"
+                  >
+                    <Info size={20} strokeWidth={2.2} className="text-[#111827] shrink-0" />
+                    <span>About Us</span>
+                  </Link>
 
                     <Link
                       href="/for-partners"

@@ -52,8 +52,8 @@ import {
   FileText,
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType } from './data'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, sendOtp, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
-import { getStorageCookie, setStorageCookie, clearAllAuth } from '@/lib/cookies'
+import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, sendOtp, getCustomerSiteUrl, CUSTOMER_SITE_URL, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
+import { getStorageCookie, setStorageCookie, clearAllAuth, setCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
 import { StudioAvatar } from './studio-avatar'
@@ -588,8 +588,10 @@ export function PartnerFlow({
       } catch {
         clearAllAuth()
       }
+      setCookie('tg_studio_signout', '1', 1 / 1440, '/')
+      const targetUrl = getCustomerSiteUrl('/?signout=studio')
       if (typeof window !== 'undefined') {
-        window.location.href = '/'
+        window.location.href = targetUrl
       }
     }
   }

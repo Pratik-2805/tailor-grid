@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { exchangeAuthCode, getCurrentUser, refreshAccessToken, getCustomerSiteUrl } from '@/lib/api'
-import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken } from '@/lib/cookies'
+import { setAuthToken, setRefreshToken, setAuthRole, setAuthUser, getRefreshToken, clearAllAuth } from '@/lib/cookies'
 import { AlertCircle } from 'lucide-react'
 import { NormalLoader } from '@/components/normal-loader'
 
@@ -38,6 +38,7 @@ function StudioAuthCallbackInner() {
           // 2. Validate refresh token with backend and mint new access token into cookie
           const newAccessToken = await refreshAccessToken(refreshToken)
           if (!newAccessToken) {
+            clearAllAuth()
             throw new Error('Refresh token validation failed. Please sign in again.')
           }
           user = await getCurrentUser()
@@ -53,6 +54,7 @@ function StudioAuthCallbackInner() {
           // Validate existing cookie refresh token
           const newAccessToken = await refreshAccessToken(existingRt)
           if (!newAccessToken) {
+            clearAllAuth()
             throw new Error('Session expired. Please sign in again.')
           }
           user = await getCurrentUser()
@@ -107,6 +109,7 @@ function StudioAuthCallbackInner() {
           <p className="text-sm text-slate-400 mb-6 leading-relaxed">{error}</p>
           <button
             onClick={() => {
+              clearAllAuth()
               window.location.href = '/'
             }}
             className="w-full py-3 px-4 bg-[#9E593B] hover:bg-[#85472C] text-white text-sm font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-[#9E593B]/20"

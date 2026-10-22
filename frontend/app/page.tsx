@@ -1,24 +1,35 @@
 import type { Metadata } from 'next'
 import { HomeClient } from './home-client'
-import { SITE_CONFIG, buildLocalBusinessSchema, buildFAQSchema } from '@/lib/seo-schema'
+import { buildFAQSchema, buildServiceCatalogSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = {
-  title: 'Raffu — Own Your Fit | Doorstep Alterations, Custom Tailoring & Fitting',
+  title: 'Raffu | Clothes Alteration & Tailoring Studios',
   description:
-    'Book verified local master tailors with upfront transparent pricing. Fast doorstep pickup, precision trouser hemming, suit fitting & bespoke repairs. 100% Fit Guarantee.',
+    'Find verified tailoring and alteration studios with transparent pricing. Explore trouser and denim hemming, suit alterations, and clothing repairs with Raffu.',
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'Raffu — Own Your Fit | Doorstep Alterations, Custom Tailoring & Fitting',
+    title: 'Raffu | Clothes Alteration & Tailoring Studios',
     description:
-      'Book verified local master tailors with upfront transparent pricing. Fast doorstep pickup, precision trouser hemming, suit fitting & bespoke repairs. 100% Fit Guarantee.',
-    url: '/',
+      'Discover local tailoring and alteration studios, transparent service pricing, and clothing repair services with Raffu.',
+    url: 'https://raffu.com/',
+    siteName: 'Raffu',
+    locale: 'en_IN',
+    type: 'website',
+    images: [
+      {
+        url: '/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Raffu tailoring and alteration studio network',
+      },
+    ],
   },
 }
 
 export default function HomePage() {
-  const localBusinessSchema = buildLocalBusinessSchema()
+  const serviceSchema = buildServiceCatalogSchema()
   const faqSchema = buildFAQSchema()
 
   return (
@@ -26,7 +37,7 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(localBusinessSchema),
+          __html: JSON.stringify(serviceSchema),
         }}
       />
       <script

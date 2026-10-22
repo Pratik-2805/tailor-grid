@@ -1,0 +1,31 @@
+# Raffu (raffu.com)
+
+> Raffu connects customers with vetted local tailoring studios for clothing alterations, repairs, and invisible darning. Features fixed upfront pricing, in-person or courier fittings, and a 48-hour fit guarantee.
+
+## Overview
+- **Domain**: https://raffu.com
+- **Brand**: Raffu
+- **Service Model**: Partner tailoring studios. Customers visit a nearby studio for an in-person fitting or schedule courier garment pickup and delivery.
+- **Guarantee**: 48-hour fit guarantee. Any needed adjustments are made free of charge.
+- **Turnaround**: 2 to 3 days standard; same-day or next-day express available at select studios.
+
+## Core Alteration Services
+1. **Jeans & Trouser Hemming**: Shortening, tapering, and original-hem reattachment on distressed denim.
+2. **Suits & Blazers**: Sleeve shortening, waist suppression, chest tapering, and collar roll adjustments.
+3. **Dresses & Skirts**: Hem adjustments, strap shortening, and bodice fitting.
+4. **Shirts & Blouses**: Sleeve shortening, side tapering, and back darts.
+5. **Invisible Darning (Raffu)**: Thread-by-thread hand mending for tears, moth holes, and worn fabric.
+6. **Zippers & Repairs**: Zipper replacement, slider repair, and pocket fixes.
+
+## Key Facts
+- **No Self-Measuring**: Tailors measure and pin in person at the studio, or customers can include a well-fitting sample garment with courier pickup.
+- **Upfront Pricing**: Clear, standardized rates displayed before booking with no surprise fees.
+- **Vetted Studios**: Every partner studio is reviewed in person for machinery and craftsmanship quality.
+
+## Useful Links
+- Home: https://raffu.com
+- How It Works: https://raffu.com/how-it-works
+- About: https://raffu.com/about
+- For Partner Studios: https://raffu.com/for-partners
+- Contact: https://raffu.com/contact
+- Support: support@raffu.com

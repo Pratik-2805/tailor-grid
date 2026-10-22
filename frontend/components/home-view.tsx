@@ -1,5 +1,6 @@
 'use client'
 
+import { FaqAccordion } from './faq-accordion'
 import { HeroSection } from './hero-section'
 import { HowItWorksPreview } from './how-it-works-preview'
 import { PartnerBanner } from './partner-banner'
@@ -49,7 +50,7 @@ export function HomeView({
         <TrustBar />
       </div>
 
-      {/* 3. Uber/Rapido Ride & Service Option Cards (Doorstep, Express, Bespoke) */}
+      {/* 3. Service Option Cards (Studio Drop-off, Express, Bespoke) */}
       <ServiceGrid
         go={go}
         onSelectGarment={(garmentId) => onQuickSearch?.('W8 4EP', garmentId)}
@@ -63,6 +64,24 @@ export function HomeView({
 
       {/* 6. Client Stories & Craftsmanship Standards */}
       <TestimonialsSection />
+
+      {/* 7. Frequently Asked Questions (GEO & Search Indexable) */}
+      <section className="py-14 sm:py-20 bg-[#FAF8F5] border-t border-[#E8E1D5]">
+        <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#9E593B]">
+              Frequently Asked Questions
+            </span>
+            <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold text-[#0F1115] mt-2">
+              Everything You Need to Know About Raffu
+            </h2>
+            <p className="text-xs sm:text-sm text-[#6B7280] mt-2">
+              Clear answers about our partner studios, alteration services, and fit guarantee.
+            </p>
+          </div>
+          <FaqAccordion />
+        </div>
+      </section>
     </div>
   )
 }

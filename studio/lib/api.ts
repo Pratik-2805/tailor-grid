@@ -81,15 +81,16 @@ export function scheduleSilentRefresh(token?: string | null): void {
   }
 }
 
-export const CUSTOMER_SITE_URL =
+export const CUSTOMER_SITE_URL = (
   process.env.NEXT_PUBLIC_CUSTOMER_SITE_URL ||
   process.env.CUSTOMER_SITE_URL ||
   ''
+).replace(/\/$/, '')
 
 export function getCustomerSiteUrl(path: string = '', tokenOrCodeOrRt?: string | null): string {
-  const base = CUSTOMER_SITE_URL.replace(/\/$/, '')
+  const base = CUSTOMER_SITE_URL
   const cleanPath = path ? (path.startsWith('/') ? path : `/${path}`) : ''
-  const url = `${base}${cleanPath}`
+  const url = base ? `${base}${cleanPath}` : cleanPath || '/'
   
   if (tokenOrCodeOrRt) {
     const separator = url.includes('?') ? '&' : '?'

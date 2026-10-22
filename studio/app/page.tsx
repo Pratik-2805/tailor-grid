@@ -9,8 +9,8 @@ import { StudioHeader } from '@/components/studio-header'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { NormalLoader } from '@/components/normal-loader'
-import { getCurrentUser, logoutUser, getCustomerSiteUrl } from '@/lib/api'
-import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth, getRefreshToken, getAuthToken } from '@/lib/cookies'
+import { getCurrentUser, logoutUser, getCustomerSiteUrl, CUSTOMER_SITE_URL } from '@/lib/api'
+import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth, getRefreshToken, getAuthToken, setCookie } from '@/lib/cookies'
 
 export default function StudioPage() {
   const router = useRouter()
@@ -113,7 +113,13 @@ export default function StudioPage() {
       clearAllAuth()
     }
     setUser(null)
-    router.replace('/')
+    setCookie('tg_studio_signout', '1', 1 / 1440, '/')
+    const targetUrl = getCustomerSiteUrl('/?signout=studio')
+    if (typeof window !== 'undefined') {
+      window.location.href = targetUrl
+      return
+    }
+    router.replace(targetUrl)
   }
 
   if (loadingUser) {
