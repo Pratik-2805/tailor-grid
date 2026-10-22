@@ -414,22 +414,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (
-      screenOrPath === 'for-partners' ||
-      screenOrPath === '/for-partners' ||
-      screenOrPath === 'partner' ||
-      screenOrPath === '/partner' ||
-      screenOrPath.startsWith('/partner/') ||
-      screenOrPath.startsWith('/for-partners/')
-    ) {
-      const currentRole = user?.role || getAuthRole()
-      if (currentRole === 'CUSTOMER') {
-        router.push('/book')
-        return
-      }
+    // Normalize legacy aliases directly to canonical routes
+    let normalized = screenOrPath
+    if (normalized === 'support' || normalized === '/support' || normalized.startsWith('/support/')) {
+      normalized = '/contact'
+    } else if (normalized === 'order' || normalized === '/order') {
+      normalized = '/orders'
     }
 
-    const target = screenOrPath.startsWith('/') ? screenOrPath : `/${screenOrPath}`
+    const target = normalized.startsWith('/') ? normalized : `/${normalized}`
     router.push(target)
   }
 

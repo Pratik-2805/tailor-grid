@@ -38,9 +38,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     if (clean === 'about') return 'about'
     if (clean === 'how-it-works') return 'how-it-works'
     if (clean === 'for-partners') return 'for-partners'
-    if (clean === 'orders') return 'orders'
-    if (clean === 'order') return 'order'
-    if (clean === 'partner') return 'partner'
+    if (clean === 'orders' || clean === 'order') return 'orders'
     if (clean === 'profile') return 'profile'
     if (clean === 'contact' || clean === 'support') return 'contact'
     if (clean === 'privacy') return 'privacy'
@@ -50,13 +48,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   const currentScreen = getScreenFromPath()
   const isCustomer = Boolean(user && user.role === 'CUSTOMER')
-  const isStudioScreen = !isCustomer && (currentScreen === 'for-partners' || currentScreen === 'partner')
+  const isStudioScreen = !isCustomer && currentScreen === 'for-partners'
 
   // Remove footers completely from book, my orders, order details, and profile in customer site
   const isCustomerNoFooterScreen =
     currentScreen === 'book' ||
     currentScreen === 'orders' ||
-    currentScreen === 'order' ||
     currentScreen === 'profile' ||
     pathname === '/book' ||
     pathname?.startsWith('/book') ||
@@ -67,9 +64,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     pathname === '/profile' ||
     pathname?.startsWith('/profile')
 
-  const hideFooter = currentScreen === 'partner' || isCustomerNoFooterScreen
+  const hideFooter = isCustomerNoFooterScreen
 
-  // Route Guard: Logged-in customers must never access '/' (home) or partner/studio routes via URL or back navigation
+  // Route Guard: Logged-in customers must never access '/' (home) via URL or back navigation
   React.useEffect(() => {
     if (isAuthLoading) return
     const role = user?.role || getAuthRole()
@@ -77,10 +74,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       if (pathname === '/') {
         navigate('/book')
         return
-      }
-      const clean = pathname ? pathname.replace(/^\//, '').split('/')[0] : ''
-      if (clean === 'for-partners' || clean === 'partner') {
-        navigate('/book')
       }
     }
   }, [user, pathname, isAuthLoading, navigate])

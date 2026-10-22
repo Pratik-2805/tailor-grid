@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Banknote, Calendar, CheckCircle2, ShoppingBag } from 'lucide-react'
 import { type Screen } from './data'
+import { STUDIO_BASE_URL } from '@/lib/api'
 
 export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
   return (
@@ -61,7 +62,7 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
                 <ArrowRight size={14} />
               </Link>
               <Link
-                href="/partner"
+                href={STUDIO_BASE_URL || '/for-partners'}
                 className="rounded-full border border-white/20 px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-white/10"
               >
                 Partner Store Portal

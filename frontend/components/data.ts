@@ -5,13 +5,13 @@ export type Screen =
   | 'about'
   | 'for-partners'
   | 'orders'
-  | 'partner'
-  | 'order'
   | 'profile'
   | 'contact'
-  | 'support'
   | 'privacy'
   | 'terms'
+  // Legacy aliases (normalized automatically to canonical routes)
+  | 'order'
+  | 'support'
 
 export type GarmentCategory = {
   id: string
