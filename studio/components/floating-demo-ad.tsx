@@ -22,7 +22,9 @@ import {
   BadgeCheck,
   Clock,
   Lock,
+  Sparkles,
 } from 'lucide-react'
+import { RaffuLogo } from './raffu-logo'
 
 export interface FloatingDemoAdProps {
   onStartOnboarding?: () => void
@@ -600,49 +602,72 @@ export function FloatingDemoAd({ onStartOnboarding }: FloatingDemoAdProps) {
 
   return (
     <>
-      {/* ─── COLLAPSED FLOATING PILL (LIGHT THEME) ─── */}
+      {/* ─── COLLAPSED FLOATING PILL (STREAMLINED RAFFU GUIDE) ─── */}
       {!isOpen && (
         <div
           role="region"
           aria-label="How it works quick demo"
-          className="fixed bottom-5 right-5 z-40 transition-all duration-300 ease-out hover:scale-[1.02]"
+          className="fixed bottom-5 right-5 z-40 transition-all duration-300 ease-out"
         >
           <div className="relative group">
-            <div className="flex items-center gap-3 bg-white text-neutral-900 px-3.5 py-2.5 rounded-2xl border border-neutral-200/90 shadow-[0_10px_35px_rgba(0,0,0,0.14)]">
+            {/* Ambient Pulse Glow */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#9E593B]/40 to-[#10B981]/30 rounded-2xl blur-sm opacity-40 group-hover:opacity-80 transition duration-300 animate-pulse" />
+
+            <div className="relative flex items-center gap-3 bg-white/95 backdrop-blur-md text-neutral-900 pl-2.5 pr-2 py-2 rounded-2xl border border-[#E8E1D5] shadow-[0_10px_32px_rgba(15,17,21,0.12)] hover:shadow-[0_14px_40px_rgba(158,89,59,0.2)] transition-all">
+              
+              {/* Raffu Logo Mark with Play Indicator */}
               <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="w-9 h-9 rounded-xl bg-[#9E593B] text-white flex items-center justify-center shrink-0 shadow-md hover:bg-[#B36846] transition-colors"
-                title="Play Quick Walkthrough"
+                className="relative flex items-center justify-center shrink-0 cursor-pointer group/logo"
+                title="Watch How Raffu Works"
               >
-                <Play size={15} className="fill-white translate-x-[1px]" />
+                <div className="w-10 h-10 rounded-xl bg-[#FAF8F5] border border-[#E8E1D5] flex items-center justify-center shadow-xs overflow-hidden group-hover/logo:border-[#9E593B] transition-colors">
+                  <RaffuLogo devanagariOnly size="sm" />
+                </div>
+                <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#9E593B] text-white flex items-center justify-center shadow-xs">
+                  <Play size={8} className="fill-white translate-x-[0.5px]" />
+                </span>
               </button>
 
+              {/* Reduced Concise Text */}
               <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="text-left cursor-pointer pr-1"
+                className="text-left cursor-pointer flex flex-col justify-center pr-1 group/btn"
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[12px] font-bold text-neutral-900 tracking-tight">
-                    How Onboarding Works
+                <div className="flex items-center gap-1.5 leading-none mb-1">
+                  <span className="text-[13px] font-black text-[#0F1115] tracking-tight group-hover/btn:text-[#9E593B] transition-colors">
+                    How Raffu Works
                   </span>
-                  <span className="text-[9px] font-semibold bg-[#9E593B]/10 text-[#9E593B] px-1.5 py-0.2 rounded font-mono">
-                    Step Guide
+                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#9E593B] bg-[#9E593B]/10 px-1.5 py-0.5 rounded">
+                    Guide
                   </span>
                 </div>
-                <p className="text-[10px] text-neutral-500">
-                  Exact form steps, map pin &amp; catalog pricing
-                </p>
+                <span className="text-[11px] font-medium text-neutral-500 leading-none">
+                  Customer &amp; Studio Walkthrough
+                </span>
               </button>
 
+              {/* Watch CTA Button */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0F1115] hover:bg-[#9E593B] active:scale-95 text-white text-[11px] font-bold transition-all shadow-xs shrink-0 cursor-pointer ml-0.5"
+              >
+                <span>Watch</span>
+                <Play size={9} className="fill-white translate-x-[0.5px]" />
+              </button>
+
+              {/* Dismiss / Close Button */}
               <button
                 type="button"
                 onClick={() => setIsDismissed(true)}
-                className="text-neutral-400 hover:text-neutral-700 p-1 -mr-1 transition-colors rounded-lg hover:bg-neutral-100"
-                title="Close"
+                className="text-neutral-400 hover:text-neutral-700 p-1.5 rounded-lg hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+                title="Dismiss guide"
+                aria-label="Close walkthrough guide"
               >
-                <X size={14} />
+                <X size={13} />
               </button>
             </div>
           </div>
