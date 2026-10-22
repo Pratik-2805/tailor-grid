@@ -18,7 +18,7 @@ interface StudioProxyProps {
  * 
  * Intercepts access to the Studio Portal. If a user is registered as a CUSTOMER,
  * it immediately triggers an unauthorized access toast, clears the studio session,
- * and automatically redirects them to the customer site (port 3000).
+ * and automatically redirects them to the customer site.
  */
 export function StudioProxy({ children }: StudioProxyProps) {
   const pathname = usePathname()

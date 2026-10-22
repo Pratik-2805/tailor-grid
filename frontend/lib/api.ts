@@ -630,6 +630,10 @@ export async function getCurrentUser(): Promise<User | null> {
     if (res.ok) {
       const data = await res.json()
       if (data.user) {
+        if (data.user.role === 'ADMIN') {
+          clearAllAuth()
+          return null
+        }
         setAuthUser(data.user)
         setAuthRole(data.user.role || 'CUSTOMER')
         return data.user
