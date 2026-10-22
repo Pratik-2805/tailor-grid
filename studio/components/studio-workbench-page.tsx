@@ -6,8 +6,8 @@ import { ToastContainer, toast } from 'react-toastify'
 import { makeOtp, type User } from '@/components/data'
 import { PartnerFlow, type StudioTab } from '@/components/partner-flow'
 import { NormalLoader } from '@/components/normal-loader'
-import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser } from '@/lib/api'
-import { getAuthUser, setAuthUser, clearAllAuth } from '@/lib/cookies'
+import { getCurrentUser, CUSTOMER_SITE_URL, logoutUser, getCustomerSiteUrl } from '@/lib/api'
+import { getAuthUser, setAuthUser, clearAllAuth, setCookie } from '@/lib/cookies'
 
 let inMemoryUser: User | null = null
 
@@ -57,7 +57,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
           setUser(null)
           clearAllAuth()
           if (typeof window !== 'undefined') {
-            window.location.replace(CUSTOMER_SITE_URL)
+            window.location.replace(CUSTOMER_SITE_URL || getCustomerSiteUrl('/') || '/')
           }
         }
       })
@@ -67,7 +67,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
         setUser(null)
         clearAllAuth()
         if (typeof window !== 'undefined') {
-          window.location.replace(CUSTOMER_SITE_URL)
+          window.location.replace(CUSTOMER_SITE_URL || getCustomerSiteUrl('/') || '/')
         }
       })
       .finally(() => {
@@ -87,7 +87,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
         return
       }
       if (user.role !== 'STUDIO' && user.role !== 'ADMIN') {
-        window.location.replace(customerSiteUrl)
+        window.location.replace(customerSiteUrl || getCustomerSiteUrl('/') || '/')
       }
     }
   }, [loadingUser, user, customerSiteUrl])
@@ -97,7 +97,7 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
     setAuthUser(updated)
     toast.success('Studio profile updated successfully!', {
       position: 'top-center',
-      autoClose: 3000,
+      autoClose: 3500,
     })
   }
 
@@ -108,11 +108,13 @@ export function StudioWorkbenchPage({ initialTab }: StudioWorkbenchPageProps) {
       clearAllAuth()
     }
     setUser(null)
+    setCookie('tg_studio_signout', '1', 1 / 1440, '/')
+    const targetUrl = getCustomerSiteUrl('/?signout=studio')
     if (typeof window !== 'undefined') {
-      window.location.href = '/'
+      window.location.href = targetUrl
       return
     }
-    router.replace('/')
+    router.replace(targetUrl)
   }
 
   if (loadingUser || !user) {

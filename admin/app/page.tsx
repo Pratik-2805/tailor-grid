@@ -129,6 +129,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
 
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [autoRefresh, setAutoRefresh] = useState(true)
 
   // Shared in-memory cache to prevent layout fluctuation when switching routes
   const [overview, setOverview] = useState<any>(() => {
@@ -332,6 +333,15 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       clearTimeout(safetyTimer)
     }
   }, [])
+
+  // Auto-refresh interval (silent 30s background poll when enabled and authenticated)
+  useEffect(() => {
+    if (!autoRefresh || !adminUser) return
+    const interval = setInterval(() => {
+      loadAllData(true)
+    }, 30000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, adminUser])
 
   // Handle Login submission
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -691,6 +701,29 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
       }
     } catch (err: any) {
       toast.error(err.message || 'Error updating order')
+    }
+  }
+
+  // Quick Inline Order Status Updater (Optimistic update without modal)
+  const handleQuickUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      // 1. Optimistic update in UI
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      )
+      const res = await updateAdminOrder(orderId, { status: newStatus })
+      if (res.success && res.order) {
+        toast.success(`Order status updated to "${newStatus}"`)
+        fetchAdminOverview().then((ov) => {
+          if (ov) setOverview(ov)
+        })
+      } else {
+        toast.error(res.error || 'Failed to update order status')
+        loadAllData(true)
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating order status')
+      loadAllData(true)
     }
   }
 
@@ -1061,10 +1094,24 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
 
           {/* Quick Links & Refresh & Admin Profile */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Subtle Live Auto-Refresh Toggle Pill */}
+            <button
+              onClick={() => setAutoRefresh((prev) => !prev)}
+              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-[11px] rounded-full border transition-all cursor-pointer ${
+                autoRefresh
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold shadow-2xs'
+                  : 'bg-[#FAF8F5] text-[#78716C] border-[#E8E1D5] hover:text-[#1E2229]'
+              }`}
+              title={autoRefresh ? 'Live auto-refresh enabled (every 30s)' : 'Click to enable live 30s auto-refresh'}
+            >
+              <span className={`size-1.5 rounded-full ${autoRefresh ? 'bg-emerald-500 animate-pulse' : 'bg-stone-300'}`} />
+              <span>{autoRefresh ? 'Live: 30s' : 'Auto-refresh off'}</span>
+            </button>
+
             <button
               onClick={() => loadAllData(true)}
               disabled={refreshing}
-              title="Refresh live data"
+              title="Refresh live data now"
               className="p-2 text-[#78716C] hover:text-[#1E2229] rounded-lg hover:bg-[#F3EFEA] transition-colors cursor-pointer"
             >
               <RefreshCw size={16} className={refreshing ? 'animate-spin text-[#9E593B]' : ''} />
@@ -1239,6 +1286,7 @@ export default function SuperAdminPage({ initialTab = 'overview' }: SuperAdminPa
               orderRetailFilter={orderRetailFilter}
               setOrderRetailFilter={setOrderRetailFilter}
               onEditOrder={setEditingOrder}
+              onQuickStatusChange={handleQuickUpdateOrderStatus}
             />
           )}
 

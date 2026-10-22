@@ -19,6 +19,7 @@ import {
   clearLegacyOrderCookies,
   deleteCookie,
   hasActiveSession,
+  getCookie,
 } from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
 
@@ -104,19 +105,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         keysToRemove.forEach((k) => localStorage.removeItem(k))
       } catch { }
 
-      const stored = getAuthUser<User>()
-      if (stored && stored.status !== 'INACTIVE') {
-        if (stored.role === 'STUDIO' || stored.role === 'TEMP_STUDIO') {
-          const rt = getRefreshToken() || getAuthToken()
-          window.location.replace(getStudioUrl('/auth/callback', rt))
-          return
-        }
-        setUser(stored)
-      } else if (!hasActiveSession() && !getAuthToken() && !getRefreshToken()) {
+      const params = new URLSearchParams(window.location.search)
+      const isStudioSignout = params.get('signout') === 'studio' || Boolean(getCookie('tg_studio_signout'))
+
+      if (isStudioSignout) {
+        deleteCookie('tg_studio_signout', '/')
+        deleteCookie('tg_studio_signout', '')
+        clearAllAuth()
         setUser(null)
+        if (params.get('signout') === 'studio') {
+          window.history.replaceState({}, '', window.location.pathname)
+        }
+      } else {
+        const stored = getAuthUser<User>()
+        if (stored && stored.status !== 'INACTIVE') {
+          if (stored.role === 'STUDIO' || stored.role === 'TEMP_STUDIO') {
+            const cookieRt = getCookie('tg_refresh_token') || getCookie('refreshToken')
+            const rt = cookieRt || getAuthToken()
+            if (!rt) {
+              clearAllAuth()
+              setUser(null)
+              return
+            }
+            window.location.replace(getStudioUrl('/auth/callback', rt))
+            return
+          }
+          if (stored.role === 'ADMIN') {
+            // Admin account must never be treated as a customer on the storefront.
+            clearAllAuth()
+            setUser(null)
+            return
+          }
+          setUser(stored)
+        } else if (!hasActiveSession() && !getAuthToken() && !getRefreshToken()) {
+          setUser(null)
+        }
       }
 
-      const params = new URLSearchParams(window.location.search)
       const authParam = params.get('auth')
       const unauthParam = params.get('unauthorized')
 
@@ -136,7 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const hasSession = hasActiveSession() || Boolean(getAuthToken() || getRefreshToken())
+    const searchParamsInit = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+    const isExplicitSignout = Boolean(searchParamsInit?.get('signout') === 'studio' || getCookie('tg_studio_signout'))
+    const hasSession = !isExplicitSignout && (hasActiveSession() || Boolean(getAuthToken() || getRefreshToken()))
     if (hasSession) {
       scheduleSilentRefresh()
       getCurrentUser()
@@ -144,7 +171,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (u) {
             if (u.role === 'STUDIO' || u.role === 'TEMP_STUDIO') {
               const rt = getRefreshToken() || getAuthToken()
-              window.location.replace(getStudioUrl('/auth/callback', rt))
+              if (rt) {
+                window.location.replace(getStudioUrl('/auth/callback', rt))
+                return
+              }
+            }
+            if (u.role === 'ADMIN') {
+              clearAllAuth()
+              setUser(null)
               return
             }
             if (u.status !== 'INACTIVE') {
@@ -161,20 +195,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         })
         .catch(() => {
-          const cached = getAuthUser<User>()
-          if (cached && (cached.role === 'STUDIO' || cached.role === 'TEMP_STUDIO')) {
-            const rt = getRefreshToken() || getAuthToken()
-            window.location.replace(getStudioUrl('/auth/callback', rt))
-            return
-          }
-          if (cached && cached.status !== 'INACTIVE') {
-            setUser(cached)
-          } else {
-            if (!hasActiveSession() && !getRefreshToken()) {
-              setUser(null)
-              clearAllAuth()
-            }
-          }
+          clearAllAuth()
+          setUser(null)
         })
         .finally(() => {
           setIsAuthLoading(false)
@@ -186,6 +208,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Sync auth state if cookies changed while user was in another portal tab
     const handleSync = () => {
+      if (getCookie('tg_studio_signout')) {
+        deleteCookie('tg_studio_signout', '/')
+        deleteCookie('tg_studio_signout', '')
+        clearAllAuth()
+        setUser(null)
+        return
+      }
       const hasToken = Boolean(getAuthToken() || getRefreshToken() || hasActiveSession())
       if (!hasToken) {
         setUser((prev) => (prev ? null : prev))
@@ -194,8 +223,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (u) {
             if (u.role === 'STUDIO' || u.role === 'TEMP_STUDIO') {
               const rt = getRefreshToken() || getAuthToken()
-              window.location.replace(getStudioUrl('/auth/callback', rt))
-              return
+              if (rt) {
+                window.location.replace(getStudioUrl('/auth/callback', rt))
+                return
+              }
             }
             if (u.status !== 'INACTIVE') {
               setUser(u)
@@ -209,7 +240,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               clearAllAuth()
             }
           }
-        }).catch(() => {})
+        }).catch(() => {
+          clearAllAuth()
+          setUser(null)
+        })
       }
     }
 

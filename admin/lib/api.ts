@@ -639,7 +639,7 @@ export async function respondToDispatch(
 // ==========================================
 
 function getAdminHeaders(): HeadersInit {
-  const token = typeof window !== 'undefined' ? (localStorage.getItem(ADMIN_TOKEN_KEY) || getAuthToken()) : null
+  const token = typeof window !== 'undefined' ? (getAdminToken() || localStorage.getItem(ADMIN_TOKEN_KEY)) : null
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -978,10 +978,10 @@ export async function loginSuperAdmin(idOrEmail: string, password: string): Prom
     setAdminToken(data.token)
     setAdminUser(data.user)
 
-    // Synchronize unified auth tokens & cookies so proxy recognizes Admin role across routes (7 days)
-    setAuthToken(data.token, 7)
-    setAuthRole('ADMIN')
-    setAuthUser(data.user)
+    // Ensure shared cookies are purged so admin credentials never leak across ports on localhost
+    removeAuthToken()
+    removeAuthRole()
+    removeAuthUser()
 
     return { success: true, token: data.token, user: data.user }
   } catch (err: any) {
