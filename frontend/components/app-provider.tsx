@@ -318,11 +318,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null)
     setIsAuthOpen(false)
-    toast.info('Signed out successfully.', {
-      position: 'top-center',
-      autoClose: 2500,
-    })
-    router.push('/')
+    if (typeof window !== 'undefined') {
+      window.location.href = '/'
+    } else {
+      router.push('/')
+    }
   }
 
   const navigate = async (screenOrPath: Screen | string) => {

@@ -117,8 +117,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }, [pathname])
 
-  // Full-screen clean site normal loader without navbar or footer during initial load
-  if (isAuthLoading) {
+  // Full-screen loader only for customer-protected private account routes during auth validation
+  const isProtectedAccountRoute =
+    currentScreen === 'orders' ||
+    currentScreen === 'order' ||
+    currentScreen === 'profile' ||
+    pathname === '/orders' ||
+    pathname?.startsWith('/orders') ||
+    pathname === '/order' ||
+    pathname?.startsWith('/order') ||
+    pathname === '/profile' ||
+    pathname?.startsWith('/profile')
+
+  if (isAuthLoading && isProtectedAccountRoute) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#FAF8F5]">
         <NormalLoader />

@@ -2695,10 +2695,14 @@ router.post("/logout", async (req, res) => {
     const expiredDate = "Thu, 01 Jan 1970 00:00:00 GMT";
     const isProd = process.env.NODE_ENV === "production";
 
-    // Clear cookies for BOTH specific host and root domain to wipe remnants
+    // Clear cookies across all possible domain scopes
+    const configuredDomain = process.env.COOKIE_DOMAIN || undefined;
     const domainsToClear = isProd
-      ? [".luxenart.in", "studio.luxenart.in", "luxenart.in", undefined]
-      : [undefined];
+      ? [".luxenart.in", "studio.luxenart.in", "luxenart.in", configuredDomain, undefined].filter(
+          (v, i, a) => a.indexOf(v) === i,
+        )
+      : [configuredDomain, undefined].filter((v, i, a) => a.indexOf(v) === i);
+
     const cookieNames = [
       "tg_token",
       "tg_refresh_token",
@@ -2734,13 +2738,19 @@ router.post("/logout", async (req, res) => {
     });
 
     // Explicit Set-Cookie response headers targeting specific domain
+    // MUST include HttpOnly variant so browsers erase HttpOnly cookies like tg_refresh_token!
     const setCookieHeaders = [];
     domainsToClear.forEach((dom) => {
       const domainAttr = dom ? `; Domain=${dom}` : "";
       const secureAttr = isProd ? "; Secure" : "";
       cookieNames.forEach((name) => {
+        // 1. Clear with HttpOnly (REQUIRED for browsers to delete HttpOnly cookies like tg_refresh_token)
         setCookieHeaders.push(
-          `${name}=; Path=/${domainAttr}; Expires=${expiredDate}; Max-Age=0; SameSite=Lax${secureAttr}`,
+          `${name}=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax; HttpOnly${domainAttr}${secureAttr}`,
+        );
+        // 2. Clear without HttpOnly (clears non-HttpOnly client cookies)
+        setCookieHeaders.push(
+          `${name}=; Path=/; Expires=${expiredDate}; Max-Age=0; SameSite=Lax${domainAttr}${secureAttr}`,
         );
       });
     });

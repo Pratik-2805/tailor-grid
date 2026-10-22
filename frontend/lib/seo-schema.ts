@@ -7,7 +7,7 @@ export const SITE_CONFIG = {
   tagline: 'Clothing Alterations & Tailoring Studios',
   description:
     'Find verified tailoring and alteration studios with transparent pricing. Explore trouser and denim hemming, suit alterations, and clothing repairs with Raffu.',
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://raffu.com',
+  url: (process.env.NEXT_PUBLIC_SITE_URL || 'https://raffu.com').replace(/\/+$/, ''),
   locale: 'en_IN',
   logoUrl: '/favicon-512x512.png',
   ogImage: '/og-image.jpg',
@@ -53,7 +53,7 @@ export function buildWebSiteSchema() {
     '@id': `${SITE_CONFIG.url}/#website`,
     name: 'Raffu',
     alternateName: ['raffu.com', 'Raffu Studios'],
-    url: `${SITE_CONFIG.url}/`,
+    url: `${SITE_CONFIG.url}`,
     description: SITE_CONFIG.description,
     publisher: {
       '@id': `${SITE_CONFIG.url}/#organization`,
@@ -81,7 +81,7 @@ export function buildOrganizationSchema() {
     name: 'Raffu',
     legalName: 'Raffu Labs Ltd.',
     alternateName: ['raffu.com'],
-    url: `${SITE_CONFIG.url}/`,
+    url: `${SITE_CONFIG.url}`,
     logo: {
       '@type': 'ImageObject',
       url: `${SITE_CONFIG.url}/android-chrome-512x512.png`,
@@ -261,7 +261,8 @@ export function buildPartnerStudioSchema(store: StoreOption | {
 }) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'TailorStore',
+    '@type': ['LocalBusiness', 'ProfessionalService'],
+    additionalType: 'https://en.wikipedia.org/wiki/Tailor',
     '@id': `${SITE_CONFIG.url}/partner/${store.id}#studio`,
     name: store.name,
     parentOrganization: {

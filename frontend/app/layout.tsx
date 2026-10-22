@@ -111,6 +111,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} scroll-smooth`}>
       <head>
         <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+        <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Context Summary" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
