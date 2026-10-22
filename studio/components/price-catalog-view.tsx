@@ -44,8 +44,8 @@ const TURNAROUND_OPTIONS = [
 ]
 
 export const AVAILABLE_CURRENCIES = [
-  { code: 'GBP', symbol: '£', name: 'GBP (£) · British Pound' },
   { code: 'USD', symbol: '$', name: 'USD ($) · US Dollar' },
+  { code: 'GBP', symbol: '£', name: 'GBP (£) · British Pound' },
   { code: 'EUR', symbol: '€', name: 'EUR (€) · Euro' },
   { code: 'INR', symbol: '₹', name: 'INR (₹) · Indian Rupee' },
   { code: 'CAD', symbol: '$', name: 'CAD ($) · Canadian Dollar' },
@@ -55,7 +55,7 @@ export const AVAILABLE_CURRENCIES = [
 ]
 
 export function getCurrencySymbol(code?: string): string {
-  if (!code) return '£'
+  if (!code) return '$'
   const found = AVAILABLE_CURRENCIES.find((c) => c.code.toUpperCase() === code.toUpperCase())
   if (found) return found.symbol
   if (code === 'INR') return '₹'
@@ -93,9 +93,33 @@ export function PriceCatalogView({
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>([])
   const originalSnapshotRef = useRef<string>('')
 
-  // Workshop Currency
-  const [selectedCurrency, setSelectedCurrency] = useState('GBP')
-  const [selectedCurrencySymbol, setSelectedCurrencySymbol] = useState('£')
+  const effectiveStudioId = user?.studioId || (user as any)?.id || 'atelier-studio'
+
+  // Workshop Currency - Defaults to USD ($) and persists across refreshes
+  const [selectedCurrency, setSelectedCurrency] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const studioKey = `tg_studio_currency_${effectiveStudioId}`
+      const saved = localStorage.getItem(studioKey) || localStorage.getItem('tg_studio_currency')
+      if (saved) return saved
+    }
+    const userCurr = (user as any)?.currency
+    if (userCurr && userCurr !== 'GBP') return userCurr
+    return 'USD'
+  })
+
+  const [selectedCurrencySymbol, setSelectedCurrencySymbol] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const studioKey = `tg_studio_currency_symbol_${effectiveStudioId}`
+      const savedSym = localStorage.getItem(studioKey) || localStorage.getItem('tg_studio_currency_symbol')
+      if (savedSym) return savedSym
+      const currKey = `tg_studio_currency_${effectiveStudioId}`
+      const savedCurr = localStorage.getItem(currKey) || localStorage.getItem('tg_studio_currency')
+      if (savedCurr) return getCurrencySymbol(savedCurr)
+    }
+    const userCurr = (user as any)?.currency
+    if (userCurr && userCurr !== 'GBP') return (user as any)?.currencySymbol || getCurrencySymbol(userCurr)
+    return '$'
+  })
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState('')
@@ -139,8 +163,6 @@ export function PriceCatalogView({
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
 
-  const effectiveStudioId = user?.studioId || (user as any)?.id || 'atelier-studio'
-
   // Load catalog on mount
   useEffect(() => {
     let isMounted = true
@@ -151,28 +173,48 @@ export function PriceCatalogView({
         if (!isMounted) return
         setBaseCategories(data.baseCategories || [])
 
-        // Initialize currency from server
-        if (data.currency) {
-          setSelectedCurrency(data.currency)
-          setSelectedCurrencySymbol(
-            data.currencySymbol ||
-              (data.currency === 'USD'
-                ? '$'
-                : data.currency === 'EUR'
-                ? '€'
-                : data.currency === 'INR'
-                ? '₹'
-                : '£')
-          )
-        } else if ((user as any)?.currency) {
-          setSelectedCurrency((user as any).currency)
-          setSelectedCurrencySymbol((user as any).currencySymbol || '£')
+        // Determine current effective currency:
+        // Priority 1: User's explicitly chosen currency in localStorage
+        // Priority 2: Server catalog currency if filled / custom
+        // Priority 3: Default to USD ($)
+        let activeCurr = 'USD'
+        let activeSym = '$'
+
+        if (typeof window !== 'undefined') {
+          const studioKey = `tg_studio_currency_${effectiveStudioId}`
+          const savedLocal = localStorage.getItem(studioKey) || localStorage.getItem('tg_studio_currency')
+          if (savedLocal) {
+            activeCurr = savedLocal
+            activeSym =
+              localStorage.getItem(`tg_studio_currency_symbol_${effectiveStudioId}`) ||
+              localStorage.getItem('tg_studio_currency_symbol') ||
+              getCurrencySymbol(savedLocal)
+          } else if (data.currency && data.hasFilledCatalog) {
+            activeCurr = data.currency
+            activeSym = data.currencySymbol || getCurrencySymbol(data.currency)
+          } else if ((user as any)?.currency && (user as any).currency !== 'GBP') {
+            activeCurr = (user as any).currency
+            activeSym = (user as any).currencySymbol || getCurrencySymbol(activeCurr)
+          } else if (data.currency && data.currency !== 'GBP') {
+            activeCurr = data.currency
+            activeSym = data.currencySymbol || getCurrencySymbol(data.currency)
+          }
+        } else if (data.currency && data.hasFilledCatalog) {
+          activeCurr = data.currency
+          activeSym = data.currencySymbol || getCurrencySymbol(data.currency)
         }
+
+        setSelectedCurrency(activeCurr)
+        setSelectedCurrencySymbol(activeSym)
 
         let loadedItems: StudioCatalogItemData[] = []
         if (data.items && data.items.length > 0) {
-          loadedItems = data.items
-          setCatalogItems(data.items)
+          loadedItems = data.items.map((item) => ({
+            ...item,
+            currency: activeCurr,
+            currencySymbol: activeSym,
+          }))
+          setCatalogItems(loadedItems)
 
           // Extract custom categories
           const baseCatIds = new Set((data.baseCategories || []).map((c) => c.id))
@@ -197,8 +239,8 @@ export function PriceCatalogView({
                 name: svc.name,
                 description: svc.description,
                 price: 0,
-                currency: data.currency || 'GBP',
-                currencySymbol: data.currencySymbol || '£',
+                currency: activeCurr,
+                currencySymbol: activeSym,
                 partnerPayout: 0,
                 turnaroundDays: svc.turnaroundDays || 2,
                 avgTurnaround: `${svc.turnaroundDays || 2} days`,
@@ -212,7 +254,7 @@ export function PriceCatalogView({
         }
 
         // Take initial snapshot to track changes
-        const currentCurr = data.currency || (user as any)?.currency || 'GBP'
+        const currentCurr = activeCurr
         originalSnapshotRef.current = getCatalogSnapshot(loadedItems, currentCurr)
 
         // Expand all categories initially
@@ -376,6 +418,26 @@ export function PriceCatalogView({
           currencySymbol: found.symbol,
         }))
       )
+
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('tg_studio_currency', found.code)
+          localStorage.setItem('tg_studio_currency_symbol', found.symbol)
+          if (effectiveStudioId) {
+            localStorage.setItem(`tg_studio_currency_${effectiveStudioId}`, found.code)
+            localStorage.setItem(`tg_studio_currency_symbol_${effectiveStudioId}`, found.symbol)
+          }
+          window.dispatchEvent(
+            new CustomEvent('tg_currency_updated', {
+              detail: { currency: found.code, currencySymbol: found.symbol },
+            })
+          )
+          const bc = new BroadcastChannel('tg_currency_channel')
+          bc.postMessage({ currency: found.code, currencySymbol: found.symbol })
+          bc.close()
+        } catch {}
+      }
+
       toast.info(`Currency set to ${found.name}`)
     }
   }
@@ -464,6 +526,16 @@ export function PriceCatalogView({
       })
 
       if (res.success) {
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('tg_studio_currency', selectedCurrency)
+            localStorage.setItem('tg_studio_currency_symbol', selectedCurrencySymbol)
+            if (effectiveStudioId) {
+              localStorage.setItem(`tg_studio_currency_${effectiveStudioId}`, selectedCurrency)
+              localStorage.setItem(`tg_studio_currency_symbol_${effectiveStudioId}`, selectedCurrencySymbol)
+            }
+          } catch {}
+        }
         toast.success('Price catalog saved successfully.')
         const savedItems = (res.items && res.items.length > 0) ? res.items : catalogItems
         originalSnapshotRef.current = getCatalogSnapshot(savedItems, selectedCurrency)
@@ -495,10 +567,10 @@ export function PriceCatalogView({
 
   return (
     <div className="w-full flex flex-col space-y-4 text-[#0F1115] font-sans">
-      {/* Top Controls Card - Warm Atelier Ivory Card */}
-      <div className="bg-white border border-[#E8E1D5] rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Top Controls Header - Sticky Atelier Command Bar with Save on Top */}
+      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border border-[#E8E1D5] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1.5 min-w-0">
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-[#FAF1EC] text-[#9E593B] flex items-center justify-center shrink-0">
               <Scissors className="w-4 h-4 rotate-45" />
             </div>
@@ -516,16 +588,27 @@ export function PriceCatalogView({
                 Setup required
               </span>
             )}
+            {hasChanges ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/30 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#9E593B]" />
+                Unsaved Changes
+              </span>
+            ) : (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                All saved
+              </span>
+            )}
           </div>
           <p className="text-xs text-[#5A5D64] max-w-xl leading-relaxed">
-            These rates determine the exact bill presented to customers when you accept their orders. Customers pay you directly at your studio counter at pickup.
+            {enabledServicesCount} services active across {allCategories.length} categories in{' '}
+            <strong className="text-[#0F1115]">{selectedCurrency}</strong>. Customers pay you directly at pickup.
           </p>
         </div>
 
-        {/* Currency & Actions */}
+        {/* Currency & Top Actions (Save, Quick Rates, Currency Dropdown) */}
         <div className="flex flex-wrap items-center gap-2 shrink-0">
           {/* Currency Select */}
-          <div className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl px-3 py-1.5 shadow-2xs">
+          <div className="flex items-center gap-2 bg-[#FAF8F5] border border-[#E8E1D5] rounded-xl px-3 py-2 shadow-2xs">
             <Coins className="w-3.5 h-3.5 text-[#B45309]" />
             <select
               value={selectedCurrency}
@@ -544,10 +627,52 @@ export function PriceCatalogView({
           <button
             onClick={handleApplyRecommendedRates}
             type="button"
-            className="py-1.5 px-3 rounded-xl border border-[#9E593B]/40 bg-[#FFF9F5] hover:bg-[#FBECE3] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+            className="py-2 px-3 rounded-xl border border-[#9E593B]/40 bg-[#FFF9F5] hover:bg-[#FBECE3] text-xs font-bold text-[#9E593B] shadow-2xs transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
           >
             <span>⚡ Use Raffu Rates</span>
           </button>
+
+          {/* Primary Save Button - Placed Prominently on Top */}
+          <button
+            onClick={handleSaveCatalog}
+            disabled={saving || !isCatalogValid}
+            type="button"
+            className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm active:scale-95 ${
+              isCatalogValid
+                ? hasChanges
+                  ? 'bg-[#9E593B] hover:bg-[#854529] text-white shadow-[#9E593B]/30 hover:shadow-md ring-2 ring-[#9E593B]/20'
+                  : 'bg-[#FAF8F5] border border-[#E0D5C5] text-[#5A5D64] hover:text-[#0F1115] hover:bg-white'
+                : 'bg-neutral-200 text-[#7A7E85] cursor-not-allowed'
+            }`}
+          >
+            {saving ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving…</span>
+              </>
+            ) : hasChanges ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Save Catalog</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse ml-0.5" />
+              </>
+            ) : (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Saved</span>
+              </>
+            )}
+          </button>
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              type="button"
+              className="py-2 px-3 rounded-xl border border-[#E0D5C5] text-xs font-semibold text-[#5A5D64] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          )}
         </div>
       </div>
 
@@ -825,74 +950,7 @@ export function PriceCatalogView({
         )}
       </div>
 
-      {/* Floating Save Footer */}
-      <div className="sticky bottom-3 z-20 bg-white/95 backdrop-blur-md rounded-2xl border border-[#E8E1D5] shadow-lg p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 text-xs text-[#5A5D64]">
-          <CheckCircle2
-            className={`w-4 h-4 ${
-              hasChanges
-                ? 'text-[#9E593B]'
-                : isCatalogValid
-                ? 'text-emerald-600'
-                : 'text-amber-500'
-            }`}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <span>
-              <strong>{enabledServicesCount} services active</strong> in{' '}
-              <span className="font-bold text-[#0F1115]">{selectedCurrency}</span> across{' '}
-              {allCategories.length} categories.
-            </span>
-            {hasChanges ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFF7F2] text-[#9E593B] border border-[#9E593B]/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#9E593B] animate-pulse" />
-                Unsaved Changes
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                All saved
-              </span>
-            )}
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {onClose && (
-            <button
-              onClick={onClose}
-              type="button"
-              className="py-2 px-3.5 rounded-xl border border-[#E0D5C5] text-xs font-semibold text-[#5A5D64] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
-            >
-              Close
-            </button>
-          )}
-
-          {hasChanges && (
-            <button
-              onClick={handleSaveCatalog}
-              disabled={saving || !isCatalogValid}
-              type="button"
-              className={`flex-1 sm:flex-initial py-2 px-5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md animate-in fade-in slide-in-from-bottom-2 duration-200 ${
-                isCatalogValid
-                  ? 'bg-[#9E593B] hover:bg-[#854529] text-white shadow-[#9E593B]/25 hover:shadow-lg'
-                  : 'bg-neutral-200 text-[#7A7E85] cursor-not-allowed'
-              }`}
-            >
-              {saving ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Saving…</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Save Catalog</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* ──────────────── Add Custom Service Modal ──────────────── */}
       {showAddServiceModal && (

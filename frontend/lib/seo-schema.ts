@@ -263,7 +263,7 @@ export function buildPartnerStudioSchema(store: StoreOption | {
     '@context': 'https://schema.org',
     '@type': ['LocalBusiness', 'ProfessionalService'],
     additionalType: 'https://en.wikipedia.org/wiki/Tailor',
-    '@id': `${SITE_CONFIG.url}/partner/${store.id}#studio`,
+    '@id': `${SITE_CONFIG.url}/book?store=${store.id}#studio`,
     name: store.name,
     parentOrganization: {
       '@id': `${SITE_CONFIG.url}/#organization`,

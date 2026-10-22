@@ -669,17 +669,38 @@ export function PartnerFlow({
   const [payoutsSearch, setPayoutsSearch] = useState('')
 
   // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile)
-  const [studioCurrency, setStudioCurrency] = useState<string>(() => (user as any)?.currency || 'GBP')
-  const [studioCurrencySymbol, setStudioCurrencySymbol] = useState<string>(() => (user as any)?.currencySymbol || getCurrencySymbol((user as any)?.currency || 'GBP'))
+  // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile - Defaults to USD)
+  const [studioCurrency, setStudioCurrency] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      const saved = (studioId && localStorage.getItem(`tg_studio_currency_${studioId}`)) || localStorage.getItem('tg_studio_currency')
+      if (saved) return saved
+    }
+    const userCurr = (user as any)?.currency
+    if (userCurr && userCurr !== 'GBP') return userCurr
+    return 'USD'
+  })
+  const [studioCurrencySymbol, setStudioCurrencySymbol] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const studioId = user?.studioId || (user as any)?.id
+      const saved = (studioId && localStorage.getItem(`tg_studio_currency_symbol_${studioId}`)) || localStorage.getItem('tg_studio_currency_symbol')
+      if (saved) return saved
+      const savedCurr = (studioId && localStorage.getItem(`tg_studio_currency_${studioId}`)) || localStorage.getItem('tg_studio_currency')
+      if (savedCurr) return getCurrencySymbol(savedCurr)
+    }
+    const userCurr = (user as any)?.currency
+    if (userCurr && userCurr !== 'GBP') return (user as any)?.currencySymbol || getCurrencySymbol(userCurr)
+    return '$'
+  })
 
   // Sync if user object prop updates
   useEffect(() => {
-    if ((user as any)?.currency) {
+    if ((user as any)?.currency && (user as any).currency !== 'GBP') {
       setStudioCurrency((user as any).currency)
     }
-    if ((user as any)?.currencySymbol) {
+    if ((user as any)?.currencySymbol && (user as any).currency !== 'GBP') {
       setStudioCurrencySymbol((user as any).currencySymbol)
-    } else if ((user as any)?.currency) {
+    } else if ((user as any)?.currency && (user as any).currency !== 'GBP') {
       setStudioCurrencySymbol(getCurrencySymbol((user as any).currency))
     }
   }, [user])
@@ -719,9 +740,28 @@ export function PartnerFlow({
         if (Array.isArray(data.items)) {
           setStudioCatalogItems(data.items)
         }
-        if (data.currency) {
+        if (typeof window !== 'undefined') {
+          const cachedCurr = localStorage.getItem(`tg_studio_currency_${studioIdToVerify}`) || localStorage.getItem('tg_studio_currency')
+          if (cachedCurr) {
+            setStudioCurrency(cachedCurr)
+            setStudioCurrencySymbol(
+              localStorage.getItem(`tg_studio_currency_symbol_${studioIdToVerify}`) ||
+              localStorage.getItem('tg_studio_currency_symbol') ||
+              getCurrencySymbol(cachedCurr)
+            )
+          } else if (data.currency && data.currency !== 'GBP') {
+            setStudioCurrency(data.currency)
+            setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
+          } else {
+            setStudioCurrency('USD')
+            setStudioCurrencySymbol('$')
+          }
+        } else if (data.currency && data.currency !== 'GBP') {
           setStudioCurrency(data.currency)
           setStudioCurrencySymbol(data.currencySymbol || getCurrencySymbol(data.currency))
+        } else {
+          setStudioCurrency('USD')
+          setStudioCurrencySymbol('$')
         }
         // Show Welcome Aboard modal only once after fresh sign up, after 3.5 seconds on the dashboard
         if (typeof window !== 'undefined') {

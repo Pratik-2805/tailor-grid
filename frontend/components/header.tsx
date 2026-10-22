@@ -417,7 +417,7 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
                   {/* Help Card */}
                   <button
                     type="button"
-                    onClick={() => nav('support')}
+                    onClick={() => nav('contact')}
                     className={`flex flex-col items-center justify-center gap-1.5 py-4 px-2 rounded-2xl bg-[#F6F6F6] hover:bg-[#EFEFEF] transition-all cursor-pointer text-center group active:scale-95 ${
                       activeQuickCard === 'help'
                         ? 'border-2 border-[#DE9920]'

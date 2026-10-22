@@ -25,6 +25,16 @@ const nextConfig = {
         destination: '/contact',
         permanent: true,
       },
+      {
+        source: '/support/:path*',
+        destination: '/contact',
+        permanent: true,
+      },
+      {
+        source: '/order',
+        destination: '/orders',
+        permanent: true,
+      },
     ]
   },
 }

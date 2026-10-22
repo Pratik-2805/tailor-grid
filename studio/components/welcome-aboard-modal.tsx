@@ -28,7 +28,7 @@ export function WelcomeAboardModal({
   const rawName = user?.name?.trim() || ''
   const tailorName = rawName || 'Master Tailor'
   const studioName = user?.studioName?.trim() || user?.area?.trim() || 'Raffu Workshop'
-  const userCurrency = (user as any)?.currency || 'GBP'
+  const userCurrency = ((user as any)?.currency && (user as any)?.currency !== 'GBP') ? (user as any).currency : 'USD'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#0F1115]/75 backdrop-blur-md animate-in fade-in duration-150">
