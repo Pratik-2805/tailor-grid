@@ -11,6 +11,7 @@ import { LoginModal } from './login-modal'
 import { SignUpModal } from './signup-modal'
 import { SewingLoader } from './sewing-loader'
 import { NormalLoader } from './normal-loader'
+import { FloatingDemoAd } from './floating-demo-ad'
 import { getAuthRole } from '@/lib/cookies'
 import type { Screen } from './data'
 
@@ -198,6 +199,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* Global Booking Seamless Transition Loader */}
       {isBookingTransitioning && (
         <SewingLoader active={true} persistent={true} />
+      )}
+
+      {/* Floating Walkthrough Ad Widget (Strictly restricted to "How It Works" page only) */}
+      {!user && (currentScreen === 'how-it-works' || pathname === '/how-it-works' || pathname?.startsWith('/how-it-works')) && (
+        <FloatingDemoAd
+          onOpenStudioAuth={() => openAuth('STUDIO', 'signup')}
+          onOpenCustomerAuth={() => openAuth('CUSTOMER', 'signup')}
+          onNavigate={(path) => navigate(path as Screen)}
+        />
       )}
 
       {/* React Toastify Notifications Container */}
