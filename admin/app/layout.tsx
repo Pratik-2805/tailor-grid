@@ -16,6 +16,8 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
+  // Private portal: keep it out of search results so it never competes with raffu.com
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   title: 'Raffu Platform — Master Admin Console',
   description: 'Enterprise administrative console for managing customers, tailor studios, global orders, and system metrics.',
 }

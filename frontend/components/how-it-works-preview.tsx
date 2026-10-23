@@ -19,20 +19,20 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
     },
     {
       n: '02',
-      title: 'Nearest Store Allocation',
-      desc: 'Our network instantly identifies and allocates your nearest certified partner atelier with matching machinery.',
+      title: 'Studio Accepts Your Order',
+      desc: 'A verified partner studio near you picks up and accepts your order, and you get its location.',
       icon: Store,
     },
     {
       n: '03',
-      title: 'Direct Tailor Fitting',
-      desc: 'Hand your garment directly to your allocated master tailor, who takes exact measurements and fit specs in person.',
+      title: 'Visit the Studio',
+      desc: 'Travel to the studio and hand your garment to the tailor, who measures and starts the alteration in person.',
       icon: MapPin,
     },
     {
       n: '04',
-      title: 'Collect in 48 Hours',
-      desc: 'Receive SMS completion notice. Collect your perfectly fitted garment with our 100% Free Re-fit Guarantee.',
+      title: 'Collect at the Studio',
+      desc: 'Get notified when it is ready. The tailor hands over your fitted garment at the studio, backed by our Free Re-fit Guarantee.',
       icon: ShieldCheck,
     },
   ]

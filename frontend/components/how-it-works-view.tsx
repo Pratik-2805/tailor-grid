@@ -47,36 +47,36 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
   const steps = [
     {
       num: '1',
-      title: 'Getting started',
-      desc: 'The customer selects their garment (trousers, jeans, shirts, dresses, blazers, or occasion wear) and the exact alteration needed. You review fixed, standardized pricing before confirming with zero hidden fees or surprise studio surcharges.',
+      title: 'Book your alteration on raffu.com',
+      desc: 'Select your garment (trousers, jeans, shirts, dresses, blazers, or occasion wear) and the exact alteration needed. You review fixed, standardized pricing before confirming, so you know the exact price from the start.',
       tips: ['Standardized upfront rates', 'Custom fit notes & fabric options'],
       Illustration: Step1Illustration,
     },
     {
       num: '2',
-      title: 'Matching customer and master atelier',
-      desc: 'Raffu instantly matches your order to the best-rated certified master atelier within 1–3 miles, verified to have the exact specialist industrial machinery (OEM blindstitch, heavy denim chainstitch, overlock) your fabric requires.',
+      title: 'A nearby studio accepts your order',
+      desc: 'Your booking goes out to verified partner studios near you. A studio with the right specialist machinery (blindstitch, heavy denim chainstitch, overlock) picks up and accepts your order, and you receive its location and details.',
       tips: ['Vetted master artisans', 'Accurate neighborhood walking distance'],
       Illustration: Step2Illustration,
     },
     {
       num: '3',
-      title: 'Direct tailor fitting & intake',
-      desc: 'Hand your garment directly to the allocated master tailor. The artisan takes all precision measurements and fitting in person, with zero self-measuring or pre-fitting needed on your part.',
+      title: 'Visit the studio for your fitting',
+      desc: 'Travel to the studio that accepted your order and hand your garment to the tailor. Every fitting happens in the studio, where the tailor takes all measurements and pins the fit for you in person.',
       tips: ['Tailor measures and chalks in person', 'Bring intended shoes for exact hem break'],
       Illustration: Step3Illustration,
     },
     {
       num: '4',
-      title: 'Precision crafting & 48-hour completion',
-      desc: 'Your garment is altered with precision stitching and color-matched OEM thread. Follow every status update in real time on your digital tracker. You receive an instant SMS the moment your garment is steamed, inspected, and ready.',
+      title: 'The tailor alters your garment',
+      desc: 'The tailor starts the alteration in the studio with precision stitching and color-matched thread. Follow every status update in real time on your order tracker, and get notified the moment your garment is steamed, inspected, and ready.',
       tips: ['Live order status updates', 'Automatic Digital Fit Passport recording'],
       Illustration: Step4Illustration,
     },
     {
       num: '5',
-      title: 'Try-on & 100% Fit Guarantee',
-      desc: 'Pick up your freshly pressed garment and try it on in the studio. If any micro-adjustment is needed, our 100% Fit Guarantee ensures your master tailor refines it complimentary on the spot.',
+      title: 'Collect it from the studio',
+      desc: 'The tailor hands your freshly pressed garment over to you at the studio. Try it on there; if any micro-adjustment is needed, our 100% Fit Guarantee ensures the tailor refines it free of charge.',
       tips: ['100% Fit Guarantee', 'Complimentary in-store adjustments'],
       Illustration: Step5Illustration,
     },
@@ -150,7 +150,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
             </h1>
 
             <p className="text-base sm:text-lg text-[#5A5D64] leading-relaxed max-w-[540px]">
-              Understanding how Raffu connects you with certified master ateliers and alteration studios can enhance your experience. Explore the step-by-step journey below to see how easy precision tailoring can be.
+              Book your alteration online at raffu.com, a nearby partner studio accepts your order, and you visit the studio where the tailor alters your garment and hands it back to you. Explore the step-by-step journey below.
             </p>
 
             <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-[#7A7E85] pt-2">
@@ -200,7 +200,8 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
                 return (
                   <div
                     key={step.num}
-                    className="grid lg:grid-cols-[270px_50px_1fr] gap-5 lg:gap-0 items-center"
+                    id={`step-${step.num}`}
+                    className="scroll-mt-24 grid lg:grid-cols-[270px_50px_1fr] gap-5 lg:gap-0 items-center"
                   >
                     {/* Left Column: Clean Vector Graphic */}
                     <div className="w-full h-[175px] sm:h-[185px] rounded-2xl overflow-hidden border border-[#EBE6DF] bg-[#FAF8F5] shadow-xs flex items-center justify-center p-2">
@@ -394,7 +395,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
                 Fixed Transparent Rates
               </h3>
               <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed">
-                No awkward dry cleaner price haggling. Every service has standardized pricing with OEM thread and steam press included.
+                Clear, fixed prices for every service, with OEM thread and steam press included.
               </p>
             </div>
 

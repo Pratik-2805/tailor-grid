@@ -495,7 +495,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             {/* 2. Main Title */}
             <div className="mb-6">
               <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
-                Request an alteration
+                Request an alteration with <span className="text-[#9E593B]">Raffu</span>
               </h1>
             </div>
 

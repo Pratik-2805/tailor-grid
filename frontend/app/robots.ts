@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
     '/profile',
     '/profile/*',
     '/order/*',
+    '/auth',
     '/auth/*',
     '/api/*',
   ]

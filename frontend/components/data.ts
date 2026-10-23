@@ -181,15 +181,23 @@ export const TESTIMONIALS: Array<{ quote: string; author: string; role: string; 
 export const FAQS = [
   {
     q: 'What is Raffu?',
-    a: 'Raffu connects you with vetted local tailoring studios for clothing alterations and repairs. You get upfront pricing, simple booking, and a fit guarantee on every garment.',
+    a: 'Raffu (raffu.com) is an online platform to book clothing alterations and repairs with vetted local tailoring studios. You get upfront pricing, simple booking, and a fit guarantee on every garment.',
   },
   {
-    q: 'Do you offer doorstep tailoring?',
-    a: 'No, all work is done in professional partner studios. High-quality alterations need specialized machines—like blindstitchers for cuffs, chainstitch units for denim, and vacuum steam presses—that cannot be brought to a home. You can visit a nearby studio for an in-person fitting or book a courier pickup.',
+    q: 'What is the official Raffu website?',
+    a: 'The only official Raffu website is raffu.com. Always book your alterations and track your orders on raffu.com.',
   },
   {
-    q: 'Do I need to measure or pin my clothes before booking?',
-    a: 'No. If you visit a studio, the tailor will measure and pin your garments during your fitting. If you prefer courier pickup, you can include a sample garment that fits you well, and the tailor will match its measurements.',
+    q: 'How does booking an alteration on Raffu work?',
+    a: 'You book the alteration on raffu.com and see the fixed price upfront. A nearby partner studio accepts your order, you travel to that studio with your garment, the tailor measures and alters it in the studio, and then hands the finished garment over to you there.',
+  },
+  {
+    q: 'Where does the alteration take place?',
+    a: 'Every alteration takes place at a professional partner studio. After a nearby studio accepts your booking, you visit it for your fitting and collect the finished garment from the same studio. Studios are equipped with specialized machines—like blindstitchers for cuffs, chainstitch units for denim, and steam presses—for a clean, durable finish.',
+  },
+  {
+    q: 'Who takes the measurements?',
+    a: 'Your tailor does. When you visit the studio, the tailor measures and pins your garments in person during your fitting. You can also bring a garment that already fits you well for the tailor to match.',
   },
   {
     q: 'How do you preserve original hems on jeans?',
@@ -201,15 +209,15 @@ export const FAQS = [
   },
   {
     q: 'What is invisible darning (Raffu)?',
-    a: 'Raffu is the traditional craft of thread-by-thread mending. A skilled artisan weaves matching yarn taken from hidden inner seams directly into fabric tears, moth holes, or worn denim to restore the garment without visible patches.',
+    a: 'Raffu is the traditional craft of thread-by-thread mending. A skilled artisan weaves matching yarn taken from hidden inner seams directly into fabric tears, moth holes, or worn denim to restore the garment seamlessly.',
   },
   {
     q: 'How does the Fit Guarantee work?',
-    a: 'If your altered clothes do not fit properly when you try them on, let us know within 48 hours. The partner studio will make any needed adjustments free of charge.',
+    a: 'Try on your altered clothes at the studio. If anything needs a small adjustment, let us know within 48 hours and the partner studio will refine it free of charge.',
   },
   {
     q: 'How does pricing work?',
-    a: 'Every service has a fixed price listed on our website before you book. You pay the exact price shown, with no hidden fees or haggling at the counter.',
+    a: 'Every service has a fixed price listed on our website before you book. You pay exactly the price shown, clear and transparent from start to finish.',
   },
   {
     q: 'How long do alterations take?',

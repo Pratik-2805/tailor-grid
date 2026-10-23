@@ -18,6 +18,8 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
+  // Private portal: keep it out of search results so it never competes with raffu.com
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
   title: 'Raffu Studio Atelier — Partner Workshop Portal',
   description: 'Master Tailor order intake, live alteration pipeline, queue management, and daily payouts for partner ateliers.',
 }

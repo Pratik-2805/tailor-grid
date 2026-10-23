@@ -65,7 +65,7 @@ export function AboutView({ go }: AboutViewProps) {
               Our Vision
             </span>
             <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-black tracking-tight text-[#0F1115]">
-              About us
+              About Raffu
             </h1>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function AboutView({ go }: AboutViewProps) {
               </h3>
 
               <p className="mt-4 text-sm sm:text-base text-[#5A5D64] leading-relaxed">
-                Whether you&apos;re fitting a bespoke tuxedo or tapering everyday raw denim, care and consistency are essential. We are committed to doing our part: audited machinery calibration, upfront standardized pricing with no hidden markups, and responsive studio support on every ticket.
+                Whether you&apos;re fitting a bespoke tuxedo or tapering everyday raw denim, care and consistency are essential. We are committed to doing our part: audited machinery calibration, clear, upfront standardized pricing, and responsive studio support on every ticket.
               </p>
 
               <div className="mt-6">

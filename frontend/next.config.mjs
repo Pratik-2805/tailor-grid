@@ -20,6 +20,13 @@ const nextConfig = {
         destination: 'https://raffu.com/:path*',
         permanent: true,
       },
+      // raffu.com is the only canonical domain; consolidate any raffu.in traffic onto it
+      ...['raffu.in', 'www.raffu.in'].map((host) => ({
+        source: '/:path*',
+        has: [{ type: 'host', value: host }],
+        destination: 'https://raffu.com/:path*',
+        permanent: true,
+      })),
       {
         source: '/support',
         destination: '/contact',
