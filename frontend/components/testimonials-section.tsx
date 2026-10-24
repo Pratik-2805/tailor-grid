@@ -1,31 +1,30 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import {
   BadgeCheck,
   CheckCircle2,
-  ChevronDown,
   Scissors,
   ShieldCheck,
 } from 'lucide-react'
+import { motion } from 'motion/react'
 
 const CRAFT_PILLARS = [
   {
     icon: ShieldCheck,
-    tag: 'Fit Confidence',
+    tag: 'Fit Guarantee',
     title: '100% Free Re-Fit Guarantee',
     description:
-      'No measuring tape or self-pinning needed. Your assigned master tailor takes all measurements directly in person. If the drape or hem ever needs fine-tuning, your atelier adjusts it complimentary within 24 hours.',
-    badges: ['Direct tailor measurements in person', 'Complimentary 24h adjustment'],
+      'No measuring tape or guessing needed. Your tailor measures and pins everything in person. If the fit ever needs a small tweak, the studio adjusts it for free within 48 hours.',
+    badges: ['In-person fitting by your tailor', 'Free adjustments if needed'],
   },
   {
     icon: Scissors,
-    tag: 'Artisan Precision',
-    title: 'Original Hem & OEM Thread Match',
+    tag: 'Quality Craft',
+    title: 'Original Hem & Clean Finishing',
     description:
-      'We never perform rough chop-and-sews. Raw denim keeps its authentic distressed chainstitch hem, suit trousers receive hand-finished blind hems, and fine silks get exact OEM thread color-matching.',
-    badges: ['Factory distressed hem kept', 'Blind-stitch & chainstitch'],
+      'We protect your clothes’ authentic details. Designer denim keeps its original faded hem, trousers get invisible hand hems, and stitches are color-matched to the fabric.',
+    badges: ['Original factory hems preserved', 'Invisible stitching & clean seams'],
   },
   {
     icon: BadgeCheck,
@@ -57,14 +56,18 @@ const CRAFT_FAQS = [
 ]
 
 export function TestimonialsSection() {
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
-
   return (
-    <section className="py-12 sm:py-18 lg:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5]">
+    <section className="py-12 sm:py-18 lg:py-24 bg-[#FAF8F5] border-b border-[#E8E1D5] overflow-hidden">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
-        {/* Section Header */}
-        <div className="text-center max-w-[640px] mx-auto mb-10 sm:mb-14">
+        {/* Section Header with motion */}
+        <motion.div
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center max-w-[640px] mx-auto mb-10 sm:mb-14"
+        >
           <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3 inline-flex items-center gap-1.5 shadow-2xs">
             <ShieldCheck size={13} className="text-[#9E593B]" />
             The Raffu Standard
@@ -73,19 +76,28 @@ export function TestimonialsSection() {
             Tailored with care. Guaranteed for fit.
           </h2>
           <p className="mt-2.5 sm:mt-3 text-xs sm:text-sm md:text-base text-[#5A5D64] leading-relaxed">
-            No pre-fitting, measuring tape, or guesswork required. Hand your clothes directly to a vetted local master tailor who takes all measurements in person, backed by our 100% free re-fit guarantee.
+            No guessing or self-measuring. Hand your clothes directly to a vetted local tailor who fits everything in person, backed by our 100% free re-fit guarantee.
           </p>
-        </div>
+        </motion.div>
 
-        {/* Craftsmanship & Guarantee Pillars */}
-        <div className="grid gap-6 md:grid-cols-3 mb-16">
+        {/* Craftsmanship & Guarantee Pillars with motion */}
+        <div className="grid gap-6 md:grid-cols-3 mb-12 sm:mb-16">
           {CRAFT_PILLARS.map((pillar, i) => {
             const Icon = pillar.icon
             const isLastOdd = i === 2
             return (
-              <div
+              <motion.div
                 key={i}
-                className={`flex flex-col justify-between bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#E8E1D5] transition-all duration-300 hover:shadow-[0_12px_32px_rgba(0,0,0,0.06)] hover:border-[#9E593B]/40 group ${isLastOdd ? 'sm:col-span-2 lg:col-span-1 sm:max-w-md sm:mx-auto lg:max-w-none w-full' : ''
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{
+                  duration: 0.55,
+                  delay: i * 0.1,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                whileHover={{ y: -6, transition: { duration: 0.25 } }}
+                className={`flex flex-col justify-between bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#E8E1D5] transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.07)] hover:border-[#9E593B]/40 group ${isLastOdd ? 'sm:col-span-2 lg:col-span-1 sm:max-w-md sm:mx-auto lg:max-w-none w-full' : ''
                   }`}
               >
                 <div>
@@ -116,55 +128,19 @@ export function TestimonialsSection() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>
 
-        {/* FAQ Accordion */}
-        <div className="bg-white rounded-3xl border border-[#E8E1D5] p-6 sm:p-10 mb-14 shadow-2xs">
-          <div className="max-w-[700px] mb-8">
-            <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#0F1115] tracking-tight">
-              Common questions answered upfront.
-            </h3>
-            <p className="text-xs sm:text-sm text-[#5A5D64] mt-1.5">
-              Everything you need to know before handing over your favorite garments.
-            </p>
-          </div>
-
-          <div className="divide-y divide-[#F0ECE4]">
-            {CRAFT_FAQS.map((faq, idx) => {
-              const isOpen = openFaq === idx
-              return (
-                <div key={idx} className="py-4.5 sm:py-5 first:pt-0 last:pb-0">
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full flex items-center justify-between text-left gap-4 group cursor-pointer"
-                  >
-                    <span className="font-serif text-base sm:text-lg font-bold text-[#0F1115] group-hover:text-[#9E593B] transition-colors">
-                      {faq.q}
-                    </span>
-                    <span
-                      className={`grid size-7 place-items-center rounded-full border border-[#E8E1D5] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 bg-[#0F1115] text-white border-[#0F1115]' : 'bg-[#FAF8F5] text-[#5A5D64]'
-                        }`}
-                    >
-                      <ChevronDown size={14} />
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <p className="mt-3 text-xs sm:text-sm text-[#5A5D64] leading-relaxed max-w-3xl pr-4 animate-in fade-in-50 duration-200">
-                      {faq.a}
-                    </p>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Quality Guarantee Visual Banner */}
-        <div className="relative overflow-hidden rounded-3xl h-64 sm:h-72 border border-[#E5E7EB] shadow-sm">
+        {/* Quality Guarantee Visual Banner with motion */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 20 }}
+          whileInView={{ opacity: 1, scale: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-3xl h-64 sm:h-72 border border-[#E5E7EB] shadow-sm"
+        >
           <Image
             src="/images/fabric_pins.jpg"
             alt="Artisan sewing table"
@@ -192,7 +168,7 @@ export function TestimonialsSection() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
       </div>
     </section>

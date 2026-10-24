@@ -158,9 +158,9 @@ export function getDistanceInMiles(lat1: number, lon1: number, lat2: number, lon
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return Number((R * c).toFixed(2))
 }
@@ -200,8 +200,8 @@ export const FAQS = [
     a: 'Your tailor does. When you visit the studio, the tailor measures and pins your garments in person during your fitting. You can also bring a garment that already fits you well for the tailor to match.',
   },
   {
-    q: 'How do you preserve original hems on jeans?',
-    a: 'Our tailors carefully detach the original factory-finished hem, shorten the jeans to your requested inseam, and reattach the original distressed hem using matching thread so your jeans keep their factory look.',
+    q: 'What if the fit is not right when I try it on?',
+    a: 'Every order is backed by our 100% Fit Guarantee. Try on your altered clothes when you receive them. If anything feels loose, tight, or uneven, let us know within 48 hours and the partner studio will adjust it for free.',
   },
   {
     q: 'What suit and blazer alterations can I book?',
@@ -220,12 +220,12 @@ export const FAQS = [
     a: 'Every service has a fixed price listed on our website before you book. You pay exactly the price shown, clear and transparent from start to finish.',
   },
   {
-    q: 'How long do alterations take?',
-    a: 'Standard alterations take 2 to 3 days. Express same-day or next-day turnaround is also available at participating studios.',
+    q: 'How do you choose and vet your partner tailors?',
+    a: 'We personally visit every studio before adding them to our network. We inspect their workspace, verify their machinery, and review their stitch quality so your clothes are always in experienced, trusted hands.',
   },
   {
-    q: 'How do you vet partner studios?',
-    a: 'We evaluate every tailor and studio in person before they join Raffu. We inspect their machinery, review sample work, and ensure they meet our standards for clean finishing and reliable service.',
+    q: 'What types of garments and repairs do you handle?',
+    a: 'We handle everything from everyday trousers, shirts, and jeans to dresses, suits, and delicate fabrics. Services include hemming, waist adjustments, tapering, zipper replacements, and traditional raffu (invisible mending) for tears and holes.',
   },
 ]
 
@@ -279,7 +279,7 @@ export function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoU
             return first
           }
         }
-      } catch {}
+      } catch { }
     }
   }
   return null
@@ -299,7 +299,7 @@ export function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): str
         if (Array.isArray(parsed)) {
           photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads')))
         }
-      } catch {}
+      } catch { }
     }
     if (photos.length === 0 && raw.includes('||')) {
       photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads'))
