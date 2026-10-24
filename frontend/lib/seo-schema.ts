@@ -1,15 +1,24 @@
+import type { Metadata } from 'next'
 import { FAQS, type StoreOption } from '@/components/data'
+
+/**
+ * The one and only canonical domain. Deliberately not read from env so a
+ * staging/preview or legacy domain can never leak into canonicals, sitemaps,
+ * or structured data.
+ */
+const CANONICAL_URL = 'https://raffu.com'
 
 export const SITE_CONFIG = {
   name: 'Raffu',
   shortName: 'Raffu',
   brandName: 'raffu.com',
-  tagline: 'Clothing Alterations & Tailoring Studios',
+  tagline: 'Own Your Fit',
+  title: 'Raffu - Own Your Fit | Book Clothing Alterations | raffu.com',
   description:
-    'Find verified tailoring and alteration studios with transparent pricing. Explore trouser and denim hemming, suit alterations, and clothing repairs with Raffu.',
-  url: (process.env.NEXT_PUBLIC_SITE_URL || 'https://raffu.com').replace(/\/+$/, ''),
-  locale: 'en_IN',
-  logoUrl: '/favicon-512x512.png',
+    'Book clothing alterations online with Raffu. A nearby partner studio accepts your order, you visit for your fitting, and collect your perfectly fitted clothes.',
+  url: CANONICAL_URL,
+  locale: 'en_US',
+  logoUrl: '/android-chrome-512x512.png',
   ogImage: '/og-image.jpg',
   supportEmail: 'support@raffu.com',
   supportPhone: '+1 (800) 555-RAFFU',
@@ -20,27 +29,103 @@ export const SITE_CONFIG = {
   keywords: [
     'Raffu',
     'raffu.com',
+    'Raffu Own Your Fit',
+    'Raffu official website',
+    'alteration',
+    'clothes alteration',
     'clothing alterations',
+    'alteration near me',
+    'alteration shop near me',
     'tailor near me',
+    'book alteration online',
+    'tailoring studio',
     'suit alterations',
     'blazer fitting',
-    'jeans hemming original hem',
-    'denim chainstitch hemming',
+    'jeans hemming',
     'trouser shortening',
     'dress alterations',
-    'gown fitting',
-    'shirt slimming darts',
+    'pants hemming',
+    'wedding dress alterations',
+    'shirt alteration',
     'zipper replacement',
-    'tailor near me',
-    'master tailor studio',
     'clothing repair',
     'invisible darning',
     'raffu darning service',
-    'garment refitting',
-    'bespoke alteration network',
-    'atelier tailoring',
-    '100% fit guarantee',
+    'fit guarantee',
   ],
+}
+
+/** How a Raffu order works: booked online, altered and handed over in-studio. */
+export const SERVICE_FLOW_STEPS = [
+  {
+    name: 'Book your alteration on raffu.com',
+    text: 'Choose your garment and the alteration you need on raffu.com. Fixed prices are shown before you confirm the booking.',
+  },
+  {
+    name: 'A nearby studio accepts your order',
+    text: 'A verified partner tailor studio near you picks up and accepts your order, and you get the studio location and details.',
+  },
+  {
+    name: 'Visit the studio',
+    text: 'Travel to the partner studio with your garment. The tailor takes every measurement and pins the fit for you in person.',
+  },
+  {
+    name: 'The tailor alters your garment',
+    text: 'The tailor starts the alteration in the studio using professional sewing and pressing equipment. You can follow the order status online.',
+  },
+  {
+    name: 'Collect it from the studio',
+    text: 'The tailor hands the altered garment over to you at the studio. Try it on there; if anything needs a tweak, it is adjusted free under the Fit Guarantee.',
+  },
+]
+
+/**
+ * Complete metadata for an indexable page. Next.js replaces (not merges)
+ * `openGraph` and `twitter` per page, so each page sends the full set here.
+ */
+export function buildPageMetadata({
+  title,
+  description,
+  path,
+  absoluteTitle = false,
+}: {
+  title: string
+  description: string
+  path: string
+  /** For titles that already carry the brand and domain (the home page) */
+  absoluteTitle?: boolean
+}): Metadata {
+  const url = path === '/' ? SITE_CONFIG.url : `${SITE_CONFIG.url}${path}`
+  const fullTitle = absoluteTitle ? title : `${title} | ${SITE_CONFIG.brandName}`
+  const image = {
+    url: SITE_CONFIG.ogImage,
+    width: 1200,
+    height: 630,
+    alt: 'Raffu - Own Your Fit: book clothing alterations at raffu.com',
+  }
+
+  return {
+    title: absoluteTitle ? { absolute: title } : title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title: fullTitle,
+      description,
+      url,
+      siteName: SITE_CONFIG.name,
+      locale: SITE_CONFIG.locale,
+      type: 'website',
+      images: [image],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: fullTitle,
+      description,
+      site: SITE_CONFIG.socialHandles.twitter,
+      creator: SITE_CONFIG.socialHandles.twitter,
+      images: [image.url],
+    },
+  }
 }
 
 /**
@@ -52,21 +137,13 @@ export function buildWebSiteSchema() {
     '@type': 'WebSite',
     '@id': `${SITE_CONFIG.url}/#website`,
     name: 'Raffu',
-    alternateName: ['raffu.com', 'Raffu Studios'],
-    url: `${SITE_CONFIG.url}`,
+    alternateName: ['raffu.com'],
+    url: `${SITE_CONFIG.url}/`,
     description: SITE_CONFIG.description,
     publisher: {
       '@id': `${SITE_CONFIG.url}/#organization`,
     },
-    inLanguage: 'en-IN',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE_CONFIG.url}/book?service={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
+    inLanguage: 'en-US',
   }
 }
 
@@ -81,7 +158,7 @@ export function buildOrganizationSchema() {
     name: 'Raffu',
     legalName: 'Raffu Labs Ltd.',
     alternateName: ['raffu.com'],
-    url: `${SITE_CONFIG.url}`,
+    url: `${SITE_CONFIG.url}/`,
     logo: {
       '@type': 'ImageObject',
       url: `${SITE_CONFIG.url}/android-chrome-512x512.png`,
@@ -89,8 +166,10 @@ export function buildOrganizationSchema() {
       height: 512,
       caption: 'Raffu',
     },
-    slogan: 'Own Your Fit',
+    slogan: SITE_CONFIG.tagline,
     description: SITE_CONFIG.description,
+    disambiguatingDescription:
+      'Raffu (Own Your Fit) at raffu.com is an online platform that connects customers with partner tailor studios for in-studio clothing alterations. raffu.com is its only official website.',
     email: SITE_CONFIG.supportEmail,
     sameAs: [
       'https://twitter.com/raffufit',
@@ -108,15 +187,15 @@ export function buildOrganizationSchema() {
     contactPoint: [
       {
         '@type': 'ContactPoint',
-        telephone: SITE_CONFIG.supportPhone,
+        email: SITE_CONFIG.supportEmail,
         contactType: 'customer support',
-        availableLanguage: ['English', 'Hindi'],
-        areaServed: ['IN', 'US', 'GB'],
+        availableLanguage: ['English'],
+        areaServed: 'US',
       },
     ],
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
-      name: 'Raffu Alteration & Tailoring Services',
+      name: 'Clothing Alteration & Tailoring Services',
       itemListElement: [
         {
           '@type': 'Offer',
@@ -192,18 +271,23 @@ export function buildServiceCatalogSchema() {
     '@type': 'Service',
     '@id': `${SITE_CONFIG.url}/#services`,
     name: 'Clothing Alterations & Tailoring',
+    serviceType: 'Clothing alteration',
     description: SITE_CONFIG.description,
+    url: `${SITE_CONFIG.url}/`,
+    availableChannel: {
+      '@type': 'ServiceChannel',
+      serviceUrl: `${SITE_CONFIG.url}/`,
+      name: 'Book online at raffu.com, then visit the partner studio for fitting and collection',
+    },
     provider: {
       '@id': `${SITE_CONFIG.url}/#organization`,
     },
     areaServed: [
-      { '@type': 'Country', name: 'India' },
-      { '@type': 'Country', name: 'United Kingdom' },
       { '@type': 'Country', name: 'United States' },
     ],
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
-      name: 'Raffu Alteration Services',
+      name: 'Clothing Alteration Services',
       itemListElement: [
         {
           '@type': 'Offer',
@@ -273,7 +357,7 @@ export function buildPartnerStudioSchema(store: StoreOption | {
       streetAddress: store.address,
       addressLocality: store.area,
       postalCode: store.postcode,
-      addressCountry: 'IN',
+      addressCountry: 'US',
     },
     ...(store.coords && {
       geo: {
@@ -282,8 +366,8 @@ export function buildPartnerStudioSchema(store: StoreOption | {
         longitude: store.coords.lng,
       },
     }),
-    telephone: store.phone || SITE_CONFIG.supportPhone,
-    priceRange: '₹₹',
+    ...(store.phone && { telephone: store.phone }),
+    priceRange: '$$',
     url: `${SITE_CONFIG.url}/book?store=${store.id}`,
     ...(store.image && { image: store.image }),
   }
@@ -318,39 +402,16 @@ export function buildHowToSchema() {
   return {
     '@context': 'https://schema.org',
     '@type': 'HowTo',
-    name: 'How to Book Clothing Alterations with Raffu',
+    name: 'How to Book a Clothing Alteration with Raffu',
     description:
-      'A simple 4-step process to get professional clothing alterations with upfront pricing and guaranteed fit.',
-    step: [
-      {
-        '@type': 'HowToStep',
-        position: 1,
-        name: 'Select Garment & Service',
-        text: 'Choose your garment and alteration type on raffu.com to see fixed upfront pricing.',
-        url: `${SITE_CONFIG.url}/book`,
-      },
-      {
-        '@type': 'HowToStep',
-        position: 2,
-        name: 'Studio Fitting or Pickup',
-        text: 'Visit a nearby partner studio for an in-person fitting, or schedule a courier pickup.',
-        url: `${SITE_CONFIG.url}/how-it-works`,
-      },
-      {
-        '@type': 'HowToStep',
-        position: 3,
-        name: 'Tailoring & Alteration',
-        text: 'Your clothes are altered by experienced tailors using professional sewing and pressing equipment.',
-        url: `${SITE_CONFIG.url}/how-it-works`,
-      },
-      {
-        '@type': 'HowToStep',
-        position: 4,
-        name: 'Try On with Fit Guarantee',
-        text: 'Try on your freshly altered clothes. If any adjustment is needed, the studio refines it for free.',
-        url: `${SITE_CONFIG.url}/how-it-works`,
-      },
-    ],
+      'Book online on raffu.com, a nearby partner studio accepts the order, you visit the studio, the tailor alters your garment, and hands it over to you at the studio.',
+    step: SERVICE_FLOW_STEPS.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: step.name,
+      text: step.text,
+      url: `${SITE_CONFIG.url}/how-it-works#step-${index + 1}`,
+    })),
   }
 }
 

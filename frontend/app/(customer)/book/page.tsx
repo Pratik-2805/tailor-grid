@@ -1366,7 +1366,7 @@ export default function BookPage() {
                       Address Details
                     </h2>
                     <p className="text-xs text-neutral-500 font-medium mt-0.5 sm:mt-1">
-                      Specify flat number, apartment, and landmark for scheduled garment pickup and return delivery.
+                      Add your flat number, apartment, and landmark so we can find partner studios near you. You&apos;ll visit the studio for your fitting and collection.
                     </p>
                   </div>
 

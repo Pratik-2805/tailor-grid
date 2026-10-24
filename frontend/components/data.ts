@@ -158,9 +158,9 @@ export function getDistanceInMiles(lat1: number, lon1: number, lat2: number, lon
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2)
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
   return Number((R * c).toFixed(2))
 }
@@ -180,28 +180,44 @@ export const TESTIMONIALS: Array<{ quote: string; author: string; role: string; 
 
 export const FAQS = [
   {
-    q: 'How does Raffu work?',
-    a: 'Pick the service you need, choose a vetted local studio or book a courier pickup, and hand over your clothes. Your tailor completes the alteration with upfront fixed pricing, and your clothes are returned ready to wear.',
+    q: 'What is Raffu?',
+    a: 'Raffu (raffu.com) is an online platform to book clothing alterations and repairs with vetted local tailoring studios. You get upfront pricing, simple booking, and a fit guarantee on every garment.',
   },
   {
-    q: 'Do I need to measure or pin my clothes before booking?',
-    a: 'No measuring tape required! If you visit the studio, the tailor pins and measures your garments in person during your fitting. If you prefer courier pickup, you can include a sample garment that already fits you well, and the tailor will match its dimensions.',
+    q: 'What is the official Raffu website?',
+    a: 'The only official Raffu website is raffu.com. Always book your alterations and track your orders on raffu.com.',
+  },
+  {
+    q: 'How does booking an alteration on Raffu work?',
+    a: 'You book the alteration on raffu.com and see the fixed price upfront. A nearby partner studio accepts your order, you travel to that studio with your garment, the tailor measures and alters it in the studio, and then hands the finished garment over to you there.',
+  },
+  {
+    q: 'Where does the alteration take place?',
+    a: 'Every alteration takes place at a professional partner studio. After a nearby studio accepts your booking, you visit it for your fitting and collect the finished garment from the same studio. Studios are equipped with specialized machines—like blindstitchers for cuffs, chainstitch units for denim, and steam presses—for a clean, durable finish.',
+  },
+  {
+    q: 'Who takes the measurements?',
+    a: 'Your tailor does. When you visit the studio, the tailor measures and pins your garments in person during your fitting. You can also bring a garment that already fits you well for the tailor to match.',
   },
   {
     q: 'What if the fit is not right when I try it on?',
     a: 'Every order is backed by our 100% Fit Guarantee. Try on your altered clothes when you receive them. If anything feels loose, tight, or uneven, let us know within 48 hours and the partner studio will adjust it for free.',
   },
   {
-    q: 'Can you shorten jeans and keep the original hem?',
-    a: 'Yes. Our tailors detach the factory-finished hem, trim the jeans to your desired length, and reattach the original hem with matching thread. The original wash, fading, and authentic stitching stay intact.',
+    q: 'What suit and blazer alterations can I book?',
+    a: 'Our partner studios handle sleeve shortening, taking in or letting out the waist, adjusting chest fit, tapering trousers, and correcting collar rolls.',
   },
   {
-    q: 'How long do alterations take?',
-    a: 'Most standard alterations are completed in 2 to 3 days. If you need something urgently for an event or travel, same-day and next-day express options are available at select studios.',
+    q: 'What is invisible darning (Raffu)?',
+    a: 'Raffu is the traditional craft of thread-by-thread mending. A skilled artisan weaves matching yarn taken from hidden inner seams directly into fabric tears, moth holes, or worn denim to restore the garment seamlessly.',
   },
   {
-    q: 'Are prices fixed, or are there surprise charges?',
-    a: 'The price you see when you book is the exact price you pay. There is no counter haggling and no surprise add-ons when you pick up your clothes.',
+    q: 'How does the Fit Guarantee work?',
+    a: 'Try on your altered clothes at the studio. If anything needs a small adjustment, let us know within 48 hours and the partner studio will refine it free of charge.',
+  },
+  {
+    q: 'How does pricing work?',
+    a: 'Every service has a fixed price listed on our website before you book. You pay exactly the price shown, clear and transparent from start to finish.',
   },
   {
     q: 'How do you choose and vet your partner tailors?',
@@ -263,7 +279,7 @@ export function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoU
             return first
           }
         }
-      } catch {}
+      } catch { }
     }
   }
   return null
@@ -283,7 +299,7 @@ export function getAllGarmentPhotos(order?: Partial<FittingBooking> | null): str
         if (Array.isArray(parsed)) {
           photos = parsed.filter((p) => typeof p === 'string' && (p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads')))
         }
-      } catch {}
+      } catch { }
     }
     if (photos.length === 0 && raw.includes('||')) {
       photos = raw.split('||').map((s) => s.trim()).filter((p) => p.startsWith('http') || p.startsWith('data:') || p.startsWith('/') || p.startsWith('/uploads'))

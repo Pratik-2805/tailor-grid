@@ -158,7 +158,7 @@ export function ContactView({ go }: { go: (s: Screen | string) => void }) {
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-[#7A7E85]">Phone Concierge</p>
-                  <p className="text-sm font-bold text-[#0F1115]">+91 98450 95969 / +44 20 7946 0912</p>
+                  <p className="text-sm font-bold text-[#0F1115]">+91 98450 95969</p>
                   <p className="text-xs text-[#5A5D64]">Direct line to master tailor desk</p>
                 </div>
               </a>

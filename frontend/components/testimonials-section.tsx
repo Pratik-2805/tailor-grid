@@ -28,11 +28,30 @@ const CRAFT_PILLARS = [
   },
   {
     icon: BadgeCheck,
-    tag: 'Honest Pricing',
-    title: 'Fixed Rates, Zero Surprises',
+    tag: 'Total Transparency',
+    title: 'Standardized Rates, Total Clarity',
     description:
-      'Know the exact cost before you hand over your clothes. Every service has transparent, fixed rates—no awkward counter haggling or surprise extra charges when you pick up.',
-    badges: ['Clear upfront pricing', 'No hidden pickup fees'],
+      'Know the exact price before you book. Every service has clear, fixed rates based on standard atelier bench times, so the price you see is the price you pay.',
+    badges: ['Upfront itemized pricing', 'Direct studio accountability'],
+  },
+]
+
+const CRAFT_FAQS = [
+  {
+    q: 'Who takes the measurements for my alteration?',
+    a: 'Your tailor takes care of every measurement and fitting. Simply select your garment and service, and hand your clothes to the tailor when you visit the studio that accepted your order, who handles all precision measurements and fitting in person.',
+  },
+  {
+    q: 'What if the garment fit is not 100% right upon collection?',
+    a: 'Every single booking is protected by our 100% Fit Guarantee. Try on your altered garment at the studio when the tailor hands it over. If any minor tweak is needed, your partner atelier alters it complimentary within 24 hours.',
+  },
+  {
+    q: 'How do you preserve original hems on denim and designer jeans?',
+    a: 'Our partner studios use precision original-hem preservation. The factory-washed distress and chainstitch hem is carefully detached, the leg shortened to your target inseam, and re-attached invisibly so original fading remains intact.',
+  },
+  {
+    q: 'How are partner tailor studios audited and verified?',
+    a: 'Every partner atelier undergoes an in-person equipment and skill audit before joining our network. We check industrial machine calibrations—including blind-stitch, chainstitch, multi-thread overlock, and steam press systems.',
   },
 ]
 
@@ -78,9 +97,8 @@ export function TestimonialsSection() {
                   ease: [0.22, 1, 0.36, 1],
                 }}
                 whileHover={{ y: -6, transition: { duration: 0.25 } }}
-                className={`flex flex-col justify-between bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#E8E1D5] transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.07)] hover:border-[#9E593B]/40 group ${
-                  isLastOdd ? 'sm:col-span-2 lg:col-span-1 sm:max-w-md sm:mx-auto lg:max-w-none w-full' : ''
-                }`}
+                className={`flex flex-col justify-between bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 lg:p-7 border border-[#E8E1D5] transition-shadow duration-300 hover:shadow-[0_16px_36px_rgba(0,0,0,0.07)] hover:border-[#9E593B]/40 group ${isLastOdd ? 'sm:col-span-2 lg:col-span-1 sm:max-w-md sm:mx-auto lg:max-w-none w-full' : ''
+                  }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-4 sm:mb-5">
