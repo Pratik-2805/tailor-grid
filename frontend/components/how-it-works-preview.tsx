@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle2, MapPin, Scissors, ShieldCheck, Store } from 'lucide-react'
+import { motion } from 'motion/react'
 import { type Screen } from './data'
 import { useApp } from './app-provider'
 
@@ -13,93 +14,142 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
   const steps = [
     {
       n: '01',
-      title: 'Enter ZIP & Alteration',
-      desc: 'Select your garment category (Trousers, Dresses, Shirts, Suits). See guaranteed fixed prices upfront.',
+      title: 'Choose Garment & Service',
+      desc: 'Select your item and see fixed, transparent pricing upfront. No hidden counter haggling.',
       icon: Scissors,
+      time: 'Instant Online',
+      milestone: 'Fixed upfront pricing',
     },
     {
       n: '02',
-      title: 'Nearest Store Allocation',
-      desc: 'Our network instantly identifies and allocates your nearest certified partner atelier with matching machinery.',
+      title: 'Studio Allocation',
+      desc: 'Our network instantly matches you with your closest certified neighborhood atelier.',
       icon: Store,
+      time: 'In Minutes',
+      milestone: 'Verified local atelier',
     },
     {
       n: '03',
-      title: 'Direct Tailor Fitting',
-      desc: 'Hand your garment directly to your allocated master tailor, who takes exact measurements and fit specs in person.',
+      title: 'In-Person Master Fitting',
+      desc: 'Hand your clothes directly to your master tailor, who pins and fits everything in person.',
       icon: MapPin,
+      time: 'Drop-off or Pickup',
+      milestone: 'Tailor measures in person',
     },
     {
       n: '04',
-      title: 'Collect in 48 Hours',
-      desc: 'Receive SMS completion notice. Collect your perfectly fitted garment with our 100% Free Re-fit Guarantee.',
+      title: 'Wear with Confidence',
+      desc: 'Collect your finished garments within 48 hours, protected by our 100% Free Re-fit Guarantee.',
       icon: ShieldCheck,
+      time: '24h – 48h Return',
+      milestone: '100% Free Re-fit Guarantee',
     },
   ]
 
   return (
-    <section className="py-12 sm:py-18 lg:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5]">
+    <section className="py-14 sm:py-20 lg:py-24 bg-[#F4EFEA] border-b border-[#E8E1D5] overflow-hidden">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
 
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-12 sm:mb-16"
+        >
           <div>
-            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3">
-              Raffu — Own Your Fit
+            <span className="pill-badge bg-white text-[#9E593B] border border-[#E8E1D5] mb-3 inline-flex items-center gap-1.5 shadow-2xs">
+              Simple 4-Step Process
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#0F1115] tracking-tight">
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-[40px] font-bold text-[#0F1115] tracking-tight">
               How the Alteration Network Works
             </h2>
-            <p className="mt-2 text-sm text-[#5A5D64] max-w-[500px]">
+            <p className="mt-2 text-sm sm:text-base text-[#5A5D64] max-w-[540px] leading-relaxed">
               Simple, transparent, and hyper-local. We connect you with vetted neighborhood partner tailors in minutes.
             </p>
           </div>
           <Link
             href="/how-it-works"
-            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
+            className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start group"
           >
-            Full Journey Guide <ArrowRight size={14} />
+            <span>Full Journey Guide</span>
+            <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-200" />
           </Link>
-        </div>
+        </motion.div>
 
-        {/* 4 Clean Step Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-10 sm:mb-14">
-          {steps.map((step) => {
+        {/* Clean Step Journey with proper inter-step connectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 mb-14 sm:mb-20">
+          {steps.map((step, idx) => {
             const Icon = step.icon
+            const isLast = idx === steps.length - 1
+
             return (
-              <div
+              <motion.div
                 key={step.n}
-                className="relative flex flex-col justify-between p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#FAF8F5] border border-[#EBE6DF] transition-all duration-200 hover:border-[#D1D5DB] hover:bg-white hover:shadow-md group"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-40px' }}
+                transition={{
+                  duration: 0.55,
+                  delay: idx * 0.1,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="group relative flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="size-10 rounded-xl bg-[#0F1115] text-white grid place-items-center shadow-xs">
-                      <Icon size={18} />
+                  {/* Step Header: Icon + Number + Connecting Line to Next Step */}
+                  <div className="relative flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-3">
+                      <div className="size-13 rounded-2xl bg-white border border-[#E8E1D5] shadow-xs flex items-center justify-center text-[#0F1115] group-hover:bg-[#0F1115] group-hover:text-white group-hover:border-[#0F1115] transition-all duration-300">
+                        <Icon size={20} className="group-hover:scale-110 transition-transform duration-300" />
+                      </div>
+                      <div>
+                        <span className="font-serif text-2xl sm:text-3xl font-extrabold text-[#9E593B] leading-none">
+                          {step.n}
+                        </span>
+                        <span className="block text-[10px] uppercase tracking-wider font-bold text-[#8C8F96] mt-0.5">
+                          {step.time}
+                        </span>
+                      </div>
                     </div>
-                    <span className="font-serif text-2xl font-bold text-[#9E593B]/60 group-hover:text-[#9E593B] transition-colors">
-                      {step.n}
-                    </span>
+
+                    {/* Proper connector line that only goes between steps and stops at step 4 */}
+                    {!isLast && (
+                      <div className="hidden lg:flex items-center flex-1 ml-4 mr-2">
+                        <div className="h-[2px] flex-1 bg-gradient-to-r from-[#9E593B]/40 to-[#9E593B]/20" />
+                        <ArrowRight size={13} className="-ml-1 text-[#9E593B]/60 shrink-0" />
+                      </div>
+                    )}
                   </div>
 
-                  <h3 className="font-serif text-base font-bold text-[#0F1115] mb-2 leading-snug">
+                  {/* Step Title & Explanation */}
+                  <h3 className="font-serif text-lg sm:text-xl font-bold text-[#0F1115] mb-2 leading-snug group-hover:text-[#9E593B] transition-colors">
                     {step.title}
                   </h3>
-                  <p className="text-xs text-[#6B7280] leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#5A5D64] leading-relaxed mb-4">
                     {step.desc}
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-[#EBE6DF]/60 flex items-center gap-1.5 text-[11px] font-semibold text-[#0F1115]">
-                  <CheckCircle2 size={13} className="text-[#10B981]" />
-                  <span>Step {step.n} Milestone</span>
+                {/* Specific Step Milestone */}
+                <div className="pt-3 border-t border-[#E8E1D5]/60 flex items-center gap-1.5 text-[11px] font-semibold text-[#10B981]">
+                  <CheckCircle2 size={13} className="shrink-0" />
+                  <span className="text-[#0F1115]">{step.milestone}</span>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>
 
         {/* High Conversion Store Pass Banner */}
-        <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-[#0F1115] text-white p-6 sm:p-10 lg:p-12 shadow-lg">
+        <motion.div
+          initial={{ opacity: 0, y: 25 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-40px' }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="relative overflow-hidden rounded-3xl bg-[#0F1115] text-white p-7 sm:p-10 lg:p-12 shadow-xl"
+        >
           <div className="absolute right-0 top-0 bottom-0 w-1/2 opacity-20 pointer-events-none hidden lg:block">
             <Image
               src="/images/garments_rack.jpg"
@@ -119,10 +169,10 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/book"
-                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
+                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95 group"
               >
                 <span>Book Fitting Pass</span>
-                <ArrowRight size={14} />
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
               {!isCustomer && (
                 <Link
@@ -134,11 +184,9 @@ export function HowItWorksPreview({ go }: { go: (s: Screen) => void }) {
               )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
       </div>
     </section>
   )
 }
-
-

@@ -180,44 +180,36 @@ export const TESTIMONIALS: Array<{ quote: string; author: string; role: string; 
 
 export const FAQS = [
   {
-    q: 'What is Raffu?',
-    a: 'Raffu connects you with vetted local tailoring studios for clothing alterations and repairs. You get upfront pricing, simple booking, and a fit guarantee on every garment.',
-  },
-  {
-    q: 'Do you offer doorstep tailoring?',
-    a: 'No, all work is done in professional partner studios. High-quality alterations need specialized machines—like blindstitchers for cuffs, chainstitch units for denim, and vacuum steam presses—that cannot be brought to a home. You can visit a nearby studio for an in-person fitting or book a courier pickup.',
+    q: 'How does Raffu work?',
+    a: 'Pick the service you need, choose a vetted local studio or book a courier pickup, and hand over your clothes. Your tailor completes the alteration with upfront fixed pricing, and your clothes are returned ready to wear.',
   },
   {
     q: 'Do I need to measure or pin my clothes before booking?',
-    a: 'No. If you visit a studio, the tailor will measure and pin your garments during your fitting. If you prefer courier pickup, you can include a sample garment that fits you well, and the tailor will match its measurements.',
+    a: 'No measuring tape required! If you visit the studio, the tailor pins and measures your garments in person during your fitting. If you prefer courier pickup, you can include a sample garment that already fits you well, and the tailor will match its dimensions.',
   },
   {
-    q: 'How do you preserve original hems on jeans?',
-    a: 'Our tailors carefully detach the original factory-finished hem, shorten the jeans to your requested inseam, and reattach the original distressed hem using matching thread so your jeans keep their factory look.',
+    q: 'What if the fit is not right when I try it on?',
+    a: 'Every order is backed by our 100% Fit Guarantee. Try on your altered clothes when you receive them. If anything feels loose, tight, or uneven, let us know within 48 hours and the partner studio will adjust it for free.',
   },
   {
-    q: 'What suit and blazer alterations can I book?',
-    a: 'Our partner studios handle sleeve shortening, taking in or letting out the waist, adjusting chest fit, tapering trousers, and correcting collar rolls.',
-  },
-  {
-    q: 'What is invisible darning (Raffu)?',
-    a: 'Raffu is the traditional craft of thread-by-thread mending. A skilled artisan weaves matching yarn taken from hidden inner seams directly into fabric tears, moth holes, or worn denim to restore the garment without visible patches.',
-  },
-  {
-    q: 'How does the Fit Guarantee work?',
-    a: 'If your altered clothes do not fit properly when you try them on, let us know within 48 hours. The partner studio will make any needed adjustments free of charge.',
-  },
-  {
-    q: 'How does pricing work?',
-    a: 'Every service has a fixed price listed on our website before you book. You pay the exact price shown, with no hidden fees or haggling at the counter.',
+    q: 'Can you shorten jeans and keep the original hem?',
+    a: 'Yes. Our tailors detach the factory-finished hem, trim the jeans to your desired length, and reattach the original hem with matching thread. The original wash, fading, and authentic stitching stay intact.',
   },
   {
     q: 'How long do alterations take?',
-    a: 'Standard alterations take 2 to 3 days. Express same-day or next-day turnaround is also available at participating studios.',
+    a: 'Most standard alterations are completed in 2 to 3 days. If you need something urgently for an event or travel, same-day and next-day express options are available at select studios.',
   },
   {
-    q: 'How do you vet partner studios?',
-    a: 'We evaluate every tailor and studio in person before they join Raffu. We inspect their machinery, review sample work, and ensure they meet our standards for clean finishing and reliable service.',
+    q: 'Are prices fixed, or are there surprise charges?',
+    a: 'The price you see when you book is the exact price you pay. There is no counter haggling and no surprise add-ons when you pick up your clothes.',
+  },
+  {
+    q: 'How do you choose and vet your partner tailors?',
+    a: 'We personally visit every studio before adding them to our network. We inspect their workspace, verify their machinery, and review their stitch quality so your clothes are always in experienced, trusted hands.',
+  },
+  {
+    q: 'What types of garments and repairs do you handle?',
+    a: 'We handle everything from everyday trousers, shirts, and jeans to dresses, suits, and delicate fabrics. Services include hemming, waist adjustments, tapering, zipper replacements, and traditional raffu (invisible mending) for tears and holes.',
   },
 ]
 

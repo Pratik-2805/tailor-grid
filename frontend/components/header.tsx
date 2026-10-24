@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react'
 import { RaffuLogo } from './raffu-logo'
+import { motion } from 'motion/react'
 import { getStudioUrl } from '@/lib/api'
 import { getRefreshToken, getAuthToken } from '@/lib/cookies'
 import { type Screen, type User } from './data'
@@ -112,7 +113,12 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all">
+    <motion.header
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md border-b border-[#E8E1D5] transition-all"
+    >
       <div className="mx-auto flex h-[68px] max-w-[1280px] items-center justify-between px-4 sm:px-6 lg:px-8 gap-4">
 
         {/* Brand Logo */}
@@ -322,21 +328,25 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
             <div className="h-[34px] w-[96px] rounded-full bg-[#E8E1D5]/40 animate-pulse" />
           ) : (
             <div className="flex items-center gap-2">
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => onOpenAuth?.('signin')}
                 className="flex items-center gap-1.5 rounded-full border border-[#E8E1D5] bg-white px-3.5 py-2 text-[13px] font-semibold text-[#18191B] hover:bg-[#F3EFEA] hover:border-[#0F1115] transition-all whitespace-nowrap shrink-0 shadow-2xs cursor-pointer"
               >
                 <UserIcon size={13} className="shrink-0 text-[#9E593B]" />
                 <span>Log In</span>
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => onOpenAuth?.('signup')}
-                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#9E593B] transition-all whitespace-nowrap shrink-0 shadow-xs active:scale-[0.98] cursor-pointer"
+                className="flex items-center gap-1.5 rounded-full bg-[#0F1115] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#9E593B] transition-all whitespace-nowrap shrink-0 shadow-xs cursor-pointer"
               >
                 <span>Sign Up</span>
-              </button>
+              </motion.button>
             </div>
           )}
         </div>
@@ -623,7 +633,7 @@ export function Header({ currentScreen, go, user, isAuthLoading, onOpenAuth, onS
         </div>,
         document.body
       )}
-    </header>
+    </motion.header>
   )
 }
 

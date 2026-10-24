@@ -1,6 +1,7 @@
 'use client'
 
-import { Clock, Leaf, Scissors, ShieldCheck, Star } from 'lucide-react'
+import { Clock, Leaf, Scissors, ShieldCheck } from 'lucide-react'
+import { motion } from 'motion/react'
 
 export function TrustBar() {
   const items = [
@@ -18,9 +19,13 @@ export function TrustBar() {
           {items.map((item, i) => {
             const Icon = item.icon
             return (
-              <div
+              <motion.div
                 key={i}
-                className="shrink-0 min-w-[200px] md:min-w-0 flex items-center gap-2.5 p-1.5 md:p-1 bg-white/40 md:bg-transparent rounded-xl md:rounded-none border border-[#E8E1D5]/40 md:border-0"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, delay: 0.25 + i * 0.07, ease: 'easeOut' }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="shrink-0 min-w-[200px] md:min-w-0 flex items-center gap-2.5 p-1.5 md:p-1 bg-white/40 md:bg-transparent rounded-xl md:rounded-none border border-[#E8E1D5]/40 md:border-0 cursor-default"
               >
                 <div className="grid size-8 sm:size-9 shrink-0 place-items-center rounded-xl bg-[#0F1115] text-white shadow-xs">
                   <Icon size={15} />
@@ -29,7 +34,7 @@ export function TrustBar() {
                   <p className="text-xs font-bold text-[#0F1115] leading-tight truncate">{item.title}</p>
                   <p className="text-[10.5px] text-[#6B7280] mt-0.5 leading-snug line-clamp-1">{item.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             )
           })}
         </div>
@@ -37,4 +42,3 @@ export function TrustBar() {
     </section>
   )
 }
-
