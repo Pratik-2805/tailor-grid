@@ -201,8 +201,8 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
         </div>
 
         {/* Minimal Identity Bar */}
-        <div className="flex items-center justify-between pb-8 border-b border-[#E8E1D5]">
-          <div className="flex items-center gap-4 sm:gap-5">
+        <div className="flex items-start sm:items-center justify-between gap-3 pb-8 border-b border-[#E8E1D5]">
+          <div className="flex items-center gap-4 sm:gap-5 min-w-0">
             <div className="size-14 sm:size-16 rounded-full overflow-hidden shrink-0 bg-[#18191B] text-white font-serif text-xl sm:text-2xl font-bold grid place-items-center">
               {user.avatar && !user.avatar.includes('dicebear') ? (
                 <Image
@@ -219,15 +219,15 @@ export function ProfileView({ go, user, onUpdateUser, onOpenAuth, onSignOut }: P
               )}
             </div>
 
-            <div>
-              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#18191B] leading-tight">{user.name}</h1>
-              <p className="text-xs sm:text-sm text-[#7A7E85] mt-0.5">{user.email || user.contact}</p>
+            <div className="min-w-0">
+              <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[#18191B] leading-tight break-words">{user.name}</h1>
+              <p className="text-xs sm:text-sm text-[#7A7E85] mt-0.5 truncate">{user.email || user.contact}</p>
             </div>
           </div>
 
           <button
             onClick={onSignOut}
-            className="text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+            className="shrink-0 mt-1 sm:mt-0 text-xs font-semibold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
           >
             Sign out
           </button>

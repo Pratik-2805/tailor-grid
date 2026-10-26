@@ -106,7 +106,7 @@ export function StudioSubNav({
         </div>
 
         {/* Center/Right: Informational Navigation Links + Action CTAs */}
-        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 overflow-x-auto scrollbar-none py-1">
           <button
             onClick={() => scrollToSection('why-partner')}
             className={`px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors whitespace-nowrap cursor-pointer ${
@@ -153,7 +153,7 @@ export function StudioSubNav({
 
           {/* Action CTAs */}
           {scrolledPastHero && !isStudioUser && (
-            <div className="pl-2 border-l border-[#E8E1D5] flex items-center gap-2 shrink-0">
+            <div className="hidden sm:flex pl-2 border-l border-[#E8E1D5] items-center gap-2 shrink-0">
               <button
                 onClick={() => {
                   const role = isClient ? getAuthRole() : null

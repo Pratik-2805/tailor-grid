@@ -989,7 +989,7 @@ export default function CleanGoogleMap({
   return (
     <div
       onClick={!disableNavigation && onMapClick ? onMapClick : undefined}
-      className={`w-full h-full relative overflow-hidden rounded-[28px] ${
+      className={`w-full h-full relative overflow-hidden rounded-[inherit] ${
         disableNavigation || !onMapClick ? 'cursor-default' : 'cursor-pointer'
       } ${className}`}
     >
@@ -998,11 +998,11 @@ export default function CleanGoogleMap({
         <iframe
           title="Clean Map Embed"
           src={`https://maps.google.com/maps?q=${query}&t=m&z=13&ie=UTF8&iwloc=near&output=embed`}
-          className="w-full h-full border-0 absolute inset-0 rounded-[28px] contrast-[105%] brightness-[99%] saturate-[80%]"
+          className="w-full h-full border-0 absolute inset-0 rounded-[inherit] contrast-[105%] brightness-[99%] saturate-[80%]"
           loading="lazy"
         />
       ) : (
-        <div ref={mapRef} className="w-full h-full rounded-[28px]" />
+        <div ref={mapRef} className="w-full h-full rounded-[inherit]" />
       )}
 
       {/* Search Bar (Active ONLY in Choosing Mode, e.g. when picking custom location) */}
@@ -1121,7 +1121,7 @@ export default function CleanGoogleMap({
       )}
 
       {!isReady && !loadError && (
-        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[28px] flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[inherit] flex items-center justify-center pointer-events-none">
           <div className="size-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
       )}

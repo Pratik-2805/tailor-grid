@@ -81,7 +81,7 @@ export function TestimonialsSection() {
         </motion.div>
 
         {/* Craftsmanship & Guarantee Pillars with motion */}
-        <div className="grid gap-6 md:grid-cols-3 mb-12 sm:mb-16">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-12 sm:mb-16">
           {CRAFT_PILLARS.map((pillar, i) => {
             const Icon = pillar.icon
             const isLastOdd = i === 2
@@ -139,7 +139,7 @@ export function TestimonialsSection() {
           whileInView={{ opacity: 1, scale: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden rounded-3xl h-64 sm:h-72 border border-[#E5E7EB] shadow-sm"
+          className="relative overflow-hidden rounded-3xl min-h-64 sm:h-72 border border-[#E5E7EB] shadow-sm"
         >
           <Image
             src="/images/fabric_pins.jpg"
@@ -148,8 +148,8 @@ export function TestimonialsSection() {
             className="object-cover object-center"
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0F1115]/95 via-[#0F1115]/75 to-transparent" />
-          <div className="absolute inset-0 flex items-center px-6 sm:px-12 text-white">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0F1115]/95 via-[#0F1115]/85 to-[#0F1115]/60 sm:via-[#0F1115]/75 sm:to-transparent" />
+          <div className="relative sm:absolute sm:inset-0 flex items-center px-6 py-8 sm:px-12 sm:py-0 text-white">
             <div className="max-w-[540px]">
               <span className="text-[11px] font-bold uppercase tracking-widest text-[#F59E0B] block mb-2">
                 Craftsmanship Standard
@@ -160,7 +160,7 @@ export function TestimonialsSection() {
               <p className="text-xs sm:text-sm text-white/70 mt-2 mb-5 leading-relaxed">
                 We inspect every garment against rigorous tailoring standards before dispatch. Verified stitch tension, matched thread, and professional steam press.
               </p>
-              <div className="flex flex-wrap gap-4 text-xs font-medium text-[#E7C9BA]">
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-[#E7C9BA]">
                 <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[#10B981]" /> OEM Thread Match</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[#10B981]" /> Chainstitch Hem</span>
                 <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-[#10B981]" /> Hand-Finished Blind Hem</span>
