@@ -227,6 +227,49 @@ export default function BookPage() {
   // full-screen map with Confirm / Cancel first, then the Address Details sheet.
   const [isPinConfirmed, setIsPinConfirmed] = useState(false)
   const isPickingOnMap = isCardFlipped && !isPinConfirmed
+  // After confirming, the Address Details sheet covers the whole screen below the header (mobile / tablet portrait)
+  // The address sheet can be dragged down by its handle to reveal the map, and dragged back up to full height
+  const [isSheetExpanded, setIsSheetExpanded] = useState(true)
+  const [sheetDragY, setSheetDragY] = useState(0)
+  const sheetDragStartRef = useRef<number | null>(null)
+  const canDragSheet = isCardFlipped && isPinConfirmed
+  const isEditingAddressFull = canDragSheet && isSheetExpanded
+
+  const handleSheetPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDragSheet) return
+    sheetDragStartRef.current = e.clientY
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handleSheetPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (sheetDragStartRef.current === null) return
+    const dy = e.clientY - sheetDragStartRef.current
+    // Expanded sheet only moves down; collapsed sheet only moves up
+    setSheetDragY(isSheetExpanded ? Math.max(0, dy) : Math.min(0, dy))
+  }
+
+  const handleSheetPointerEnd = () => {
+    if (sheetDragStartRef.current === null) return
+    sheetDragStartRef.current = null
+    const dy = sheetDragY
+    setSheetDragY(0)
+    const isTap = Math.abs(dy) < 6
+    const shouldCollapse = isSheetExpanded && (isTap || dy > 60)
+    const shouldExpand = !isSheetExpanded && (isTap || dy < -60)
+    if (shouldCollapse) {
+      setIsSheetExpanded(false)
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+    } else if (shouldExpand) {
+      setIsSheetExpanded(true)
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+    }
+  }
+
+  const handleConfirmPin = () => {
+    setIsPinConfirmed(true)
+    setIsSheetExpanded(true)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+  }
 
   useEffect(() => {
     if (!isCardFlipped) return
@@ -1046,13 +1089,23 @@ export default function BookPage() {
       <div className="relative flex-1 flex flex-col lg:flex-row lg:gap-6 lg:p-6 lg:h-[calc(100dvh-69px)] lg:overflow-hidden max-w-[1800px] w-full mx-auto">
 
           {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
-          <div className={`${isPickingOnMap ? 'max-lg:hidden' : ''} order-2 lg:order-1 relative z-10 -mt-6 lg:mt-0 flex-1 lg:flex-none w-full lg:w-[420px] xl:w-[440px] shrink-0 bg-white lg:bg-transparent rounded-t-[28px] lg:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.10)] lg:shadow-none lg:overflow-y-auto lg:-m-2 lg:p-2 scrollbar-none [perspective:1400px]`}>
-            {/* Bottom-sheet grab handle (mobile only) */}
-            <div className="lg:hidden flex justify-center pt-2.5 pb-1">
-              <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
+          <div className={`${isPickingOnMap ? 'max-lg:hidden' : ''} ${isEditingAddressFull ? 'max-lg:mt-0 max-lg:animate-in max-lg:slide-in-from-bottom max-lg:duration-300' : '-mt-6'} order-2 lg:order-1 relative z-10 lg:mt-0 flex-1 lg:flex-none w-full lg:w-[420px] xl:w-[440px] shrink-0 bg-white lg:bg-transparent rounded-t-[28px] lg:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.10)] lg:shadow-none lg:overflow-y-auto lg:-m-2 lg:p-2 scrollbar-none [perspective:1400px] transition-transform duration-200 ease-out`}
+            style={sheetDragY ? { transform: `translateY(${sheetDragY}px)`, transitionDuration: '0ms' } : undefined}
+          >
+            {/* Bottom-sheet grab handle (mobile only); draggable on the address sheet to show / hide the map */}
+            <div
+              onPointerDown={handleSheetPointerDown}
+              onPointerMove={handleSheetPointerMove}
+              onPointerUp={handleSheetPointerEnd}
+              onPointerCancel={handleSheetPointerEnd}
+              role={canDragSheet ? 'button' : undefined}
+              aria-label={canDragSheet ? (isSheetExpanded ? 'Drag down to show map' : 'Drag up to expand') : undefined}
+              className={`lg:hidden flex justify-center ${canDragSheet ? 'pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none select-none' : 'pt-2.5 pb-1'}`}
+            >
+              <span className={`h-1.5 rounded-full transition-all ${canDragSheet ? 'w-12 bg-neutral-400' : 'w-10 bg-neutral-300'}`} />
             </div>
             <div
-              className="relative w-full sm:max-w-xl sm:mx-auto lg:max-w-none"
+              className={`relative w-full sm:max-w-xl sm:mx-auto lg:max-w-none ${isEditingAddressFull ? 'max-lg:min-h-[calc(100dvh-69px-20px)]' : ''}`}
               style={{
                 transformStyle: 'preserve-3d',
                 transition: 'transform 0.65s cubic-bezier(0.4, 0.0, 0.2, 1)',
@@ -1375,6 +1428,14 @@ export default function BookPage() {
                       <ArrowLeft size={13} className="text-black" />
                       <span>Back to Request</span>
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPinConfirmed(false)}
+                      className="lg:hidden inline-flex items-center gap-1.5 text-xs font-bold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
+                    >
+                      <MapPin size={13} className="text-black" />
+                      <span>Adjust pin</span>
+                    </button>
                   </div>
 
                   <div>
@@ -1542,7 +1603,7 @@ export default function BookPage() {
           </div>
 
           {/* RIGHT COLUMN: Map canvas (full-bleed and pinned behind the sheet on mobile, rounded panel on desktop) */}
-          <div className={`order-1 lg:order-2 sticky top-[69px] lg:static z-0 w-full lg:flex-1 flex flex-col ${isPickingOnMap ? 'h-[calc(100dvh-69px)]' : 'h-[44dvh] min-h-[280px] max-h-[480px]'} lg:h-auto lg:min-h-0 lg:max-h-none shrink-0`}>
+          <div className={`${isEditingAddressFull ? 'max-lg:hidden' : ''} order-1 lg:order-2 sticky top-[69px] lg:static z-0 w-full lg:flex-1 flex flex-col ${isPickingOnMap ? 'h-[calc(100dvh-69px)]' : 'h-[44dvh] min-h-[280px] max-h-[480px]'} lg:h-auto lg:min-h-0 lg:max-h-none shrink-0`}>
             <div className="w-full flex-1 min-h-0 overflow-hidden lg:rounded-2xl lg:border lg:border-gray-200/90 relative bg-[#EBE7E0]">
               <CleanGoogleMap
                 lat={mapCoordinates.lat}
@@ -1628,34 +1689,39 @@ export default function BookPage() {
               )}
             </div>
 
-            {/* Confirm / Cancel bar while picking on the map (mobile / tablet portrait only) */}
+            {/* Confirm / Cancel card while picking on the map (mobile / tablet portrait only) */}
             {isPickingOnMap && (
-              <div className="lg:hidden shrink-0 bg-white border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.10)] px-4 sm:px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <div className="lg:hidden shrink-0 relative z-10 bg-white shadow-[0_-12px_32px_rgba(0,0,0,0.12)] px-4 sm:px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <div className="sm:max-w-xl sm:mx-auto">
-                  <div className="flex items-center gap-2.5 mb-3 min-w-0">
-                    <MapPin size={16} className="text-black shrink-0" />
+                  <h2 className="text-lg font-black tracking-tight text-[#0F1115] leading-tight">Confirm your location</h2>
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl bg-[#F3F3F3] px-3 py-2.5">
+                    <span className="size-9 rounded-full bg-black text-white grid place-items-center shrink-0">
+                      <MapPin size={16} />
+                    </span>
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Move the map to set your location</p>
                       <p className="text-sm font-bold text-black truncate">
                         {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality) || 'Pinned location'}
                       </p>
+                      {(addressDetails.city || selectedCity) && (
+                        <p className="text-xs text-neutral-500 truncate">{addressDetails.city || selectedCity}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5">
+                  <div className="mt-3 flex items-center gap-2.5">
                     <button
                       type="button"
                       onClick={handleBackToRequest}
-                      className="flex-1 rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-bold py-3.5 text-sm transition-all cursor-pointer active:scale-[0.98]"
+                      className="flex-1 rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] text-black font-bold py-3.5 text-[15px] transition-all cursor-pointer active:scale-[0.98]"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={() => setIsPinConfirmed(true)}
-                      className="flex-[2] rounded-xl bg-black hover:bg-neutral-800 text-white font-bold py-3.5 text-sm transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+                      onClick={handleConfirmPin}
+                      className="flex-[2] rounded-xl bg-black hover:bg-neutral-800 text-white font-bold py-3.5 text-[15px] transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
                     >
                       <span>Confirm location</span>
-                      <Check size={16} />
+                      <Check size={17} strokeWidth={2.5} />
                     </button>
                   </div>
                 </div>

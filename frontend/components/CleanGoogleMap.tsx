@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
-import { Check, Search, X, MapPin, Loader2 } from 'lucide-react'
+import { Check, Search, X, MapPin, Loader2, Plus, Minus, LocateFixed } from 'lucide-react'
 import type { StoreOption } from './data'
 import {
   getCachedReverseGeocode,
@@ -1061,6 +1061,30 @@ export default function CleanGoogleMap({
     }
   }
 
+  const [isLocating, setIsLocating] = useState(false)
+
+  // Re-center the pin on the device's current position
+  const handleLocateMe = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        pinAnchorRef.current = coords
+        const map = mapInstanceRef.current
+        if (map) {
+          map.setZoom(17)
+          map.panTo(coords)
+        }
+        if (onPinLocationChange) onPinLocationChange(coords)
+        setIsLocating(false)
+      },
+      () => setIsLocating(false),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    )
+  }
+
   const handleZoomIn = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (mapInstanceRef.current) {
@@ -1098,21 +1122,26 @@ export default function CleanGoogleMap({
         <div ref={mapRef} className="w-full h-full rounded-[inherit]" />
       )}
 
+      {/* Soft top fade so the floating search bar reads cleanly over busy map tiles */}
+      {isChoosing && isReady && !loadError && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 z-10 bg-gradient-to-b from-black/15 to-transparent rounded-t-[inherit]" />
+      )}
+
       {/* Search Bar (Active ONLY in Choosing Mode, e.g. when picking custom location) */}
       {isChoosing && isReady && !loadError && (
         <div
           ref={searchContainerRef}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3.5 left-3.5 right-14 max-lg:pointer-coarse:right-3.5 sm:right-auto sm:w-[320px] md:w-[360px] z-30 flex flex-col font-sans"
+          className="absolute top-3 left-3 right-3 sm:right-auto sm:w-[360px] md:w-[380px] z-30 flex flex-col font-sans"
         >
           <form
             onSubmit={handleSearchSubmit}
-            className="w-full relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] transition-all overflow-hidden h-10 px-3 gap-2"
+            className="w-full relative flex items-center bg-white rounded-2xl shadow-[0_8px_28px_rgba(0,0,0,0.16)] ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-black transition-all overflow-hidden h-12 pl-4 pr-2.5 gap-3"
           >
             {isSearchingPlaces ? (
-              <Loader2 className="size-4 text-black animate-spin shrink-0" />
+              <Loader2 className="size-[18px] text-black animate-spin shrink-0" />
             ) : (
-              <Search className="size-4 text-neutral-400 shrink-0" />
+              <Search className="size-[18px] text-black shrink-0" strokeWidth={2.5} />
             )}
             <input
               ref={searchInputRef}
@@ -1127,8 +1156,8 @@ export default function CleanGoogleMap({
               onFocus={() => {
                 if (isUserTypingRef.current && searchResults.length > 0) setIsSearchOpen(true)
               }}
-              placeholder="Search area, landmark or street..."
-              className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 focus:outline-hidden"
+              placeholder="Search area, landmark or street"
+              className="w-full bg-transparent text-[15px] font-semibold text-black placeholder:text-neutral-400 placeholder:font-medium focus:outline-hidden"
             />
             {mapSearchText && (
               <button
@@ -1141,29 +1170,31 @@ export default function CleanGoogleMap({
                   setIsSearchOpen(false)
                   searchInputRef.current?.focus()
                 }}
-                className="size-5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                className="size-7 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Clear search"
               >
-                <X size={12} />
+                <X size={14} strokeWidth={2.5} />
               </button>
             )}
           </form>
 
           {/* Autocomplete Dropdown */}
           {isSearchOpen && searchResults.length > 0 && (
-            <div className="mt-1.5 w-full bg-white/98 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.14)] overflow-hidden py-1 max-h-56 overflow-y-auto">
+            <div className="mt-2 w-full bg-white rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] ring-1 ring-black/5 overflow-hidden py-1.5 max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
               {searchResults.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => handleSelectSearchResult(item)}
-                  className="w-full text-left px-3 py-2 hover:bg-neutral-100/80 transition-colors flex items-start gap-2.5 cursor-pointer border-b border-gray-50 last:border-0"
+                  className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors flex items-center gap-3 cursor-pointer"
                 >
-                  <MapPin className="size-3.5 text-neutral-400 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-black truncate">{item.title}</p>
+                  <span className="size-9 rounded-full bg-neutral-100 text-black grid place-items-center shrink-0">
+                    <MapPin className="size-4" />
+                  </span>
+                  <div className="flex-1 min-w-0 border-b border-neutral-100 pb-2.5 -mb-2.5">
+                    <p className="text-sm font-bold text-black truncate">{item.title}</p>
                     {item.subtitle && (
-                      <p className="text-[11px] text-neutral-500 truncate">{item.subtitle}</p>
+                      <p className="text-xs text-neutral-500 truncate mt-0.5">{item.subtitle}</p>
                     )}
                   </div>
                 </button>
@@ -1196,24 +1227,39 @@ export default function CleanGoogleMap({
         </div>
       )}
 
-      {/* Zoom Controls (Active only when actively choosing location) */}
+      {/* Map controls: grouped zoom (pinch replaces it on touch phones / tablet portrait) + locate me */}
       {isChoosing && isReady && !loadError && (
-        <div className="absolute top-3.5 right-3.5 z-20 flex flex-col gap-1.5 shadow-sm max-lg:pointer-coarse:hidden">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-3 bottom-8 z-20 flex flex-col items-end gap-2.5"
+        >
+          <div className="flex flex-col rounded-2xl bg-white shadow-[0_6px_20px_rgba(0,0,0,0.16)] ring-1 ring-black/5 overflow-hidden max-lg:pointer-coarse:hidden">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="size-11 grid place-items-center text-black hover:bg-neutral-100 active:bg-neutral-200 transition-colors cursor-pointer"
+              title="Zoom in"
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+            <span className="h-px mx-2.5 bg-neutral-200" />
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="size-11 grid place-items-center text-black hover:bg-neutral-100 active:bg-neutral-200 transition-colors cursor-pointer"
+              title="Zoom out"
+            >
+              <Minus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
           <button
             type="button"
-            onClick={handleZoomIn}
-            className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
-            title="Zoom in"
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            className="size-11 rounded-full bg-white text-black grid place-items-center shadow-[0_6px_20px_rgba(0,0,0,0.16)] ring-1 ring-black/5 hover:bg-neutral-100 active:scale-95 transition-all cursor-pointer disabled:cursor-wait"
+            title="Use my current location"
           >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
-            title="Zoom out"
-          >
-            &minus;
+            {isLocating ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} strokeWidth={2.25} />}
           </button>
         </div>
       )}
