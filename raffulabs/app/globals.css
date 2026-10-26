@@ -25,42 +25,6 @@
   --animate-marquee: marquee 40s linear infinite;
 }
 
-/* ChaiUI Signature Styles */
-@keyframes chai-spin {
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
-}
-
-.highlight {
-  font-family: var(--font-display, "Montserrat", sans-serif);
-  font-weight: 500;
-  letter-spacing: -0.025em;
-  text-transform: capitalize;
-  color: oklch(0.476 0.114 61.907); /* yellow-800 */
-}
-.dark .highlight {
-  color: oklch(0.954 0.038 75.164); /* orange-100 */
-}
-
-.card-chai {
-  border-radius: 1rem;
-  border: 1px solid rgb(120 53 15 / 0.15);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  transition: border-color 300ms ease, opacity 300ms ease;
-}
-.card-chai:hover {
-  border-color: rgb(120 53 15 / 0.25);
-}
-
-.btn-asym {
-  border-radius: 0 0.625rem 0 0.625rem;
-}
-
-.btn-asym-mirror {
-  border-radius: 0.625rem 0 0.625rem 0;
-}
 
 @keyframes marquee {
   to { transform: translateX(-50%); }
