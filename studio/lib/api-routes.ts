@@ -53,6 +53,12 @@ export const API_ROUTES = {
     ORDER_BY_ID: (id: string) => `/admin/orders/${encodeURIComponent(id)}`,
     SEARCH: (q: string) => `/admin/search?q=${encodeURIComponent(q.trim())}`,
   },
+  PUSH: {
+    VAPID_KEY: '/push/vapid-key',
+    SUBSCRIBE: '/push/subscribe',
+    UNSUBSCRIBE: '/push/unsubscribe',
+    TEST: '/push/test',
+  },
 } as const
 
 export function getApiUrl(endpointOrPath: string): string {

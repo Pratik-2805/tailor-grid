@@ -3,6 +3,7 @@ const { prisma } = require('../lib/prisma');
 const dispatchService = require('../services/dispatch.service');
 const { authenticateUser } = require('../lib/auth-middleware');
 const { sendOrderOtpEmail, sendWelcomeEmail } = require('../lib/email');
+const pushService = require('../services/push.service');
 
 const router = express.Router();
 router.use(authenticateUser);
@@ -728,6 +729,17 @@ router.post('/', async (req, res) => {
     }).catch((err) => {
       console.warn('Background dispatch session warning:', err.message || err);
     });
+
+    // Dispatch Web Push notification to Studio OS devices
+    if (newOrder.storeId) {
+      pushService.sendNotificationToStore(newOrder.storeId, {
+        title: "🧵 New Order Allocated",
+        body: `Order #${newOrder.id} · ${newOrder.customerName} (${newOrder.garmentName})`,
+        url: `/?orderId=${newOrder.id}`,
+        tag: `order-${newOrder.id}`,
+        data: { orderId: newOrder.id, type: "NEW_ORDER" },
+      }).catch((err) => console.warn("Push notification dispatch notice:", err.message));
+    }
 
     // Asynchronously dispatch Order OTP confirmation email to user via Resend
     (async () => {

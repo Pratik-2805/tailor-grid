@@ -1,6 +1,7 @@
 const { prisma } = require('../lib/prisma');
 const { calculateDistanceInMiles } = require('./locate.service');
 const { sendOrderOtpEmail } = require('../lib/email');
+const pushService = require('./push.service');
 
 // In-memory cache for fast order dispatch sessions with automatic 10-minute TTL
 const dispatchSessions = new Map();
@@ -282,6 +283,24 @@ function activateStage(session, stageNum) {
     `Contacting ${currentCandidates.length} tailors. ` +
     `Permanently excluded: ${session.declinedTailorIds.size}`
   );
+
+  // Dispatch Web Push notification to all active devices of candidate ateliers
+  currentCandidates.forEach((candidate) => {
+    pushService.sendNotificationToStore(candidate.tailorId, {
+      title: `⚡ Incoming Dispatch: ${session.orderData.garmentName || 'Garment'}`,
+      body: `${session.orderData.serviceName || 'Alteration'} · ${candidate.distanceMiles ? candidate.distanceMiles.toFixed(1) : '0.2'} mi away · 15s to accept`,
+      url: `/?orderId=${session.orderId}&dispatch=true`,
+      tag: `dispatch-${session.orderId}`,
+      renotify: true,
+      data: {
+        orderId: session.orderId,
+        type: 'INCOMING_DISPATCH',
+        garment: session.orderData.garmentName,
+        service: session.orderData.serviceName,
+        payout: session.orderData.partnerPayout,
+      },
+    }).catch((err) => console.warn('Dispatch push notice:', err.message));
+  });
 
   // Clear previous stage timer
   if (session.timer) clearTimeout(session.timer);
