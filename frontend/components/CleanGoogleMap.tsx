@@ -247,6 +247,8 @@ export default function CleanGoogleMap({
   const [isMapDragging, setIsMapDragging] = useState(false)
   // Suggestions are fetched only for text the user typed, never for text filled in programmatically
   const isUserTypingRef = useRef(false)
+  // Point under the center pin while choosing; every zoom stays anchored here instead of the cursor / pinch midpoint
+  const pinAnchorRef = useRef<google.maps.LatLngLiteral | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const closeSearch = () => {
@@ -323,7 +325,7 @@ export default function CleanGoogleMap({
           zoom: isChoosing ? 16 : 13,
           minZoom: isChoosing ? 10 : 13,
           maxZoom: isChoosing ? 21 : 13,
-          scrollwheel: isInteractive,
+          scrollwheel: false,
           disableDoubleClickZoom: !isInteractive,
           draggable: isInteractive,
           keyboardShortcuts: false,
@@ -370,7 +372,7 @@ export default function CleanGoogleMap({
     const isInteractive = isChoosing
     map.setOptions({
       draggable: isInteractive,
-      scrollwheel: isInteractive,
+      scrollwheel: false,
       disableDoubleClickZoom: !isInteractive,
       gestureHandling: isInteractive ? getInteractiveGestureHandling() : 'none',
       minZoom: isChoosing ? 10 : 13,
@@ -397,14 +399,29 @@ export default function CleanGoogleMap({
     const map = mapInstanceRef.current
     if (!map || !isReady || !isChoosing) return
 
+    const initialCenter = map.getCenter()
+    pinAnchorRef.current = initialCenter ? { lat: initialCenter.lat(), lng: initialCenter.lng() } : { lat, lng }
+
     const dragStartListener = map.addListener('dragstart', () => {
       setIsMapDragging(true)
       closeSearch()
     })
 
+    // Two-finger gestures are pinch-zooms: they must never move the pinned point
+    let gestureHadPinch = false
+    let activeTouches = 0
+    const restoreAnchor = () => {
+      if (pinAnchorRef.current) map.setCenter(pinAnchorRef.current)
+    }
+
     const dragEndListener = map.addListener('dragend', () => {
       setIsMapDragging(false)
+      if (gestureHadPinch) {
+        restoreAnchor()
+        return
+      }
       const center = map.getCenter()
+      if (center) pinAnchorRef.current = { lat: center.lat(), lng: center.lng() }
       if (center && onPinLocationChange) {
         onPinLocationChange({ lat: center.lat(), lng: center.lng() })
       }
@@ -412,20 +429,67 @@ export default function CleanGoogleMap({
 
     const idleListener = map.addListener('idle', () => {
       setIsMapDragging(false)
+      if (gestureHadPinch) {
+        if (activeTouches === 0) gestureHadPinch = false
+        restoreAnchor()
+        return
+      }
+      const center = map.getCenter()
+      if (center) pinAnchorRef.current = { lat: center.lat(), lng: center.lng() }
+    })
+
+    // Pinch / double-tap zoom around the fingers, so snap the pinned point back under the center pin
+    const zoomListener = map.addListener('zoom_changed', () => {
+      if (pinAnchorRef.current) map.setCenter(pinAnchorRef.current)
     })
 
     const clickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       if (e.latLng && onPinLocationChange) {
+        pinAnchorRef.current = { lat: e.latLng.lat(), lng: e.latLng.lng() }
         map.panTo(e.latLng)
         onPinLocationChange({ lat: e.latLng.lat(), lng: e.latLng.lng() })
       }
     })
 
+    // Mouse wheel / trackpad zoom anchored on the center pin (setZoom keeps the center fixed)
+    const mapEl = mapRef.current
+    let wheelDelta = 0
+    let lastWheelZoomAt = 0
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      wheelDelta += e.deltaY
+      const now = Date.now()
+      if (Math.abs(wheelDelta) < 60 || now - lastWheelZoomAt < 180) return
+      const currentZoom = map.getZoom() ?? 16
+      map.setZoom(currentZoom + (wheelDelta < 0 ? 1 : -1))
+      wheelDelta = 0
+      lastWheelZoomAt = now
+    }
+    mapEl?.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+
+    const handleTouchStart = (e: TouchEvent) => {
+      activeTouches = e.touches.length
+      if (e.touches.length >= 2) gestureHadPinch = true
+    }
+    const handleTouchEnd = (e: TouchEvent) => {
+      activeTouches = e.touches.length
+      if (activeTouches === 0 && gestureHadPinch) restoreAnchor()
+    }
+    mapEl?.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true })
+    mapEl?.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true })
+    mapEl?.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true })
+
     return () => {
       google.maps.event.removeListener(dragStartListener)
       google.maps.event.removeListener(dragEndListener)
       google.maps.event.removeListener(idleListener)
+      google.maps.event.removeListener(zoomListener)
       google.maps.event.removeListener(clickListener)
+      mapEl?.removeEventListener('wheel', handleWheel, { capture: true })
+      mapEl?.removeEventListener('touchstart', handleTouchStart, { capture: true })
+      mapEl?.removeEventListener('touchend', handleTouchEnd, { capture: true })
+      mapEl?.removeEventListener('touchcancel', handleTouchEnd, { capture: true })
     }
   }, [isReady, isChoosing, onPinLocationChange])
 
@@ -452,6 +516,7 @@ export default function CleanGoogleMap({
         const dLng = Math.abs(currentCenter.lng() - lng)
         // Only pan if coordinate significantly changed from external source (> 30 meters)
         if (dLat > 0.0003 || dLng > 0.0003) {
+          pinAnchorRef.current = { lat, lng }
           map.panTo({ lat, lng })
         }
       }
@@ -478,7 +543,7 @@ export default function CleanGoogleMap({
       return dist <= (radiusMiles || fixedBoxMiles)
     })
 
-    if (onStoresFound && validStoresInRadius.length !== stores.length) {
+    if (onStoresFound && !isChoosing && validStoresInRadius.length !== stores.length) {
       onStoresFound(validStoresInRadius)
     }
 
@@ -660,8 +725,9 @@ export default function CleanGoogleMap({
       }
     }
 
-    // Render pins for each store inside the radius
-    validStoresInRadius.forEach((st) => {
+    // Render pins for each store inside the radius (hidden while the user is still choosing a location)
+    const storesToRender = isChoosing ? [] : validStoresInRadius
+    storesToRender.forEach((st) => {
       const overlay = new CustomStudioMarkerOverlay(
         new google.maps.LatLng(st.coords.lat, st.coords.lng),
         st
@@ -931,8 +997,9 @@ export default function CleanGoogleMap({
         const newCoords = { lat: cached.lat, lng: cached.lng }
         const map = mapInstanceRef.current
         if (map) {
-          map.panTo(newCoords)
+          pinAnchorRef.current = newCoords
           map.setZoom(16)
+          map.panTo(newCoords)
         }
         if (onPinLocationChange) {
           onPinLocationChange(newCoords)
@@ -955,8 +1022,9 @@ export default function CleanGoogleMap({
         }
         const map = mapInstanceRef.current
         if (map) {
-          map.panTo(newCoords)
+          pinAnchorRef.current = newCoords
           map.setZoom(16)
+          map.panTo(newCoords)
         }
         if (onPinLocationChange) {
           onPinLocationChange(newCoords)
@@ -980,8 +1048,9 @@ export default function CleanGoogleMap({
           const newCoords = { lat: loc.lat(), lng: loc.lng() }
           const map = mapInstanceRef.current
           if (map) {
-            map.panTo(newCoords)
+            pinAnchorRef.current = newCoords
             map.setZoom(16)
+            map.panTo(newCoords)
           }
           if (onPinLocationChange) {
             onPinLocationChange(newCoords)

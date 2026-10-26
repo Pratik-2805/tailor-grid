@@ -586,8 +586,10 @@ export default function BookPage() {
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
-  // Fetch partner studios purely by lat/lng within 5.0 miles for active location (GPS or user pinned)
+  // Fetch partner studios purely by lat/lng within 5.0 miles for the confirmed location (GPS or saved pin).
+  // While the user is still choosing on the map nothing is fetched; Save & Continue fetches for the confirmed pin.
   useEffect(() => {
+    if (isCardFlipped) return
     let isCurrent = true
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
     if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') return
@@ -665,7 +667,7 @@ export default function BookPage() {
   const mapCoordinates = useMemo(() => {
     if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [userGpsCoords, selectedCity])
+  }, [userGpsCoords, selectedCity, isCardFlipped])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -1765,19 +1767,22 @@ export default function BookPage() {
             }
           }
 
-          // Dynamically fetch tailors within 5.0 miles of the selected coordinates
-          fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
-            .then((data) => {
-              if (data && Array.isArray(data.tailors)) {
-                setNearbyStores(data.tailors)
-                if (data.tailors.length > 0) {
-                  setSelectedStore(data.tailors[0])
-                } else {
-                  setSelectedStore(null)
+          // Fetch tailors within 5.0 miles only for an already-confirmed location (GPS / saved address);
+          // a searched place opens the map picker and studios load after the pin is confirmed.
+          if (isGps === true || isSaved) {
+            fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+              .then((data) => {
+                if (data && Array.isArray(data.tailors)) {
+                  setNearbyStores(data.tailors)
+                  if (data.tailors.length > 0) {
+                    setSelectedStore(data.tailors[0])
+                  } else {
+                    setSelectedStore(null)
+                  }
                 }
-              }
-            })
-            .catch((err) => console.warn('Fetch tailors error on location select:', err))
+              })
+              .catch((err) => console.warn('Fetch tailors error on location select:', err))
+          }
         }}
       />
 
