@@ -223,6 +223,19 @@ export default function BookPage() {
     return typeof s?.isCardFlipped === 'boolean' ? s.isCardFlipped : false
   })
 
+  // Below lg (mobile / tablet portrait) choosing a location is a two-step flow:
+  // full-screen map with Confirm / Cancel first, then the Address Details sheet.
+  const [isPinConfirmed, setIsPinConfirmed] = useState(false)
+  const isPickingOnMap = isCardFlipped && !isPinConfirmed
+
+  useEffect(() => {
+    if (!isCardFlipped) return
+    setIsPinConfirmed(false)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [isCardFlipped])
+
   // Address Details for Searched / Dropped Pin Location (House No., Apartment, Locality, City)
   const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>(() => {
     const s = getSessionBookingData()
@@ -1031,7 +1044,7 @@ export default function BookPage() {
       <div className="relative flex-1 flex flex-col lg:flex-row lg:gap-6 lg:p-6 lg:h-[calc(100dvh-69px)] lg:overflow-hidden max-w-[1800px] w-full mx-auto">
 
           {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
-          <div className="order-2 lg:order-1 relative z-10 -mt-6 lg:mt-0 flex-1 lg:flex-none w-full lg:w-[420px] xl:w-[440px] shrink-0 bg-white lg:bg-transparent rounded-t-[28px] lg:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.10)] lg:shadow-none lg:overflow-y-auto lg:-m-2 lg:p-2 scrollbar-none [perspective:1400px]">
+          <div className={`${isPickingOnMap ? 'max-lg:hidden' : ''} order-2 lg:order-1 relative z-10 -mt-6 lg:mt-0 flex-1 lg:flex-none w-full lg:w-[420px] xl:w-[440px] shrink-0 bg-white lg:bg-transparent rounded-t-[28px] lg:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.10)] lg:shadow-none lg:overflow-y-auto lg:-m-2 lg:p-2 scrollbar-none [perspective:1400px]`}>
             {/* Bottom-sheet grab handle (mobile only) */}
             <div className="lg:hidden flex justify-center pt-2.5 pb-1">
               <span className="h-1.5 w-10 rounded-full bg-neutral-300" />
@@ -1527,8 +1540,8 @@ export default function BookPage() {
           </div>
 
           {/* RIGHT COLUMN: Map canvas (full-bleed and pinned behind the sheet on mobile, rounded panel on desktop) */}
-          <div className="order-1 lg:order-2 sticky top-[69px] lg:static z-0 w-full lg:flex-1 h-[44dvh] min-h-[280px] max-h-[480px] lg:h-auto lg:min-h-0 lg:max-h-none shrink-0">
-            <div className="w-full h-full overflow-hidden lg:rounded-2xl lg:border lg:border-gray-200/90 relative bg-[#EBE7E0]">
+          <div className={`order-1 lg:order-2 sticky top-[69px] lg:static z-0 w-full lg:flex-1 flex flex-col ${isPickingOnMap ? 'h-[calc(100dvh-69px)]' : 'h-[44dvh] min-h-[280px] max-h-[480px]'} lg:h-auto lg:min-h-0 lg:max-h-none shrink-0`}>
+            <div className="w-full flex-1 min-h-0 overflow-hidden lg:rounded-2xl lg:border lg:border-gray-200/90 relative bg-[#EBE7E0]">
               <CleanGoogleMap
                 lat={mapCoordinates.lat}
                 lng={mapCoordinates.lng}
@@ -1586,7 +1599,6 @@ export default function BookPage() {
                       ...newDetails,
                     }))
                     setSelectedCity(geo.cityStateFormatted)
-                    setMapSearchQuery(geo.locality || geo.displayLocality?.split(',')[0]?.trim() || geo.cityStateFormatted || '')
                   } catch (err) {
                     console.warn('Pin location reverse geocode error:', err)
                   }
@@ -1613,6 +1625,40 @@ export default function BookPage() {
                 </div>
               )}
             </div>
+
+            {/* Confirm / Cancel bar while picking on the map (mobile / tablet portrait only) */}
+            {isPickingOnMap && (
+              <div className="lg:hidden shrink-0 bg-white border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.10)] px-4 sm:px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="sm:max-w-xl sm:mx-auto">
+                  <div className="flex items-center gap-2.5 mb-3 min-w-0">
+                    <MapPin size={16} className="text-black shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Move the map to set your location</p>
+                      <p className="text-sm font-bold text-black truncate">
+                        {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality) || 'Pinned location'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleBackToRequest}
+                      className="flex-1 rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-bold py-3.5 text-sm transition-all cursor-pointer active:scale-[0.98]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPinConfirmed(true)}
+                      className="flex-[2] rounded-xl bg-black hover:bg-neutral-800 text-white font-bold py-3.5 text-sm transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <span>Confirm location</span>
+                      <Check size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
       </div>
