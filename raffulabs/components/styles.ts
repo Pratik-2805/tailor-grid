@@ -2,7 +2,7 @@
 export const ease = [0.16, 1, 0.3, 1] as const;
 
 export const btnPrimary =
-  "group inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-semibold text-cream transition hover:bg-clay";
+  "btn-asym inline-flex h-11 items-center gap-2 bg-neutral-900 px-5 text-sm font-medium text-white transition-colors duration-200 hover:bg-black/90 cursor-pointer";
 export const btnSecondary =
-  "group inline-flex items-center gap-2 rounded-full border border-ink/15 bg-white px-6 py-3.5 text-sm font-semibold text-ink transition hover:border-ink/40";
-export const card = "rounded-3xl border border-ink/[0.07] bg-white shadow-card";
+  "btn-asym-mirror inline-flex h-11 items-center gap-2 border border-neutral-300/80 bg-white/70 px-5 text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-100 cursor-pointer";
+export const card = "card-chai";
