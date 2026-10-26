@@ -201,7 +201,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
                 </button>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-white/15 flex items-center gap-6 text-xs text-white/60">
+              <div className="mt-8 pt-6 border-t border-white/15 flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-white/60">
                 <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-[#10B981]" /> Direct Customer Payment</span>
                 <span className="flex items-center gap-1.5"><CreditCard size={14} className="text-[#F59E0B]" /> Zero Commission Delays</span>
                 <span className="flex items-center gap-1.5"><ShoppingBag size={14} className="text-[#10B981]" /> Keep 100% In-Store Retail</span>
@@ -312,16 +312,16 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
             <button
               type="button"
               onClick={() => setPartnerTypeTab('tailors')}
-              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex flex-1 sm:flex-none justify-center sm:justify-start items-center gap-2 whitespace-nowrap cursor-pointer relative ${
                 partnerTypeTab === 'tailors'
                   ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
                   : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
               <Scissors size={16} className={partnerTypeTab === 'tailors' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
-              <span>Independent Tailor Studios</span>
+              <span><span className="hidden sm:inline">Independent </span>Tailor Studios</span>
               <span
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                className={`hidden lg:inline text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
                   partnerTypeTab === 'tailors' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
                 }`}
               >
@@ -331,16 +331,16 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
             <button
               type="button"
               onClick={() => setPartnerTypeTab('retailers')}
-              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex flex-1 sm:flex-none justify-center sm:justify-start items-center gap-2 whitespace-nowrap cursor-pointer relative ${
                 partnerTypeTab === 'retailers'
                   ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
                   : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
               <Store size={16} className={partnerTypeTab === 'retailers' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
-              <span>Fashion Boutiques &amp; Retailers</span>
+              <span><span className="hidden sm:inline">Fashion </span>Boutiques<span className="hidden sm:inline"> &amp; Retailers</span></span>
               <span
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                className={`hidden lg:inline text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
                   partnerTypeTab === 'retailers' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
                 }`}
               >
@@ -361,7 +361,7 @@ export function ForPartnersView({ go, onOpenAuth, onPartnerRegistered }: ForPart
           </div>
 
           {/* 3 Columns Requirements matching Active Partner Track */}
-          <div key={partnerTypeTab} className="grid md:grid-cols-3 gap-8 animate-in fade-in-50 duration-300">
+          <div key={partnerTypeTab} className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in-50 duration-300">
             {PARTNER_REQUIREMENTS_DATA[partnerTypeTab].cards.map((card, idx) => {
               const IconComponent = card.icon
               return (

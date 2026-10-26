@@ -65,8 +65,8 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
           <div className="grid grid-cols-12 gap-8 lg:gap-10 pb-12 border-b border-[#1E2229]/80">
 
             {/* Brand Col */}
-            <div className="lg:col-span-4">
-              <Link href="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex items-center gap-3 mb-5 cursor-pointer">
+            <div className="col-span-12 lg:col-span-4">
+              <Link href="/" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="inline-flex items-center gap-3 mb-5 cursor-pointer">
                 <RaffuLogo theme="dark" subtitle="OWN YOUR FIT" size="md" />
               </Link>
               <p className="text-xs sm:text-sm text-[#9CA3AF] leading-relaxed mb-6 max-w-[320px]">
@@ -96,7 +96,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
                         placeholder="Enter your email"
                         required
                         disabled={subscribing}
-                        className="flex-1 rounded-xl border border-[#2D333D] bg-[#1A1E24] px-3 py-2 text-xs text-white placeholder:text-[#6B7280] focus:border-[#9E593B] focus:outline-none transition-colors disabled:opacity-60"
+                        className="flex-1 min-w-0 rounded-xl border border-[#2D333D] bg-[#1A1E24] px-3 py-2 text-xs text-white placeholder:text-[#6B7280] focus:border-[#9E593B] focus:outline-none transition-colors disabled:opacity-60"
                       />
                       <button
                         type="submit"
@@ -205,7 +205,7 @@ export function Footer({ go }: { go: (s: Screen) => void }) {
         </div>
 
         {/* Bottom */}
-        <div className="mt-8 text-center text-xs sm:text-sm text-[#6B7280]">
+        <div className="mt-8 px-4 text-center text-xs sm:text-sm text-[#6B7280]">
           <p>© {new Date().getFullYear()} Raffu Labs Ltd. All rights reserved.</p>
         </div>
       </footer>

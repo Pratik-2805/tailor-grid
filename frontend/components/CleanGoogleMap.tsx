@@ -119,6 +119,13 @@ export function generateCurvedPoints(
   return points
 }
 
+// Touch devices below the lg breakpoint (phones, tablet portrait) pan with one finger like a native map app
+function getInteractiveGestureHandling(): 'greedy' | 'cooperative' {
+  if (typeof window === 'undefined') return 'cooperative'
+  const isTouch = window.matchMedia?.('(pointer: coarse)').matches
+  return isTouch && window.innerWidth < 1024 ? 'greedy' : 'cooperative'
+}
+
 const MINIMALIST_MAP_STYLES: google.maps.MapTypeStyle[] = [
   {
     featureType: 'all',
@@ -238,10 +245,21 @@ export default function CleanGoogleMap({
   >([])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMapDragging, setIsMapDragging] = useState(false)
+  // Suggestions are fetched only for text the user typed, never for text filled in programmatically
+  const isUserTypingRef = useRef(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const closeSearch = () => {
+    isUserTypingRef.current = false
+    setIsSearchOpen(false)
+    setSearchResults([])
+    setIsSearchingPlaces(false)
+    searchInputRef.current?.blur()
+  }
 
   // Sync external searchQuery (e.g. from CityModal selection, reverse geocode, or parent)
   useEffect(() => {
-    if (typeof searchQuery === 'string') {
+    if (typeof searchQuery === 'string' && !isUserTypingRef.current) {
       setMapSearchText(searchQuery)
     }
   }, [searchQuery])
@@ -311,7 +329,7 @@ export default function CleanGoogleMap({
           keyboardShortcuts: false,
           disableDefaultUI: true,
           clickableIcons: false,
-          gestureHandling: isInteractive ? 'cooperative' : 'none',
+          gestureHandling: isInteractive ? getInteractiveGestureHandling() : 'none',
           styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
         })
 
@@ -354,7 +372,7 @@ export default function CleanGoogleMap({
       draggable: isInteractive,
       scrollwheel: isInteractive,
       disableDoubleClickZoom: !isInteractive,
-      gestureHandling: isInteractive ? 'cooperative' : 'none',
+      gestureHandling: isInteractive ? getInteractiveGestureHandling() : 'none',
       minZoom: isChoosing ? 10 : 13,
       maxZoom: isChoosing ? 21 : 13,
       styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
@@ -381,6 +399,7 @@ export default function CleanGoogleMap({
 
     const dragStartListener = map.addListener('dragstart', () => {
       setIsMapDragging(true)
+      closeSearch()
     })
 
     const dragEndListener = map.addListener('dragend', () => {
@@ -748,9 +767,10 @@ export default function CleanGoogleMap({
     }
 
     const trimmed = mapSearchText.trim()
-    if (trimmed.length < 2) {
+    if (!isUserTypingRef.current || trimmed.length < 2) {
       setSearchResults([])
       setIsSearchingPlaces(false)
+      if (trimmed.length < 2) setIsSearchOpen(false)
       return
     }
 
@@ -785,6 +805,7 @@ export default function CleanGoogleMap({
                 placeId: p.placeId,
               }
             })
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -836,6 +857,7 @@ export default function CleanGoogleMap({
               fullName: p.description,
               placeId: p.place_id,
             }))
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -868,6 +890,7 @@ export default function CleanGoogleMap({
               fullName: g.formatted_address,
               placeId: g.place_id,
             }))
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -897,9 +920,9 @@ export default function CleanGoogleMap({
 
   const handleSelectSearchResult = (result: { title: string; fullName: string; placeId?: string }) => {
     const text = result.title || result.fullName
+    closeSearch()
     setMapSearchText(text)
     if (onSearchTextChange) onSearchTextChange(text)
-    setIsSearchOpen(false)
 
     // Check cached place details first
     if (result.placeId) {
@@ -948,6 +971,7 @@ export default function CleanGoogleMap({
     if (searchResults.length > 0) {
       handleSelectSearchResult(searchResults[0])
     } else if (mapSearchText.trim()) {
+      closeSearch()
       const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
       if (!geocoder) return
       geocoder.geocode({ address: mapSearchText.trim() }, (results: any, status: any) => {
@@ -989,7 +1013,7 @@ export default function CleanGoogleMap({
   return (
     <div
       onClick={!disableNavigation && onMapClick ? onMapClick : undefined}
-      className={`w-full h-full relative overflow-hidden rounded-[28px] ${
+      className={`w-full h-full relative overflow-hidden rounded-[inherit] ${
         disableNavigation || !onMapClick ? 'cursor-default' : 'cursor-pointer'
       } ${className}`}
     >
@@ -998,11 +1022,11 @@ export default function CleanGoogleMap({
         <iframe
           title="Clean Map Embed"
           src={`https://maps.google.com/maps?q=${query}&t=m&z=13&ie=UTF8&iwloc=near&output=embed`}
-          className="w-full h-full border-0 absolute inset-0 rounded-[28px] contrast-[105%] brightness-[99%] saturate-[80%]"
+          className="w-full h-full border-0 absolute inset-0 rounded-[inherit] contrast-[105%] brightness-[99%] saturate-[80%]"
           loading="lazy"
         />
       ) : (
-        <div ref={mapRef} className="w-full h-full rounded-[28px]" />
+        <div ref={mapRef} className="w-full h-full rounded-[inherit]" />
       )}
 
       {/* Search Bar (Active ONLY in Choosing Mode, e.g. when picking custom location) */}
@@ -1010,7 +1034,7 @@ export default function CleanGoogleMap({
         <div
           ref={searchContainerRef}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3.5 left-3.5 right-14 sm:right-auto sm:w-[320px] md:w-[360px] z-30 flex flex-col font-sans"
+          className="absolute top-3.5 left-3.5 right-14 max-lg:pointer-coarse:right-3.5 sm:right-auto sm:w-[320px] md:w-[360px] z-30 flex flex-col font-sans"
         >
           <form
             onSubmit={handleSearchSubmit}
@@ -1022,14 +1046,17 @@ export default function CleanGoogleMap({
               <Search className="size-4 text-neutral-400 shrink-0" />
             )}
             <input
+              ref={searchInputRef}
               type="text"
+              enterKeyHint="search"
               value={mapSearchText}
               onChange={(e) => {
+                isUserTypingRef.current = true
                 setMapSearchText(e.target.value)
                 if (onSearchTextChange) onSearchTextChange(e.target.value)
               }}
               onFocus={() => {
-                if (searchResults.length > 0) setIsSearchOpen(true)
+                if (isUserTypingRef.current && searchResults.length > 0) setIsSearchOpen(true)
               }}
               placeholder="Search area, landmark or street..."
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 focus:outline-hidden"
@@ -1038,10 +1065,12 @@ export default function CleanGoogleMap({
               <button
                 type="button"
                 onClick={() => {
+                  isUserTypingRef.current = false
                   setMapSearchText('')
                   if (onSearchTextChange) onSearchTextChange('')
                   setSearchResults([])
                   setIsSearchOpen(false)
+                  searchInputRef.current?.focus()
                 }}
                 className="size-5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex items-center justify-center shrink-0 transition-all cursor-pointer"
                 title="Clear search"
@@ -1100,7 +1129,7 @@ export default function CleanGoogleMap({
 
       {/* Zoom Controls (Active only when actively choosing location) */}
       {isChoosing && isReady && !loadError && (
-        <div className="absolute top-3.5 right-3.5 z-20 flex flex-col gap-1.5 shadow-sm">
+        <div className="absolute top-3.5 right-3.5 z-20 flex flex-col gap-1.5 shadow-sm max-lg:pointer-coarse:hidden">
           <button
             type="button"
             onClick={handleZoomIn}
@@ -1121,7 +1150,7 @@ export default function CleanGoogleMap({
       )}
 
       {!isReady && !loadError && (
-        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[28px] flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[inherit] flex items-center justify-center pointer-events-none">
           <div className="size-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
       )}

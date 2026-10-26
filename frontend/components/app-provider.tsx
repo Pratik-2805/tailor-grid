@@ -56,6 +56,9 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | null>(null)
 
+// Max time the initial session check may hold the full-page loader
+const AUTH_BOOT_TIMEOUT_MS = 8000
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
@@ -125,6 +128,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             if (!rt) {
               clearAllAuth()
               setUser(null)
+              setIsAuthLoading(false)
               return
             }
             window.location.replace(getStudioUrl('/auth/callback', rt))
@@ -134,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             // Admin account must never be treated as a customer on the storefront.
             clearAllAuth()
             setUser(null)
+            setIsAuthLoading(false)
             return
           }
           setUser(stored)
@@ -166,6 +171,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const hasSession = !isExplicitSignout && (hasActiveSession() || Boolean(getAuthToken() || getRefreshToken()))
     if (hasSession) {
       scheduleSilentRefresh()
+      // Never leave the app on the loader if the auth server is slow or unreachable;
+      // a late response still updates the user when it arrives.
+      const authBootTimeout = window.setTimeout(() => setIsAuthLoading(false), AUTH_BOOT_TIMEOUT_MS)
       getCurrentUser()
         .then((u) => {
           if (u) {
@@ -199,6 +207,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setUser(null)
         })
         .finally(() => {
+          window.clearTimeout(authBootTimeout)
           setIsAuthLoading(false)
         })
     } else {
