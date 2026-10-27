@@ -22,6 +22,7 @@ import {
   getCookie,
 } from '@/lib/cookies'
 import type { Screen, StoreOption, User } from './data'
+import { isPushSupported, subscribeToPush } from '@/lib/push-notifications'
 
 interface AppContextType {
   user: User | null
@@ -265,6 +266,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Native Google Chrome notification prompt on first direct user interaction
+  // Manage Web Push Notifications - STRICTLY ONLY for authenticated logged-in users!
+  // Unauthenticated guests browsing public pages will NEVER be asked for permission.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!isPushSupported()) return
+
+    // CRITICAL: Only proceed if user is logged in
+    if (!user?.id) return
+
+    const perm = typeof Notification !== 'undefined' ? Notification.permission : 'default'
+
+    // If already granted, sync subscription quietly in background with backend
+    if (perm === 'granted') {
+      subscribeToPush({ userId: user.id }).catch(() => {})
+      return
+    }
+
+    // If permission is 'default' and the user is logged in, trigger on user's first interactive gesture
+    if (perm === 'default') {
+      const handleUserClick = () => {
+        try {
+          Notification.requestPermission().then((result) => {
+            if (result === 'granted') {
+              subscribeToPush({ userId: user.id }).catch(() => {})
+            }
+          }).catch(() => {})
+        } catch (e) {}
+
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+
+      window.addEventListener('click', handleUserClick, { once: true, passive: true })
+      window.addEventListener('touchstart', handleUserClick, { once: true, passive: true })
+
+      return () => {
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+    }
+  }, [user?.id])
+
   const openAuth = (role: 'CUSTOMER' | 'STUDIO' = 'CUSTOMER', type: 'signin' | 'signup' = 'signup') => {
     setAuthRole(role)
     setAuthType(type)
@@ -306,6 +350,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCookieAuthRole(effectiveRole)
     setAuthUser(updatedUser)
     scheduleSilentRefresh((loggedUser as any).token)
+
+    // Trigger native Google notification permission right after login interaction
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().then((result) => {
+          if (result === 'granted') {
+            subscribeToPush({ userId: loggedUser.id }).catch(() => {})
+          }
+        }).catch(() => {})
+      } catch (e) {}
+    }
 
     toast.success(`Welcome back, ${loggedUser.name || 'Member'}!`, {
       position: 'top-center',

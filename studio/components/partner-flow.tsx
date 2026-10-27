@@ -62,6 +62,7 @@ import { PriceCatalogModal } from './price-catalog-modal'
 import { WelcomeAboardModal } from './welcome-aboard-modal'
 import { RaffuLogo } from './raffu-logo'
 import { toast } from 'react-toastify'
+import { isPushSupported, subscribeToPush } from '@/lib/push-notifications'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile' | 'catalog'
 
@@ -115,6 +116,40 @@ export function getDefaultGarmentImage(garmentNameOrId?: string, serviceName?: s
     return '/images/service_trousers.jpg'
   }
   return '/images/service_trousers.jpg'
+}
+
+function playAtelierChime() {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    const now = ctx.currentTime
+
+    // Tone 1: High crisp tailor bell (587.33 Hz - D5)
+    const osc1 = ctx.createOscillator()
+    const gain1 = ctx.createGain()
+    osc1.type = 'sine'
+    osc1.frequency.setValueAtTime(587.33, now)
+    gain1.gain.setValueAtTime(0.2, now)
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35)
+    osc1.connect(gain1)
+    gain1.connect(ctx.destination)
+    osc1.start(now)
+    osc1.stop(now + 0.35)
+
+    // Tone 2: Harmonic (880 Hz - A5)
+    const osc2 = ctx.createOscillator()
+    const gain2 = ctx.createGain()
+    osc2.type = 'sine'
+    osc2.frequency.setValueAtTime(880, now + 0.12)
+    gain2.gain.setValueAtTime(0.28, now + 0.12)
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6)
+    osc2.connect(gain2)
+    gain2.connect(ctx.destination)
+    osc2.start(now + 0.12)
+    osc2.stop(now + 0.6)
+  } catch {}
 }
 
 function getGarmentPhoto(order?: Partial<FittingBooking> | { intakePhotoUrl?: string; imageUrl?: string; garmentName?: string; garmentId?: string; serviceName?: string } | null): string {
@@ -667,6 +702,57 @@ export function PartnerFlow({
   const [pendingDispatches, setPendingDispatches] = useState<PendingDispatchRequest[]>([])
   const [payoutsFilter, setPayoutsFilter] = useState<'ALL' | 'COLLECTED' | 'DUE' | 'IN_PROGRESS'>('ALL')
   const [payoutsSearch, setPayoutsSearch] = useState('')
+
+  // Handle URL deep-linking from push notifications (e.g. /?orderId=TG-XXXXXX)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const targetOrderId = params.get('orderId')
+    if (targetOrderId && orders.length > 0) {
+      const match = orders.find((o) => o.id === targetOrderId)
+      if (match) {
+        setSelectedOrder(match)
+        setActiveTab('pipeline')
+      }
+    }
+  }, [orders])
+
+  // Native Google Chrome notification prompt - ONLY for authenticated studio partners
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!isPushSupported()) return
+    if (!user?.id) return
+
+    const perm = typeof Notification !== 'undefined' ? Notification.permission : 'default'
+
+    if (perm === 'granted') {
+      subscribeToPush({ storeId: currentStudioId, userId: user?.id }).catch(() => {})
+      return
+    }
+
+    if (perm === 'default') {
+      const handleUserClick = () => {
+        try {
+          Notification.requestPermission().then((result) => {
+            if (result === 'granted') {
+              subscribeToPush({ storeId: currentStudioId, userId: user?.id }).catch(() => {})
+            }
+          }).catch(() => {})
+        } catch (e) {}
+
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+
+      window.addEventListener('click', handleUserClick, { once: true, passive: true })
+      window.addEventListener('touchstart', handleUserClick, { once: true, passive: true })
+
+      return () => {
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+    }
+  }, [currentStudioId, user?.id])
 
   // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile)
   // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile - Defaults to USD)
@@ -1678,6 +1764,49 @@ export function PartnerFlow({
 
     return () => clearInterval(interval)
   }, [online, currentBroadcastKey, broadcastIdx])
+
+  // Play audio chime and trigger desktop push alert when an incoming dispatch appears
+  const lastNotifiedBroadcastRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!currentBroadcast || !currentBroadcastKey) return
+    if (lastNotifiedBroadcastRef.current === currentBroadcastKey) return
+
+    lastNotifiedBroadcastRef.current = currentBroadcastKey
+
+    // 1. Play crystal tailor chime
+    playAtelierChime()
+
+    // 2. Trigger native OS / Service Worker notification if in background or tab minimized
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const notifTitle = `⚡ INCOMING DISPATCH: ${currentBroadcast.garmentName || 'Garment Alteration'}`
+        const notifBody = `${currentBroadcast.serviceName || 'Custom Fit'} · ${currentBroadcast.customerArea || 'Nearby'} · 15s to accept`
+
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(notifTitle, {
+              body: notifBody,
+              icon: '/android-chrome-192x192.png',
+              badge: '/favicon-32x32.png',
+              tag: `dispatch-${currentBroadcast.id}`,
+              renotify: true,
+              data: {
+                url: `/?orderId=${currentBroadcast.id}&dispatch=true`,
+              },
+            } as any)
+          }).catch(() => {})
+        } else {
+          new Notification(notifTitle, {
+            body: notifBody,
+            icon: '/android-chrome-192x192.png',
+            tag: `dispatch-${currentBroadcast.id}`,
+          })
+        }
+      } catch (err) {
+        console.warn('Local dispatch notification notice:', err)
+      }
+    }
+  }, [currentBroadcastKey, currentBroadcast])
 
   // Status updates
   const handleUpdateStatus = (id: string, newStatus: OrderStatus) => {

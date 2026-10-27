@@ -3,7 +3,12 @@
  * Completely removes hardcoded route strings from API requests.
  */
 
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '')
+export const API_BASE = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000/api'
+    : '')
+).replace(/\/$/, '')
 
 export const API_ROUTES = {
   AUTH: {
@@ -53,9 +58,20 @@ export const API_ROUTES = {
     ORDER_BY_ID: (id: string) => `/admin/orders/${encodeURIComponent(id)}`,
     SEARCH: (q: string) => `/admin/search?q=${encodeURIComponent(q.trim())}`,
   },
+  PUSH: {
+    VAPID_KEY: '/push/vapid-key',
+    SUBSCRIBE: '/push/subscribe',
+    UNSUBSCRIBE: '/push/unsubscribe',
+    TEST: '/push/test',
+  },
 } as const
 
 export function getApiUrl(endpointOrPath: string): string {
   const cleanPath = endpointOrPath.startsWith('/') ? endpointOrPath : `/${endpointOrPath}`
-  return API_BASE ? `${API_BASE}${cleanPath}` : cleanPath
+  const base =
+    API_BASE ||
+    (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:5000/api'
+      : '')
+  return base ? `${base}${cleanPath}` : cleanPath
 }

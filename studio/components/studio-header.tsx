@@ -43,6 +43,7 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
+
           {user && user.studioName && user.phone ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">
               <button

@@ -1,6 +1,7 @@
 const { prisma } = require('../lib/prisma');
 const { calculateDistanceInMiles } = require('./locate.service');
 const { sendOrderOtpEmail } = require('../lib/email');
+const pushService = require('./push.service');
 
 // In-memory cache for fast order dispatch sessions with automatic 10-minute TTL
 const dispatchSessions = new Map();
@@ -282,6 +283,24 @@ function activateStage(session, stageNum) {
     `Contacting ${currentCandidates.length} tailors. ` +
     `Permanently excluded: ${session.declinedTailorIds.size}`
   );
+
+  // Dispatch Web Push notification to all active devices of candidate ateliers
+  currentCandidates.forEach((candidate) => {
+    pushService.sendNotificationToStore(candidate.tailorId, {
+      title: `⚡ Incoming Dispatch: ${session.orderData.garmentName || 'Garment'}`,
+      body: `${session.orderData.serviceName || 'Alteration'} · ${candidate.distanceMiles ? candidate.distanceMiles.toFixed(1) : '0.2'} mi away · 15s to accept`,
+      url: `/?orderId=${session.orderId}&dispatch=true`,
+      tag: `dispatch-${session.orderId}`,
+      renotify: true,
+      data: {
+        orderId: session.orderId,
+        type: 'INCOMING_DISPATCH',
+        garment: session.orderData.garmentName,
+        service: session.orderData.serviceName,
+        payout: session.orderData.partnerPayout,
+      },
+    }).catch((err) => console.warn('Dispatch push notice:', err.message));
+  });
 
   // Clear previous stage timer
   if (session.timer) clearTimeout(session.timer);
@@ -592,7 +611,34 @@ async function recordTailorAccept(orderId, tailorId) {
     }
 
     if (result.success && result.order) {
-      // Asynchronously dispatch Order OTP confirmation email to customer via Resend
+      // 1. Asynchronously dispatch Web Push Notification to customer
+      (async () => {
+        try {
+          const storeName = result.store?.name || result.order.storeName || 'Partner Atelier';
+          const garmentName = result.order.garmentName || 'Garment';
+          const orderPin = result.order.otp ? ` PIN: ${result.order.otp}` : '';
+
+          await pushService.sendNotificationToCustomer(result.order, {
+            title: "🎉 Atelier Accepted Your Order!",
+            body: `${storeName} has accepted order #${result.order.id}. Drop-off your ${garmentName.toLowerCase()} whenever ready.${orderPin}`,
+            icon: "/android-chrome-192x192.png",
+            badge: "/favicon-32x32.png",
+            tag: `order-${result.order.id}-accepted`,
+            url: `/order/${result.order.id}`,
+            data: {
+              orderId: result.order.id,
+              type: "ORDER_ACCEPTED",
+              status: "Accepted",
+              url: `/order/${result.order.id}`,
+            },
+          });
+          console.log(`[Push Notification] Dispatched order accepted alert to customer for #${result.order.id}`);
+        } catch (pushErr) {
+          console.warn('[Dispatch Engine] Error dispatching order accepted push:', pushErr.message || pushErr);
+        }
+      })();
+
+      // 2. Asynchronously dispatch Order OTP confirmation email to customer via Resend
       (async () => {
         try {
           let customerEmail = result.order.customerEmail;

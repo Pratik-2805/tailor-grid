@@ -1,205 +1,182 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
-import { AnimatePresence, motion, useMotionValue, useSpring, useTransform, type MotionValue } from "framer-motion";
-import { ArrowRight, ArrowUpRight, Check, MapPin, ShieldCheck } from "lucide-react";
-import { btnPrimary, btnSecondary, ease } from "./styles";
-
-const WORDS = ["local", "trusted", "nearest", "favorite"];
-const STEPS = ["Allocated to studio", "In-person fitting", "Stitching", "Ready for pickup"];
-
-function useCycle(length: number, ms: number) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setI((v) => (v + 1) % length), ms);
-    return () => clearInterval(id);
-  }, [length, ms]);
-  return i;
-}
-
-function Float({ x, y, depth, className, delay, children }: { x: MotionValue<number>; y: MotionValue<number>; depth: number; className: string; delay: number; children: React.ReactNode }) {
-  const tx = useTransform(x, (v) => v * depth);
-  const ty = useTransform(y, (v) => v * depth);
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.9, delay, ease }}
-      className={`absolute ${className}`}
-    >
-      <motion.div style={{ x: tx, y: ty }}>{children}</motion.div>
-    </motion.div>
-  );
-}
-
-function OrderCard() {
-  const step = useCycle(STEPS.length, 1900);
-  return (
-    <div className="w-[290px] rounded-3xl border border-ink/[0.07] bg-white/95 p-5 shadow-float backdrop-blur">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold tracking-wider text-cocoa uppercase">Order RF-2043</p>
-        <span className="flex items-center gap-1.5 text-xs font-semibold text-moss">
-          <span className="relative flex size-2">
-            <span className="absolute inset-0 animate-ping rounded-full bg-moss/60" />
-            <span className="relative size-2 rounded-full bg-moss" />
-          </span>
-          Live
-        </span>
-      </div>
-      <p className="mt-2 font-display text-lg font-medium">Navy suit · Sleeve hem</p>
-      <ul className="mt-4 space-y-1">
-        {STEPS.map((s, i) => (
-          <li key={s} className="relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm">
-            {i === step && <motion.span layoutId="hero-step" className="absolute inset-0 rounded-xl bg-paper" transition={{ type: "spring", stiffness: 380, damping: 32 }} />}
-            <span className={`relative flex size-5 items-center justify-center rounded-full transition-colors duration-500 ${i <= step ? "bg-clay text-white" : "border border-ink/15 bg-white"}`}>
-              {i < step && <Check size={11} strokeWidth={3} />}
-            </span>
-            <span className={`relative transition-colors duration-500 ${i <= step ? "font-semibold text-ink" : "text-cocoa"}`}>{s}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function MatchCard() {
-  return (
-    <div className="flex w-[230px] items-center gap-4 rounded-3xl border border-ink/[0.07] bg-white/95 p-4 shadow-float backdrop-blur">
-      <div className="relative flex size-14 shrink-0 items-center justify-center">
-        {[0, 1].map((r) => (
-          <motion.span
-            key={r}
-            className="absolute inset-0 rounded-full border border-clay/40"
-            animate={{ scale: [0.4, 1.2], opacity: [0.9, 0] }}
-            transition={{ duration: 2.4, repeat: Infinity, delay: r * 1.2, ease: "easeOut" }}
-          />
-        ))}
-        <span className="relative flex size-8 items-center justify-center rounded-full bg-clay text-white">
-          <MapPin size={15} />
-        </span>
-      </div>
-      <div>
-        <p className="text-sm font-semibold">Studio matched</p>
-        <p className="text-xs leading-snug text-cocoa">Certified atelier within 1–3 km</p>
-      </div>
-    </div>
-  );
-}
+import { motion } from "framer-motion";
+import { ArrowRight, ArrowUpRight, ShieldCheck, Sparkles } from "lucide-react";
+import { ease } from "./styles";
 
 export function Hero() {
-  const word = useCycle(WORDS.length, 2600);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const x = useSpring(mx, { stiffness: 50, damping: 20 });
-  const y = useSpring(my, { stiffness: 50, damping: 20 });
-
-  const onMove = (e: React.MouseEvent) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    mx.set(((e.clientX - r.left) / r.width - 0.5) * 24);
-    my.set(((e.clientY - r.top) / r.height - 0.5) * 24);
-  };
-
   return (
-    <section id="hero" onMouseMove={onMove} className="relative overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-28">
-      <div className="pointer-events-none absolute -top-40 right-[-10%] size-[640px] rounded-full bg-blush/60 blur-[140px]" />
-      <div className="pointer-events-none absolute bottom-0 left-[-10%] size-[420px] rounded-full bg-saffron/20 blur-[120px]" />
-      <div className="bg-grain pointer-events-none absolute inset-0" />
+    <section
+      id="hero"
+      className="relative overflow-hidden bg-cream pt-32 pb-8 sm:pt-36 sm:pb-12 lg:pt-40 lg:pb-14"
+    >
+      {/* Subtle organic grain overlay for tactile paper texture */}
+      <div className="bg-grain pointer-events-none absolute inset-0 opacity-30" />
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-5 sm:px-8 lg:grid-cols-[1.05fr_0.95fr]">
-        <div>
-          <motion.span
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease }}
-            className="inline-flex items-center gap-2.5 rounded-full border border-ink/10 bg-white/70 py-1.5 pr-4 pl-1.5 text-xs font-semibold text-cocoa backdrop-blur"
-          >
-            <span className="rounded-full bg-ink px-2.5 py-1 text-[10px] tracking-wider text-cream uppercase">RaffuLabs Inc.</span>
-            The company behind Raffu
-          </motion.span>
+      {/* Ambient warm light glow */}
+      <div
+        className="pointer-events-none absolute -top-40 right-0 h-[600px] w-[600px] rounded-full bg-sand/35 blur-3xl"
+        aria-hidden="true"
+      />
 
-          <h1 className="mt-8 font-display text-[clamp(46px,6.6vw,88px)] leading-[0.98] font-medium tracking-[-0.035em]">
-            {["The technology", "behind your"].map((line, i) => (
-              <span key={line} className="block overflow-hidden pb-1">
-                <motion.span initial={{ y: "105%" }} animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.1 + i * 0.1, ease }} className="block">
-                  {line}
-                </motion.span>
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-12">
+        
+        {/* Top Editorial Pre-title Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="inline-flex items-center gap-2.5 rounded-full border border-ink/10 bg-white/80 px-4 py-1.5 backdrop-blur-md shadow-xs mb-8"
+        >
+          <span className="flex size-2 rounded-full bg-clay animate-pulse" />
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-ink">
+            RaffuLabs · Parent Company & Fashion Services Platform
+          </span>
+        </motion.div>
+
+        {/* Hero Main Grid: Left Narrative + Right Clean Full-Background Image */}
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+          
+          {/* Left Column: Human Editorial Manifesto */}
+          <div className="flex flex-col items-start">
+            
+            <h1 className="font-display text-[42px] sm:text-5xl lg:text-[62px] leading-[1.03] font-semibold tracking-[-0.035em] text-ink">
+              <span className="block">Clothes are made</span>
+              <span className="block">to fit. We build the</span>
+              <span className="block">
+                systems that{" "}
+                <em className="font-serif font-normal italic text-clay underline decoration-clay/30 decoration-2 underline-offset-6">
+                  make sure they do.
+                </em>
               </span>
-            ))}
-            <span className="block overflow-hidden pb-2">
-              <motion.span initial={{ y: "105%" }} animate={{ y: 0 }} transition={{ duration: 0.9, delay: 0.3, ease }} className="block">
-                <motion.span layout transition={{ duration: 0.45, ease }} className="relative inline-flex">
-                  <AnimatePresence mode="wait" initial={false}>
-                    <motion.em
-                      key={WORDS[word]}
-                      initial={{ opacity: 0, y: "40%" }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: "-40%" }}
-                      transition={{ duration: 0.3, ease }}
-                      className="inline-block font-normal text-clay"
-                    >
-                      {WORDS[word]}
-                    </motion.em>
-                  </AnimatePresence>
-                </motion.span>{" "}
-                <motion.span layout transition={{ duration: 0.45, ease }} className="inline-block">tailor.</motion.span>
-              </motion.span>
-            </span>
-          </h1>
+            </h1>
 
-          <motion.p initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.5, ease }} className="mt-7 max-w-xl text-lg leading-relaxed text-cocoa">
-            RaffuLabs builds the allocation engine, studio software and booking experience behind <strong className="font-semibold text-ink">Raffu</strong>,
-            pairing people with certified neighborhood ateliers. Fitted in person, priced upfront, ready in 24–48 hours.
-          </motion.p>
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.25, ease }}
+              className="mt-6 max-w-xl text-lg sm:text-xl leading-relaxed text-cocoa font-normal"
+            >
+              RaffuLabs is the parent technology company behind <strong className="font-semibold text-ink">Raffu</strong>. We engineer the hyper-local allocation engine, studio operating system, and seamless fitting workflows that connect everyday wardrobes with certified master tailors.
+            </motion.p>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6, ease }} className="mt-10 flex flex-wrap gap-3">
-            <a href="#products" className={btnPrimary}>
-              Explore our products <ArrowRight size={16} className="transition group-hover:translate-x-1" />
-            </a>
-            <a href="https://raffu.com" target="_blank" rel="noopener noreferrer" className={btnSecondary}>
-              Visit raffu.com <ArrowUpRight size={16} className="transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-            </a>
-          </motion.div>
+            {/* Dual Action CTAs inspired by SOJO */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.35, ease }}
+              className="mt-8 flex flex-wrap items-center gap-3.5"
+            >
+              <a
+                href="#products"
+                className="group inline-flex h-12 items-center gap-2.5 rounded-full bg-ink px-7 text-sm font-semibold text-cream transition-all hover:bg-clay hover:shadow-card cursor-pointer"
+              >
+                Explore our platforms
+                <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+              </a>
 
-          <motion.dl initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.8 }} className="mt-14 grid max-w-lg grid-cols-3 divide-x divide-ink/10 border-t border-ink/10 pt-6">
-            {[["1–3 km", "Studio radius"], ["5 min", "Fitting"], ["100%", "Fit guarantee"]].map(([v, l]) => (
-              <div key={l} className="px-4 first:pl-0">
-                <dt className="font-display text-2xl font-medium sm:text-3xl">{v}</dt>
-                <dd className="mt-1 text-xs font-medium tracking-wide text-cocoa uppercase">{l}</dd>
-              </div>
-            ))}
-          </motion.dl>
-        </div>
-
-        <div className="relative mx-auto w-full max-w-[520px] lg:mr-0">
-          <motion.div
-            initial={{ clipPath: "inset(12% 12% 12% 12% round 40px)", opacity: 0 }}
-            animate={{ clipPath: "inset(0% 0% 0% 0% round 32px)", opacity: 1 }}
-            transition={{ duration: 1.3, delay: 0.2, ease }}
-            className="relative aspect-[4/5] overflow-hidden rounded-[32px] shadow-float"
-          >
-            <motion.div initial={{ scale: 1.25 }} animate={{ scale: 1 }} transition={{ duration: 1.8, delay: 0.2, ease }} className="absolute inset-0">
-              <Image src="/raffu-images/atelier_panoramic_banner.jpg" alt="A certified Raffu partner atelier" fill priority sizes="(max-width: 1024px) 90vw, 520px" className="object-cover object-[30%_50%]" />
+              <a
+                href="https://raffu.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex h-12 items-center gap-2 rounded-full border border-ink/20 bg-white/80 px-6 text-sm font-semibold text-ink backdrop-blur-xs transition-all hover:border-ink hover:bg-white hover:shadow-xs cursor-pointer"
+              >
+                Visit consumer app (raffu.com)
+                <ArrowUpRight size={16} className="text-cocoa transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              </a>
             </motion.div>
-            <div className="absolute inset-0 bg-linear-to-t from-ink/70 via-ink/0 to-ink/0" />
-            <p className="absolute right-6 bottom-6 left-6 text-right text-sm font-medium text-cream/90">
-              Certified partner atelier
-              <span className="block text-xs text-cream/60">Industrial machinery · master tailors</span>
-            </p>
+
+            {/* Credibility / Standards Row */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.45, ease }}
+              className="mt-12 w-full border-t border-ink/10 pt-6"
+            >
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <div className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+                    1–3 km
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] uppercase tracking-wider text-cocoa/90">
+                    Neighborhood radius
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+                    24–48h
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] uppercase tracking-wider text-cocoa/90">
+                    Doorstep return
+                  </div>
+                </div>
+
+                <div>
+                  <div className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-ink">
+                    100%
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] uppercase tracking-wider text-cocoa/90">
+                    Fit guarantee
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+          </div>
+
+          {/* Right Column: Whole Background with One Clean Image for That Text Just That */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2, ease }}
+            className="relative w-full"
+          >
+            {/* Clean Full-Height Image Card Container */}
+            <div className="group relative w-full h-[420px] sm:h-[480px] lg:h-[530px] overflow-hidden rounded-[28px] sm:rounded-[36px] border border-ink/12 bg-neutral-900 shadow-[0_24px_50px_-15px_rgba(31,23,18,0.16)]">
+              
+              {/* Full Background Clean Editorial Photography */}
+              <Image
+                src="/raffu-images/atelier_hero_craft.jpg"
+                alt="Master tailor in atelier pinning and measuring a bespoke camel wool garment with tailor chalk and brass shears"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover object-center filter contrast-[1.02] transition-transform duration-700 group-hover:scale-105"
+              />
+              
+              {/* Natural gradient overlay ensuring text legibility while keeping photo luminous */}
+              <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/25 to-ink/10" />
+
+              {/* Top Corner Certification Badge */}
+              <div className="absolute top-5 left-5 flex items-center gap-2 rounded-full bg-cream/90 px-3.5 py-1.5 text-xs font-semibold text-ink backdrop-blur-md border border-white/40 shadow-xs">
+                <ShieldCheck size={14} className="text-clay" />
+                <span>Master Atelier Certified</span>
+              </div>
+
+              {/* Top Right Fabric / Standard Stamp */}
+              <div className="absolute top-5 right-5 hidden sm:flex items-center gap-1.5 rounded-full bg-ink/75 px-3.5 py-1 font-mono text-[10.5px] tracking-wider text-cream/90 backdrop-blur-md border border-white/10">
+                <Sparkles size={12} className="text-amber-300" />
+                <span>REF. M-01 / RAW SUITING</span>
+              </div>
+
+              {/* Bottom Clean Text Overlay */}
+              <div className="absolute bottom-6 inset-x-6 sm:bottom-8 sm:inset-x-8 text-cream">
+                <p className="font-mono text-[11px] tracking-[0.22em] uppercase text-cream/75 font-medium">
+                  RaffuLabs Architecture
+                </p>
+                <h2 className="font-display text-2xl sm:text-3xl lg:text-[32px] leading-snug font-bold tracking-tight text-white mt-1.5 max-w-md">
+                  Physical Master Craft meets Digital Operating System
+                </h2>
+              </div>
+
+            </div>
+
           </motion.div>
 
-          <Float x={x} y={y} depth={-0.8} delay={0.9} className="bottom-16 -left-4 sm:-left-16">
-            <OrderCard />
-          </Float>
-          <Float x={x} y={y} depth={0.6} delay={1.1} className="top-10 -right-3 hidden sm:block lg:-right-10">
-            <MatchCard />
-          </Float>
-          <Float x={x} y={y} depth={1} delay={1.3} className="-top-5 left-8">
-            <span className="inline-flex items-center gap-2 rounded-full border border-ink/[0.07] bg-white/95 px-4 py-2.5 text-sm font-semibold shadow-float">
-              <ShieldCheck size={16} className="text-moss" /> 100% fit guarantee
-            </span>
-          </Float>
         </div>
+
       </div>
     </section>
   );
