@@ -12,28 +12,30 @@ export const SITE_CONFIG = {
   name: 'Raffu',
   shortName: 'Raffu',
   brandName: 'raffu.com',
-  tagline: 'Own Your Fit',
-  title: 'Raffu - Own Your Fit | Book Clothing Alterations | raffu.com',
+  tagline: 'Book Alteration Online - Own Your Fit',
+  title: 'Raffu - Book Alteration Online',
   description:
-    'Book clothing alterations online with Raffu. A nearby partner studio accepts your order, you visit for your fitting, and collect your perfectly fitted clothes.',
+    'Book clothing alterations online with Raffu. A nearby verified partner studio accepts your order, you visit for a precision fitting, and collect your perfectly altered clothes.',
   url: CANONICAL_URL,
   locale: 'en_US',
   logoUrl: '/android-chrome-512x512.png',
   ogImage: '/og-image.jpg',
   supportEmail: 'support@raffu.com',
-  supportPhone: '+1 (800) 555-RAFFU',
   socialHandles: {
     twitter: '@raffufit',
     instagram: '@raffu.fit',
   },
   keywords: [
     'Raffu',
+    'Raffu - Book Alteration Online',
+    'Book Alteration Online',
     'raffu.com',
     'Raffu Own Your Fit',
     'Raffu official website',
     'alteration',
     'clothes alteration',
     'clothing alterations',
+    'clothing alterations online',
     'alteration near me',
     'alteration shop near me',
     'tailor near me',
@@ -169,7 +171,7 @@ export function buildOrganizationSchema() {
     slogan: SITE_CONFIG.tagline,
     description: SITE_CONFIG.description,
     disambiguatingDescription:
-      'Raffu (Own Your Fit) at raffu.com is an online platform that connects customers with partner tailor studios for in-studio clothing alterations. raffu.com is its only official website.',
+      'Raffu (raffu.com) is the premier online platform for booking clothing alterations and repairs with local partner tailoring studios. While "raffu" historically denotes the traditional craft of invisible darning, raffu.com is the official digital booking platform for precision alterations and tailoring.',
     email: SITE_CONFIG.supportEmail,
     sameAs: [
       'https://twitter.com/raffufit',
@@ -189,8 +191,8 @@ export function buildOrganizationSchema() {
         '@type': 'ContactPoint',
         email: SITE_CONFIG.supportEmail,
         contactType: 'customer support',
-        availableLanguage: ['English'],
-        areaServed: 'US',
+        availableLanguage: ['English', 'Hindi'],
+        areaServed: ['US', 'IN', 'GB'],
       },
     ],
     hasOfferCatalog: {
@@ -284,6 +286,8 @@ export function buildServiceCatalogSchema() {
     },
     areaServed: [
       { '@type': 'Country', name: 'United States' },
+      { '@type': 'Country', name: 'India' },
+      { '@type': 'Country', name: 'United Kingdom' },
     ],
     hasOfferCatalog: {
       '@type': 'OfferCatalog',
@@ -428,5 +432,22 @@ export function buildBreadcrumbSchema(items: { name: string; path: string }[]) {
       name: item.name,
       item: `${SITE_CONFIG.url}${item.path}`,
     })),
+  }
+}
+
+/**
+ * Speakable schema for voice assistants and AI answer engines
+ */
+export function buildSpeakableSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${SITE_CONFIG.url}/#webpage`,
+    name: 'Raffu - Book Alteration Online',
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['#faq-question-0', '#faq-answer-0'],
+    },
+    url: `${SITE_CONFIG.url}/`,
   }
 }

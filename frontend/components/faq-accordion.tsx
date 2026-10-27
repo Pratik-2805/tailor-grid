@@ -52,24 +52,20 @@ export function FaqAccordion() {
               </motion.span>
             </button>
 
-            <AnimatePresence initial={false}>
-              {isOpen && (
-                <motion.div
-                  id={`faq-answer-${idx}`}
-                  role="region"
-                  aria-labelledby={`faq-question-${idx}`}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.28, ease: [0.04, 0.62, 0.23, 0.98] }}
-                  className="overflow-hidden"
-                >
-                  <p className="pt-3 pb-1 text-xs sm:text-sm md:text-[15px] leading-relaxed text-[#5A5D64] max-w-3xl pr-6">
-                    {faq.a}
-                  </p>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div
+              id={`faq-answer-${idx}`}
+              role="region"
+              aria-labelledby={`faq-question-${idx}`}
+              className={`grid overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                isOpen ? 'grid-rows-[1fr] opacity-100 pt-3 pb-1' : 'grid-rows-[0fr] opacity-0 pt-0 pb-0'
+              }`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <p className="text-xs sm:text-sm md:text-[15px] leading-relaxed text-[#5A5D64] max-w-3xl pr-6 font-normal">
+                  {faq.a}
+                </p>
+              </div>
+            </div>
           </motion.div>
         )
       })}
