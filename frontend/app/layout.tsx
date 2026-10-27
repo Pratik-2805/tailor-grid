@@ -53,7 +53,7 @@ export const metadata: Metadata = {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'Raffu - Own Your Fit: book clothing alterations at raffu.com',
+        alt: 'Raffu - Book Alteration Online at raffu.com',
       },
     ],
   },

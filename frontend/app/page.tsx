@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { HomeClient } from './home-client'
-import { SITE_CONFIG, buildFAQSchema, buildPageMetadata, buildServiceCatalogSchema } from '@/lib/seo-schema'
+import { SITE_CONFIG, buildFAQSchema, buildPageMetadata, buildServiceCatalogSchema, buildSpeakableSchema } from '@/lib/seo-schema'
 
 export const metadata: Metadata = buildPageMetadata({
   title: SITE_CONFIG.title,
@@ -12,6 +12,7 @@ export const metadata: Metadata = buildPageMetadata({
 export default function HomePage() {
   const serviceSchema = buildServiceCatalogSchema()
   const faqSchema = buildFAQSchema()
+  const speakableSchema = buildSpeakableSchema()
 
   return (
     <>
@@ -25,6 +26,12 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(faqSchema),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(speakableSchema),
         }}
       />
       <HomeClient />

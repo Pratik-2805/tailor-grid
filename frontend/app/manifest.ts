@@ -2,9 +2,9 @@ import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Raffu - Book Clothing Alterations',
+    name: 'Raffu - Book Alteration Online',
     short_name: 'Raffu',
-    description: 'Book clothing alterations on raffu.com. A nearby partner studio accepts your order, you visit for the fitting, and collect your altered clothes there.',
+    description: 'Book clothing alterations online on raffu.com. A nearby partner studio accepts your order, you visit for precision fitting, and collect your altered clothes there.',
     id: '/',
     lang: 'en-US',
     categories: ['lifestyle', 'shopping'],
