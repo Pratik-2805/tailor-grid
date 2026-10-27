@@ -200,9 +200,9 @@ router.post('/:id/dispatch/cancel', async (req, res) => {
 router.get('/:id/dispatch/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const status = dispatchService.getDispatchSessionStatus(id);
+    const status = await dispatchService.getDispatchSessionStatus(id);
 
-    // If session not found in memory, fall back to checking PostgreSQL Order status
+    // If session not found, fall back to checking PostgreSQL Order status
     if (status.status === 'NOT_FOUND') {
       const dbOrder = await prisma.order.findUnique({
         where: { id },
@@ -279,7 +279,7 @@ router.post('/:id/dispatch/retry', async (req, res) => {
     const { customerLat, customerLng } = req.body;
 
     let orderData = null;
-    const existingSession = dispatchService.getDispatchSessionStatus(id);
+    const existingSession = await dispatchService.getDispatchSessionStatus(id);
     if (existingSession && existingSession.order) {
       orderData = existingSession.order;
     } else {
@@ -808,9 +808,10 @@ router.post('/:id/send-otp-email', async (req, res) => {
 
     // Check in-flight dispatch session cache if not found in database yet
     if (!order) {
-      const session =
-        dispatchService.getDispatchSessionStatus(cleanId) ||
-        dispatchService.getDispatchSessionStatus(rawId);
+      let session = await dispatchService.getDispatchSessionStatus(cleanId);
+      if (session.status === 'NOT_FOUND' && rawId !== cleanId) {
+        session = await dispatchService.getDispatchSessionStatus(rawId);
+      }
       if (session && session.order) {
         otp = session.order.otp;
         customerEmail = session.order.customerEmail;

@@ -261,3 +261,37 @@ model PushSubscription {
 }
 
 
+
+// Live order dispatch search, shared by every backend instance and kept across restarts.
+// Stage progression is driven by timestamps (no in-process timers); every write bumps `version`
+// and is applied only if `version` is unchanged, so concurrent instances never clobber each other.
+model DispatchSession {
+  orderId                  String    @id
+  status                   String // SEARCHING, ACCEPTING, ASSIGNED, EXHAUSTED, ZERO_TAILORS, CANCELLED, SCHEDULED
+  version                  Int       @default(0)
+  stage                    Int       @default(1)
+  currentRadius            Float     @default(1)
+  startedAt                DateTime
+  stageStartedAt           DateTime
+  stageEndsAt              DateTime
+  hardTimeoutAt            DateTime
+  expiresAt                DateTime
+  orderData                Json
+  customerLat              Float
+  customerLng              Float
+  tailorPool               Json
+  totalEligibleCount       Int       @default(0)
+  // Lower-cased studio ids
+  declinedTailorIds        String[]  @default([])
+  activeCandidateTailorIds String[]  @default([])
+  acceptedTailorId         String?
+  acceptedTailor           Json?
+  confirmedOrder           Json?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@index([status, stageEndsAt])
+  @@index([expiresAt])
+  @@index([activeCandidateTailorIds], type: Gin)
+  @@map("dispatch_sessions")
+}
