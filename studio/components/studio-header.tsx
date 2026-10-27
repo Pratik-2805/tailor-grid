@@ -14,7 +14,6 @@ import { type User } from './data'
 import { CUSTOMER_SITE_URL } from '@/lib/api'
 import { StudioAvatar } from './studio-avatar'
 import { RaffuLogo } from './raffu-logo'
-import { PushNotificationBanner } from './push-notification-banner'
 
 interface StudioHeaderProps {
   user?: User | null
@@ -44,13 +43,6 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
 
         {/* Right CTAs & User Auth */}
         <div className="hidden md:flex items-center gap-2.5 lg:gap-3 shrink-0">
-          {user && (
-            <PushNotificationBanner
-              storeId={user.studioId || (user as any).storeId}
-              userId={user.id}
-              compact={true}
-            />
-          )}
 
           {user && user.studioName && user.phone ? (
             <div className="flex items-center gap-2 border border-[#E8E1D5] rounded-full px-3 py-1.5 bg-white whitespace-nowrap shrink-0 shadow-2xs">

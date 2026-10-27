@@ -11,6 +11,7 @@ import { PartnerOnboarding } from '@/components/partner-onboarding'
 import { NormalLoader } from '@/components/normal-loader'
 import { getCurrentUser, logoutUser, getCustomerSiteUrl, CUSTOMER_SITE_URL } from '@/lib/api'
 import { getAuthUser, setAuthUser, getAuthRole, setAuthRole, clearAllAuth, getRefreshToken, getAuthToken, setCookie } from '@/lib/cookies'
+import { subscribeToPush } from '@/lib/push-notifications'
 
 export default function StudioPage() {
   const router = useRouter()
@@ -97,6 +98,19 @@ export default function StudioPage() {
     if (targetTab) {
       setPartnerTab(targetTab)
     }
+
+    // Trigger native Google notification permission prompt directly upon partner login
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().then((res) => {
+          if (res === 'granted') {
+            const studioId = loggedUser.studioId || loggedUser.id
+            subscribeToPush({ storeId: studioId, userId: loggedUser.id }).catch(() => {})
+          }
+        }).catch(() => {})
+      } catch (e) {}
+    }
+
     toast.success(`Authenticated as ${loggedUser.name || 'Studio Partner'}!`, { position: 'top-center' })
   }
 

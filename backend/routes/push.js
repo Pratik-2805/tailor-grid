@@ -82,13 +82,26 @@ router.post("/unsubscribe", async (req, res) => {
  */
 router.post("/test", async (req, res) => {
   try {
-    const { storeId, subscription } = req.body;
+    const { storeId, subscription, userId } = req.body;
 
     if (subscription && subscription.endpoint) {
       const result = await pushService.sendTestNotification({
         endpoint: subscription.endpoint,
         p256dh: subscription.keys?.p256dh,
         auth: subscription.keys?.auth,
+      });
+      return res.json({ success: true, result });
+    }
+
+    if (userId) {
+      const result = await pushService.sendNotificationToUser(userId, {
+        title: "✨ Raffu Order Alerts Active",
+        body: "Real-time updates enabled! You will be notified when your studio accepts, starts tailoring, and completes your order.",
+        icon: "/android-chrome-192x192.png",
+        badge: "/favicon-32x32.png",
+        url: "/orders",
+        tag: "customer-test-alert",
+        data: { type: "TEST_NOTIFICATION", url: "/orders" },
       });
       return res.json({ success: true, result });
     }
@@ -105,7 +118,7 @@ router.post("/test", async (req, res) => {
 
     res.status(400).json({
       success: false,
-      message: "storeId or subscription required for test notification",
+      message: "storeId, userId, or subscription required for test notification",
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

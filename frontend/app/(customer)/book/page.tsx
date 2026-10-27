@@ -36,6 +36,7 @@ import { useApp } from '@/components/app-provider'
 import { type GarmentCategory, getStoresForLocation, getClosestStoreForLocation, type StoreOption } from '@/components/data'
 import { getCachedReverseGeocode, setCachedReverseGeocode } from '@/lib/geocode-cache'
 import { addSavedAddress } from '@/lib/saved-addresses'
+import { subscribeToPush } from '@/lib/push-notifications'
 
 const SESSION_BOOKING_KEY = 'tg_book_session'
 
@@ -1014,11 +1015,25 @@ export default function BookPage() {
     }
   }
 
+  const promptPushIfDefault = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().then((res) => {
+          if (res === 'granted' && user?.id) {
+            subscribeToPush({ userId: user.id }).catch(() => {})
+          }
+        }).catch(() => {})
+      } catch (e) {}
+    }
+  }
+
   const handleBookNow = () => {
+    promptPushIfDefault()
     executeBooking('now')
   }
 
   const handleConfirmSchedule = () => {
+    promptPushIfDefault()
     setIsScheduleModalOpen(false)
     executeBooking('schedule', scheduleDateObj, selectedTime)
   }

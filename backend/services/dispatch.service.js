@@ -611,7 +611,34 @@ async function recordTailorAccept(orderId, tailorId) {
     }
 
     if (result.success && result.order) {
-      // Asynchronously dispatch Order OTP confirmation email to customer via Resend
+      // 1. Asynchronously dispatch Web Push Notification to customer
+      (async () => {
+        try {
+          const storeName = result.store?.name || result.order.storeName || 'Partner Atelier';
+          const garmentName = result.order.garmentName || 'Garment';
+          const orderPin = result.order.otp ? ` PIN: ${result.order.otp}` : '';
+
+          await pushService.sendNotificationToCustomer(result.order, {
+            title: "🎉 Atelier Accepted Your Order!",
+            body: `${storeName} has accepted order #${result.order.id}. Drop-off your ${garmentName.toLowerCase()} whenever ready.${orderPin}`,
+            icon: "/android-chrome-192x192.png",
+            badge: "/favicon-32x32.png",
+            tag: `order-${result.order.id}-accepted`,
+            url: `/order/${result.order.id}`,
+            data: {
+              orderId: result.order.id,
+              type: "ORDER_ACCEPTED",
+              status: "Accepted",
+              url: `/order/${result.order.id}`,
+            },
+          });
+          console.log(`[Push Notification] Dispatched order accepted alert to customer for #${result.order.id}`);
+        } catch (pushErr) {
+          console.warn('[Dispatch Engine] Error dispatching order accepted push:', pushErr.message || pushErr);
+        }
+      })();
+
+      // 2. Asynchronously dispatch Order OTP confirmation email to customer via Resend
       (async () => {
         try {
           let customerEmail = result.order.customerEmail;

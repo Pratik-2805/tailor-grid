@@ -1089,7 +1089,8 @@ export interface StudioCatalogResponse {
 
 export async function fetchStudioCatalog(studioId?: string): Promise<StudioCatalogResponse> {
   const token = getAuthToken()
-  const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
+  const validStudioId = studioId && studioId !== 'undefined' && studioId !== 'null' ? studioId.trim() : ''
+  const q = validStudioId ? `?studioId=${encodeURIComponent(validStudioId)}` : ''
   try {
     const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG(q)), {
       method: 'GET',
@@ -1097,6 +1098,7 @@ export async function fetchStudioCatalog(studioId?: string): Promise<StudioCatal
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: 'include',
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
@@ -1107,7 +1109,7 @@ export async function fetchStudioCatalog(studioId?: string): Promise<StudioCatal
     console.error('fetchStudioCatalog error:', err)
     return {
       success: false,
-      studioId: studioId || '',
+      studioId: validStudioId,
       hasFilledCatalog: false,
       items: [],
       baseCategories: [],
@@ -1137,6 +1139,7 @@ export async function saveStudioCatalog(params: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: 'include',
       body: JSON.stringify(params),
     })
     if (!res.ok) {
@@ -1162,6 +1165,7 @@ export async function saveStudioCatalogItem(params: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: 'include',
       body: JSON.stringify(params),
     })
     if (!res.ok) {
@@ -1177,13 +1181,15 @@ export async function saveStudioCatalogItem(params: {
 
 export async function deleteStudioCatalogItem(id: string, studioId?: string): Promise<{ success: boolean }> {
   const token = getAuthToken()
-  const q = studioId ? `?studioId=${encodeURIComponent(studioId)}` : ''
+  const validStudioId = studioId && studioId !== 'undefined' && studioId !== 'null' ? studioId.trim() : ''
+  const q = validStudioId ? `?studioId=${encodeURIComponent(validStudioId)}` : ''
   try {
     const res = await fetch(getApiUrl(API_ROUTES.STUDIO.CATALOG_ITEM_BY_ID(id, q)), {
       method: 'DELETE',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: 'include',
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))

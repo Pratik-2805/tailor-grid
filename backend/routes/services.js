@@ -313,7 +313,8 @@ router.get('/locate/tailors', handleLocateTailors);
 // GET /api/studio/catalog - Fetch studio specific price catalog & base categories
 router.get('/studio/catalog', authenticateUser, async (req, res) => {
   try {
-    const requestedStudioId = req.query.studioId;
+    const rawStudioId = req.query.studioId;
+    const requestedStudioId = (rawStudioId && rawStudioId !== 'undefined' && rawStudioId !== 'null') ? String(rawStudioId).trim() : null;
     const effectiveStudioId = requestedStudioId || req.user?.studioId || req.user?.id;
 
     // Fetch base categories and alteration services

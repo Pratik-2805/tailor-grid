@@ -62,7 +62,7 @@ import { PriceCatalogModal } from './price-catalog-modal'
 import { WelcomeAboardModal } from './welcome-aboard-modal'
 import { RaffuLogo } from './raffu-logo'
 import { toast } from 'react-toastify'
-import { PushNotificationBanner } from './push-notification-banner'
+import { isPushSupported, subscribeToPush } from '@/lib/push-notifications'
 
 export type StudioTab = 'cockpit' | 'pipeline' | 'payouts' | 'profile' | 'catalog'
 
@@ -716,6 +716,43 @@ export function PartnerFlow({
       }
     }
   }, [orders])
+
+  // Native Google Chrome notification prompt - ONLY for authenticated studio partners
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!isPushSupported()) return
+    if (!user?.id) return
+
+    const perm = typeof Notification !== 'undefined' ? Notification.permission : 'default'
+
+    if (perm === 'granted') {
+      subscribeToPush({ storeId: currentStudioId, userId: user?.id }).catch(() => {})
+      return
+    }
+
+    if (perm === 'default') {
+      const handleUserClick = () => {
+        try {
+          Notification.requestPermission().then((result) => {
+            if (result === 'granted') {
+              subscribeToPush({ storeId: currentStudioId, userId: user?.id }).catch(() => {})
+            }
+          }).catch(() => {})
+        } catch (e) {}
+
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+
+      window.addEventListener('click', handleUserClick, { once: true, passive: true })
+      window.addEventListener('touchstart', handleUserClick, { once: true, passive: true })
+
+      return () => {
+        window.removeEventListener('click', handleUserClick)
+        window.removeEventListener('touchstart', handleUserClick)
+      }
+    }
+  }, [currentStudioId, user?.id])
 
   // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile)
   // Dynamic Studio Operating Currency (Configured in Workshop Price Catalog or Profile - Defaults to USD)
@@ -2622,9 +2659,6 @@ export function PartnerFlow({
               </div>
             </div>
 
-            {/* Live Web Push Status Indicator */}
-            <PushNotificationBanner storeId={currentStudioId} userId={user?.id} compact={true} />
-
             {/* Workshop Notification Center Bell */}
             <div className="relative" ref={notificationRef}>
               <button
@@ -2685,9 +2719,6 @@ export function PartnerFlow({
                       )}
                     </div>
                   </div>
-
-                  {/* Web Push Alerts Status & Toggle Banner */}
-                  <PushNotificationBanner storeId={currentStudioId} userId={user?.id} />
 
                   {/* Filter Pills */}
                   <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto text-[11px]">

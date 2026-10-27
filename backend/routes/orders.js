@@ -1055,6 +1055,17 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    const prevStatusLower = (existingOrder.status || '').toLowerCase();
+    const newStatusLower = (status || '').toLowerCase();
+
+    const isAcceptedTransition =
+      newStatusLower === 'accepted' && prevStatusLower !== 'accepted';
+
+    const isWorkStartedTransition =
+      (newStatusLower === 'work in progress' || newStatusLower === 'in_progress') &&
+      prevStatusLower !== 'work in progress' &&
+      prevStatusLower !== 'in_progress';
+
     const isReadyTransition =
       (status && (status.toLowerCase() === 'ready' || status.toLowerCase() === 'ready_for_pickup')) ||
       req.body.pickupOtpGenerated === true;
@@ -1072,8 +1083,84 @@ router.put('/:id', async (req, res) => {
       },
     });
 
-    // When an order is processed to Ready for pickup, immediately email the pickup OTP to customer
+    const storeTitle = updated.store?.name || updated.storeName || 'Partner Atelier';
+    const garmentTitle = updated.garmentName || 'Garment';
+
+    // 1. Alert: Studio Accepted Order
+    if (isAcceptedTransition) {
+      (async () => {
+        try {
+          const pinNotice = updated.otp ? ` Drop-off PIN: ${updated.otp}` : '';
+          await pushService.sendNotificationToCustomer(updated, {
+            title: "🎉 Atelier Accepted Your Order!",
+            body: `${storeTitle} has accepted order #${updated.id}. Drop-off your ${garmentTitle.toLowerCase()} whenever ready.${pinNotice}`,
+            icon: "/android-chrome-192x192.png",
+            badge: "/favicon-32x32.png",
+            tag: `order-${updated.id}-accepted`,
+            url: `/order/${updated.id}`,
+            data: {
+              orderId: updated.id,
+              type: "ORDER_ACCEPTED",
+              status: "Accepted",
+              url: `/order/${updated.id}`,
+            },
+          });
+        } catch (err) {
+          console.warn('[Push Alert] Error dispatching order accepted push:', err.message);
+        }
+      })();
+    }
+
+    // 2. Alert: PIN verified and Work Started by Studio
+    if (isWorkStartedTransition) {
+      (async () => {
+        try {
+          await pushService.sendNotificationToCustomer(updated, {
+            title: "🧵 Work Started on Your Alteration!",
+            body: `PIN verified! ${storeTitle} has placed your ${garmentTitle.toLowerCase()} on the workbench (Order #${updated.id}).`,
+            icon: "/android-chrome-192x192.png",
+            badge: "/favicon-32x32.png",
+            tag: `order-${updated.id}-in-progress`,
+            url: `/order/${updated.id}`,
+            data: {
+              orderId: updated.id,
+              type: "WORK_IN_PROGRESS",
+              status: "Work in Progress",
+              url: `/order/${updated.id}`,
+            },
+          });
+        } catch (err) {
+          console.warn('[Push Alert] Error dispatching work started push:', err.message);
+        }
+      })();
+    }
+
+    // 3. Alert: Alteration Done & Ready for Pickup (Web Push + Email)
     if (isReadyTransition) {
+      (async () => {
+        try {
+          const pickupPinNotice = updated.otp ? ` Show Pickup PIN: ${updated.otp} at the counter.` : '';
+          await pushService.sendNotificationToCustomer(updated, {
+            title: "✨ Your Alteration is Ready!",
+            body: `Order #${updated.id} is finished and waiting for pickup at ${storeTitle}!${pickupPinNotice}`,
+            icon: "/android-chrome-192x192.png",
+            badge: "/favicon-32x32.png",
+            tag: `order-${updated.id}-ready`,
+            url: `/order/${updated.id}`,
+            data: {
+              orderId: updated.id,
+              type: "ORDER_READY",
+              status: "Ready",
+              otp: updated.otp,
+              url: `/order/${updated.id}`,
+            },
+          });
+        } catch (err) {
+          console.warn('[Push Alert] Error dispatching ready push:', err.message);
+        }
+      })();
+
+      // When an order is processed to Ready for pickup, immediately email the pickup OTP to customer
       (async () => {
         try {
           let customerEmail = updated.customerEmail;

@@ -160,11 +160,52 @@ async function sendTestNotification(subscriptionData) {
   return await dispatchToSubscription(subscriptionData, payload);
 }
 
+/**
+ * Send notification to customer.
+ * Accepts either a userId string, or an order object (which resolves userId or matches email/phone).
+ */
+async function sendNotificationToCustomer(orderOrUser, payload) {
+  if (!orderOrUser) return { count: 0, results: [] };
+
+  let targetUserId = null;
+
+  if (typeof orderOrUser === "string") {
+    targetUserId = orderOrUser;
+  } else if (typeof orderOrUser === "object") {
+    if (orderOrUser.userId) {
+      targetUserId = orderOrUser.userId;
+    } else if (orderOrUser.customerEmail || orderOrUser.customerPhone) {
+      try {
+        const found = await prisma.user.findFirst({
+          where: {
+            OR: [
+              ...(orderOrUser.customerEmail ? [{ email: orderOrUser.customerEmail.trim().toLowerCase() }] : []),
+              ...(orderOrUser.customerPhone ? [{ phone: orderOrUser.customerPhone.trim() }] : []),
+            ],
+          },
+        });
+        if (found) {
+          targetUserId = found.id;
+        }
+      } catch (e) {
+        console.warn("[Push Service] Customer user lookup error:", e.message);
+      }
+    }
+  }
+
+  if (!targetUserId) {
+    return { count: 0, results: [], error: "No target customer user found" };
+  }
+
+  return await sendNotificationToUser(targetUserId, payload);
+}
+
 module.exports = {
   getVapidPublicKey,
   saveSubscription,
   removeSubscription,
   sendNotificationToStore,
   sendNotificationToUser,
+  sendNotificationToCustomer,
   sendTestNotification,
 };

@@ -65,7 +65,7 @@ export default function ContactPage() {
               ))}
               <Reveal delay={0.3} className="grid grid-cols-2 gap-4 pt-2">
                 <div className="flex items-center gap-3 text-sm text-cocoa"><Clock size={18} className="text-clay" /> Replies within 24 hours</div>
-                <div className="flex items-center gap-3 text-sm text-cocoa"><Building2 size={18} className="text-clay" /> RaffuLabs Inc. · Delaware, USA</div>
+                <div className="flex items-center gap-3 text-sm text-cocoa"><Building2 size={18} className="text-clay" /> RaffuLabs Inc. · USA</div>
               </Reveal>
             </div>
 
