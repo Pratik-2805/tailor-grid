@@ -76,16 +76,16 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             <button
               type="button"
               onClick={() => handleTabChange('customer')}
-              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative text-sm font-bold ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex flex-1 sm:flex-none justify-center sm:justify-start items-center gap-2 whitespace-nowrap cursor-pointer relative text-sm font-bold ${
                 activeTab === 'customer'
                   ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
                   : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
               <User size={16} className={activeTab === 'customer' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
-              <span>Customer Privacy Policy</span>
+              <span>Customer<span className="hidden sm:inline"> Privacy Policy</span></span>
               <span
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                className={`hidden lg:inline text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
                   activeTab === 'customer' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
                 }`}
               >
@@ -96,16 +96,16 @@ export function PrivacyView({ go }: { go: (s: Screen | string) => void }) {
             <button
               type="button"
               onClick={() => handleTabChange('studio')}
-              className={`pb-3.5 pt-1 px-1 transition-all flex items-center gap-2 cursor-pointer relative text-sm font-bold ${
+              className={`pb-3.5 pt-1 px-1 transition-all flex flex-1 sm:flex-none justify-center sm:justify-start items-center gap-2 whitespace-nowrap cursor-pointer relative text-sm font-bold ${
                 activeTab === 'studio'
                   ? 'text-[#0F1115] border-b-2 border-[#0F1115] -mb-px font-extrabold'
                   : 'text-[#7A7E85] hover:text-[#0F1115] border-b-2 border-transparent -mb-px'
               }`}
             >
               <Store size={16} className={activeTab === 'studio' ? 'text-[#9E593B]' : 'text-[#A0A4AB]'} />
-              <span>Studio Partner Privacy Policy</span>
+              <span>Studio Partner<span className="hidden sm:inline"> Privacy Policy</span></span>
               <span
-                className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
+                className={`hidden lg:inline text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full transition-colors ${
                   activeTab === 'studio' ? 'bg-[#0F1115] text-white' : 'bg-[#EFE9E0] text-[#7A7E85]'
                 }`}
               >

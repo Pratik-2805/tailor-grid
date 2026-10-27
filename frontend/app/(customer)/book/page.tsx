@@ -223,6 +223,62 @@ export default function BookPage() {
     return typeof s?.isCardFlipped === 'boolean' ? s.isCardFlipped : false
   })
 
+  // Below lg (mobile / tablet portrait) choosing a location is a two-step flow:
+  // full-screen map with Confirm / Cancel first, then the Address Details sheet.
+  const [isPinConfirmed, setIsPinConfirmed] = useState(false)
+  const isPickingOnMap = isCardFlipped && !isPinConfirmed
+  // After confirming, the Address Details sheet covers the whole screen below the header (mobile / tablet portrait)
+  // The address sheet can be dragged down by its handle to reveal the map, and dragged back up to full height
+  const [isSheetExpanded, setIsSheetExpanded] = useState(true)
+  const [sheetDragY, setSheetDragY] = useState(0)
+  const sheetDragStartRef = useRef<number | null>(null)
+  const canDragSheet = isCardFlipped && isPinConfirmed
+  const isEditingAddressFull = canDragSheet && isSheetExpanded
+
+  const handleSheetPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!canDragSheet) return
+    sheetDragStartRef.current = e.clientY
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handleSheetPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (sheetDragStartRef.current === null) return
+    const dy = e.clientY - sheetDragStartRef.current
+    // Expanded sheet only moves down; collapsed sheet only moves up
+    setSheetDragY(isSheetExpanded ? Math.max(0, dy) : Math.min(0, dy))
+  }
+
+  const handleSheetPointerEnd = () => {
+    if (sheetDragStartRef.current === null) return
+    sheetDragStartRef.current = null
+    const dy = sheetDragY
+    setSheetDragY(0)
+    const isTap = Math.abs(dy) < 6
+    const shouldCollapse = isSheetExpanded && (isTap || dy > 60)
+    const shouldExpand = !isSheetExpanded && (isTap || dy < -60)
+    if (shouldCollapse) {
+      setIsSheetExpanded(false)
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+    } else if (shouldExpand) {
+      setIsSheetExpanded(true)
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+    }
+  }
+
+  const handleConfirmPin = () => {
+    setIsPinConfirmed(true)
+    setIsSheetExpanded(true)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+  }
+
+  useEffect(() => {
+    if (!isCardFlipped) return
+    setIsPinConfirmed(false)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [isCardFlipped])
+
   // Address Details for Searched / Dropped Pin Location (House No., Apartment, Locality, City)
   const [addressDetails, setAddressDetails] = useState<CustomerAddressDetails>(() => {
     const s = getSessionBookingData()
@@ -573,8 +629,10 @@ export default function BookPage() {
 
   const [selectedStore, setSelectedStore] = useState<StoreOption | null>(prefilledStore || null)
 
-  // Fetch partner studios purely by lat/lng within 5.0 miles for active location (GPS or user pinned)
+  // Fetch partner studios purely by lat/lng within 5.0 miles for the confirmed location (GPS or saved pin).
+  // While the user is still choosing on the map nothing is fetched; Save & Continue fetches for the confirmed pin.
   useEffect(() => {
+    if (isCardFlipped) return
     let isCurrent = true
     const coords = userGpsCoords || getCityCoordinates(selectedCity)
     if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') return
@@ -652,7 +710,7 @@ export default function BookPage() {
   const mapCoordinates = useMemo(() => {
     if (userGpsCoords) return userGpsCoords
     return getCityCoordinates(selectedCity)
-  }, [userGpsCoords, selectedCity])
+  }, [userGpsCoords, selectedCity, isCardFlipped])
 
   // Close dropdowns on outside click
   const categoryRef = useRef<HTMLDivElement>(null)
@@ -1026,15 +1084,28 @@ export default function BookPage() {
   }
 
   return (
-    <div className="flex-1 bg-[#FAF8F5] flex flex-col justify-start">
-      <div className="max-w-[1800px] w-full mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 lg:py-4.5 flex-1 flex flex-col">
-        {/* Uber Side-by-Side Placement Grid Layout */}
-        <div className="flex flex-col lg:flex-row gap-5 lg:gap-8 items-start flex-1">
+    <div className="flex-1 bg-[#FAF8F5] flex flex-col">
+      {/* Ride-style layout: full-bleed map under a bottom sheet on mobile; side panel + map canvas on desktop */}
+      <div className="relative flex-1 flex flex-col lg:flex-row lg:gap-6 lg:p-6 lg:h-[calc(100dvh-69px)] lg:overflow-hidden max-w-[1800px] w-full mx-auto">
 
           {/* LEFT COLUMN: 3D Flip Card for Unified Booking & Address Details */}
-          <div className="w-full lg:w-[480px] xl:w-[500px] shrink-0 [perspective:1400px]">
+          <div className={`${isPickingOnMap ? 'max-lg:hidden' : ''} ${isEditingAddressFull ? 'max-lg:mt-0 max-lg:animate-in max-lg:slide-in-from-bottom max-lg:duration-300' : '-mt-6'} order-2 lg:order-1 relative z-10 lg:mt-0 flex-1 lg:flex-none w-full lg:w-[420px] xl:w-[440px] shrink-0 bg-white lg:bg-transparent rounded-t-[28px] lg:rounded-none shadow-[0_-10px_30px_rgba(0,0,0,0.10)] lg:shadow-none lg:overflow-y-auto lg:-m-2 lg:p-2 scrollbar-none [perspective:1400px] transition-transform duration-200 ease-out`}
+            style={sheetDragY ? { transform: `translateY(${sheetDragY}px)`, transitionDuration: '0ms' } : undefined}
+          >
+            {/* Bottom-sheet grab handle (mobile only); draggable on the address sheet to show / hide the map */}
             <div
-              className="relative w-full"
+              onPointerDown={handleSheetPointerDown}
+              onPointerMove={handleSheetPointerMove}
+              onPointerUp={handleSheetPointerEnd}
+              onPointerCancel={handleSheetPointerEnd}
+              role={canDragSheet ? 'button' : undefined}
+              aria-label={canDragSheet ? (isSheetExpanded ? 'Drag down to show map' : 'Drag up to expand') : undefined}
+              className={`lg:hidden flex justify-center ${canDragSheet ? 'pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none select-none' : 'pt-2.5 pb-1'}`}
+            >
+              <span className={`h-1.5 rounded-full transition-all ${canDragSheet ? 'w-12 bg-neutral-400' : 'w-10 bg-neutral-300'}`} />
+            </div>
+            <div
+              className={`relative w-full sm:max-w-xl sm:mx-auto lg:max-w-none ${isEditingAddressFull ? 'max-lg:min-h-[calc(100dvh-69px-20px)]' : ''}`}
               style={{
                 transformStyle: 'preserve-3d',
                 transition: 'transform 0.65s cubic-bezier(0.4, 0.0, 0.2, 1)',
@@ -1047,7 +1118,7 @@ export default function BookPage() {
                   backfaceVisibility: 'hidden',
                   WebkitBackfaceVisibility: 'hidden',
                 }}
-                className={`bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-5 lg:p-6 space-y-3.5 sm:space-y-4 lg:space-y-4.5 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
+                className={`bg-white lg:rounded-2xl lg:border lg:border-gray-200/90 lg:shadow-[0_2px_16px_rgba(0,0,0,0.08)] px-4 pt-2 pb-0 sm:px-6 lg:p-6 lg:pb-0 space-y-4 transition-opacity duration-300 ${isCardFlipped ? 'pointer-events-none opacity-0' : 'pointer-events-auto opacity-100'
                   }`}
               >
 
@@ -1058,7 +1129,7 @@ export default function BookPage() {
                     className="font-bold sm:font-extrabold truncate max-w-[190px] xs:max-w-[240px] sm:max-w-[320px]"
                     title={addressDetails.locality ? `${addressDetails.locality}, ${addressDetails.city || selectedCity}` : (addressDetails.city || selectedCity)}
                   >
-                    {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality)}
+                    {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality) || 'Set your location'}
                   </span>
                   <button
                     type="button"
@@ -1070,9 +1141,13 @@ export default function BookPage() {
                 </div>
 
                 {/* Heading */}
-                <h1 className="text-2xl sm:text-[32px] font-black tracking-tight text-[#0F1115] leading-tight sm:leading-[1.15]">
+                <h1 className="text-[28px] sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.1]">
                   Request an alteration
                 </h1>
+
+                {/* Connected inputs: category (circle) -> service (square), like pickup -> dropoff */}
+                <div className="relative space-y-2">
+                  <span aria-hidden className={`pointer-events-none absolute z-10 w-0.5 bg-black left-[29px] top-[46px] bottom-[46px] sm:left-[35px] sm:top-[54px] sm:bottom-[54px] transition-opacity ${isCategoryDropdownOpen ? 'opacity-0' : 'opacity-100'}`} />
 
                 {/* 1. Category of Clothes Dropdown */}
                 <div className="relative" ref={categoryRef}>
@@ -1082,10 +1157,10 @@ export default function BookPage() {
                       setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
                       setIsServiceDropdownOpen(false)
                     }}
-                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                    className={`w-full rounded-xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border-2 active:scale-[0.99] cursor-pointer ${isCategoryDropdownOpen ? 'bg-white border-black' : 'bg-[#F3F3F3] hover:bg-[#EBEBEB] border-transparent'}`}
                   >
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="size-8 sm:size-9 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
                         <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -1148,10 +1223,10 @@ export default function BookPage() {
                       setIsServiceDropdownOpen(!isServiceDropdownOpen)
                       setIsCategoryDropdownOpen(false)
                     }}
-                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
+                    className={`w-full rounded-xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border-2 active:scale-[0.99] cursor-pointer ${isServiceDropdownOpen ? 'bg-white border-black' : 'bg-[#F3F3F3] hover:bg-[#EBEBEB] border-transparent'}`}
                   >
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="size-8 sm:size-9 rounded-md bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
                         <Scissors className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -1208,38 +1283,41 @@ export default function BookPage() {
                   )}
                 </div>
 
-                {/* 3. Minimal Garment Quantity Strip */}
-                <div className="flex items-center justify-between px-1 py-0.5">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-                      Garment Quantity
-                    </span>
-                    <span className="text-[11px] sm:text-xs font-bold text-neutral-800">
-                      ({garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'})
-                    </span>
-                  </div>
+                </div>
 
-                  <div className="inline-flex items-center gap-1.5 bg-[#F3F3F3] rounded-full p-1 border border-neutral-200/60 shadow-2xs">
+                {/* 3. Ride-style option pills: schedule + garment quantity */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#F3F3F3] hover:bg-[#E8E8E8] px-3.5 py-2 text-[13px] sm:text-sm font-bold text-black transition-colors cursor-pointer active:scale-[0.98]"
+                  >
+                    <Clock size={15} className="text-black" />
+                    <span>Schedule for later</span>
+                    <ChevronDown size={15} className="text-neutral-600" />
+                  </button>
+
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#F3F3F3] pl-3.5 pr-1 py-1">
+                    <span className="text-[13px] sm:text-sm font-bold text-black whitespace-nowrap">
+                      {garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setGarmentQuantity((q) => Math.max(1, q - 1))}
                       disabled={garmentQuantity <= 1}
-                      className="size-6 rounded-full bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center text-black transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      className="size-7 rounded-full bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center text-black transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
                       title="Decrease quantity"
                     >
-                      <Minus size={11} strokeWidth={2.5} />
+                      <Minus size={12} strokeWidth={2.5} />
                     </button>
-                    <span className="w-5 text-center text-xs font-extrabold font-mono text-black select-none">
-                      {garmentQuantity}
-                    </span>
                     <button
                       type="button"
                       onClick={() => setGarmentQuantity((q) => Math.min(4, q + 1))}
                       disabled={garmentQuantity >= 4}
-                      className="size-6 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      className="size-7 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
                       title="Increase quantity (Max 4)"
                     >
-                      <Plus size={11} strokeWidth={2.5} />
+                      <Plus size={12} strokeWidth={2.5} />
                     </button>
                   </div>
                 </div>
@@ -1272,7 +1350,7 @@ export default function BookPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="size-20 sm:size-24 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all cursor-pointer group shrink-0"
+                        className="size-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all cursor-pointer group shrink-0"
                       >
                         <div className="size-6 sm:size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
                           <Camera size={13} className="text-white" />
@@ -1284,7 +1362,7 @@ export default function BookPage() {
 
                     {/* Thumbnail List */}
                     {uploadedImages.map((imgUrl, idx) => (
-                      <div key={idx} className="relative size-20 sm:size-24 rounded-xl sm:rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
+                      <div key={idx} className="relative size-20 rounded-xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
                         <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
@@ -1316,23 +1394,14 @@ export default function BookPage() {
                 </div>
 
 
-                {/* 6. Action Buttons Row */}
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3 pt-2.5 sm:pt-3 border-t border-gray-100">
+                {/* 6. Primary action (pinned to the bottom of the sheet on mobile) */}
+                <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:pb-6 bg-white border-t border-gray-100 lg:rounded-b-2xl">
                   <button
                     type="button"
                     onClick={handleBookNow}
-                    className="flex-1 rounded-xl sm:rounded-2xl bg-black hover:bg-neutral-800 text-white font-bold sm:font-extrabold px-5 sm:px-7 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
+                    className="w-full rounded-xl bg-black hover:bg-neutral-800 text-white font-bold px-5 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
                   >
                     Book now
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="flex-1 sm:flex-initial rounded-xl sm:rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-bold sm:font-extrabold px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
-                  >
-                    <Calendar size={16} className="text-black" />
-                    <span>Schedule for later</span>
                   </button>
                 </div>
 
@@ -1345,7 +1414,7 @@ export default function BookPage() {
                   WebkitBackfaceVisibility: 'hidden',
                   transform: 'rotateY(180deg)',
                 }}
-                className={`absolute inset-0 bg-white rounded-2xl sm:rounded-[28px] border border-gray-200/90 shadow-sm p-4 sm:p-7 flex flex-col justify-between overflow-y-auto ${isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
+                className={`absolute inset-0 bg-white lg:rounded-2xl lg:border lg:border-gray-200/90 lg:shadow-[0_2px_16px_rgba(0,0,0,0.08)] px-4 pt-2 pb-6 sm:px-6 lg:p-7 flex flex-col justify-between overflow-y-auto ${isCardFlipped ? 'pointer-events-auto opacity-100 z-20' : 'pointer-events-none opacity-0 z-0'
                   }`}
               >
                 <div className="space-y-3.5 sm:space-y-5">
@@ -1358,6 +1427,14 @@ export default function BookPage() {
                     >
                       <ArrowLeft size={13} className="text-black" />
                       <span>Back to Request</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPinConfirmed(false)}
+                      className="lg:hidden inline-flex items-center gap-1.5 text-xs font-bold text-neutral-800 hover:text-black bg-[#F3F3F3] hover:bg-[#EBEBEB] px-3 py-1.5 rounded-full transition-all cursor-pointer active:scale-95"
+                    >
+                      <MapPin size={13} className="text-black" />
+                      <span>Adjust pin</span>
                     </button>
                   </div>
 
@@ -1525,9 +1602,9 @@ export default function BookPage() {
 
           </div>
 
-          {/* RIGHT COLUMN: Uber-Style Map Placement (Matching Image 2) */}
-          <div className="flex-1 w-full min-h-[480px] lg:min-h-0 lg:sticky lg:top-[86px] h-[520px] lg:h-[calc(100vh-106px)]">
-            <div className="w-full h-full rounded-[28px] overflow-hidden border border-gray-200/90 shadow-sm relative bg-[#FAF8F5]">
+          {/* RIGHT COLUMN: Map canvas (full-bleed and pinned behind the sheet on mobile, rounded panel on desktop) */}
+          <div className={`${isEditingAddressFull ? 'max-lg:hidden' : ''} order-1 lg:order-2 sticky top-[69px] lg:static z-0 w-full lg:flex-1 flex flex-col ${isPickingOnMap ? 'h-[calc(100dvh-69px)]' : 'h-[44dvh] min-h-[280px] max-h-[480px]'} lg:h-auto lg:min-h-0 lg:max-h-none shrink-0`}>
+            <div className="w-full flex-1 min-h-0 overflow-hidden lg:rounded-2xl lg:border lg:border-gray-200/90 relative bg-[#EBE7E0]">
               <CleanGoogleMap
                 lat={mapCoordinates.lat}
                 lng={mapCoordinates.lng}
@@ -1585,16 +1662,73 @@ export default function BookPage() {
                       ...newDetails,
                     }))
                     setSelectedCity(geo.cityStateFormatted)
-                    setMapSearchQuery(geo.locality || geo.displayLocality?.split(',')[0]?.trim() || geo.cityStateFormatted || '')
                   } catch (err) {
                     console.warn('Pin location reverse geocode error:', err)
                   }
                 }}
               />
+
+              {/* No location yet: prompt instead of showing an empty (0,0) map */}
+              {mapCoordinates.lat === 0 && mapCoordinates.lng === 0 && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-[#EBE7E0]/95 backdrop-blur-sm p-6">
+                  <div className="max-w-xs text-center">
+                    <div className="mx-auto mb-3 size-12 rounded-full bg-black text-white grid place-items-center shadow-md">
+                      <MapPin size={20} />
+                    </div>
+                    <p className="text-base font-bold text-black">Where should we look for studios?</p>
+                    <p className="mt-1 text-xs text-neutral-600">Set your location to see partner studios near you.</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsCityModalOpen(true)}
+                      className="mt-4 rounded-full bg-black px-5 py-2.5 text-sm font-bold text-white hover:bg-neutral-800 transition-colors cursor-pointer"
+                    >
+                      Set location
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* Confirm / Cancel card while picking on the map (mobile / tablet portrait only) */}
+            {isPickingOnMap && (
+              <div className="lg:hidden shrink-0 relative z-10 bg-white shadow-[0_-12px_32px_rgba(0,0,0,0.12)] px-4 sm:px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="sm:max-w-xl sm:mx-auto">
+                  <h2 className="text-lg font-black tracking-tight text-[#0F1115] leading-tight">Confirm your location</h2>
+                  <div className="mt-3 flex items-center gap-3 rounded-2xl bg-[#F3F3F3] px-3 py-2.5">
+                    <span className="size-9 rounded-full bg-black text-white grid place-items-center shrink-0">
+                      <MapPin size={16} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-black truncate">
+                        {formatLocationDisplay(addressDetails.city || selectedCity, addressDetails.locality) || 'Pinned location'}
+                      </p>
+                      {(addressDetails.city || selectedCity) && (
+                        <p className="text-xs text-neutral-500 truncate">{addressDetails.city || selectedCity}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={handleBackToRequest}
+                      className="flex-1 rounded-xl bg-[#F3F3F3] hover:bg-[#E8E8E8] text-black font-bold py-3.5 text-[15px] transition-all cursor-pointer active:scale-[0.98]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleConfirmPin}
+                      className="flex-[2] rounded-xl bg-black hover:bg-neutral-800 text-white font-bold py-3.5 text-[15px] transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2"
+                    >
+                      <span>Confirm location</span>
+                      <Check size={17} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-        </div>
       </div>
 
       {/* Global City Selector Modal */}
@@ -1699,26 +1833,29 @@ export default function BookPage() {
             }
           }
 
-          // Dynamically fetch tailors within 5.0 miles of the selected coordinates
-          fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
-            .then((data) => {
-              if (data && Array.isArray(data.tailors)) {
-                setNearbyStores(data.tailors)
-                if (data.tailors.length > 0) {
-                  setSelectedStore(data.tailors[0])
-                } else {
-                  setSelectedStore(null)
+          // Fetch tailors within 5.0 miles only for an already-confirmed location (GPS / saved address);
+          // a searched place opens the map picker and studios load after the pin is confirmed.
+          if (isGps === true || isSaved) {
+            fetchNearbyTailors(targetCoords.lat, targetCoords.lng, 5.0)
+              .then((data) => {
+                if (data && Array.isArray(data.tailors)) {
+                  setNearbyStores(data.tailors)
+                  if (data.tailors.length > 0) {
+                    setSelectedStore(data.tailors[0])
+                  } else {
+                    setSelectedStore(null)
+                  }
                 }
-              }
-            })
-            .catch((err) => console.warn('Fetch tailors error on location select:', err))
+              })
+              .catch((err) => console.warn('Fetch tailors error on location select:', err))
+          }
         }}
       />
 
       {/* Schedule Atelier Visit Modal */}
       {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[28px] sm:rounded-[28px] p-6 sm:p-7 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150">
 
             {/* Header */}
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
@@ -1829,8 +1966,8 @@ export default function BookPage() {
 
       {/* No Tailors Available Modal (When all tailors decline or 60s search exhausted) */}
       {isNoTailorsModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[28px] p-6 sm:p-7 max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in zoom-in-95 duration-150 text-center">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-[28px] sm:rounded-[28px] p-6 sm:p-7 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150 text-center">
 
             {/* Close / Cut ('X') Button */}
             <button

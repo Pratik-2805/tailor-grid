@@ -24,6 +24,7 @@ import { useCityLocation, formatLocationDisplay } from './use-city-location'
 import { type Screen, type User, type GarmentCategory } from './data'
 import { fetchServices, getCurrentUser } from '@/lib/api'
 import { getRefreshToken } from '@/lib/cookies'
+import { motion } from 'motion/react'
 
 function GarmentCategoryIcon({ categoryId, className = "size-4" }: { categoryId: string; className?: string }) {
   switch (categoryId) {
@@ -464,7 +465,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-center">
 
           {/* LEFT: Pixel-Perfect Uber 'Request an alteration' Card Form */}
-          <div ref={formRef} className="lg:col-span-6 flex flex-col justify-center w-full max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0">
+          <motion.div
+            ref={formRef}
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-6 flex flex-col justify-center w-full max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0"
+          >
 
             {/* 1. Location Header */}
             <div className="relative mb-3.5 flex items-center gap-1.5 text-sm sm:text-[15px] font-medium text-black">
@@ -495,7 +502,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             {/* 2. Main Title */}
             <div className="mb-6">
               <h1 className="text-3xl sm:text-[40px] lg:text-[44px] font-extrabold tracking-tight text-black leading-[1.12]">
-                Request an alteration with <span className="text-[#9E593B]">Raffu</span>
+                Request an Alteration
               </h1>
             </div>
 
@@ -683,16 +690,20 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
 
             {/* 6. Action Buttons Row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleBookNow}
-                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-6 sm:px-7 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs active:scale-[0.98] text-center"
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-6 sm:px-7 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs text-center"
               >
                 Book now
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   if (!selectedGarmentId || !currentCategory) {
                     toast.info('Please choose a category before proceeding.', { position: 'top-center' })
@@ -706,18 +717,26 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                   }
                   setIsScheduleModalOpen(true)
                 }}
-                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-5 sm:px-6 py-3.5 text-sm sm:text-base transition-colors cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-5 sm:px-6 py-3.5 text-sm sm:text-base transition-colors cursor-pointer flex items-center justify-center gap-2 text-center"
               >
                 <Calendar size={18} />
                 <span>Schedule for later</span>
-              </button>
+              </motion.button>
             </div>
 
-          </div>
+          </motion.div>
 
           {/* RIGHT: Modern Clean Studio & Atelier Illustration */}
-          <div className="lg:col-span-6 relative flex justify-center items-center w-full">
-            <div className="relative w-full max-w-[620px] aspect-[16/10] rounded-[24px] sm:rounded-[32px] lg:rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, x: 24 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-6 relative flex justify-center items-center w-full"
+          >
+            <motion.div
+              whileHover={{ y: -4, transition: { duration: 0.3 } }}
+              className="relative w-full max-w-[620px] aspect-[16/10] rounded-[24px] sm:rounded-[32px] lg:rounded-[36px] overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]"
+            >
               <Image
                 src="/images/about_hero_art.jpg"
                 alt="Modern tailoring atelier salon with garments and craft tools"
@@ -726,8 +745,8 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                 className="object-cover object-center"
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
 
         </div>
       </div>

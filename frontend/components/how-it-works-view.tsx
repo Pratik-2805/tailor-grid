@@ -250,7 +250,7 @@ export function HowItWorksView({ go, onQuickSearch }: HowItWorksViewProps) {
 
             <button
               onClick={() => go('home')}
-              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
+              className="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#9E593B] hover:text-[#0F1115] transition-colors self-start"
             >
               <span>View full catalog</span>
               <ArrowRight size={14} />

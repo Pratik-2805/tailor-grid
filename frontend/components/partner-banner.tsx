@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Banknote, Calendar, CheckCircle2, ShoppingBag } from 'lucide-react'
+import { motion } from 'motion/react'
 import { type Screen } from './data'
 import { STUDIO_BASE_URL } from '@/lib/api'
 
@@ -13,9 +14,14 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
 
         <div className="grid lg:grid-cols-12 gap-8 lg:gap-10 items-center">
 
-          {/* Left Column: Copy & Benefit Pillars */}
-          <div className="lg:col-span-7">
-
+          {/* Left Column: Copy & Benefit Pillars with motion */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-7"
+          >
             <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] mb-3 sm:mb-4">
               Drive customer footfall<br />
               <span className="text-[#E7C9BA] italic">&amp; monetise alteration capacity.</span>
@@ -25,41 +31,53 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
               Join the Raffu Partner Network. We allocate local paid alteration customers to your store for fittings and collections, while driving high-margin in-store retail sales.
             </p>
 
-            {/* 3 Pillars matching Tech Brief */}
+            {/* 3 Pillars */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 mb-6 sm:mb-8">
-              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10">
+              <motion.div
+                whileHover={{ y: -4, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 transition-colors"
+              >
                 <div className="size-8 rounded-lg bg-[#9E593B]/20 text-[#E7C9BA] grid place-items-center mb-2.5">
                   <Banknote size={16} />
                 </div>
                 <h4 className="text-xs font-bold text-white">Direct Customer Payments</h4>
                 <p className="text-[11px] text-white/60 mt-1">Customers pay your studio directly upon fitting or pickup. Zero commission withholding.</p>
-              </div>
+              </motion.div>
 
-              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10">
+              <motion.div
+                whileHover={{ y: -4, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 transition-colors"
+              >
                 <div className="size-8 rounded-lg bg-[#10B981]/20 text-[#10B981] grid place-items-center mb-2.5">
                   <ShoppingBag size={16} />
                 </div>
                 <h4 className="text-xs font-bold text-white">Retail Conversion</h4>
                 <p className="text-[11px] text-white/60 mt-1">Footfall drives merchandise purchases in your shop during fittings.</p>
-              </div>
+              </motion.div>
 
-              <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10">
+              <motion.div
+                whileHover={{ y: -4, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
+                transition={{ duration: 0.2 }}
+                className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 transition-colors"
+              >
                 <div className="size-8 rounded-lg bg-[#F59E0B]/20 text-[#F59E0B] grid place-items-center mb-2.5">
                   <Calendar size={16} />
                 </div>
                 <h4 className="text-xs font-bold text-white">Fill Idle Capacity</h4>
                 <p className="text-[11px] text-white/60 mt-1">Control your daily capacity limits and accept/reject orders in real-time.</p>
-              </div>
+              </motion.div>
             </div>
 
             {/* Action buttons */}
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/for-partners"
-                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95"
+                className="flex items-center gap-2 rounded-full bg-white text-[#0F1115] px-7 py-3.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-[#FAF8F5] active:scale-95 group"
               >
                 <span>Apply as Partner Store</span>
-                <ArrowRight size={14} />
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-200" />
               </Link>
               <Link
                 href={STUDIO_BASE_URL || '/for-partners'}
@@ -68,10 +86,16 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
                 Partner Store Portal
               </Link>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Right Column: Visual Card */}
-          <div className="lg:col-span-5 w-full">
+          {/* Right Column: Visual Card with motion */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            whileInView={{ opacity: 1, scale: 1, y: 0 }}
+            viewport={{ once: true, margin: '-50px' }}
+            transition={{ duration: 0.65, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+            className="lg:col-span-5 w-full"
+          >
             <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden bg-white/5 border border-white/10 p-4 sm:p-6 shadow-2xl">
               <div className="relative h-48 sm:h-60 lg:h-64 rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-5">
                 <Image
@@ -97,7 +121,7 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
 
         </div>
 
@@ -105,4 +129,3 @@ export function PartnerBanner({ go }: { go?: (s: Screen) => void }) {
     </section>
   )
 }
-

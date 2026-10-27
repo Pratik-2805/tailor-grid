@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader'
-import { Check, Search, X, MapPin, Loader2 } from 'lucide-react'
+import { Check, Search, X, MapPin, Loader2, Plus, Minus, LocateFixed } from 'lucide-react'
 import type { StoreOption } from './data'
 import {
   getCachedReverseGeocode,
@@ -117,6 +117,13 @@ export function generateCurvedPoints(
     points.push(new google.maps.LatLng(lat, lng))
   }
   return points
+}
+
+// Touch devices below the lg breakpoint (phones, tablet portrait) pan with one finger like a native map app
+function getInteractiveGestureHandling(): 'greedy' | 'cooperative' {
+  if (typeof window === 'undefined') return 'cooperative'
+  const isTouch = window.matchMedia?.('(pointer: coarse)').matches
+  return isTouch && window.innerWidth < 1024 ? 'greedy' : 'cooperative'
 }
 
 const MINIMALIST_MAP_STYLES: google.maps.MapTypeStyle[] = [
@@ -238,10 +245,23 @@ export default function CleanGoogleMap({
   >([])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMapDragging, setIsMapDragging] = useState(false)
+  // Suggestions are fetched only for text the user typed, never for text filled in programmatically
+  const isUserTypingRef = useRef(false)
+  // Point under the center pin while choosing; every zoom stays anchored here instead of the cursor / pinch midpoint
+  const pinAnchorRef = useRef<google.maps.LatLngLiteral | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const closeSearch = () => {
+    isUserTypingRef.current = false
+    setIsSearchOpen(false)
+    setSearchResults([])
+    setIsSearchingPlaces(false)
+    searchInputRef.current?.blur()
+  }
 
   // Sync external searchQuery (e.g. from CityModal selection, reverse geocode, or parent)
   useEffect(() => {
-    if (typeof searchQuery === 'string') {
+    if (typeof searchQuery === 'string' && !isUserTypingRef.current) {
       setMapSearchText(searchQuery)
     }
   }, [searchQuery])
@@ -305,13 +325,13 @@ export default function CleanGoogleMap({
           zoom: isChoosing ? 16 : 13,
           minZoom: isChoosing ? 10 : 13,
           maxZoom: isChoosing ? 21 : 13,
-          scrollwheel: isInteractive,
+          scrollwheel: false,
           disableDoubleClickZoom: !isInteractive,
           draggable: isInteractive,
           keyboardShortcuts: false,
           disableDefaultUI: true,
           clickableIcons: false,
-          gestureHandling: isInteractive ? 'cooperative' : 'none',
+          gestureHandling: isInteractive ? getInteractiveGestureHandling() : 'none',
           styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
         })
 
@@ -352,9 +372,9 @@ export default function CleanGoogleMap({
     const isInteractive = isChoosing
     map.setOptions({
       draggable: isInteractive,
-      scrollwheel: isInteractive,
+      scrollwheel: false,
       disableDoubleClickZoom: !isInteractive,
-      gestureHandling: isInteractive ? 'cooperative' : 'none',
+      gestureHandling: isInteractive ? getInteractiveGestureHandling() : 'none',
       minZoom: isChoosing ? 10 : 13,
       maxZoom: isChoosing ? 21 : 13,
       styles: isChoosing ? CHOOSING_MAP_STYLES : MINIMALIST_MAP_STYLES,
@@ -379,13 +399,29 @@ export default function CleanGoogleMap({
     const map = mapInstanceRef.current
     if (!map || !isReady || !isChoosing) return
 
+    const initialCenter = map.getCenter()
+    pinAnchorRef.current = initialCenter ? { lat: initialCenter.lat(), lng: initialCenter.lng() } : { lat, lng }
+
     const dragStartListener = map.addListener('dragstart', () => {
       setIsMapDragging(true)
+      closeSearch()
     })
+
+    // Two-finger gestures are pinch-zooms: they must never move the pinned point
+    let gestureHadPinch = false
+    let activeTouches = 0
+    const restoreAnchor = () => {
+      if (pinAnchorRef.current) map.setCenter(pinAnchorRef.current)
+    }
 
     const dragEndListener = map.addListener('dragend', () => {
       setIsMapDragging(false)
+      if (gestureHadPinch) {
+        restoreAnchor()
+        return
+      }
       const center = map.getCenter()
+      if (center) pinAnchorRef.current = { lat: center.lat(), lng: center.lng() }
       if (center && onPinLocationChange) {
         onPinLocationChange({ lat: center.lat(), lng: center.lng() })
       }
@@ -393,20 +429,67 @@ export default function CleanGoogleMap({
 
     const idleListener = map.addListener('idle', () => {
       setIsMapDragging(false)
+      if (gestureHadPinch) {
+        if (activeTouches === 0) gestureHadPinch = false
+        restoreAnchor()
+        return
+      }
+      const center = map.getCenter()
+      if (center) pinAnchorRef.current = { lat: center.lat(), lng: center.lng() }
+    })
+
+    // Pinch / double-tap zoom around the fingers, so snap the pinned point back under the center pin
+    const zoomListener = map.addListener('zoom_changed', () => {
+      if (pinAnchorRef.current) map.setCenter(pinAnchorRef.current)
     })
 
     const clickListener = map.addListener('click', (e: google.maps.MapMouseEvent) => {
       if (e.latLng && onPinLocationChange) {
+        pinAnchorRef.current = { lat: e.latLng.lat(), lng: e.latLng.lng() }
         map.panTo(e.latLng)
         onPinLocationChange({ lat: e.latLng.lat(), lng: e.latLng.lng() })
       }
     })
 
+    // Mouse wheel / trackpad zoom anchored on the center pin (setZoom keeps the center fixed)
+    const mapEl = mapRef.current
+    let wheelDelta = 0
+    let lastWheelZoomAt = 0
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      wheelDelta += e.deltaY
+      const now = Date.now()
+      if (Math.abs(wheelDelta) < 60 || now - lastWheelZoomAt < 180) return
+      const currentZoom = map.getZoom() ?? 16
+      map.setZoom(currentZoom + (wheelDelta < 0 ? 1 : -1))
+      wheelDelta = 0
+      lastWheelZoomAt = now
+    }
+    mapEl?.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+
+    const handleTouchStart = (e: TouchEvent) => {
+      activeTouches = e.touches.length
+      if (e.touches.length >= 2) gestureHadPinch = true
+    }
+    const handleTouchEnd = (e: TouchEvent) => {
+      activeTouches = e.touches.length
+      if (activeTouches === 0 && gestureHadPinch) restoreAnchor()
+    }
+    mapEl?.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true })
+    mapEl?.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true })
+    mapEl?.addEventListener('touchcancel', handleTouchEnd, { passive: true, capture: true })
+
     return () => {
       google.maps.event.removeListener(dragStartListener)
       google.maps.event.removeListener(dragEndListener)
       google.maps.event.removeListener(idleListener)
+      google.maps.event.removeListener(zoomListener)
       google.maps.event.removeListener(clickListener)
+      mapEl?.removeEventListener('wheel', handleWheel, { capture: true })
+      mapEl?.removeEventListener('touchstart', handleTouchStart, { capture: true })
+      mapEl?.removeEventListener('touchend', handleTouchEnd, { capture: true })
+      mapEl?.removeEventListener('touchcancel', handleTouchEnd, { capture: true })
     }
   }, [isReady, isChoosing, onPinLocationChange])
 
@@ -433,6 +516,7 @@ export default function CleanGoogleMap({
         const dLng = Math.abs(currentCenter.lng() - lng)
         // Only pan if coordinate significantly changed from external source (> 30 meters)
         if (dLat > 0.0003 || dLng > 0.0003) {
+          pinAnchorRef.current = { lat, lng }
           map.panTo({ lat, lng })
         }
       }
@@ -459,7 +543,7 @@ export default function CleanGoogleMap({
       return dist <= (radiusMiles || fixedBoxMiles)
     })
 
-    if (onStoresFound && validStoresInRadius.length !== stores.length) {
+    if (onStoresFound && !isChoosing && validStoresInRadius.length !== stores.length) {
       onStoresFound(validStoresInRadius)
     }
 
@@ -641,8 +725,9 @@ export default function CleanGoogleMap({
       }
     }
 
-    // Render pins for each store inside the radius
-    validStoresInRadius.forEach((st) => {
+    // Render pins for each store inside the radius (hidden while the user is still choosing a location)
+    const storesToRender = isChoosing ? [] : validStoresInRadius
+    storesToRender.forEach((st) => {
       const overlay = new CustomStudioMarkerOverlay(
         new google.maps.LatLng(st.coords.lat, st.coords.lng),
         st
@@ -748,9 +833,10 @@ export default function CleanGoogleMap({
     }
 
     const trimmed = mapSearchText.trim()
-    if (trimmed.length < 2) {
+    if (!isUserTypingRef.current || trimmed.length < 2) {
       setSearchResults([])
       setIsSearchingPlaces(false)
+      if (trimmed.length < 2) setIsSearchOpen(false)
       return
     }
 
@@ -785,6 +871,7 @@ export default function CleanGoogleMap({
                 placeId: p.placeId,
               }
             })
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -836,6 +923,7 @@ export default function CleanGoogleMap({
               fullName: p.description,
               placeId: p.place_id,
             }))
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -868,6 +956,7 @@ export default function CleanGoogleMap({
               fullName: g.formatted_address,
               placeId: g.place_id,
             }))
+            if (!isUserTypingRef.current) return
             setSearchResults(mapped)
             setIsSearchingPlaces(false)
             setIsSearchOpen(true)
@@ -897,9 +986,9 @@ export default function CleanGoogleMap({
 
   const handleSelectSearchResult = (result: { title: string; fullName: string; placeId?: string }) => {
     const text = result.title || result.fullName
+    closeSearch()
     setMapSearchText(text)
     if (onSearchTextChange) onSearchTextChange(text)
-    setIsSearchOpen(false)
 
     // Check cached place details first
     if (result.placeId) {
@@ -908,8 +997,9 @@ export default function CleanGoogleMap({
         const newCoords = { lat: cached.lat, lng: cached.lng }
         const map = mapInstanceRef.current
         if (map) {
-          map.panTo(newCoords)
+          pinAnchorRef.current = newCoords
           map.setZoom(16)
+          map.panTo(newCoords)
         }
         if (onPinLocationChange) {
           onPinLocationChange(newCoords)
@@ -932,8 +1022,9 @@ export default function CleanGoogleMap({
         }
         const map = mapInstanceRef.current
         if (map) {
-          map.panTo(newCoords)
+          pinAnchorRef.current = newCoords
           map.setZoom(16)
+          map.panTo(newCoords)
         }
         if (onPinLocationChange) {
           onPinLocationChange(newCoords)
@@ -948,6 +1039,7 @@ export default function CleanGoogleMap({
     if (searchResults.length > 0) {
       handleSelectSearchResult(searchResults[0])
     } else if (mapSearchText.trim()) {
+      closeSearch()
       const geocoder = googleGeocoderRef.current || (typeof google !== 'undefined' && google.maps?.Geocoder ? new google.maps.Geocoder() : null)
       if (!geocoder) return
       geocoder.geocode({ address: mapSearchText.trim() }, (results: any, status: any) => {
@@ -956,8 +1048,9 @@ export default function CleanGoogleMap({
           const newCoords = { lat: loc.lat(), lng: loc.lng() }
           const map = mapInstanceRef.current
           if (map) {
-            map.panTo(newCoords)
+            pinAnchorRef.current = newCoords
             map.setZoom(16)
+            map.panTo(newCoords)
           }
           if (onPinLocationChange) {
             onPinLocationChange(newCoords)
@@ -966,6 +1059,30 @@ export default function CleanGoogleMap({
         }
       })
     }
+  }
+
+  const [isLocating, setIsLocating] = useState(false)
+
+  // Re-center the pin on the device's current position
+  const handleLocateMe = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return
+    setIsLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        pinAnchorRef.current = coords
+        const map = mapInstanceRef.current
+        if (map) {
+          map.setZoom(17)
+          map.panTo(coords)
+        }
+        if (onPinLocationChange) onPinLocationChange(coords)
+        setIsLocating(false)
+      },
+      () => setIsLocating(false),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    )
   }
 
   const handleZoomIn = (e: React.MouseEvent) => {
@@ -989,7 +1106,7 @@ export default function CleanGoogleMap({
   return (
     <div
       onClick={!disableNavigation && onMapClick ? onMapClick : undefined}
-      className={`w-full h-full relative overflow-hidden rounded-[28px] ${
+      className={`w-full h-full relative overflow-hidden rounded-[inherit] ${
         disableNavigation || !onMapClick ? 'cursor-default' : 'cursor-pointer'
       } ${className}`}
     >
@@ -998,11 +1115,16 @@ export default function CleanGoogleMap({
         <iframe
           title="Clean Map Embed"
           src={`https://maps.google.com/maps?q=${query}&t=m&z=13&ie=UTF8&iwloc=near&output=embed`}
-          className="w-full h-full border-0 absolute inset-0 rounded-[28px] contrast-[105%] brightness-[99%] saturate-[80%]"
+          className="w-full h-full border-0 absolute inset-0 rounded-[inherit] contrast-[105%] brightness-[99%] saturate-[80%]"
           loading="lazy"
         />
       ) : (
-        <div ref={mapRef} className="w-full h-full rounded-[28px]" />
+        <div ref={mapRef} className="w-full h-full rounded-[inherit]" />
+      )}
+
+      {/* Soft top fade so the floating search bar reads cleanly over busy map tiles */}
+      {isChoosing && isReady && !loadError && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 z-10 bg-gradient-to-b from-black/15 to-transparent rounded-t-[inherit]" />
       )}
 
       {/* Search Bar (Active ONLY in Choosing Mode, e.g. when picking custom location) */}
@@ -1010,62 +1132,69 @@ export default function CleanGoogleMap({
         <div
           ref={searchContainerRef}
           onClick={(e) => e.stopPropagation()}
-          className="absolute top-3.5 left-3.5 right-14 sm:right-auto sm:w-[320px] md:w-[360px] z-30 flex flex-col font-sans"
+          className="absolute top-3 left-3 right-3 sm:right-auto sm:w-[360px] md:w-[380px] z-30 flex flex-col font-sans"
         >
           <form
             onSubmit={handleSearchSubmit}
-            className="w-full relative flex items-center bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_4px_20px_rgba(0,0,0,0.08)] hover:shadow-[0_6px_24px_rgba(0,0,0,0.12)] transition-all overflow-hidden h-10 px-3 gap-2"
+            className="w-full relative flex items-center bg-white rounded-2xl shadow-[0_8px_28px_rgba(0,0,0,0.16)] ring-1 ring-black/5 focus-within:ring-2 focus-within:ring-black transition-all overflow-hidden h-12 pl-4 pr-2.5 gap-3"
           >
             {isSearchingPlaces ? (
-              <Loader2 className="size-4 text-black animate-spin shrink-0" />
+              <Loader2 className="size-[18px] text-black animate-spin shrink-0" />
             ) : (
-              <Search className="size-4 text-neutral-400 shrink-0" />
+              <Search className="size-[18px] text-black shrink-0" strokeWidth={2.5} />
             )}
             <input
+              ref={searchInputRef}
               type="text"
+              enterKeyHint="search"
               value={mapSearchText}
               onChange={(e) => {
+                isUserTypingRef.current = true
                 setMapSearchText(e.target.value)
                 if (onSearchTextChange) onSearchTextChange(e.target.value)
               }}
               onFocus={() => {
-                if (searchResults.length > 0) setIsSearchOpen(true)
+                if (isUserTypingRef.current && searchResults.length > 0) setIsSearchOpen(true)
               }}
-              placeholder="Search area, landmark or street..."
-              className="w-full bg-transparent text-xs sm:text-sm font-semibold text-black placeholder:text-neutral-400 focus:outline-hidden"
+              placeholder="Search area, landmark or street"
+              className="w-full bg-transparent text-[15px] font-semibold text-black placeholder:text-neutral-400 placeholder:font-medium focus:outline-hidden"
             />
             {mapSearchText && (
               <button
                 type="button"
                 onClick={() => {
+                  isUserTypingRef.current = false
                   setMapSearchText('')
                   if (onSearchTextChange) onSearchTextChange('')
                   setSearchResults([])
                   setIsSearchOpen(false)
+                  searchInputRef.current?.focus()
                 }}
-                className="size-5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-500 flex items-center justify-center shrink-0 transition-all cursor-pointer"
+                className="size-7 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center shrink-0 transition-colors cursor-pointer"
                 title="Clear search"
               >
-                <X size={12} />
+                <X size={14} strokeWidth={2.5} />
               </button>
             )}
           </form>
 
           {/* Autocomplete Dropdown */}
           {isSearchOpen && searchResults.length > 0 && (
-            <div className="mt-1.5 w-full bg-white/98 backdrop-blur-md rounded-2xl border border-gray-200/90 shadow-[0_12px_32px_rgba(0,0,0,0.14)] overflow-hidden py-1 max-h-56 overflow-y-auto">
+            <div className="mt-2 w-full bg-white rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] ring-1 ring-black/5 overflow-hidden py-1.5 max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-1 duration-150">
               {searchResults.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => handleSelectSearchResult(item)}
-                  className="w-full text-left px-3 py-2 hover:bg-neutral-100/80 transition-colors flex items-start gap-2.5 cursor-pointer border-b border-gray-50 last:border-0"
+                  className="w-full text-left px-3 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors flex items-center gap-3 cursor-pointer"
                 >
-                  <MapPin className="size-3.5 text-neutral-400 mt-0.5 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-black truncate">{item.title}</p>
+                  <span className="size-9 rounded-full bg-neutral-100 text-black grid place-items-center shrink-0">
+                    <MapPin className="size-4" />
+                  </span>
+                  <div className="flex-1 min-w-0 border-b border-neutral-100 pb-2.5 -mb-2.5">
+                    <p className="text-sm font-bold text-black truncate">{item.title}</p>
                     {item.subtitle && (
-                      <p className="text-[11px] text-neutral-500 truncate">{item.subtitle}</p>
+                      <p className="text-xs text-neutral-500 truncate mt-0.5">{item.subtitle}</p>
                     )}
                   </div>
                 </button>
@@ -1098,30 +1227,45 @@ export default function CleanGoogleMap({
         </div>
       )}
 
-      {/* Zoom Controls (Active only when actively choosing location) */}
+      {/* Map controls: grouped zoom (pinch replaces it on touch phones / tablet portrait) + locate me */}
       {isChoosing && isReady && !loadError && (
-        <div className="absolute top-3.5 right-3.5 z-20 flex flex-col gap-1.5 shadow-sm">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-3 bottom-8 z-20 flex flex-col items-end gap-2.5"
+        >
+          <div className="flex flex-col rounded-2xl bg-white shadow-[0_6px_20px_rgba(0,0,0,0.16)] ring-1 ring-black/5 overflow-hidden max-lg:pointer-coarse:hidden">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="size-11 grid place-items-center text-black hover:bg-neutral-100 active:bg-neutral-200 transition-colors cursor-pointer"
+              title="Zoom in"
+            >
+              <Plus size={18} strokeWidth={2.5} />
+            </button>
+            <span className="h-px mx-2.5 bg-neutral-200" />
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="size-11 grid place-items-center text-black hover:bg-neutral-100 active:bg-neutral-200 transition-colors cursor-pointer"
+              title="Zoom out"
+            >
+              <Minus size={18} strokeWidth={2.5} />
+            </button>
+          </div>
           <button
             type="button"
-            onClick={handleZoomIn}
-            className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
-            title="Zoom in"
+            onClick={handleLocateMe}
+            disabled={isLocating}
+            className="size-11 rounded-full bg-white text-black grid place-items-center shadow-[0_6px_20px_rgba(0,0,0,0.16)] ring-1 ring-black/5 hover:bg-neutral-100 active:scale-95 transition-all cursor-pointer disabled:cursor-wait"
+            title="Use my current location"
           >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            className="size-9 rounded-xl bg-white hover:bg-neutral-100 text-black font-extrabold text-lg flex items-center justify-center border border-gray-200 shadow-md active:scale-95 transition-all cursor-pointer"
-            title="Zoom out"
-          >
-            &minus;
+            {isLocating ? <Loader2 size={18} className="animate-spin" /> : <LocateFixed size={18} strokeWidth={2.25} />}
           </button>
         </div>
       )}
 
       {!isReady && !loadError && (
-        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[28px] flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 bg-[#EBE7E0] animate-pulse rounded-[inherit] flex items-center justify-center pointer-events-none">
           <div className="size-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
         </div>
       )}
