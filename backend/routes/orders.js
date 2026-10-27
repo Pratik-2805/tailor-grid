@@ -911,8 +911,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // If caller is authenticated, verify BOLA/IDOR permissions
-    if (req.user) {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized: please sign in to modify this order.' });
+    }
+
+    // Verify BOLA/IDOR permissions
+    {
       const isSuperAdmin = req.user.role === 'ADMIN';
       const isAssignedStudio =
         req.user.role === 'STUDIO' &&
@@ -926,15 +930,30 @@ router.put('/:id', async (req, res) => {
         return res.status(403).json({ error: 'Forbidden: You do not have permission to modify this order.' });
       }
 
-      // If customer is modifying, restrict to rating/feedback or notes only
+      // If customer is modifying, restrict to rating/feedback or notes only,
+      // plus cancellation before the drop-off PIN is verified at the counter
       if (isCustomerOwner && !isSuperAdmin && !isAssignedStudio) {
-        const allowedCustomerFields = ['rating', 'ratingFeedback', 'fitNotes'];
+        const allowedCustomerFields = ['rating', 'ratingFeedback', 'fitNotes', 'status'];
         const incomingFields = Object.keys(req.body);
         const hasForbiddenField = incomingFields.some(
           (f) => !allowedCustomerFields.includes(f) && req.body[f] !== undefined
         );
         if (hasForbiddenField) {
           return res.status(403).json({ error: 'Forbidden: Customers cannot alter internal order status or pricing.' });
+        }
+
+        if (req.body.status !== undefined) {
+          if (String(req.body.status).toLowerCase() !== 'cancelled') {
+            return res.status(403).json({ error: 'Forbidden: Customers cannot alter internal order status or pricing.' });
+          }
+          // PIN verification moves the order past Accepted, so only these states are cancellable
+          const cancellableStatuses = ['allocated', 'accepted'];
+          if (!cancellableStatuses.includes(String(existingOrder.status || '').toLowerCase())) {
+            return res.status(409).json({
+              error: 'This order can no longer be cancelled because the garment has already been handed over to the studio.',
+              code: 'NOT_CANCELLABLE',
+            });
+          }
         }
       }
     }

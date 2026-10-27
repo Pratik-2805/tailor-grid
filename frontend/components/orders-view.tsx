@@ -114,7 +114,8 @@ export function OrdersView({ go, user, onOpenAuth }: OrdersViewProps) {
     setIsSubmittingCancel(true)
     try {
       // Mark order as Cancelled in PostgreSQL database
-      await updateOrder(cancellingOrder.id, { status: 'Cancelled' })
+      const updated = await updateOrder(cancellingOrder.id, { status: 'Cancelled' })
+      if (!updated) throw new Error('Cancel rejected by server')
 
       // Update order status in local state so it remains in user's order history as Cancelled
       setBackendOrders((prev) => prev.map((o) => (o.id === cancellingOrder.id ? { ...o, status: 'Cancelled' } : o)))

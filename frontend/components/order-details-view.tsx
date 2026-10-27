@@ -725,7 +725,8 @@ export function OrderDetailsView({ slugId = 'ORD-6154', onGoHome, onGoOrders }: 
     if (!order?.id) return
     setIsCancelling(true)
     try {
-      await updateOrder(order.id, { status: 'Cancelled' })
+      const updated = await updateOrder(order.id, { status: 'Cancelled' })
+      if (!updated) throw new Error('Cancel rejected by server')
       setOrder((prev: any) => ({ ...prev, status: 'Cancelled' }))
       if (typeof window !== 'undefined') {
         try {
