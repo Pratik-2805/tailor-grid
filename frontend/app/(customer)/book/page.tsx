@@ -609,6 +609,8 @@ export default function BookPage() {
   const [searchOrderId, setSearchOrderId] = useState<string>('')
   const searchOrderIdRef = useRef<string>('')
   const [isNoTailorsModalOpen, setIsNoTailorsModalOpen] = useState(false)
+  // 'none': no eligible studio within 5 road miles; 'busy': studios were contacted but none accepted in time
+  const [noTailorsReason, setNoTailorsReason] = useState<'none' | 'busy'>('none')
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const dispatchChannelRef = useRef<BroadcastChannel | null>(null)
 
@@ -954,6 +956,7 @@ export default function BookPage() {
       // If zero tailors found initially within 5 miles
       if (dispatchStartRes.dispatch?.status === 'ZERO_TAILORS') {
         setIsSearching(false)
+        setNoTailorsReason('none')
         setIsNoTailorsModalOpen(true)
         return
       }
@@ -1035,6 +1038,7 @@ export default function BookPage() {
               dispatchChannelRef.current = null
             }
             setIsSearching(false)
+            setNoTailorsReason(status.status === 'EXHAUSTED' ? 'busy' : 'none')
             setIsNoTailorsModalOpen(true)
           } else if (status.status === 'CANCELLED') {
             if (pollingIntervalRef.current) {
@@ -1979,7 +1983,7 @@ export default function BookPage() {
         </div>
       )}
 
-      {/* No Tailors Available Modal (When all tailors decline or 60s search exhausted) */}
+      {/* No Tailors / All Tailors Busy Modal (no studio in range, or all declined / 45s search exhausted) */}
       {isNoTailorsModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-t-[28px] sm:rounded-[28px] p-6 sm:p-7 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[92dvh] overflow-y-auto max-w-md w-full border border-gray-200 shadow-2xl relative space-y-5 animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-150 text-center">
@@ -2002,7 +2006,7 @@ export default function BookPage() {
             {/* Title */}
             <div>
               <h3 className="text-xl sm:text-2xl font-black text-black tracking-tight leading-tight">
-                No Tailors Available Right Now
+                {noTailorsReason === 'busy' ? 'All Our Tailors Are Busy' : 'No Tailors Available Right Now'}
               </h3>
             </div>
 

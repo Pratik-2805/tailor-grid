@@ -1,5 +1,6 @@
 const { prisma } = require('../lib/prisma');
 const { calculateDistanceInMiles } = require('./locate.service');
+const { getRoadDistances } = require('./routing.service');
 const { sendOrderOtpEmail } = require('../lib/email');
 const pushService = require('./push.service');
 
@@ -11,6 +12,9 @@ const STAGE_CONFIG = [
   { stage: 2, minRadius: 1.0, maxRadius: 3.0, durationSec: 15 },
   { stage: 3, minRadius: 3.0, maxRadius: 5.0, durationSec: 15 },
 ];
+
+// Outermost dispatch stage, in road miles; also the straight-line shortlist radius
+const MAX_DISPATCH_MILES = STAGE_CONFIG[STAGE_CONFIG.length - 1].maxRadius;
 
 const DISPATCH_TTL_MS = 1 * 60 * 1000; // 1 minute TTL
 const HARD_TIMEOUT_SEC = 45; // 45 seconds hard dispatch cap (3 stages × 15s)
@@ -61,7 +65,13 @@ function matchesServiceItem(item, requestedService = {}) {
 }
 
 /**
- * Fetch eligible tailors within 5.0 miles ONCE from PostgreSQL
+ * Build the dispatch pool ONCE per order:
+ *   1. Geospatial shortlist: bounding-box DB query + straight-line check within MAX_DISPATCH_MILES.
+ *      A road route is never shorter than the straight line, so this circle already contains
+ *      every studio that can be within MAX_DISPATCH_MILES by road.
+ *   2. Eligibility: drop studios without the requested service before any routing call.
+ *   3. Road distance for the remaining shortlist only (batched, cached, straight-line fallback).
+ * Stages then use the road distance (1 → 3 → 5 miles).
  */
 async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const centerLat = parseFloat(lat);
@@ -70,12 +80,38 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
     throw new Error('Valid latitude and longitude required');
   }
 
-  const stores = await prisma.partnerStore.findMany({
+  const deltaLat = MAX_DISPATCH_MILES / 69.0;
+  const deltaLng = MAX_DISPATCH_MILES / (69.0 * Math.max(0.01, Math.cos((centerLat * Math.PI) / 180)));
+
+  const boxStores = await prisma.partnerStore.findMany({
+    where: {
+      lat: { gte: centerLat - deltaLat, lte: centerLat + deltaLat },
+      lng: { gte: centerLng - deltaLng, lte: centerLng + deltaLng },
+    },
     orderBy: { createdAt: 'desc' },
   });
 
-  // Fetch all catalog items to evaluate both enabled and disabled status
+  const stores = boxStores.filter(
+    (store) =>
+      typeof store.lat === 'number' &&
+      typeof store.lng === 'number' &&
+      calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng) <= MAX_DISPATCH_MILES
+  );
+
+  if (stores.length === 0) return [];
+
+  // Catalog items for the shortlisted studios only (by studio id or owning user id)
+  const shortlistIds = stores.map((s) => s.id);
+  const shortlistUserIds = stores.map((s) => s.userId).filter(Boolean);
+  // Same matching as the in-memory grouping below: item.studioId / item.userId against store.id / store.userId
+  const linkIds = [...shortlistIds, ...shortlistUserIds];
   const allCatalogItems = await prisma.studioCatalogItem.findMany({
+    where: {
+      OR: [
+        { studioId: { in: linkIds, mode: 'insensitive' } },
+        { userId: { in: linkIds, mode: 'insensitive' } },
+      ],
+    },
     select: {
       studioId: true,
       userId: true,
@@ -100,7 +136,7 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
     });
   });
 
-  const pool = [];
+  const eligibleStores = [];
   if (Array.isArray(stores)) {
     stores.forEach((store) => {
       const storeKey = String(store.id).toLowerCase();
@@ -129,29 +165,48 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
         }
       }
 
-      if (typeof store.lat === 'number' && typeof store.lng === 'number') {
-        const dist = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
-        if (dist <= 5.0) {
-          pool.push({
-            tailorId: store.id,
-            name: store.name || 'Raffu Partner Atelier',
-            area: store.area || 'Neighborhood Studio',
-            address: store.address || '',
-            postcode: store.postcode || '',
-            rating: store.rating || 4.96,
-            reviewCount: store.reviewCount || 100,
-            specialties: store.specialties || ['Custom Alterations'],
-            phone: store.phone || '',
-            coords: { lat: store.lat, lng: store.lng },
-            distanceMiles: dist,
-            distance: `${dist} mi away`,
-          });
-        }
-      }
+      eligibleStores.push(store);
     });
   }
 
-  // Sort closest first
+  if (eligibleStores.length === 0) return [];
+
+  // 3. Road distance for the eligible shortlist only
+  const roadDistances = await getRoadDistances(
+    { lat: centerLat, lng: centerLng },
+    eligibleStores.map((store) => ({ id: store.id, lat: store.lat, lng: store.lng }))
+  );
+
+  const pool = [];
+  eligibleStores.forEach((store) => {
+    const road = roadDistances.get(store.id);
+    const straightLineMiles = calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng);
+    const roadMiles = road ? road.roadMiles : straightLineMiles;
+    // Stage filtering and studio-facing distance use the road distance
+    if (!Number.isFinite(roadMiles) || roadMiles > MAX_DISPATCH_MILES) return;
+
+    const durationMin = road && typeof road.durationSec === 'number' ? Math.round(road.durationSec / 60) : null;
+    const milesLabel = `${roadMiles.toFixed(1)} mi`;
+    pool.push({
+      tailorId: store.id,
+      name: store.name || 'Raffu Partner Atelier',
+      area: store.area || 'Neighborhood Studio',
+      address: store.address || '',
+      postcode: store.postcode || '',
+      rating: store.rating || 4.96,
+      reviewCount: store.reviewCount || 100,
+      specialties: store.specialties || ['Custom Alterations'],
+      phone: store.phone || '',
+      coords: { lat: store.lat, lng: store.lng },
+      distanceMiles: roadMiles,
+      straightLineMiles,
+      travelMinutes: durationMin,
+      distanceSource: road ? road.source : 'straight-line',
+      distance: durationMin !== null ? `${milesLabel} · ${durationMin} min away` : `${milesLabel} away`,
+    });
+  });
+
+  // Sort closest by road first
   pool.sort((a, b) => a.distanceMiles - b.distanceMiles);
 
   return pool;
