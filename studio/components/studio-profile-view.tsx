@@ -81,7 +81,7 @@ const ATELIER_PRESETS = [
 
 // Helper to split raw stored address into manual Shop No. and map-detected street address
 function parseAddressParts(rawAddress: string, userId?: string) {
-  let stored = typeof window !== 'undefined' && userId ? (localStorage.getItem(`raffu_studio_shop_no_${userId}`) || localStorage.getItem(`darzi_studio_shop_no_${userId}`)) : null
+  let stored = typeof window !== 'undefined' && userId ? (localStorage.getItem(`raffu_studio_shop_no_${userId}`)) : null
   let sNo = (stored || '').trim()
   let street = (rawAddress || '').trim()
 
