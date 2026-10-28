@@ -104,7 +104,7 @@ export default function StudioPage() {
       try {
         Notification.requestPermission().then((res) => {
           if (res === 'granted') {
-            const studioId = loggedUser.studioId || loggedUser.id
+            const studioId = loggedUser.studioId || null
             subscribeToPush({ storeId: studioId, userId: loggedUser.id }).catch(() => {})
           }
         }).catch(() => {})

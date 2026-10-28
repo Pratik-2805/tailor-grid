@@ -613,7 +613,7 @@ export function PartnerFlow({
         ? rawStudioName
         : 'Master Tailor'
 
-  const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
+  const currentStudioId = user?.studioId || (user as any)?.storeId || ''
 
   const handleSignOutClick = async () => {
     if (onSignOut) {
