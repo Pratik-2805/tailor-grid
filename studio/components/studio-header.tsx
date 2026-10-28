@@ -62,9 +62,9 @@ export function StudioHeader({ user, onSignOut, onOpenProfile }: StudioHeaderPro
                   <span className="text-xs font-semibold text-[#1E2229] group-hover:text-[#9E593B] transition-colors block leading-tight max-w-[130px] truncate">
                     {user.studioName || user.name.split(' ')[0]}
                   </span>
-                  <span className="flex items-center gap-1 text-[9px] text-emerald-700 font-bold uppercase tracking-wider block">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Online
+                  <span className={`flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider block ${user.status === 'INACTIVE' ? 'text-slate-500' : 'text-emerald-700'}`}>
+                    <span className={`size-1.5 rounded-full ${user.status === 'INACTIVE' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse'}`} />
+                    {user.status === 'INACTIVE' ? 'Offline' : 'Online'}
                   </span>
                 </div>
               </button>

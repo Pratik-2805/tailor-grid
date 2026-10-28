@@ -102,6 +102,7 @@ model PartnerStore {
   retailSold    Boolean  @default(true)
   currency      String   @default("GBP")
   currencySymbol String  @default("£")
+  status        String   @default("ACTIVE") // ACTIVE, INACTIVE
   lat           Float
   lng           Float
   distance      String?
@@ -116,6 +117,7 @@ model PartnerStore {
   @@index([postcode])
   @@index([email])
   @@index([phone])
+  @@index([status])
   @@map("partner_stores")
 }
 

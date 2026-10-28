@@ -26,6 +26,7 @@ export const API_ROUTES = {
     SIGNUP: '/auth/signup',
     LOGIN: '/auth/login',
     UPDATE_PROFILE: '/auth/update-profile',
+    STATUS: '/auth/status',
     ME: '/auth/me',
   },
   ORDERS: {
