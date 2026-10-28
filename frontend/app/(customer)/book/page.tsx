@@ -1160,13 +1160,9 @@ export default function BookPage() {
                 </div>
 
                 {/* Heading */}
-                <h1 className="text-[28px] sm:text-[34px] font-black tracking-tight text-[#0F1115] leading-[1.1]">
+                <h1 className="text-2xl sm:text-[32px] font-black tracking-tight text-[#0F1115] leading-tight sm:leading-[1.15]">
                   Request an alteration
                 </h1>
-
-                {/* Connected inputs: category (circle) -> service (square), like pickup -> dropoff */}
-                <div className="relative space-y-2">
-                  <span aria-hidden className={`pointer-events-none absolute z-10 w-0.5 bg-black left-[29px] top-[46px] bottom-[46px] sm:left-[35px] sm:top-[54px] sm:bottom-[54px] transition-opacity ${isCategoryDropdownOpen ? 'opacity-0' : 'opacity-100'}`} />
 
                 {/* 1. Category of Clothes Dropdown */}
                 <div className="relative" ref={categoryRef}>
@@ -1176,10 +1172,10 @@ export default function BookPage() {
                       setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
                       setIsServiceDropdownOpen(false)
                     }}
-                    className={`w-full rounded-xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border-2 active:scale-[0.99] cursor-pointer ${isCategoryDropdownOpen ? 'bg-white border-black' : 'bg-[#F3F3F3] hover:bg-[#EBEBEB] border-transparent'}`}
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
                   >
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                      <div className="size-8 sm:size-9 rounded-full bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
                         <GarmentCategoryIcon categoryId={currentCategory?.id || selectedGarmentId} className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -1242,10 +1238,10 @@ export default function BookPage() {
                       setIsServiceDropdownOpen(!isServiceDropdownOpen)
                       setIsCategoryDropdownOpen(false)
                     }}
-                    className={`w-full rounded-xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border-2 active:scale-[0.99] cursor-pointer ${isServiceDropdownOpen ? 'bg-white border-black' : 'bg-[#F3F3F3] hover:bg-[#EBEBEB] border-transparent'}`}
+                    className="w-full bg-[#F3F3F3] hover:bg-[#EBEBEB] rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between text-left transition-all border border-transparent hover:border-gray-300 active:scale-[0.99] cursor-pointer"
                   >
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
-                      <div className="size-8 sm:size-9 rounded-md bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <div className="size-8 sm:size-9 rounded-lg sm:rounded-xl bg-black text-white flex items-center justify-center shrink-0 shadow-xs">
                         <Scissors className="size-3.5 sm:size-4 text-white" />
                       </div>
                       <div className="min-w-0">
@@ -1302,41 +1298,38 @@ export default function BookPage() {
                   )}
                 </div>
 
-                </div>
-
-                {/* 3. Ride-style option pills: schedule + garment quantity */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsScheduleModalOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#F3F3F3] hover:bg-[#E8E8E8] px-3.5 py-2 text-[13px] sm:text-sm font-bold text-black transition-colors cursor-pointer active:scale-[0.98]"
-                  >
-                    <Clock size={15} className="text-black" />
-                    <span>Schedule for later</span>
-                    <ChevronDown size={15} className="text-neutral-600" />
-                  </button>
-
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[#F3F3F3] pl-3.5 pr-1 py-1">
-                    <span className="text-[13px] sm:text-sm font-bold text-black whitespace-nowrap">
-                      {garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'}
+                {/* 3. Minimal Garment Quantity Strip */}
+                <div className="flex items-center justify-between px-1 py-0.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+                      Garment Quantity
                     </span>
+                    <span className="text-[11px] sm:text-xs font-bold text-neutral-800">
+                      ({garmentQuantity} {garmentQuantity === 1 ? 'piece' : 'pieces'})
+                    </span>
+                  </div>
+
+                  <div className="inline-flex items-center gap-1.5 bg-[#F3F3F3] rounded-full p-1 border border-neutral-200/60 shadow-2xs">
                     <button
                       type="button"
                       onClick={() => setGarmentQuantity((q) => Math.max(1, q - 1))}
                       disabled={garmentQuantity <= 1}
-                      className="size-7 rounded-full bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center text-black transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      className="size-6 rounded-full bg-white hover:bg-neutral-100 disabled:opacity-30 disabled:hover:bg-white flex items-center justify-center text-black transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
                       title="Decrease quantity"
                     >
-                      <Minus size={12} strokeWidth={2.5} />
+                      <Minus size={11} strokeWidth={2.5} />
                     </button>
+                    <span className="w-5 text-center text-xs font-extrabold font-mono text-black select-none">
+                      {garmentQuantity}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setGarmentQuantity((q) => Math.min(4, q + 1))}
                       disabled={garmentQuantity >= 4}
-                      className="size-7 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
+                      className="size-6 rounded-full bg-black hover:bg-neutral-800 disabled:opacity-30 flex items-center justify-center text-white transition-all cursor-pointer active:scale-90 disabled:cursor-not-allowed shadow-2xs"
                       title="Increase quantity (Max 4)"
                     >
-                      <Plus size={12} strokeWidth={2.5} />
+                      <Plus size={11} strokeWidth={2.5} />
                     </button>
                   </div>
                 </div>
@@ -1369,7 +1362,7 @@ export default function BookPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="size-20 rounded-xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all cursor-pointer group shrink-0"
+                        className="size-20 sm:size-24 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-300 hover:border-black bg-neutral-50/60 hover:bg-neutral-100 flex flex-col items-center justify-center p-1.5 sm:p-2 text-center transition-all cursor-pointer group shrink-0"
                       >
                         <div className="size-6 sm:size-7 rounded-full bg-black shadow-xs flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
                           <Camera size={13} className="text-white" />
@@ -1381,7 +1374,7 @@ export default function BookPage() {
 
                     {/* Thumbnail List */}
                     {uploadedImages.map((imgUrl, idx) => (
-                      <div key={idx} className="relative size-20 rounded-xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
+                      <div key={idx} className="relative size-20 sm:size-24 rounded-xl sm:rounded-2xl overflow-hidden border border-gray-300 shrink-0 group shadow-xs">
                         <img src={imgUrl} alt={`Upload ${idx + 1}`} className="w-full h-full object-cover" />
                         <button
                           type="button"
@@ -1413,14 +1406,23 @@ export default function BookPage() {
                 </div>
 
 
-                {/* 6. Primary action (pinned to the bottom of the sheet on mobile) */}
-                <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:pb-6 bg-white border-t border-gray-100 lg:rounded-b-2xl">
+                {/* 6. Action Buttons Row (pinned to the bottom of the sheet on mobile) */}
+                <div className="sticky bottom-0 z-20 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] lg:pb-6 bg-white border-t border-gray-100 lg:rounded-b-2xl grid grid-cols-2 items-center gap-2.5 sm:gap-3">
                   <button
                     type="button"
                     onClick={handleBookNow}
-                    className="w-full rounded-xl bg-black hover:bg-neutral-800 text-white font-bold px-5 py-3.5 text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
+                    className="w-full rounded-xl sm:rounded-2xl bg-black hover:bg-neutral-800 text-white font-bold sm:font-extrabold px-5 sm:px-7 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer shadow-sm active:scale-[0.98] text-center"
                   >
                     Book now
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsScheduleModalOpen(true)}
+                    className="w-full rounded-xl sm:rounded-2xl bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-200 text-black font-bold sm:font-extrabold px-4 sm:px-5 py-3 sm:py-3.5 text-sm sm:text-base transition-all cursor-pointer active:scale-[0.98] flex items-center justify-center gap-2 text-center"
+                  >
+                    <Calendar size={16} className="text-black" />
+                    <span>Schedule</span>
                   </button>
                 </div>
 
