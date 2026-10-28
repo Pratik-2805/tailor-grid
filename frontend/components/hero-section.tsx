@@ -470,7 +470,7 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-6 flex flex-col justify-center w-full max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0"
+            className="lg:col-span-6 flex flex-col justify-center w-full sm:w-fit max-w-[500px] mx-auto lg:max-w-[480px] lg:mx-0"
           >
 
             {/* 1. Location Header */}
@@ -505,6 +505,9 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                 Request an Alteration
               </h1>
             </div>
+
+            {/* Form body: zero intrinsic width so the column is sized by the title, then fills it */}
+            <div className="sm:w-0 sm:min-w-full">
 
             {/* Uber-Style Input Fields */}
             <div className="relative w-full mb-4">
@@ -689,13 +692,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
             </div>
 
             {/* 6. Action Buttons Row */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-3">
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBookNow}
-                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-6 sm:px-7 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs text-center"
+                className="w-full rounded-[12px] bg-black hover:bg-neutral-800 text-white font-semibold px-3 sm:px-5 py-3.5 text-sm sm:text-base transition-colors cursor-pointer shadow-xs text-center"
               >
                 Book now
               </motion.button>
@@ -717,11 +720,13 @@ export function HeroSection({ go, user, onOpenAuth, onQuickSearch, onStartBookin
                   }
                   setIsScheduleModalOpen(true)
                 }}
-                className="w-full sm:w-auto flex-1 sm:flex-initial rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-5 sm:px-6 py-3.5 text-sm sm:text-base transition-colors cursor-pointer flex items-center justify-center gap-2 text-center"
+                className="w-full rounded-[12px] bg-[#F3F3F3] hover:bg-[#E8E8E8] border border-gray-300 text-black font-semibold px-3 sm:px-5 py-3.5 text-sm sm:text-base transition-colors cursor-pointer flex items-center justify-center gap-2 text-center whitespace-nowrap"
               >
-                <Calendar size={18} />
+                <Calendar size={18} className="shrink-0" />
                 <span>Schedule for later</span>
               </motion.button>
+            </div>
+
             </div>
 
           </motion.div>
