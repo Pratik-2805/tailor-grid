@@ -42,6 +42,7 @@ import {
   ShoppingBag,
   Sliders,
   Sparkles,
+  Store,
   Star,
   Tag,
   TrendingUp,
@@ -621,7 +622,7 @@ export function PartnerFlow({
         ? rawStudioName
         : 'Master Tailor'
 
-  const currentStudioId = user?.studioId || (user as any)?.storeId || 'store-x-106'
+  const currentStudioId = user?.studioId || (user as any)?.storeId || ''
 
   const handleSignOutClick = async () => {
     if (onSignOut) {
@@ -702,7 +703,59 @@ export function PartnerFlow({
     }
   }
 
-  const [online, setOnline] = useState(true)
+  const [online, setOnline] = useState<boolean>(() => user?.status !== 'INACTIVE')
+  const [isStatusUpdating, setIsStatusUpdating] = useState<boolean>(false)
+
+  // Sync online state whenever user?.status changes
+  useEffect(() => {
+    if (user?.status) {
+      setOnline(user.status !== 'INACTIVE')
+    }
+  }, [user?.status])
+
+  // Dedicated handler to toggle studio Active / Inactive live status
+  const handleToggleActiveStatus = async () => {
+    if (!hasFilledCatalog) {
+      toast.info('Please configure your Price Catalog first before making your studio active.', {
+        position: 'top-center',
+        autoClose: 4000,
+      })
+      setActiveTab('catalog')
+      if (onTabChange) onTabChange('catalog')
+      return
+    }
+
+    if (isStatusUpdating) return
+    setIsStatusUpdating(true)
+    const nextStatus = online ? 'INACTIVE' : 'ACTIVE'
+
+    try {
+      const res = await updateStudioStatus(nextStatus)
+      if (res && res.success) {
+        setOnline(nextStatus === 'ACTIVE')
+        if (onUpdateUser && res.user) {
+          onUpdateUser(res.user)
+        }
+        if (nextStatus === 'ACTIVE') {
+          toast.success('Studio is now Active! Visible to customers on Raffu map & bookings.', {
+            position: 'top-center',
+            autoClose: 3500,
+          })
+        } else {
+          toast.info('Studio is now Inactive (Offline). Hidden from customer searches & bookings.', {
+            position: 'top-center',
+            autoClose: 3500,
+          })
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update studio status. Please try again.', {
+        position: 'top-center',
+      })
+    } finally {
+      setIsStatusUpdating(false)
+    }
+  }
   const [orders, setOrders] = useState<FittingBooking[]>([])
   const [selectedOrder, setSelectedOrder] = useState<FittingBooking | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -2575,7 +2628,7 @@ export function PartnerFlow({
               title={tailorName}
               className="hover:scale-105 transition-transform cursor-pointer"
             >
-              <StudioAvatar avatar={user?.avatar} name={tailorName} size="md" showStatusDot={true} />
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="md" showStatusDot={true} status={online ? 'ACTIVE' : 'INACTIVE'} />
             </button>
           ) : (
             <button
@@ -2586,7 +2639,7 @@ export function PartnerFlow({
               }}
               className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-white/5 cursor-pointer transition-colors text-left"
             >
-              <StudioAvatar avatar={user?.avatar} name={tailorName} size="sm" showStatusDot={true} />
+              <StudioAvatar avatar={user?.avatar} name={tailorName} size="sm" showStatusDot={true} status={online ? 'ACTIVE' : 'INACTIVE'} />
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate">{tailorName}</div>
                 <div className="text-[10px] text-slate-400 truncate">{user?.area || user?.postcode || 'Partner Tailor'}</div>
@@ -2633,16 +2686,61 @@ export function PartnerFlow({
                 {activeTab === 'profile' && 'Studio Settings'}
                 {activeTab === 'verification' && 'Verify Your Studio'}
               </h1>
-              {hasFilledCatalog ? (
-                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2.5 py-0.5 rounded-full">
-                  <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Online
-                </span>
-              ) : (
-                <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-full">
+              {!hasFilledCatalog ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('catalog')
+                    if (onTabChange) onTabChange('catalog')
+                  }}
+                  title="Configure Price Catalog to activate your store"
+                  className="inline-flex items-center gap-1.5 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/90 px-2.5 py-0.5 rounded-full transition-all cursor-pointer shadow-2xs"
+                >
                   <span className="size-1.5 rounded-full bg-amber-500" />
-                  Offline · Setup Required
-                </span>
+                  <span>Offline · Setup Required</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isStatusUpdating}
+                  onClick={handleToggleActiveStatus}
+                  title={
+                    online
+                      ? 'Studio is ACTIVE: Visible to customers on Raffu map & bookings. Click to switch to Inactive (Offline).'
+                      : 'Studio is INACTIVE: Hidden from customer map, searches & bookings. Click to switch to Active (Online).'
+                  }
+                  className={`group inline-flex items-center gap-2 text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full transition-all border cursor-pointer select-none shadow-2xs ${
+                    online
+                      ? 'bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border-emerald-300/90 hover:border-emerald-400'
+                      : 'bg-slate-100 hover:bg-slate-200/90 text-slate-700 border-slate-300/90 hover:border-slate-400'
+                  } ${isStatusUpdating ? 'opacity-70 cursor-wait' : ''}`}
+                >
+                  <span className="relative flex size-2">
+                    {online ? (
+                      <>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+                      </>
+                    ) : (
+                      <span className="relative inline-flex rounded-full size-2 bg-slate-400" />
+                    )}
+                  </span>
+                  <span className="tracking-tight">
+                    {online ? 'Store Active' : 'Store Inactive'}
+                  </span>
+                  {/* Miniature toggle switch indicator */}
+                  <span
+                    className={`inline-flex items-center shrink-0 w-6 h-3.5 rounded-full transition-colors p-0.5 pointer-events-none ${
+                      online ? 'bg-emerald-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span
+                      className={`size-2.5 rounded-full bg-white shadow-xs transform transition-transform duration-200 ${
+                        online ? 'translate-x-2.5' : 'translate-x-0'
+                      }`}
+                    />
+                  </span>
+                </button>
               )}
             </div>
             <span className="text-[11px] text-slate-500 truncate hidden sm:block">
@@ -2869,6 +2967,7 @@ export function PartnerFlow({
                   name={tailorName}
                   size="sm"
                   showStatusDot={true}
+                  status={online ? 'ACTIVE' : 'INACTIVE'}
                   className="group-hover:scale-105 transition-transform"
                 />
                 <div className="hidden lg:block text-left">
@@ -2901,14 +3000,15 @@ export function PartnerFlow({
                       name={tailorName}
                       size="md"
                       showStatusDot={true}
+                      status={online ? 'ACTIVE' : 'INACTIVE'}
                     />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-bold text-slate-900 truncate">{tailorName}</div>
                       <div className="text-[10px] text-slate-400 truncate">{user?.email || user?.phone || 'Master Tailor'}</div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <span className={`size-1.5 rounded-full ${hasFilledCatalog ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                        <span className={`text-[9px] font-bold ${hasFilledCatalog ? 'text-emerald-600' : 'text-amber-600'} uppercase tracking-wider`}>
-                          {hasFilledCatalog ? 'Active Studio' : 'Pending Price Setup'}
+                        <span className={`size-1.5 rounded-full ${online ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                        <span className={`text-[9px] font-bold ${online ? 'text-emerald-600' : 'text-slate-600'} uppercase tracking-wider`}>
+                          {online ? 'Active Studio (Online)' : 'Inactive (Offline)'}
                         </span>
                       </div>
                     </div>
@@ -3216,6 +3316,35 @@ export function PartnerFlow({
                         {verificationStatus === 'REJECTED' ? 'Upload again' : 'Verify now'}
                       </button>
                     )}
+                  </div>
+                )}
+
+                {/* ── Offline Status Alert Banner ── */}
+                {!online && (
+                  <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-2xs">
+                    <div className="flex items-center gap-3">
+                      <div className="size-10 rounded-xl bg-amber-100 border border-amber-300/70 flex items-center justify-center shrink-0 text-amber-700">
+                        <Store size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-sm text-amber-950">Store is Currently Inactive (Offline)</h3>
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded-full">Hidden</span>
+                        </div>
+                        <p className="text-xs text-amber-800/90 mt-0.5">
+                          Your workshop is temporarily hidden from customer store searches, map discovery, and direct booking requests.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isStatusUpdating}
+                      onClick={handleToggleActiveStatus}
+                      className="shrink-0 self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                      <span className="size-2 rounded-full bg-white animate-pulse" />
+                      Turn Store Active (Online)
+                    </button>
                   </div>
                 )}
 

@@ -27,23 +27,81 @@ async function saveSubscription({ endpoint, p256dh, auth, storeId, userId, userA
     throw new Error("Invalid subscription parameters (endpoint, p256dh, auth required)");
   }
 
+  // 1. Verify and sanitize userId
+  let validUserId = null;
+  let userRecord = null;
+  if (userId) {
+    try {
+      userRecord = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, studioId: true },
+      });
+      if (userRecord) {
+        validUserId = userRecord.id;
+      } else {
+        console.warn(`⚠️ [Push Service] User ID "${userId}" does not exist in users table.`);
+      }
+    } catch (e) {
+      console.warn("⚠️ [Push Service] Error looking up user for subscription:", e.message);
+    }
+  }
+
+  // 2. Verify and sanitize storeId against partner_stores table
+  let candidateStoreId = storeId;
+  // If a client accidentally passed userId as storeId, or storeId wasn't passed, fall back to user's real studioId
+  if ((!candidateStoreId || candidateStoreId === userId) && userRecord?.studioId) {
+    candidateStoreId = userRecord.studioId;
+  }
+
+  let validStoreId = null;
+  if (candidateStoreId) {
+    try {
+      const store = await prisma.partnerStore.findUnique({
+        where: { id: candidateStoreId },
+        select: { id: true },
+      });
+      if (store) {
+        validStoreId = store.id;
+      } else if (userRecord?.studioId && userRecord.studioId !== candidateStoreId) {
+        // Try user's linked studioId if candidate didn't match
+        const fallbackStore = await prisma.partnerStore.findUnique({
+          where: { id: userRecord.studioId },
+          select: { id: true },
+        });
+        if (fallbackStore) {
+          validStoreId = fallbackStore.id;
+        }
+      }
+
+      if (!validStoreId) {
+        console.warn(
+          `⚠️ [Push Service] Store ID "${candidateStoreId}" not found in partner_stores table. Saving subscription without store association.`
+        );
+      }
+    } catch (e) {
+      console.warn("⚠️ [Push Service] Error looking up partnerStore for subscription:", e.message);
+    }
+  }
+
+  const updateData = {
+    p256dh,
+    auth,
+    storeId: validStoreId !== null ? validStoreId : (candidateStoreId ? null : undefined),
+    userId: validUserId !== null ? validUserId : (userId ? null : undefined),
+    userAgent: userAgent || undefined,
+    updatedAt: new Date(),
+  };
+
   return await prisma.pushSubscription.upsert({
     where: { endpoint },
-    update: {
-      p256dh,
-      auth,
-      storeId: storeId || undefined,
-      userId: userId || undefined,
-      userAgent: userAgent || undefined,
-      updatedAt: new Date(),
-    },
+    update: updateData,
     create: {
       endpoint,
       p256dh,
       auth,
-      storeId: storeId || undefined,
-      userId: userId || undefined,
-      userAgent: userAgent || undefined,
+      storeId: validStoreId || null,
+      userId: validUserId || null,
+      userAgent: userAgent || null,
     },
   });
 }

@@ -82,6 +82,8 @@ router.get('/stores', async (req, res) => {
       }
     }
 
+    where.status = { not: 'INACTIVE' };
+
     const prismaStores = await prisma.partnerStore.findMany({
       where,
       orderBy: {
@@ -112,6 +114,7 @@ router.get('/stores', async (req, res) => {
         name: true,
         studioName: true,
         studioId: true,
+        status: true,
         avatar: true,
         address: true,
         postcode: true,
@@ -130,6 +133,11 @@ router.get('/stores', async (req, res) => {
           (u.studioName && u.studioName.toLowerCase() === s.name.toLowerCase()) ||
           (u.name && u.name.toLowerCase() === s.leadTailor.toLowerCase())
       );
+
+      // Exclude stores that are inactive or whose linked studio partner is inactive
+      if (s.status === 'INACTIVE' || (matchingUser && matchingUser.status === 'INACTIVE')) {
+        continue;
+      }
 
       // Studio must have configured prices to be visible to customers
       const isConfigured = activeStudioIds.has(s.id) || (matchingUser && activeStudioIds.has(matchingUser.id));

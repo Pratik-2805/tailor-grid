@@ -74,7 +74,7 @@ export function About() {
 
         <div className="mt-20 grid gap-5 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
           <Reveal className="relative min-h-[260px] overflow-hidden rounded-3xl shadow-card">
-            <Image src="/raffu-images/fabric_pins.jpg" alt="Pins, chalk and tape on fabric" fill sizes="(max-width: 1024px) 100vw, 400px" className="object-cover transition duration-1000 hover:scale-105" />
+            <Image src="/raffu-images/fabric_pins.jpg" alt="Pins, chalk and tape on fabric" fill unoptimized sizes="(max-width: 1024px) 100vw, 400px" className="object-cover transition duration-1000 hover:scale-105" />
           </Reveal>
           {PILLARS.map(({ icon: Icon, title, desc }, i) => (
             <Reveal key={title} delay={0.08 * (i + 1)} className={`${card} group p-7 transition duration-500 hover:-translate-y-1`}>

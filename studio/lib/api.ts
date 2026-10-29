@@ -520,6 +520,44 @@ export async function updateUserProfile(updates: Partial<User> & { otp?: string 
   return data
 }
 
+export async function updateStudioStatus(status?: 'ACTIVE' | 'INACTIVE'): Promise<{ success: boolean; user: User; status: 'ACTIVE' | 'INACTIVE'; message: string }> {
+  let token = getAuthToken()
+  let res = await fetch(getApiUrl(API_ROUTES.AUTH.STATUS), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(status ? { status } : {}),
+  })
+
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      res = await fetch(getApiUrl(API_ROUTES.AUTH.STATUS), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${newToken}`,
+        },
+        body: JSON.stringify(status ? { status } : {}),
+      })
+    }
+  }
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || `Server error (${res.status})`)
+  }
+
+  const data = await res.json()
+  if (data.user) {
+    setAuthUser(data.user)
+    setAuthRole('STUDIO')
+  }
+  return data
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   let token = getAuthToken()
   if (!token) {
