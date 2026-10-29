@@ -252,6 +252,36 @@ function setAuthCookies(res, tokens, req) {
   });
 }
 
+/**
+ * Find an existing partner store that a studio account without a studioId may adopt.
+ * Only stores matching the account's own email or phone, and not already owned by another
+ * account, qualify. Studio and tailor names are not unique, so they are never used: matching
+ * on them let new sign-ups take over (and overwrite) another studio's store.
+ */
+async function findClaimableStore({ email, phone, userId }) {
+  const identity = [
+    ...(email ? [{ email }] : []),
+    ...(phone ? [{ phone }] : []),
+  ];
+  if (identity.length === 0) return null;
+
+  const candidates = await prisma.partnerStore.findMany({
+    where: { OR: identity },
+    orderBy: { createdAt: "asc" },
+  });
+  for (const store of candidates) {
+    const otherOwner = await prisma.user.findFirst({
+      where: {
+        studioId: store.id,
+        ...(userId ? { NOT: { id: userId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (!otherOwner) return store;
+  }
+  return null;
+}
+
 // Unified user resolution & creation helper directly in PostgreSQL
 async function findOrLinkUser({
   email,
@@ -336,15 +366,10 @@ async function findOrLinkUser({
         });
       }
       if (!existingStore) {
-        existingStore = await prisma.partnerStore.findFirst({
-          where: {
-            OR: [
-              ...(normEmail ? [{ email: normEmail }] : []),
-              ...(normPhone ? [{ phone: normPhone }] : []),
-              { name: actualStoreName },
-              { leadTailor: name || "" },
-            ],
-          },
+        existingStore = await findClaimableStore({
+          email: normEmail,
+          phone: normPhone,
+          userId: user?.id,
         });
         if (existingStore) {
           actualStudioId = existingStore.id;
@@ -1945,16 +1970,13 @@ async function enrichStudioUser(user) {
         where: { id: user.studioId },
       });
     }
-    if (!store && (user.studioName || user.name)) {
-      store = await prisma.partnerStore.findFirst({
-        where: {
-          OR: [
-            ...(user.studioName ? [{ name: user.studioName }] : []),
-            { leadTailor: user.name },
-          ],
-        },
+    if (!store && !user.studioId) {
+      store = await findClaimableStore({
+        email: user.email,
+        phone: user.phone,
+        userId: user.id,
       });
-      if (store && !user.studioId) {
+      if (store) {
         await prisma.user.update({
           where: { id: user.id },
           data: { studioId: store.id },
@@ -1963,8 +1985,19 @@ async function enrichStudioUser(user) {
     }
 
     if (store) {
+      let verificationRejectionReason = null;
+      if (store.verificationStatus === "REJECTED") {
+        const latest = await prisma.studioVerification.findFirst({
+          where: { storeId: store.id },
+          orderBy: { createdAt: "desc" },
+          select: { rejectionReason: true },
+        });
+        verificationRejectionReason = latest?.rejectionReason || null;
+      }
       return {
         ...user,
+        verificationStatus: store.verificationStatus || "UNSUBMITTED",
+        verificationRejectionReason,
         email: user.email || store.email || null,
         phone: user.phone || store.phone || null,
         address: user.address || store.address || null,
@@ -2143,17 +2176,11 @@ router.post("/update-profile", async (req, res) => {
             where: { id: user.studioId },
           });
         }
-        if (!store) {
-          store = await prisma.partnerStore.findFirst({
-            where: {
-              OR: [
-                ...(user.studioName ? [{ name: user.studioName }] : []),
-                ...(studioName ? [{ name: String(studioName).trim() }] : []),
-                ...(user.email ? [{ email: user.email }] : []),
-                ...(user.phone ? [{ phone: user.phone }] : []),
-                { leadTailor: user.name },
-              ],
-            },
+        if (!store && !user.studioId) {
+          store = await findClaimableStore({
+            email: user.email,
+            phone: user.phone,
+            userId: user.id,
           });
         }
 
@@ -2426,14 +2453,11 @@ router.get("/me", async (req, res) => {
             where: { id: user.studioId },
           });
         }
-        if (!store && (user.studioName || user.name)) {
-          store = await prisma.partnerStore.findFirst({
-            where: {
-              OR: [
-                ...(user.studioName ? [{ name: user.studioName }] : []),
-                { leadTailor: user.name },
-              ],
-            },
+        if (!store && !user.studioId) {
+          store = await findClaimableStore({
+            email: user.email,
+            phone: user.phone,
+            userId: user.id,
           });
         }
         if (store) {

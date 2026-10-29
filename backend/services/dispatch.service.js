@@ -272,6 +272,8 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
     where: {
       lat: { gte: centerLat - deltaLat, lte: centerLat + deltaLat },
       lng: { gte: centerLng - deltaLng, lte: centerLng + deltaLng },
+      // Only admin-verified studios receive tailoring requests
+      verificationStatus: 'APPROVED',
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -578,6 +580,19 @@ function alreadyAssignedResult(session) {
  * instances), then the confirmed order is created in PostgreSQL.
  */
 async function recordTailorAccept(orderId, tailorId) {
+  // A studio whose verification was revoked mid-search must not claim the order
+  const acceptingStore = await prisma.partnerStore.findUnique({
+    where: { id: tailorId },
+    select: { verificationStatus: true },
+  });
+  if (acceptingStore && acceptingStore.verificationStatus !== 'APPROVED') {
+    return {
+      success: false,
+      code: 'STUDIO_NOT_VERIFIED',
+      message: 'Your studio must be verified before you can accept tailoring requests.',
+    };
+  }
+
   let session = await loadSession(orderId);
 
   if (session) {
@@ -880,6 +895,12 @@ async function getPendingRequestsForTailor(tailorId) {
   const now = Date.now();
   const pending = [];
   const cleanTailorId = normId(tailorId);
+
+  const store = await prisma.partnerStore.findUnique({
+    where: { id: tailorId },
+    select: { verificationStatus: true },
+  });
+  if (store && store.verificationStatus !== 'APPROVED') return [];
 
   // Fetch this studio's catalog items to ensure disabled services are never served in pending requests
   let disabledItems = [];

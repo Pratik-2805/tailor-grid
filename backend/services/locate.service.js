@@ -55,6 +55,8 @@ async function locateTailorsWithinRange({ lat, lng, radiusMiles = 5.0, query = '
           gte: centerLng - deltaLng,
           lte: centerLng + deltaLng,
         },
+        // Customers only see studios that can actually take requests
+        verificationStatus: 'APPROVED',
       },
       orderBy: { createdAt: 'desc' },
     });

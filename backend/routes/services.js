@@ -55,7 +55,8 @@ router.get('/stores', async (req, res) => {
     const lng = parseFloat(req.query.lng);
     const radiusMiles = parseFloat(req.query.radiusMiles || '8.0') || 8.0;
 
-    const where = {};
+    // Customers only see admin-verified studios
+    const where = { verificationStatus: 'APPROVED' };
 
     // Only apply text filtering if explicit search or area is provided without lat/lng
     if (isNaN(lat) || isNaN(lng)) {

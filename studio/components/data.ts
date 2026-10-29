@@ -36,7 +36,11 @@ export type User = {
   leadTailor?: string | null
   currency?: string | null
   currencySymbol?: string | null
+  verificationStatus?: VerificationStatus
+  verificationRejectionReason?: string | null
 }
+
+export type VerificationStatus = 'UNSUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export type StoreOption = {
   id: string
