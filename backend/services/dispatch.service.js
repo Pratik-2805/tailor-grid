@@ -268,20 +268,43 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const deltaLat = MAX_DISPATCH_MILES / 69.0;
   const deltaLng = MAX_DISPATCH_MILES / (69.0 * Math.max(0.01, Math.cos((centerLat * Math.PI) / 180)));
 
-  const boxStores = await prisma.partnerStore.findMany({
-    where: {
-      lat: { gte: centerLat - deltaLat, lte: centerLat + deltaLat },
-      lng: { gte: centerLng - deltaLng, lte: centerLng + deltaLng },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const [boxStores, studioUsers] = await Promise.all([
+    prisma.partnerStore.findMany({
+      where: {
+        status: { not: 'INACTIVE' },
+        lat: { gte: centerLat - deltaLat, lte: centerLat + deltaLat },
+        lng: { gte: centerLng - deltaLng, lte: centerLng + deltaLng },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.user.findMany({
+      where: { role: 'STUDIO' },
+      select: { id: true, studioId: true, studioName: true, name: true, status: true },
+    }),
+  ]);
 
-  const stores = boxStores.filter(
-    (store) =>
+  const inactiveStudioKeys = new Set(
+    studioUsers
+      .filter((u) => u.status === 'INACTIVE')
+      .flatMap((u) => [u.id, u.studioId, u.studioName, u.name])
+      .filter(Boolean)
+      .map((k) => String(k).toLowerCase().trim())
+  );
+
+  const stores = boxStores.filter((store) => {
+    if (store.status === 'INACTIVE') return false;
+    const sId = (store.id || '').toLowerCase().trim();
+    const sName = (store.name || '').toLowerCase().trim();
+    const sLead = (store.leadTailor || '').toLowerCase().trim();
+    if (inactiveStudioKeys.has(sId) || inactiveStudioKeys.has(sName) || inactiveStudioKeys.has(sLead)) {
+      return false;
+    }
+    return (
       typeof store.lat === 'number' &&
       typeof store.lng === 'number' &&
       calculateDistanceInMiles(centerLat, centerLng, store.lat, store.lng) <= MAX_DISPATCH_MILES
-  );
+    );
+  });
 
   if (stores.length === 0) return [];
 

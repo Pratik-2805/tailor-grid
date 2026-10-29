@@ -8,6 +8,7 @@ export interface StudioAvatarProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
   shape?: 'circle' | 'rounded'
   showStatusDot?: boolean
+  status?: 'ACTIVE' | 'INACTIVE'
   className?: string
 }
 
@@ -17,6 +18,7 @@ export function StudioAvatar({
   size = 'sm',
   shape = 'circle',
   showStatusDot = true,
+  status = 'ACTIVE',
   className = '',
 }: StudioAvatarProps) {
   const [imgError, setImgError] = useState(false)
@@ -75,8 +77,12 @@ export function StudioAvatar({
 
       {showStatusDot && (
         <span
-          className={`absolute ${dotSizeClasses} rounded-full bg-emerald-500 ring-2 ring-white shadow-2xs pointer-events-none`}
-          title="Active & Online"
+          className={`absolute ${dotSizeClasses} rounded-full ${
+            status === 'INACTIVE'
+              ? 'bg-slate-400 ring-2 ring-white'
+              : 'bg-emerald-500 ring-2 ring-white animate-pulse'
+          } shadow-2xs pointer-events-none`}
+          title={status === 'INACTIVE' ? 'Inactive & Offline' : 'Active & Online'}
         />
       )}
     </div>

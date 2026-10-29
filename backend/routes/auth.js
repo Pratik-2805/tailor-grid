@@ -1985,6 +1985,8 @@ async function enrichStudioUser(user) {
         ],
         currency: (store.currency && store.currency !== "GBP" ? store.currency : null) || (user.currency && user.currency !== "GBP" ? user.currency : null) || "USD",
         currencySymbol: (store.currency && store.currency !== "GBP" ? store.currencySymbol : null) || (user.currency && user.currency !== "GBP" ? user.currencySymbol : null) || "$",
+        status: user.status || store.status || "ACTIVE",
+        storeStatus: store.status || user.status || "ACTIVE",
       };
     }
   } catch (err) {
@@ -1992,6 +1994,87 @@ async function enrichStudioUser(user) {
   }
   return user;
 }
+
+// POST /api/auth/status - Update or toggle studio partner live active/inactive status
+router.post("/status", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    let userId = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
+        userId = decoded.id;
+      } catch (e) {}
+    }
+
+    const { status, id } = req.body || {};
+    let targetId = userId || id;
+
+    if (!targetId && req.cookies && req.cookies.tg_auth_token) {
+      try {
+        const decoded = jwt.verify(req.cookies.tg_auth_token, JWT_SECRET);
+        targetId = decoded.id;
+      } catch (e) {}
+    }
+
+    if (!targetId) {
+      return res.status(401).json({ error: "Unauthorized: missing user identity." });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: targetId },
+    });
+    if (!currentUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    let nextStatus = status ? String(status).toUpperCase().trim() : (currentUser.status === "ACTIVE" ? "INACTIVE" : "ACTIVE");
+    if (nextStatus !== "ACTIVE" && nextStatus !== "INACTIVE") {
+      nextStatus = "ACTIVE";
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: targetId },
+      data: { status: nextStatus },
+    });
+
+    // Sync status to partner store as well
+    if (currentUser.studioId) {
+      try {
+        await prisma.partnerStore.update({
+          where: { id: currentUser.studioId },
+          data: { status: nextStatus },
+        });
+      } catch (e) {}
+    } else if (currentUser.studioName || currentUser.name) {
+      try {
+        await prisma.partnerStore.updateMany({
+          where: {
+            OR: [
+              ...(currentUser.studioName ? [{ name: currentUser.studioName }] : []),
+              { leadTailor: currentUser.name },
+            ],
+          },
+          data: { status: nextStatus },
+        });
+      } catch (e) {}
+    }
+
+    const enrichedUser = await enrichStudioUser(updatedUser);
+
+    return res.json({
+      success: true,
+      status: nextStatus,
+      user: enrichedUser,
+      message: nextStatus === "ACTIVE"
+        ? "Studio is now Active and visible to customers on Raffu."
+        : "Studio is now Inactive and hidden from customer discovery.",
+    });
+  } catch (err) {
+    console.error("Update Studio Status Error:", err);
+    return res.status(500).json({ error: "Failed to update studio status." });
+  }
+});
 
 // POST /api/auth/update-profile
 router.post("/update-profile", async (req, res) => {
@@ -2025,6 +2108,7 @@ router.post("/update-profile", async (req, res) => {
       specialties,
       leadTailor,
       measurements,
+      status,
     } = req.body;
     let targetId = userId || id;
 
@@ -2127,6 +2211,12 @@ router.post("/update-profile", async (req, res) => {
         typeof measurements === "object"
           ? JSON.stringify(measurements)
           : String(measurements);
+    }
+    if (status !== undefined) {
+      const cleanStatus = String(status).toUpperCase().trim();
+      if (cleanStatus === "ACTIVE" || cleanStatus === "INACTIVE") {
+        updateData.status = cleanStatus;
+      }
     }
 
     let user = await prisma.user.update({
@@ -2302,6 +2392,12 @@ router.post("/update-profile", async (req, res) => {
           }
           if (specialties !== undefined && Array.isArray(specialties)) {
             storeUpdateData.specialties = specialties;
+          }
+          if (status !== undefined) {
+            const cleanStatus = String(status).toUpperCase().trim();
+            if (cleanStatus === "ACTIVE" || cleanStatus === "INACTIVE") {
+              storeUpdateData.status = cleanStatus;
+            }
           }
 
           if (Object.keys(storeUpdateData).length > 0) {

@@ -49,7 +49,7 @@ export function PageHero({ eyebrow, title, desc, image, children }: Props) {
             className="relative aspect-[5/4] overflow-hidden rounded-[32px] shadow-float"
           >
             <motion.div style={{ y: imgY }} className="absolute -inset-y-16 inset-x-0">
-              <Image src={image.src} alt={image.alt} fill priority sizes="(max-width: 1024px) 90vw, 560px" className="object-cover" />
+              <Image src={image.src} alt={image.alt} fill priority unoptimized sizes="(max-width: 1024px) 90vw, 560px" className="object-cover" />
             </motion.div>
             {image.caption && (
               <figcaption className="absolute bottom-5 left-5 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-ink backdrop-blur">{image.caption}</figcaption>

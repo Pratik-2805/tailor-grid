@@ -142,6 +142,7 @@ export function Hero() {
                 alt="Master tailor in atelier pinning and measuring a bespoke camel wool garment with tailor chalk and brass shears"
                 fill
                 priority
+                unoptimized
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover object-center filter contrast-[1.02] transition-transform duration-700 group-hover:scale-105"
               />

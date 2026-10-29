@@ -52,7 +52,7 @@ export function ServicesGallery() {
                 className="group overflow-hidden rounded-3xl border border-ink/[0.07] bg-white shadow-card"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-paper">
-                  <Image src={`/raffu-images/${s.img}.jpg`} alt={s.title} fill sizes="(max-width: 640px) 100vw, 400px" className="object-cover transition duration-700 group-hover:scale-105" />
+                  <Image src={`/raffu-images/${s.img}.jpg`} alt={s.title} fill unoptimized sizes="(max-width: 640px) 100vw, 400px" className="object-cover transition duration-700 group-hover:scale-105" />
                   <span className="absolute top-4 left-4 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold backdrop-blur">{s.group}</span>
                 </div>
                 <div className="p-6">

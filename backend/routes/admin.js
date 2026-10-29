@@ -850,6 +850,7 @@ router.put('/studios/:id', async (req, res) => {
         if (data.email) userUpdate.email = data.email;
         if (data.leadTailor) userUpdate.name = data.leadTailor;
         if (data.name) userUpdate.studioName = data.name;
+        if (data.status) userUpdate.status = data.status;
         if (Object.keys(userUpdate).length > 0) {
           await prisma.user.update({ where: { id: studioUser.id }, data: userUpdate });
         }
