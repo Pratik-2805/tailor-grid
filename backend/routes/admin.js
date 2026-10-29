@@ -1455,11 +1455,18 @@ async function reviewVerification(req, res, approved) {
       const verification = await tx.studioVerification.findUnique({ where: { id } });
       const store = await tx.partnerStore.update({
         where: { id: verification.storeId },
+        // Approval puts the store live; a rejected store stays switched off
         data: approved
-          ? { verificationStatus: 'APPROVED', verifiedAt: now }
-          : { verificationStatus: 'REJECTED', verifiedAt: null },
+          ? { verificationStatus: 'APPROVED', verifiedAt: now, status: 'ACTIVE' }
+          : { verificationStatus: 'REJECTED', verifiedAt: null, status: 'INACTIVE' },
         select: VERIFICATION_STORE_SELECT,
       });
+      if (approved) {
+        await tx.user.updateMany({
+          where: { studioId: store.id, role: 'STUDIO' },
+          data: { status: 'ACTIVE' },
+        });
+      }
       return { ...verification, store };
     });
 

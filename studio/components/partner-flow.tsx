@@ -54,7 +54,7 @@ import {
 } from 'lucide-react'
 import { type FittingBooking, type OrderStatus, type Screen, type User as UserType, type VerificationStatus } from './data'
 import { StudioVerificationView } from './studio-verification-view'
-import { fetchStudioOrders, updateOrder, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, sendOtp, getCustomerSiteUrl, CUSTOMER_SITE_URL, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
+import { fetchStudioOrders, updateOrder, updateStudioStatus, fetchPendingDispatches, respondToDispatch, logoutUser, fetchStudioCatalog, sendOtp, getCustomerSiteUrl, CUSTOMER_SITE_URL, type PendingDispatchRequest, type StudioCatalogItemData } from '@/lib/api'
 import { getStorageCookie, setStorageCookie, clearAllAuth, setCookie } from '@/lib/cookies'
 import { StudioProfileView } from './studio-profile-view'
 import { CustomSelect } from './custom-select'
@@ -703,18 +703,30 @@ export function PartnerFlow({
     }
   }
 
-  const [online, setOnline] = useState<boolean>(() => user?.status !== 'INACTIVE')
+  // A studio can only be switched on once an admin has verified it
+  const isVerified = verificationStatus === 'APPROVED'
+  const isStoreOn = isVerified && user?.storeStatus !== 'INACTIVE'
+  const [online, setOnline] = useState<boolean>(isStoreOn)
   const [isStatusUpdating, setIsStatusUpdating] = useState<boolean>(false)
 
-  // Sync online state whenever user?.status changes
+  // Sync online state whenever the store status or verification changes
   useEffect(() => {
-    if (user?.status) {
-      setOnline(user.status !== 'INACTIVE')
-    }
-  }, [user?.status])
+    setOnline(isStoreOn)
+  }, [isStoreOn])
 
   // Dedicated handler to toggle studio Active / Inactive live status
   const handleToggleActiveStatus = async () => {
+    if (!isVerified) {
+      toast.info(
+        verificationStatus === 'PENDING'
+          ? 'Your verification is under review. You can turn your store on once it is approved.'
+          : 'Please verify your studio first. Your store stays inactive until it is approved.',
+        { position: 'top-center', autoClose: 4000 }
+      )
+      if (needsVerification) setActiveTab('verification')
+      return
+    }
+
     if (!hasFilledCatalog) {
       toast.info('Please configure your Price Catalog first before making your studio active.', {
         position: 'top-center',
@@ -2704,8 +2716,11 @@ export function PartnerFlow({
                   type="button"
                   disabled={isStatusUpdating}
                   onClick={handleToggleActiveStatus}
+                  aria-disabled={!isVerified}
                   title={
-                    online
+                    !isVerified
+                      ? 'Store stays inactive until your studio is verified.'
+                      : online
                       ? 'Studio is ACTIVE: Visible to customers on Raffu map & bookings. Click to switch to Inactive (Offline).'
                       : 'Studio is INACTIVE: Hidden from customer map, searches & bookings. Click to switch to Active (Online).'
                   }
@@ -2713,7 +2728,7 @@ export function PartnerFlow({
                     online
                       ? 'bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border-emerald-300/90 hover:border-emerald-400'
                       : 'bg-slate-100 hover:bg-slate-200/90 text-slate-700 border-slate-300/90 hover:border-slate-400'
-                  } ${isStatusUpdating ? 'opacity-70 cursor-wait' : ''}`}
+                  } ${isStatusUpdating ? 'opacity-70 cursor-wait' : ''} ${!isVerified ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <span className="relative flex size-2">
                     {online ? (
@@ -2726,7 +2741,7 @@ export function PartnerFlow({
                     )}
                   </span>
                   <span className="tracking-tight">
-                    {online ? 'Store Active' : 'Store Inactive'}
+                    {online ? 'Store Active' : !isVerified ? 'Store Inactive · Not verified' : 'Store Inactive'}
                   </span>
                   {/* Miniature toggle switch indicator */}
                   <span
@@ -3319,8 +3334,8 @@ export function PartnerFlow({
                   </div>
                 )}
 
-                {/* ── Offline Status Alert Banner ── */}
-                {!online && (
+                {/* ── Offline Status Alert Banner (unverified studios see the verification banner instead) ── */}
+                {isVerified && !online && (
                   <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-2xs">
                     <div className="flex items-center gap-3">
                       <div className="size-10 rounded-xl bg-amber-100 border border-amber-300/70 flex items-center justify-center shrink-0 text-amber-700">

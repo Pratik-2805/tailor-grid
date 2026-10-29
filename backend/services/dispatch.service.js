@@ -327,6 +327,8 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const [boxStores, studioUsers] = await Promise.all([
     prisma.partnerStore.findMany({
       where: {
+        // Only admin-verified, switched-on studios receive tailoring requests
+        verificationStatus: "APPROVED",
         status: { not: "INACTIVE" },
         lat: { gte: centerLat - deltaLat, lte: centerLat + deltaLat },
         lng: { gte: centerLng - deltaLng, lte: centerLng + deltaLng },
@@ -348,7 +350,8 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const inactiveStudioKeys = new Set(
     studioUsers
       .filter((u) => u.status === "INACTIVE")
-      .flatMap((u) => [u.id, u.studioId, u.studioName, u.name])
+      // Match by store id only: studio and tailor names are not unique
+      .flatMap((u) => [u.studioId])
       .filter(Boolean)
       .map((k) => String(k).toLowerCase().trim()),
   );
@@ -356,15 +359,7 @@ async function fetchEligible5MilePool(lat, lng, requestedService = {}) {
   const stores = boxStores.filter((store) => {
     if (store.status === "INACTIVE") return false;
     const sId = (store.id || "").toLowerCase().trim();
-    const sName = (store.name || "").toLowerCase().trim();
-    const sLead = (store.leadTailor || "").toLowerCase().trim();
-    if (
-      inactiveStudioKeys.has(sId) ||
-      inactiveStudioKeys.has(sName) ||
-      inactiveStudioKeys.has(sLead)
-    ) {
-      return false;
-    }
+    if (inactiveStudioKeys.has(sId)) return false;
     return (
       typeof store.lat === "number" &&
       typeof store.lng === "number" &&

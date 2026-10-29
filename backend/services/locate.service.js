@@ -52,6 +52,8 @@ async function locateTailorsWithinRange({
     const [dbStores, studioUsers] = await Promise.all([
       prisma.partnerStore.findMany({
         where: {
+          // Customers only see verified, switched-on studios
+          verificationStatus: "APPROVED",
           status: { not: "INACTIVE" },
           lat: {
             gte: centerLat - deltaLat,
@@ -79,15 +81,7 @@ async function locateTailorsWithinRange({
     if (Array.isArray(dbStores) && dbStores.length > 0) {
       dbStores.forEach((store) => {
         if (store.status === "INACTIVE") return;
-        const matchingUser = studioUsers.find(
-          (u) =>
-            (u.studioId && u.studioId === store.id) ||
-            (u.studioName &&
-              u.studioName.toLowerCase() ===
-                (store.name || "").toLowerCase()) ||
-            (u.name &&
-              u.name.toLowerCase() === (store.leadTailor || "").toLowerCase()),
-        );
+        const matchingUser = studioUsers.find((u) => u.studioId === store.id);
         if (matchingUser && matchingUser.status === "INACTIVE") return;
         if (typeof store.lat === "number" && typeof store.lng === "number") {
           // Exact spherical distance with full precision
